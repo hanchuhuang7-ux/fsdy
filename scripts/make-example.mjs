@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import { defaultConfig, formation } from "../src/data.js";
+import { aiDuel } from "../src/tactics.js";
 const config = defaultConfig("bridge");
 config.red = formation("volley");
 config.blue = formation("titans", "blue");
@@ -38,4 +39,12 @@ const large = {
 await fs.writeFile(
   new URL("../examples/large-battle.json", import.meta.url),
   JSON.stringify(large, null, 2) + "\n",
+);
+await fs.writeFile(
+  new URL("../examples/ai-duel.json", import.meta.url),
+  JSON.stringify(
+    aiDuel(defaultConfig("ruins"), "maneuver", "counter"),
+    null,
+    2,
+  ) + "\n",
 );

@@ -1,6 +1,16 @@
 import "./style.css";
 import "./mobile.css";
 import "./expansion.css";
+import "./tactics.css";
+import { AI_STYLES, withAI, aiDuel } from "./tactics.js";
+import {
+  squad,
+  placeSquad,
+  moveSquad,
+  hotseatView,
+  nextHotseat,
+} from "./deployment.js";
+import { replayPackage, validateReplay } from "./replay.js";
 import { BattlefieldView } from "./scene.js";
 import { initPhysics, Battle } from "./engine.js";
 import {
@@ -18,6 +28,8 @@ import {
   groundAt,
   validateConfig,
   defaultConfig,
+  canPlace,
+  missionArmy,
 } from "./data.js";
 
 const $ = (selector) => document.querySelector(selector);
@@ -40,6 +52,12 @@ let config = defaultConfig(),
   toastTimer;
 let statusTick = -1,
   liveState = null;
+let playMode = "sandbox",
+  hotseatStage = null,
+  selection = [],
+  editTool = "place",
+  lastResult = null,
+  replayConfig = null;
 const storageKey = "frontline-lab-v1";
 const clone = (value) => structuredClone(value);
 const escape = (s) =>
@@ -61,6 +79,7 @@ function toast(message) {
   toastTimer = setTimeout(() => $("#toast").classList.remove("show"), 3200);
 }
 function persist() {
+  if (playMode === "hotseat") return;
   try {
     localStorage.setItem(storageKey, JSON.stringify(config));
   } catch {}
@@ -75,11 +94,17 @@ function dialog(title, body) {
   $("#modal-body").innerHTML = body;
   $("#modal").showModal();
 }
-function editable() {
+function editable(allowAI = false) {
   if (mode !== "deploy") {
     toast("先点击「返回布阵」，再调整军队。");
     return false;
   }
+  if (playMode === "ai-ai" && !allowAI) {
+    toast("自动演武由 AI 布阵；切换对战方式即可手动编辑。");
+    return false;
+  }
+  if (playMode === "hotseat" && !["red", "blue"].includes(hotseatStage))
+    return false;
   return true;
 }
 function budget() {
@@ -115,23 +140,35 @@ function updatePanel() {
   $("#budget-fill").style.width =
     `${Math.max(0, (available / budget()) * 100)}%`;
   if (mode === "deploy") {
-    $("#red-count").textContent = config.red.length;
-    $("#blue-count").textContent = config.blue.length;
+    for (const t of ["red", "blue"])
+      $("#" + t + "-count").textContent =
+        playMode === "hotseat" &&
+        hotseatStage !== "revealed" &&
+        hotseatStage !== t
+          ? "?"
+          : config[t].length;
   }
   $("#team-red").classList.toggle("active", team === "red");
   $("#team-blue").classList.toggle("active", team === "blue");
-  $("#team-blue").disabled = missionIndex !== null;
+  $("#team-red").disabled = playMode === "hotseat" && hotseatStage !== "red";
+  $("#team-blue").disabled =
+    missionIndex !== null ||
+    playMode === "human-ai" ||
+    (playMode === "hotseat" && hotseatStage !== "blue");
   document.querySelectorAll(".unit-card").forEach((b) => {
     const definitions = catalog === "units" ? UNITS : PROPS,
       choice = catalog === "units" ? selected : selectedProp;
     b.classList.toggle("active", b.dataset.type === choice);
     b.disabled =
-      mode !== "deploy" || available < definitions[b.dataset.type].cost;
+      mode !== "deploy" ||
+      playMode === "ai-ai" ||
+      available < definitions[b.dataset.type].cost;
   });
   for (const id of ["preset", "clear", "undo", "stance", "map"])
     $("#" + id).disabled =
       mode !== "deploy" ||
-      (id === "map" && missionIndex !== null) ||
+      (playMode === "ai-ai" && id !== "map") ||
+      (id === "map" && (missionIndex !== null || playMode === "hotseat")) ||
       (id === "stance" && catalog === "props");
   $("#unit-detail").textContent =
     catalog === "units"
@@ -150,9 +187,59 @@ function updatePanel() {
     $("#mission").innerHTML =
       `<strong>${m.name}</strong><p>${m.description}</p>`;
   }
+  $("#play-mode").value = playMode;
+  $("#play-mode").disabled = mode !== "deploy" || missionIndex !== null;
+  $(".ai-settings").classList.toggle(
+    "hidden",
+    !["human-ai", "ai-ai"].includes(playMode),
+  );
+  $("#red-ai").disabled = playMode !== "ai-ai" || mode !== "deploy";
+  for (const id of ["blue-ai", "generate-ai"])
+    $("#" + id).disabled = mode !== "deploy";
+  $("#workshop").disabled =
+    playMode === "hotseat" && hotseatStage !== "revealed";
+  $("#mode-description").textContent = {
+    sandbox: "编辑双方，试验你的战术。",
+    "human-ai": "你指挥红方。开战前蓝方 AI 依据公开编队完成反制。",
+    "ai-ai": "双方各侦察一次公开草案，再同时定阵；点击开战自动演武。",
+    hotseat:
+      hotseatStage === "red"
+        ? "红方秘密布阵，完成后封存并交接。"
+        : hotseatStage === "blue"
+          ? "蓝方秘密布阵；红方兵力、道具与数量已隐藏。"
+          : "封存编队，等待揭晓。",
+  }[playMode];
+  for (const id of [
+    "squad-builder",
+    "select-tool",
+    "select-type",
+    "move-selection",
+    "delete-selection",
+    "apply-stance",
+    "clear-selection",
+  ])
+    $("#" + id).disabled = mode !== "deploy" || playMode === "ai-ai";
+  $("#selection-info").textContent = selection.length
+    ? `已选 ${selection.length} 人 · ${editTool === "move" ? "点击目标位置移动" : "可移动、删除或改姿态"}`
+    : editTool === "select"
+      ? "拖动框选本方部队；点击可逐个选择"
+      : "未选中部队";
+  $("#select-tool").classList.toggle("active", editTool === "select");
+  if (mode === "deploy" && playMode === "hotseat")
+    $("#start").innerHTML =
+      hotseatStage === "red"
+        ? "封存红方 →"
+        : hotseatStage === "blue"
+          ? "揭晓并开战 ↗"
+          : "等待交接";
 }
 function redraw() {
-  view.deployment(config);
+  const visible =
+    playMode === "hotseat" ? hotseatView(config, hotseatStage) : config;
+  view.deployment(visible);
+  selection = selection.filter((i) => config[team][i]);
+  view.selection(team, selection);
+  view.controls.enabled = editTool !== "select";
   updatePanel();
   persist();
 }
@@ -172,24 +259,162 @@ function reset() {
   $("#status-dot").style.background = "#a3ae8a";
   $(".replay-bar")?.remove();
   frames = [];
+  lastResult = null;
+  replayConfig = null;
+  selection = [];
+  editTool = "place";
+  if (playMode === "hotseat") {
+    config = { ...config, red: [], blue: [], props: [] };
+    hotseatStage = "red";
+    team = "red";
+    history = [];
+  }
+  $("#hotseat-cover").classList.add("hidden");
+  $("#preview-label").classList.add("hidden");
   redraw();
 }
 function changeMap(id) {
-  if (!editable()) return;
+  if (!editable(true)) return;
   commit();
   config.map = id;
   config.budget = Math.max(2200, config.budget);
   config.props = [];
   config.red = formation("balanced");
   config.blue = formation("balanced", "blue");
+  selection = [];
+  refreshAI(false);
   view.map(id);
   redraw();
+}
+function refreshAI(notify = true) {
+  if (mode !== "deploy" || missionIndex !== null) return;
+  if (playMode === "human-ai")
+    config = withAI(config, "blue", $("#blue-ai").value);
+  if (playMode === "ai-ai")
+    config = aiDuel(config, $("#red-ai").value, $("#blue-ai").value);
+  if (notify) {
+    redraw();
+    toast("AI 已按当前地图、军费与公开编队重新布阵。");
+  }
+}
+function changePlayMode(value) {
+  if (mode !== "deploy" || missionIndex !== null) return;
+  playMode = value;
+  hotseatStage = value === "hotseat" ? "red" : null;
+  team = "red";
+  selection = [];
+  history = [];
+  editTool = "place";
+  if (value === "hotseat") config = { ...config, red: [], blue: [], props: [] };
+  else if (!config.red.length || !config.blue.length)
+    config = defaultConfig(config.map);
+  refreshAI(false);
+  redraw();
+}
+function buildSquad() {
+  if (!editable()) return;
+  dialog(
+    "混编整队与镜像排阵",
+    `<p>各兵种按列表顺序排入队形。锚点是队伍前沿中心；后排向己方纵深延伸。整队通过全部间距与军费检查后才放置。</p><div class="squad-roster">${Object.entries(
+      UNITS,
+    )
+      .map(
+        ([id, d]) =>
+          `<label>${d.name} · ${d.cost}<input aria-label="${d.name}人数" data-squad="${id}" type="number" min="0" max="60" value="${id === selected ? 3 : 0}"></label>`,
+      )
+      .join(
+        "",
+      )}</div><div class="squad-form"><label>队形 <select id="squad-shape"><option value="square">方阵</option><option value="line">横排</option><option value="wedge">楔形阵</option></select></label><label>锚点 x <input id="squad-x" type="number" step="0.5" value="${team === "red" ? -6 : 6}"></label><label>锚点 z <input id="squad-z" type="number" step="0.5" value="0"></label><label><input id="squad-mirror" type="checkbox"> 沿 z=0 镜像追加</label></div><p>新单位使用左侧当前姿态；镜像队伍请把锚点移向一侧，避免与原队重叠。</p><button class="action" id="place-squad">整队放置</button>`,
+  );
+  $("#place-squad").onclick = () => {
+    try {
+      const roster = [...document.querySelectorAll("[data-squad]")].map(
+        (e) => ({
+          type: e.dataset.squad,
+          count: Number(e.value),
+          stance: $("#stance").value,
+        }),
+      );
+      const additions = squad({
+        roster,
+        shape: $("#squad-shape").value,
+        x: Number($("#squad-x").value),
+        z: Number($("#squad-z").value),
+        team,
+        mirror: $("#squad-mirror").checked,
+      });
+      const next = placeSquad(config, team, additions);
+      if (teamCost(next, team) > budget()) throw Error("超出试炼军费");
+      commit();
+      config = next;
+      selection = [];
+      editTool = "place";
+      redraw();
+      $("#modal").close();
+      toast(`已放置 ${additions.length} 名士兵。`);
+    } catch (e) {
+      toast(e.message);
+    }
+  };
+}
+function contributionsHTML(report) {
+  if (!report) return "";
+  const n = (v) => Math.round(v).toLocaleString();
+  const header =
+    "<tr><th>兵种 / 单位</th><th>存活/出战</th><th>伤亡</th><th>伤害</th><th>承伤</th><th>治疗</th><th>击杀</th><th>坠崖</th><th>误伤</th></tr>";
+  const row = (name, r) =>
+    `<tr><td>${name}</td><td>${r.survived ?? (r.alive ? 1 : 0)}/${r.initial ?? 1}</td><td>${r.lost ?? (r.alive ? 0 : 1)}</td><td>${n(r.damageDealt)}</td><td>${n(r.damageTaken)}</td><td>${n(r.healing)}</td><td>${r.kills}</td><td>${r.falls}</td><td>${n(r.friendlyFire)}</td></tr>`;
+  let body = "";
+  for (const t of ["red", "blue"]) {
+    const s = report.teams[t];
+    body += `<tr><td colspan="9" class="team-title">${t === "red" ? "朱砂军" : "靛蓝军"} · 剩余战力 ${n(s.remainingValue)}</td></tr>`;
+    body += row("全军（含己方道具）", s);
+    body += Object.entries(s.byType)
+      .sort(
+        (a, b) =>
+          b[1].damageDealt + b[1].healing - a[1].damageDealt - a[1].healing,
+      )
+      .map(([type, r]) => row(UNITS[type].name, r))
+      .join("");
+  }
+  const mvp = report.mvp;
+  const rank = [...report.units]
+    .sort(
+      (a, b) =>
+        b.damageDealt -
+          b.friendlyFire +
+          b.healing -
+          (a.damageDealt - a.friendlyFire + a.healing) || a.id - b.id,
+    )
+    .slice(0, 8);
+  return `${mvp ? `<div class="mvp">本场 MVP · ${mvp.team === "red" ? "红" : "蓝"}方 ${UNITS[mvp.type].name} #${mvp.id} · ${n(mvp.damageDealt)} 伤害 / ${n(mvp.healing)} 治疗 / ${mvp.kills} 击杀</div>` : ""}<div class="contribution-scroll"><table class="contribution-table">${header}${body}</table><details><summary>单位贡献榜 · 前八名</summary><table class="contribution-table">${header}${rank.map((u) => row(`${u.team === "red" ? "红" : "蓝"} ${UNITS[u.type].name} #${u.id}`, u)).join("")}</table></details></div>`;
 }
 function start() {
   if (mode === "battle" || mode === "replay" || mode === "ended") {
     reset();
     return;
   }
+  if (playMode === "hotseat") {
+    try {
+      hotseatStage = nextHotseat(hotseatStage, config);
+      selection = [];
+      history = [];
+      editTool = "place";
+      if (hotseatStage === "handoff") {
+        team = "blue";
+        redraw();
+        $("#hotseat-cover").classList.remove("hidden");
+        return;
+      }
+    } catch (e) {
+      toast(e.message);
+      return;
+    }
+  }
+  if (playMode === "human-ai")
+    config = withAI(config, "blue", $("#blue-ai").value);
+  if (playMode === "ai-ai")
+    config = aiDuel(config, $("#red-ai").value, $("#blue-ai").value);
   if (!config.red.length || !config.blue.length) {
     toast("双方都需要至少一名士兵。");
     return;
@@ -202,6 +427,12 @@ function start() {
     return;
   }
   mode = "battle";
+  config = validateConfig(config);
+  replayConfig = clone(config);
+  lastResult = null;
+  selection = [];
+  view.controls.enabled = true;
+  $("#preview-label").classList.add("hidden");
   frames = [battle.snapshot()];
   accumulator = 0;
   paused = false;
@@ -218,7 +449,7 @@ function finish() {
   $("#pause").classList.add("hidden");
   $("#status").textContent = "战斗结束";
   $("#status-dot").style.background = "#728e5f";
-  const r = battle.result,
+  const r = battle?.result || lastResult,
     winner =
       r.winner === "draw"
         ? "势均力敌"
@@ -226,6 +457,7 @@ function finish() {
           ? "朱砂军获胜"
           : "靛蓝军获胜";
   const victory = missionIndex !== null && r.winner === "red";
+  lastResult = r;
   $("#red-count").textContent = r.red;
   $("#blue-count").textContent = r.blue;
   $("#battle-time").textContent = r.time.toFixed(1) + " 秒 / 90 秒";
@@ -234,10 +466,12 @@ function finish() {
       localStorage.setItem("frontline-mission-" + missionIndex, "won");
     } catch {}
   $("#result").innerHTML =
-    `<span class="eyebrow">${victory ? "TRIAL COMPLETED" : "THE DUST SETTLES"}</span><h2 class="${r.winner}">${winner}</h2><p>用时 ${r.time.toFixed(1)} 秒 · 剩余 ${r.red} : ${r.blue}<br>${r.reason === "timeout" ? "时间耗尽，按存活兵力价值判定。" : "最后一名敌人，已离开战场。"}</p><button id="watch-replay">▶ 战斗回放</button><button id="retry">调整阵型</button>${missionIndex !== null && missionIndex < MISSIONS.length - 1 ? '<button id="next-mission">下一试炼 →</button>' : ""}`;
+    `<span class="eyebrow">${victory ? "TRIAL COMPLETED" : "THE DUST SETTLES"}</span><h2 class="${r.winner}">${winner}</h2><p>用时 ${r.time.toFixed(1)} 秒 · 剩余 ${r.red} : ${r.blue}<br>${r.reason === "timeout" ? "时间耗尽，按存活兵力价值判定。" : "最后一名敌人，已离开战场。"}</p>${contributionsHTML(r.report)}<div class="result-actions"><button id="watch-replay">▶ 战斗回放</button><button id="export-replay">导出完整回放</button><button id="export-seed">导出种子重演包</button><button id="retry">调整阵型</button>${missionIndex !== null && missionIndex < MISSIONS.length - 1 ? '<button id="next-mission">下一试炼 →</button>' : ""}</div>`;
   $("#result").classList.remove("hidden");
   $("#watch-replay").onclick = beginReplay;
   $("#retry").onclick = reset;
+  $("#export-replay").onclick = () => exportReplay("trajectory");
+  $("#export-seed").onclick = () => exportReplay("seed");
   if ($("#next-mission"))
     $("#next-mission").onclick = () => loadMission(missionIndex + 1);
 }
@@ -247,6 +481,7 @@ function beginReplay() {
     return;
   }
   mode = "replay";
+  $(".replay-bar")?.remove();
   replayTime = 0;
   paused = false;
   view.clearActors();
@@ -284,21 +519,98 @@ function showReplay() {
   $("#red-count").textContent = counts("red");
   $("#blue-count").textContent = counts("blue");
 }
-function saveJson(name, value) {
+function saveJson(name, value, compact = false) {
   const a = document.createElement("a"),
     url = URL.createObjectURL(
-      new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }),
+      new Blob([JSON.stringify(value, null, compact ? 0 : 2)], {
+        type: "application/json",
+      }),
     );
   a.href = url;
   a.download = name;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+function exportReplay(kind) {
+  try {
+    saveJson(
+      `frontline-${kind}-replay.json`,
+      replayPackage(replayConfig || config, frames, lastResult, kind),
+      true,
+    );
+    toast("回放包已导出。");
+  } catch (e) {
+    toast("回放导出失败：" + e.message);
+  }
+}
+async function loadReplay(raw) {
+  const pkg = validateReplay(raw);
+  let loadedFrames = pkg.frames,
+    result = pkg.result;
+  if (pkg.kind === "seed") {
+    toast("正在按种子重演…");
+    const simulator = new Battle(pkg.config);
+    loadedFrames = [simulator.snapshot()];
+    try {
+      while (!simulator.result) {
+        simulator.step();
+        if (simulator.tick % 6 === 0) loadedFrames.push(simulator.snapshot());
+        if (simulator.tick % 600 === 0)
+          await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+      if (simulator.tick % 6 !== 0) loadedFrames.push(simulator.snapshot());
+      result = simulator.result;
+    } finally {
+      simulator.dispose();
+    }
+  }
+  battle?.dispose();
+  battle = null;
+  config = pkg.config;
+  replayConfig = clone(config);
+  lastResult = result;
+  frames = loadedFrames;
+  playMode = "sandbox";
+  hotseatStage = null;
+  missionIndex = null;
+  selection = [];
+  editTool = "place";
+  team = "red";
+  view.controls.enabled = true;
+  view.map(config.map);
+  mode = "ended";
+  updatePanel();
+  $("#modal").close();
+  $("#start").innerHTML = "返回布阵 <span>↶</span>";
+  beginReplay();
+}
 function workshop() {
+  if (playMode === "hotseat" && hotseatStage !== "revealed")
+    return toast("盲选封存期间，策略档案与导出已关闭。");
   dialog(
     "策略与战场档案",
-    `<p>把布阵文件交给 AI，让它研究兵种、坐标与姿态，写出自己的军队。这里保存完整对局配置；导入不会运行任何脚本。</p><div class="settings"><label for="seed">对局种子</label><input id="seed" type="number" min="0" max="4294967295" value="${config.seed}" ${mode !== "deploy" ? "disabled" : ""}><button class="action" id="apply-seed" ${mode !== "deploy" ? "disabled" : ""}>应用</button></div><button class="action" id="export-config">导出对局 JSON</button><button class="action" id="import-config">从文件导入</button><button class="action" id="save-local">保存当前阵型</button><input id="file-input" type="file" accept=".json,application/json" hidden><h3>编辑对局</h3><p>每方最多 ${MAX_UNITS} 人。x 为左右方向，z 为前后方向；红方 x ≤ -2.5，蓝方 x ≥ 2.5。姿态：advance / hold / flank。</p><textarea id="config-editor" spellcheck="false" aria-label="对局配置 JSON">${escape(JSON.stringify(config, null, 2))}</textarea><button class="action" id="apply-config" ${mode !== "deploy" ? "disabled" : ""}>载入编辑的对局</button><h3>复现与评测</h3><p>项目提供无界面的 Node.js 评测命令、策略示例和 AI 提示词。回放会记录当前对局的物理轨迹；相同引擎版本与种子可复现模拟。完整文档见项目 README。</p>`,
+    `<p>把布阵文件交给 AI，让它研究兵种、坐标与姿态，写出自己的军队。这里保存完整对局配置；导入不会运行任何脚本。</p><div class="settings"><label for="seed">对局种子</label><input id="seed" type="number" min="0" max="4294967295" value="${config.seed}" ${mode !== "deploy" ? "disabled" : ""}><button class="action" id="apply-seed" ${mode !== "deploy" ? "disabled" : ""}>应用</button></div><button class="action" id="export-config">导出对局 JSON</button><button class="action" id="import-config">从文件导入</button><button class="action" id="save-local">保存当前阵型</button><input id="file-input" type="file" accept=".json,application/json" hidden><h3>编辑对局</h3><p>每方最多 ${MAX_UNITS} 人。x 为左右方向，z 为前后方向；红方 x ≤ -2.5，蓝方 x ≥ 2.5。姿态：advance / hold / flank / hunt；省略时默认 advance。</p><textarea id="config-editor" spellcheck="false" aria-label="对局配置 JSON">${escape(JSON.stringify(config, null, 2))}</textarea><button class="action" id="apply-config" ${mode !== "deploy" ? "disabled" : ""}>载入编辑的对局</button><h3>复现与评测</h3><p>项目提供无界面的 Node.js 评测命令、策略示例和 AI 提示词。回放会记录当前对局的物理轨迹；相同引擎版本与种子可复现模拟。完整文档见项目 README。</p>`,
   );
+  const replayTools = document.createElement("div");
+  replayTools.innerHTML = `<h3>回放档案</h3><button class="action" id="import-replay">载入回放包 / 种子包</button><input id="replay-file" type="file" accept=".json,application/json" hidden><p>完整回放保存 10 Hz 轨迹；种子包使用同一版本引擎重新推演。回放文件最多 64 MB。</p>`;
+  $("#modal-body").prepend(replayTools);
+  $("#import-replay").onclick = () => {
+    if (mode === "battle") return toast("请先返回布阵。");
+    $("#replay-file").click();
+  };
+  $("#replay-file").onchange = async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    if (f.size > 64 * 1024 * 1024) return toast("回放文件须小于 64 MB。");
+    $("#import-replay").disabled = true;
+    try {
+      await loadReplay(JSON.parse(await f.text()));
+    } catch (error) {
+      toast("载入失败：" + error.message);
+    } finally {
+      if ($("#import-replay")) $("#import-replay").disabled = false;
+    }
+  };
   $("#export-config").onclick = () => saveJson("frontline-battle.json", config);
   const settings = document.createElement("div");
   settings.className = "settings";
@@ -320,6 +632,7 @@ function workshop() {
       return toast("当前兵力和道具超出这档军费，请先精简。");
     commit();
     config.budget = n;
+    refreshAI(false);
     updatePanel();
     persist();
     $("#config-editor").value = JSON.stringify(config, null, 2);
@@ -345,6 +658,10 @@ function workshop() {
       history = [];
       missionIndex = null;
       config = clone(normalized);
+      playMode = "sandbox";
+      hotseatStage = null;
+      selection = [];
+      editTool = "place";
       team = "red";
       view.map(config.map);
       redraw();
@@ -408,6 +725,8 @@ function choosePreset() {
   );
 }
 function loadMission(index) {
+  playMode = "sandbox";
+  hotseatStage = null;
   reset();
   history = [];
   missionIndex = index;
@@ -418,7 +737,7 @@ function loadMission(index) {
     seed: 20261116,
     budget: Math.max(m.budget, cost(formation(m.enemy, "blue"))),
     red: [],
-    blue: formation(m.enemy, "blue"),
+    blue: missionArmy(m),
     props: [],
   };
   team = "red";
@@ -446,37 +765,14 @@ function chooseMission() {
     .forEach((b) => (b.onclick = () => loadMission(Number(b.dataset.mission))));
 }
 function validPlacement(p) {
-  if (!p) return false;
-  if (team === "red" ? p.x > -2.5 : p.x < 2.5) return false;
-  if (
-    Math.abs(p.x) > 16.8 ||
-    Math.abs(p.z) > 10.8 ||
-    !groundAt(config.map, p.x, p.z)
-  )
-    return false;
-  const radius =
-    catalog === "units"
-      ? 0.62 * UNITS[selected].scale
-      : PROPS[selectedProp].radius;
-  if (
-    MAPS[config.map].walls.some(
-      (w) =>
-        Math.abs(p.x - w.x) < w.hx + radius &&
-        Math.abs(p.z - w.z) < w.hz + radius,
+  return (
+    !!p &&
+    canPlace(
+      config,
+      team,
+      { type: catalog === "units" ? selected : selectedProp, x: p.x, z: p.z },
+      catalog === "units" ? "unit" : "prop",
     )
-  )
-    return false;
-  if (
-    [...MAPS[config.map].props, ...(config.props || [])].some(
-      (q) =>
-        !(catalog === "units" && ["spring", "spikes"].includes(q.type)) &&
-        Math.hypot(p.x - q.x, p.z - q.z) < radius + PROPS[q.type].radius,
-    )
-  )
-    return false;
-  return !config[team].some(
-    (u) =>
-      Math.hypot(p.x - u.x, p.z - u.z) < 0.62 * UNITS[u.type].scale + radius,
   );
 }
 function terrainInfo() {
@@ -497,11 +793,17 @@ function terrainInfo() {
 function help() {
   dialog(
     "战场手册",
-    `<p>先排兵，再布置道具。骑兵需要冲锋距离，军医提供持续治疗，投石车可以越过低矮掩体。每个士兵都有实体碰撞；箭、炸弹、冲击波与重力会共同决定结果。</p><h3>如何操作</h3><ul><li>选兵种，左键点击本方半场放置。右键点击士兵移除，或按住 Shift 点击。</li><li>拖动旋转视角，滚轮缩放，右键拖动平移。触屏双指缩放。</li><li><span class="key">空格</span> 开战 / 暂停，<span class="key">R</span> 返回布阵，<span class="key">Ctrl Z</span> 撤销布阵。</li><li>自由沙盘可编辑双方；战术试炼只编辑朱砂军。</li></ul><h3>几条实用战术</h3><ul><li>盾卫面向敌军才能减伤。长枪在盾后也能攻击。</li><li>弓手会预测移动目标，但箭可能撞上友军。</li><li>炸弹 1.8 秒引爆，双方都会受到伤害与击飞。</li><li>危桥上的单位会尝试走桥；拥挤或冲击可能把它推下去。</li><li>交战上限 90 秒；超时按剩余血量折算的兵力价值决胜。</li></ul><h3>关于这个版本</h3><p>原创开源 Alpha 0.2。十种兵种、六张地图、五种可布置道具、关节布娃娃。近战使用距离与冷却判定，移动、碰撞、抛射与倒地由 Rapier 求解。玩法灵感来自《纸上谈兵》和全面战争式物理沙盘。</p>`,
+    `<p>先排兵，再布置道具。骑兵需要冲锋距离，军医提供持续治疗，投石车可以越过低矮掩体。每个士兵都有实体碰撞；箭、炸弹、冲击波与重力会共同决定结果。</p><h3>如何操作</h3><ul><li>选兵种，左键点击本方半场放置。右键点击士兵移除，或按住 Shift 点击。</li><li>拖动旋转视角，滚轮缩放，右键拖动平移。触屏双指缩放。</li><li><span class="key">空格</span> 开战 / 暂停，<span class="key">R</span> 返回布阵，<span class="key">Ctrl Z</span> 撤销布阵。</li><li>自由沙盘可编辑双方；玩家 vs AI 编辑红方；自动演武由双方 AI 布阵。热座按红方 → 封存交接 → 蓝方 → 揭晓开战操作。</li><li>混编整队可选方阵、横排、楔形并镜像追加。框选模式拖动地面矩形或逐个点击；选中同兵种后可移动、删除、改姿态。取消选择后恢复视角旋转。</li><li>悬停部队或道具查看地面射程圈；高地加成按最近公开敌军的地面高度计算。骑兵箭头表示开场冲锋方向。</li></ul><h3>几条实用战术</h3><ul><li>盾卫面向敌军才能减伤。长枪在盾后也能攻击。</li><li>弓手会预测移动目标，但箭可能撞上友军。</li><li>炸弹 1.8 秒引爆，双方都会受到伤害与击飞。</li><li>危桥上的单位会尝试走桥；拥挤或冲击可能把它推下去。</li><li>交战上限 90 秒；超时按剩余血量折算的兵力价值决胜。</li></ul><h3>关于这个版本</h3><p>原创开源 Alpha 0.3。三种布阵 AI、双人盲选热座、混编整队、贡献榜与回放文件。十种兵种、六张地图、五种可布置道具。近战使用距离与冷却判定，移动、碰撞、抛射与倒地由 Rapier 求解。玩法灵感来自《纸上谈兵》和全面战争式物理沙盘。</p>`,
   );
 }
 
 async function boot() {
+  for (const id of ["red-ai", "blue-ai"])
+    $("#" + id).innerHTML = Object.entries(AI_STYLES)
+      .map(([key, s]) => `<option value="${key}">${s.name}</option>`)
+      .join("");
+  $("#red-ai").value = "guardian";
+  $("#blue-ai").value = "counter";
   const cards = $("#unit-cards");
   const detail = document.createElement("div");
   detail.id = "unit-detail";
@@ -536,7 +838,8 @@ async function boot() {
   $("#team-red").onclick = () => {
     if (!editable()) return;
     team = "red";
-    updatePanel();
+    selection = [];
+    redraw();
   };
   $("#catalog-units").onclick = () => {
     catalog = "units";
@@ -558,9 +861,65 @@ async function boot() {
   $("#team-blue").onclick = () => {
     if (!editable()) return;
     team = "blue";
-    updatePanel();
+    selection = [];
+    redraw();
   };
   $("#map").onchange = (e) => changeMap(e.target.value);
+  $("#play-mode").onchange = (e) => changePlayMode(e.target.value);
+  $("#generate-ai").onclick = () => {
+    commit();
+    refreshAI();
+  };
+  for (const id of ["red-ai", "blue-ai"])
+    $("#" + id).onchange = () => refreshAI();
+  $("#hotseat-ready").onclick = () => {
+    hotseatStage = nextHotseat(hotseatStage, config);
+    team = "blue";
+    history = [];
+    $("#hotseat-cover").classList.add("hidden");
+    redraw();
+  };
+  $("#squad-builder").onclick = buildSquad;
+  $("#select-tool").onclick = () => {
+    if (!editable()) return;
+    editTool = editTool === "select" ? "place" : "select";
+    redraw();
+  };
+  $("#select-type").onclick = () => {
+    if (!editable()) return;
+    selection = config[team].flatMap((u, i) =>
+      u.type === selected ? [i] : [],
+    );
+    editTool = "select";
+    redraw();
+  };
+  $("#clear-selection").onclick = () => {
+    selection = [];
+    editTool = "place";
+    redraw();
+  };
+  $("#move-selection").onclick = () => {
+    if (!editable()) return;
+    if (!selection.length) return toast("请先框选或选中同兵种部队。");
+    editTool = "move";
+    view.controls.enabled = true;
+    updatePanel();
+    toast("点击本方地面，选中部队中心将移动到该处。");
+  };
+  $("#delete-selection").onclick = () => {
+    if (!editable() || !selection.length) return;
+    commit();
+    config[team] = config[team].filter((u, i) => !selection.includes(i));
+    selection = [];
+    redraw();
+  };
+  $("#apply-stance").onclick = () => {
+    if (!editable() || !selection.length) return toast("请先选中部队。");
+    commit();
+    for (const i of selection) config[team][i].stance = $("#stance").value;
+    redraw();
+    toast("选中部队姿态已更新。");
+  };
   $("#preset").onclick = choosePreset;
   $("#start").onclick = start;
   $("#pause").onclick = () => {
@@ -587,6 +946,8 @@ async function boot() {
   $("#campaign").onclick = chooseMission;
   $("#sandbox").onclick = () => {
     if (mode === "battle") return toast("请先返回布阵。");
+    playMode = "sandbox";
+    hotseatStage = null;
     reset();
     history = [];
     missionIndex = null;
@@ -620,7 +981,12 @@ async function boot() {
   const canvas = view.renderer.domElement;
   let down = null;
   canvas.addEventListener("pointerdown", (e) => {
-    down = { x: e.clientX, y: e.clientY, button: e.button };
+    down = {
+      x: e.clientX,
+      y: e.clientY,
+      button: e.button,
+      point: view.pick(e.clientX, e.clientY),
+    };
   });
   canvas.addEventListener("pointermove", (e) => {
     if (mode === "deploy") {
@@ -636,11 +1002,85 @@ async function boot() {
           ? PROPS[selectedProp].radius
           : 0.62 * UNITS[selected].scale,
       );
+      const visible =
+        playMode === "hotseat" ? hotseatView(config, hotseatStage) : config;
+      let item = null,
+        kind = "unit",
+        itemTeam = team;
+      if (p) {
+        for (const t of ["red", "blue"]) {
+          const found = visible[t].find(
+            (u) => Math.hypot(u.x - p.x, u.z - p.z) < 0.85,
+          );
+          if (found) {
+            item = found;
+            itemTeam = t;
+            break;
+          }
+        }
+        if (!item) {
+          const prop = [...MAPS[config.map].props, ...visible.props].find(
+            (q) =>
+              Math.hypot(q.x - p.x, q.z - p.z) < PROPS[q.type].radius + 0.25,
+          );
+          if (prop) {
+            item = prop;
+            kind = "prop";
+            itemTeam = prop.team || team;
+          }
+        }
+        if (!item && editTool === "place") {
+          item = { ...p, type: catalog === "units" ? selected : selectedProp };
+          kind = catalog === "units" ? "unit" : "prop";
+        }
+      }
+      const data = view.preview(visible, item, kind, itemTeam);
+      if (editTool === "select" && down?.button === 0)
+        view.selectionBox(down.point, p);
+      $("#preview-label").classList.toggle("hidden", !data);
+      if (data)
+        $("#preview-label").textContent =
+          `${kind === "unit" ? UNITS[item.type].name : PROPS[item.type].name} · ${kind === "unit" ? "攻击射程" : "作用半径"} ${data.radius.toFixed(1)} 米${data.bonus ? " · 对最近敌军高地 +18%" : ""}${data.charge ? " · 箭头为开场冲锋方向" : ""}`;
     }
   });
-  canvas.addEventListener("pointerleave", () => view.hover(null, false));
+  canvas.addEventListener("pointerleave", () => {
+    view.hover(null, false);
+    view.preview(config, null);
+    $("#preview-label").classList.add("hidden");
+  });
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
   canvas.addEventListener("pointerup", (e) => {
+    if (
+      mode === "deploy" &&
+      down &&
+      editTool === "select" &&
+      down.button === 0
+    ) {
+      const p = view.pick(e.clientX, e.clientY),
+        a = down.point;
+      if (!p || !a || !editable()) return;
+      if (Math.hypot(down.x - e.clientX, down.y - e.clientY) > 6)
+        selection = config[team].flatMap((u, i) =>
+          u.x >= Math.min(a.x, p.x) &&
+          u.x <= Math.max(a.x, p.x) &&
+          u.z >= Math.min(a.z, p.z) &&
+          u.z <= Math.max(a.z, p.z)
+            ? [i]
+            : [],
+        );
+      else {
+        const i = config[team].findIndex(
+          (u) => Math.hypot(u.x - p.x, u.z - p.z) < 0.9,
+        );
+        if (i >= 0)
+          selection = selection.includes(i)
+            ? selection.filter((n) => n !== i)
+            : [...selection, i];
+      }
+      redraw();
+      down = null;
+      return;
+    }
     if (
       !down ||
       Math.hypot(down.x - e.clientX, down.y - e.clientY) > 6 ||
@@ -651,6 +1091,41 @@ async function boot() {
     if (!p) return;
     p.x = Math.round(p.x * 2) / 2;
     p.z = Math.round(p.z * 2) / 2;
+    if (
+      playMode === "ai-ai" ||
+      (playMode === "hotseat" && hotseatStage !== team)
+    )
+      return;
+    if (editTool === "move" && down.button === 0) {
+      try {
+        const center = selection.reduce(
+          (s, i) => ({
+            x: s.x + config[team][i].x / selection.length,
+            z: s.z + config[team][i].z / selection.length,
+          }),
+          { x: 0, z: 0 },
+        );
+        const next = moveSquad(
+            config,
+            team,
+            selection,
+            p.x - center.x,
+            p.z - center.z,
+          ),
+          n = selection.length;
+        commit();
+        config = next;
+        selection = Array.from(
+          { length: n },
+          (_, i) => config[team].length - n + i,
+        );
+        editTool = "select";
+        redraw();
+      } catch (error) {
+        toast(error.message);
+      }
+      return;
+    }
     if (down.button === 2 || e.shiftKey) {
       let nearest = -1,
         distance = 1.1;

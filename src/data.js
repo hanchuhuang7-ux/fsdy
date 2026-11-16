@@ -1,4 +1,10 @@
-export const VERSION = "0.2.0";
+export const VERSION = "0.3.0";
+export const STANCES = {
+  advance: "常规推进",
+  hold: "坚守阵地",
+  flank: "侧翼迂回",
+  hunt: "猎杀远程",
+};
 export const DT = 1 / 60;
 export const MAX_TIME = 90;
 export const MAX_UNITS = 60;
@@ -432,6 +438,19 @@ export function formation(preset = "balanced", team = "red") {
   }
   return list;
 }
+export function missionArmy(mission) {
+  return formation(mission.enemy, "blue").map((u) => ({
+    ...u,
+    stance:
+      u.type === "cavalry"
+        ? "flank"
+        : UNITS[u.type].ranged
+          ? "hunt"
+          : u.type === "medic"
+            ? "hold"
+            : "advance",
+  }));
+}
 export function cost(units) {
   return units.reduce((s, u) => s + (UNITS[u.type]?.cost || 0), 0);
 }
@@ -467,9 +486,18 @@ export function terrainAt(map, x, z) {
   );
 }
 export function validateConfig(input) {
-  if (!input || !["0.1.0", VERSION].includes(input.version))
+  assertSafeData(input);
+  if (!input || !["0.1.0", "0.2.0", VERSION].includes(input.version))
     throw Error("不支持的文件版本，需要 " + VERSION);
-  const config = { ...input, version: VERSION, props: input.props || [] };
+  const config = {
+    version: VERSION,
+    map: input.map,
+    seed: input.seed,
+    budget: input.budget,
+    red: input.red,
+    blue: input.blue,
+    props: input.props || [],
+  };
   if (!Object.hasOwn(MAPS, config.map)) throw Error("未知战场");
   if (
     !Number.isInteger(config.seed) ||
@@ -512,7 +540,7 @@ export function validateConfig(input) {
     for (const u of army) {
       if (
         !Object.hasOwn(UNITS, u.type) ||
-        !["advance", "hold", "flank"].includes(u.stance)
+        (u.stance !== undefined && !Object.hasOwn(STANCES, u.stance))
       )
         throw Error("兵种或姿态无效");
       if (!legalPosition(u)) throw Error("布阵坐标越界");
@@ -520,7 +548,116 @@ export function validateConfig(input) {
         throw Error("请在本方半场布阵");
     }
   }
+  for (const t of ["red", "blue"])
+    config[t] = config[t].map((u) => ({
+      type: u.type,
+      x: u.x,
+      z: u.z,
+      stance: u.stance || "advance",
+    }));
+  config.props = config.props.map((p) => ({
+    type: p.type,
+    team: p.team,
+    x: p.x,
+    z: p.z,
+  }));
   return config;
+}
+// Used at all JSON boundaries; reject dangerous keys even in otherwise unused fields.
+export function assertSafeData(value) {
+  let nodes = 0;
+  const visit = (v, depth = 0) => {
+    if (++nodes > 6000000 || depth > 20) throw Error("输入数据过大或嵌套过深");
+    if (!v || typeof v !== "object") return;
+    const proto = Object.getPrototypeOf(v);
+    if (!Array.isArray(v) && proto !== Object.prototype && proto !== null)
+      throw Error("只接受普通 JSON 对象");
+    for (const k of Object.keys(v)) {
+      if (["__proto__", "constructor", "prototype"].includes(k))
+        throw Error("不安全的对象键");
+      visit(v[k], depth + 1);
+    }
+  };
+  visit(value);
+}
+
+// New placements use the same geometry/spacing rules in browser, AI and batch tools.
+// Legacy configuration import deliberately keeps its original overlap tolerance.
+export function canPlace(config, team, item, kind = "unit") {
+  const defs = kind === "unit" ? UNITS : PROPS;
+  if (!Object.hasOwn(defs, item.type) || !["red", "blue"].includes(team))
+    return false;
+  const { x, z } = item,
+    radius =
+      kind === "unit" ? 0.62 * UNITS[item.type].scale : PROPS[item.type].radius;
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(z) ||
+    Math.abs(x) > 16.8 ||
+    Math.abs(z) > 10.8 ||
+    (team === "red" ? x > -2.5 : x < 2.5) ||
+    !groundAt(config.map, x, z)
+  )
+    return false;
+  if (
+    MAPS[config.map].walls.some(
+      (w) =>
+        Math.abs(x - w.x) < w.hx + radius && Math.abs(z - w.z) < w.hz + radius,
+    )
+  )
+    return false;
+  if (
+    MAPS[config.map].rocks.some(
+      (r) => Math.hypot(x - r.x, z - r.z) < r.r + radius,
+    )
+  )
+    return false;
+  if (
+    [...MAPS[config.map].props, ...config.props].some(
+      (q) =>
+        !(kind === "unit" && ["spring", "spikes"].includes(q.type)) &&
+        Math.hypot(x - q.x, z - q.z) < radius + PROPS[q.type].radius,
+    )
+  )
+    return false;
+  return ![...config.red, ...config.blue].some(
+    (u) => Math.hypot(x - u.x, z - u.z) < radius + 0.62 * UNITS[u.type].scale,
+  );
+}
+
+export function tacticalPreview(config, item, kind = "unit", team = "red") {
+  const floor = heightAt(config.map, item.x, item.z);
+  if (kind === "prop")
+    return {
+      radius: {
+        barrel: 4.2,
+        spikes: 1.15,
+        banner: 3.2,
+        spring: 0.95,
+        barricade: 1.25,
+      }[item.type],
+      floor,
+      bonus: false,
+    };
+  const d = UNITS[item.type],
+    opponents = config[team === "red" ? "blue" : "red"];
+  const target = opponents.reduce(
+    (best, u) =>
+      !best ||
+      Math.hypot(u.x - item.x, u.z - item.z) <
+        Math.hypot(best.x - item.x, best.z - item.z)
+        ? u
+        : best,
+    null,
+  );
+  const targetFloor = target ? heightAt(config.map, target.x, target.z) : 0;
+  const bonus = Boolean(d.ranged && floor > targetFloor + 1);
+  return {
+    radius: d.range * (bonus ? 1.18 : 1),
+    floor,
+    bonus,
+    charge: item.type === "cavalry" ? (team === "red" ? 1 : -1) : 0,
+  };
 }
 export function defaultConfig(map = "meadow") {
   return {

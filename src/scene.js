@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { MAPS, UNITS, PROPS, heightAt } from "./data.js";
+import { MAPS, UNITS, PROPS, heightAt, tacticalPreview } from "./data.js";
 import { ActorBatches } from "./batches.js";
 
 const PALETTE = {
@@ -89,6 +89,23 @@ export class BattlefieldView {
     this.ghost.rotation.x = -Math.PI / 2;
     this.ghost.visible = false;
     this.overlay.add(this.ghost);
+    this.previewLine = new THREE.LineSegments(
+      new THREE.BufferGeometry(),
+      new THREE.LineBasicMaterial({
+        color: 0x597d56,
+        transparent: true,
+        opacity: 0.85,
+        depthTest: false,
+      }),
+    );
+    this.previewLine.geometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(new Float32Array(600), 3),
+    );
+    this.previewLine.frustumCulled = false;
+    this.previewLine.renderOrder = 9;
+    this.previewLine.visible = false;
+    this.overlay.add(this.previewLine);
     this.resetCamera();
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(container);
@@ -592,6 +609,7 @@ export class BattlefieldView {
     return group;
   }
   deployment(config) {
+    this.previewLine.visible = false;
     this.clearActors();
     for (const team of ["red", "blue"])
       config[team].forEach((u, i) => {
@@ -750,6 +768,7 @@ export class BattlefieldView {
     object.quaternion.set(t[3], t[4], t[5], t[6]);
   }
   frame(state) {
+    this.previewLine.visible = false;
     this.grid.forEach((g) => (g.visible = false));
     this.ghost.visible = false;
     this.updateProps(state.props || []);
@@ -819,11 +838,56 @@ export class BattlefieldView {
           mesh.name = p.name;
           root.add(mesh);
         }
+        if (d.wreck) {
+          const wreck = new THREE.Group();
+          wreck.name = "wreck";
+          if (d.type === "cavalry") {
+            this.addBox(wreck, [1.35, 0.55, 0.65], [0, 0.15, 0], 0x806044);
+            this.addBox(wreck, [0.35, 0.65, 0.35], [0.65, 0.25, 0], 0x806044);
+            for (const x of [-0.45, 0.45])
+              for (const z of [-0.4, 0.4])
+                this.addBox(wreck, [0.18, 0.2, 0.75], [x, -0.05, z], 0x5d4c37);
+          } else {
+            for (const z of [-0.45, 0.4]) {
+              const beam = this.addBox(
+                wreck,
+                [1.8, 0.18, 0.2],
+                [0, 0.08, z],
+                PALETTE.wood,
+              );
+              beam.rotation.y = z * 0.7;
+            }
+            const lever = this.addBox(
+              wreck,
+              [1.5, 0.15, 0.18],
+              [0.2, 0.25, 0],
+              PALETTE.wood,
+            );
+            lever.rotation.y = 0.6;
+            for (const x of [-0.6, 0.65])
+              for (const z of [-0.7, 0.7])
+                this.addBox(
+                  wreck,
+                  [0.35, 0.12, 0.35],
+                  [x, 0.12, z],
+                  PALETTE.dark,
+                );
+          }
+          root.add(wreck);
+        }
         this.actors.add(root);
         this.dolls.set(d.id, root);
       }
       for (const p of d.parts)
         this.setTransform(root.getObjectByName(p.name), p.t);
+      const wreck = root.getObjectByName("wreck");
+      if (wreck && d.wreck) {
+        const [x, y, z, angle] = d.wreck,
+          floor = heightAt(this.mapId, x, z);
+        wreck.position.set(x, Number.isFinite(floor) ? floor + 0.15 : y, z);
+        wreck.rotation.set(0, angle, Math.min(1, d.age * 3) * 0.18);
+        wreck.scale.setScalar(d.age > 11 ? Math.max(0.01, 12 - d.age) : 1);
+      }
     }
     const shotIds = new Set(state.projectiles.map((p) => p.id));
     for (const [id, m] of this.shots)
@@ -908,6 +972,98 @@ export class BattlefieldView {
     if (hits.length) return hits[0].point;
     const point = new THREE.Vector3();
     return this.ray.ray.intersectPlane(this.plane, point);
+  }
+  preview(config, item, kind = "unit", team = "red") {
+    this.previewLine.visible = !!item;
+    if (!item) return null;
+    const data = tacticalPreview(config, item, kind, team),
+      attr = this.previewLine.geometry.attributes.position;
+    let i = 0;
+    const segment = (x, z, xx, zz) => {
+      const y = heightAt(config.map, x, z),
+        yy = heightAt(config.map, xx, zz);
+      if (!Number.isFinite(y) || !Number.isFinite(yy)) return;
+      attr.setXYZ(i++, x, y + 0.12, z);
+      attr.setXYZ(i++, xx, yy + 0.12, zz);
+    };
+    for (let n = 0; n < 96; n++) {
+      const a = (n / 96) * Math.PI * 2,
+        b = ((n + 1) / 96) * Math.PI * 2;
+      segment(
+        item.x + Math.cos(a) * data.radius,
+        item.z + Math.sin(a) * data.radius,
+        item.x + Math.cos(b) * data.radius,
+        item.z + Math.sin(b) * data.radius,
+      );
+    }
+    if (data.charge) {
+      for (let n = 0; n < 5; n++)
+        segment(
+          item.x + n * data.charge,
+          item.z,
+          item.x + (n + 1) * data.charge,
+          item.z,
+        );
+      segment(
+        item.x + 5 * data.charge,
+        item.z,
+        item.x + 4 * data.charge,
+        item.z + 0.6,
+      );
+      segment(
+        item.x + 5 * data.charge,
+        item.z,
+        item.x + 4 * data.charge,
+        item.z - 0.6,
+      );
+    }
+    attr.needsUpdate = true;
+    this.previewLine.geometry.setDrawRange(0, i);
+    this.previewLine.material.color.setHex(
+      data.bonus ? 0xc18b36 : kind === "prop" ? 0xc26c4c : 0x597d56,
+    );
+    return data;
+  }
+  selection(team, indices) {
+    for (const [key, model] of this.models)
+      if (typeof key === "string") {
+        const selected =
+          indices.includes(Number(key.split("-")[1])) &&
+          key.startsWith(team + "-");
+        model.userData.ring.material = this.mat(
+          selected ? 0xf0c45d : PALETTE[model.userData.team],
+          {
+            transparent: true,
+            opacity: selected ? 0.85 : 0.25,
+            side: THREE.DoubleSide,
+          },
+        );
+      }
+  }
+  selectionBox(a, b) {
+    if (!a || !b) return;
+    const points = [
+        [a.x, a.z],
+        [b.x, a.z],
+        [b.x, b.z],
+        [a.x, b.z],
+      ],
+      attr = this.previewLine.geometry.attributes.position;
+    let n = 0;
+    for (let i = 0; i < 4; i++)
+      for (const p of [points[i], points[(i + 1) % 4]]) {
+        const floor = heightAt(this.mapId, p[0], p[1]);
+        attr.setXYZ(
+          n++,
+          p[0],
+          Number.isFinite(floor) ? floor + 0.15 : 0.15,
+          p[1],
+        );
+      }
+    attr.needsUpdate = true;
+    this.previewLine.geometry.setDrawRange(0, n);
+    this.previewLine.material.color.setHex(0xc18b36);
+    this.previewLine.visible = true;
   }
   hover(point, valid, radius = 0.48) {
     this.ghost.visible = !!point;

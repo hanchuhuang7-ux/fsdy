@@ -41,6 +41,17 @@ function mapInto(source, out = [], copy) {
   return out;
 }
 export const MAX_RAGDOLLS = 24;
+const contributions = () => ({
+  damageDealt: 0,
+  damageTaken: 0,
+  healing: 0,
+  kills: 0,
+  falls: 0,
+  fallKills: 0,
+  friendlyFire: 0,
+  friendlyKills: 0,
+});
+const rounded = (n) => Math.round(n * 1000) / 1000;
 
 /** Fixed-step simulation shared by the browser and CLI. No wall-clock inputs. */
 export class Battle {
@@ -130,6 +141,9 @@ export class Battle {
       attack: 0,
       stun: 0,
       kills: 0,
+      contribution: contributions(),
+      anchor: { x: u.x, z: u.z },
+      progress: { x: u.x, z: u.z, blocked: 0, escapeUntil: 0, escapes: 0 },
       charge: 0,
       target: null,
       position: vec(u.x, floor + 0.8 * s, u.z),
@@ -152,6 +166,8 @@ export class Battle {
       floor,
       cooldown: 0,
       fuse: -1,
+      kills: 0,
+      contribution: contributions(),
     };
     let desc;
     if (p.type === "barrel")
@@ -227,6 +243,12 @@ export class Battle {
         this.stats.targetChecks++;
         let s = (p.x - e.position.x) ** 2 + (p.z - e.position.z) ** 2;
         if (unit.stance === "flank" && UNITS[e.type].ranged) s *= 0.42;
+        if (unit.stance === "hunt")
+          s *= UNITS[e.type].ranged
+            ? 0.12 * (160 / UNITS[e.type].cost)
+            : e.type === "medic"
+              ? 0.2
+              : 1.5;
         if (s < score) {
           best = e;
           score = s;
@@ -240,8 +262,12 @@ export class Battle {
       (UNITS[u.type].ranged && u.floor > target.floor + 1 ? 1.18 : 1)
     );
   }
-  heal(target, amount) {
-    if (target.alive) target.hp = Math.min(target.maxHp, target.hp + amount);
+  heal(target, amount, source = null) {
+    if (target.alive) {
+      const restored = Math.min(target.maxHp - target.hp, amount);
+      target.hp += restored;
+      if (source) source.contribution.healing += restored;
+    }
   }
   medic(u) {
     let ally = null,
@@ -253,7 +279,7 @@ export class Battle {
       }
     });
     if (ally) {
-      this.heal(ally, UNITS.medic.heal * 0.1);
+      this.heal(ally, UNITS.medic.heal * 0.1, u);
       if ((this.tick + u.id) % 30 === 0)
         this.effect("heal", ally.position, 0.5);
     }
@@ -262,7 +288,7 @@ export class Battle {
     const d = UNITS[u.type],
       p = u.position;
     if (p.y < -4 || Math.abs(p.x) > 23 || Math.abs(p.z) > 19) {
-      this.kill(u, vec());
+      this.kill(u, vec(), "fall");
       return;
     }
     u.cooldown -= DT;
@@ -304,7 +330,22 @@ export class Battle {
     )
       speed = 0;
     if (u.type === "medic" && dist > 5 && dist < 9) speed = 0;
-    const passage = MAPS[this.config.map].passage;
+    if (
+      u.stance === "hold" &&
+      !firing &&
+      dist > range + min &&
+      distance(p, u.anchor) > 1.4
+    ) {
+      const home = distance(p, u.anchor) || 1;
+      mx = (u.anchor.x - p.x) / home;
+      mz = (u.anchor.z - p.z) / home;
+      speed = d.speed * 0.7;
+    }
+    const passage =
+      MAPS[this.config.map].passage ||
+      (u.stance === "flank" && this.config.map === "marsh"
+        ? { approach: 5.3, lanes: [-9.6, 9.6] }
+        : null);
     if (
       passage &&
       u.stance !== "hold" &&
@@ -355,6 +396,16 @@ export class Battle {
       mz /= n;
     }
     const terrain = terrainAt(this.config.map, p.x, p.z);
+    if (speed > 0 && u.stance !== "hold") {
+      if ((this.tick + u.id) % 30 === 0) this.checkProgress(u, mx, mz);
+      if (u.progress.escapeUntil > this.tick) {
+        const escape = this.escapeDirection(u, mx, mz);
+        if (escape) {
+          mx = escape.x;
+          mz = escape.z;
+        }
+      }
+    }
     if (terrain === "mud") speed *= 0.45;
     if (speed > 0)
       this.nearby(p, 3, (e) => {
@@ -404,7 +455,7 @@ export class Battle {
             distance(p, q) < range + PROPS[q.type].radius,
         );
         if (obstruction) {
-          this.damageProp(obstruction, d.damage);
+          this.damageProp(obstruction, d.damage, u);
           u.cooldown = d.cooldown;
           u.attack = 1;
           return;
@@ -439,6 +490,111 @@ export class Battle {
       }
     }
   }
+  checkProgress(u, mx, mz) {
+    const p = u.position,
+      q = u.progress;
+    if (Math.hypot(p.x - q.x, p.z - q.z) < 0.18 && u.stun <= 0) q.blocked++;
+    else q.blocked = 0;
+    q.x = p.x;
+    q.z = p.z;
+    if (q.blocked >= 3) {
+      q.escapeUntil = this.tick + 90;
+      q.blocked = 0;
+      q.escapes++;
+      // Stable per-unit parity; no random draws or wall clock affect escape decisions.
+      q.side = (u.id % 2 ? 1 : -1) * (q.escapes % 2 ? 1 : -1);
+      const obstacles = [
+        ...MAPS[this.config.map].walls,
+        ...MAPS[this.config.map].rocks.map((r) => ({ ...r, hx: r.r, hz: r.r })),
+        ...this.props
+          .filter((p) => p.alive && p.type === "barricade")
+          .map((p) => ({ ...p, hx: 0.38, hz: 1.2 })),
+      ];
+      const obstacle = obstacles.find(
+        (o) =>
+          Math.abs(p.x - o.x) < o.hx + 1.3 && Math.abs(p.z - o.z) < o.hz + 1.3,
+      );
+      if (obstacle) {
+        const margin = 0.6 * UNITS[u.type].scale + 0.35;
+        const lanes = [
+          obstacle.z + obstacle.hz + margin,
+          obstacle.z - obstacle.hz - margin,
+        ].sort(
+          (a, b) => Math.abs(a - p.z) - Math.abs(b - p.z) || q.side * (a - b),
+        );
+        const lane = lanes.find(
+          (z) =>
+            Number.isFinite(heightAt(this.config.map, p.x, z)) &&
+            Number.isFinite(heightAt(this.config.map, obstacle.x, z)),
+        );
+        if (lane !== undefined) {
+          const sign = mx >= 0 ? 1 : -1;
+          q.detour = {
+            entryX: obstacle.x - sign * (obstacle.hx + margin),
+            exitX: obstacle.x + sign * (obstacle.hx + margin),
+            z: lane,
+            stage: 0,
+          };
+          q.escapeUntil = this.tick + 300;
+        }
+      }
+    }
+  }
+  escapeDirection(u, mx, mz) {
+    const p = u.position,
+      radius = 0.3 * UNITS[u.type].scale;
+    const detour = u.progress.detour;
+    if (detour) {
+      let x = detour.stage === 0 ? detour.entryX : detour.exitX,
+        z = detour.z;
+      if (Math.hypot(x - p.x, z - p.z) < 0.45) {
+        if (detour.stage === 0) {
+          detour.stage = 1;
+          x = detour.exitX;
+        } else {
+          u.progress.detour = null;
+          u.progress.escapeUntil = 0;
+          return null;
+        }
+      }
+      const n = Math.hypot(x - p.x, z - p.z) || 1;
+      return { x: (x - p.x) / n, z: (z - p.z) / n };
+    }
+    const clear = (x, z) =>
+      Number.isFinite(heightAt(this.config.map, x, z)) &&
+      !MAPS[this.config.map].walls.some(
+        (w) =>
+          Math.abs(x - w.x) < w.hx + radius &&
+          Math.abs(z - w.z) < w.hz + radius,
+      ) &&
+      !MAPS[this.config.map].rocks.some(
+        (r) => Math.hypot(x - r.x, z - r.z) < r.r + radius,
+      ) &&
+      !this.props.some(
+        (q) =>
+          q.alive &&
+          q.type === "barricade" &&
+          Math.abs(x - q.x) < 0.4 + radius &&
+          Math.abs(z - q.z) < 1.2 + radius,
+      );
+    const side = u.progress.side || 1;
+    for (const angle of [
+      (side * Math.PI) / 3,
+      (side * Math.PI) / 2,
+      (-side * Math.PI) / 3,
+      (-side * Math.PI) / 2,
+      Math.PI,
+    ]) {
+      const x = mx * Math.cos(angle) - mz * Math.sin(angle),
+        z = mx * Math.sin(angle) + mz * Math.cos(angle);
+      if (
+        clear(p.x + x * 0.85, p.z + z * 0.85) &&
+        clear(p.x + x * 0.45, p.z + z * 0.45)
+      )
+        return { x, z };
+    }
+    return null;
+  }
   hit(target, damage, attacker, knock, origin = null, pierce = 0) {
     if (!target.alive) return;
     const p = target.body.translation(),
@@ -452,13 +608,21 @@ export class Battle {
         0.25
     )
       damage *= 0.4 + 0.6 * pierce;
+    const actual = Math.min(target.hp, Math.max(0, damage));
+    target.contribution.damageTaken += actual;
+    if (attacker) {
+      attacker.contribution.damageDealt += actual;
+      if (attacker.team === target.team)
+        attacker.contribution.friendlyFire += actual;
+      target.lastHitSource = attacker;
+      target.lastHitTick = this.tick;
+    }
     target.hp -= damage;
     target.stun = 0.25;
     const impulse = vec((dx / dist) * knock, knock * 0.32, (dz / dist) * knock);
     target.body.applyImpulse(impulse, true);
     if (target.hp <= 0) {
-      if (attacker) attacker.kills++;
-      this.kill(target, impulse);
+      this.kill(target, impulse, "combat", attacker);
     }
   }
   shoot(u, target) {
@@ -549,7 +713,7 @@ export class Battle {
         q.alive &&
         Math.hypot(q.x - p.x, q.floor + 0.5 - p.y, q.z - p.z) < radius
       )
-        this.damageProp(q, damage * 0.9);
+        this.damageProp(q, damage * 0.9, owner);
     for (const d of this.ragdolls)
       for (const part of d.parts) {
         const q = part.body.translation(),
@@ -578,8 +742,14 @@ export class Battle {
     this.colliderProjectiles.delete(p.collider.handle);
     this.world.removeRigidBody(p.body);
   }
-  damageProp(p, damage) {
+  damageProp(p, damage, source = null) {
     if (!p.alive) return;
+    const actual = Math.min(p.hp, Math.max(0, damage));
+    p.contribution.damageTaken += actual;
+    if (source) {
+      source.contribution.damageDealt += actual;
+      if (source.team === p.team) source.contribution.friendlyFire += actual;
+    }
     p.hp -= damage;
     if (p.hp > 0) return;
     p.alive = false;
@@ -587,7 +757,7 @@ export class Battle {
     this.world.removeCollider(p.collider, true);
     this.events.push({ tick: this.tick, type: "prop-destroyed", prop: p.type });
     if (p.type === "barrel")
-      this.blast(vec(p.x, p.floor + 0.45, p.z), 4.2, 95, 28);
+      this.blast(vec(p.x, p.floor + 0.45, p.z), 4.2, 95, 28, p);
     else this.effect("slam", vec(p.x, p.floor + 0.4, p.z), 0.6);
   }
   tickProps() {
@@ -613,7 +783,7 @@ export class Battle {
               (p.team === "neutral" || e.team === p.team) &&
               Math.abs(e.position.y - p.floor) < 3
             )
-              this.heal(e, 1);
+              this.heal(e, 1, p);
           });
         else if (p.type === "spikes" && p.cooldown === 0) {
           let triggered = false;
@@ -622,7 +792,7 @@ export class Battle {
               (p.team === "neutral" || e.team !== p.team) &&
               e.position.y < p.floor + 1.7
             ) {
-              this.hit(e, 14, null, 0.2, vec(p.x, p.floor, p.z));
+              this.hit(e, 14, p, 0.2, vec(p.x, p.floor, p.z));
               triggered = true;
             }
           });
@@ -650,8 +820,20 @@ export class Battle {
     for (const p of d.parts) this.world.removeRigidBody(p.body);
     d.removed = true;
   }
-  kill(u, impulse) {
+  kill(u, impulse, reason = "combat", source = null) {
     if (!u.alive) return;
+    if (reason === "fall") {
+      u.contribution.falls++;
+      if (this.tick - u.lastHitTick <= 180) source = u.lastHitSource;
+    }
+    if (source) {
+      if (source.team === u.team) source.contribution.friendlyKills++;
+      else {
+        source.kills++;
+        source.contribution.kills++;
+        if (reason === "fall") source.contribution.fallKills++;
+      }
+    }
     u.alive = false;
     u.hp = 0;
     const p = u.body.translation(),
@@ -708,12 +890,23 @@ export class Battle {
       );
       joint.setContactsEnabled(false);
     }
-    this.ragdolls.push({ id: u.id, team: u.team, type: u.type, parts, age: 0 });
+    this.ragdolls.push({
+      id: u.id,
+      team: u.team,
+      type: u.type,
+      parts,
+      age: 0,
+      wreck: ["cavalry", "catapult"].includes(u.type)
+        ? [p.x, p.y - 0.5, p.z, u.angle]
+        : null,
+    });
     this.events.push({
       tick: this.tick,
       type: "death",
       team: u.team,
       unit: u.type,
+      reason,
+      source: source?.id || null,
     });
   }
   effect(type, p, life) {
@@ -756,7 +949,7 @@ export class Battle {
           shot.body.translation(),
           shot.pierce,
         );
-      if (prop) this.damageProp(prop, shot.damage);
+      if (prop) this.damageProp(prop, shot.damage, shot.owner);
       this.removeProjectile(shot);
     });
     for (const p of this.projectiles)
@@ -810,6 +1003,83 @@ export class Battle {
         blue,
         reason: this.time >= MAX_TIME ? "timeout" : "elimination",
       };
+    if (this.result) {
+      this.result.remainingValue = {
+        red: rounded(redScore),
+        blue: rounded(blueScore),
+      };
+      this.result.report = this.report();
+    }
+  }
+  report() {
+    const units = this.units.map((u) => ({
+      id: u.id,
+      team: u.team,
+      type: u.type,
+      alive: u.alive,
+      hp: rounded(u.hp),
+      ...Object.fromEntries(
+        Object.entries(u.contribution).map(([k, v]) => [k, rounded(v)]),
+      ),
+    }));
+    const props = this.props.map((p) => ({
+      id: p.id,
+      team: p.team,
+      type: p.type,
+      alive: p.alive,
+      ...Object.fromEntries(
+        Object.entries(p.contribution).map(([k, v]) => [k, rounded(v)]),
+      ),
+    }));
+    const teams = {};
+    for (const team of ["red", "blue"]) {
+      const summary = {
+        initial: 0,
+        survived: 0,
+        lost: 0,
+        remainingValue: 0,
+        ...contributions(),
+        byType: {},
+      };
+      for (const u of units.filter((u) => u.team === team)) {
+        const row = (summary.byType[u.type] ||= {
+          initial: 0,
+          survived: 0,
+          lost: 0,
+          ...contributions(),
+        });
+        for (const out of [row, summary]) {
+          out.initial++;
+          out[u.alive ? "survived" : "lost"]++;
+          for (const key of Object.keys(contributions())) out[key] += u[key];
+        }
+        summary.remainingValue +=
+          (u.hp / UNITS[u.type].hp) * UNITS[u.type].cost;
+      }
+      for (const p of props.filter((p) => p.team === team))
+        for (const key of Object.keys(contributions())) summary[key] += p[key];
+      for (const key of Object.keys(contributions()))
+        summary[key] = rounded(summary[key]);
+      summary.remainingValue = rounded(summary.remainingValue);
+      teams[team] = summary;
+    }
+    const score = (u) =>
+      u.damageDealt -
+      2 * u.friendlyFire +
+      0.75 * u.healing +
+      30 * u.kills +
+      20 * u.fallKills;
+    const ranked = [...units].sort(
+      (a, b) => score(b) - score(a) || a.id - b.id,
+    );
+    return {
+      teams,
+      units,
+      props,
+      mvp: ranked.length
+        ? { ...ranked[0], score: rounded(score(ranked[0])) }
+        : null,
+    };
   }
   get time() {
     return this.tick * DT;
@@ -838,7 +1108,7 @@ export class Battle {
           id: p.id,
           type: p.type,
           t: transform(p.body, out.t),
-          v: p.body.linvel(),
+          v: Object.assign(out.v || {}, p.body.linvel()),
         }),
     );
     state.ragdolls = mapInto(this.ragdolls, state.ragdolls, (d, out = {}) =>
@@ -846,6 +1116,8 @@ export class Battle {
         id: d.id,
         team: d.team,
         type: d.type,
+        age: d.age,
+        wreck: d.wreck ? [...d.wreck] : null,
         parts: mapInto(d.parts, out.parts, (p, part = {}) =>
           Object.assign(part, { name: p.name, t: transform(p.body, part.t) }),
         ),
@@ -862,7 +1134,7 @@ export class Battle {
         z: p.z,
         floor: p.floor,
         team: p.team,
-        hp: p.hp,
+        hp: Math.max(0, p.hp),
         alive: p.alive,
         active: p.fuse >= 0 || p.cooldown > 0,
       }),
