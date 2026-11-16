@@ -1,0 +1,551 @@
+{
+  "version": "0.2.0",
+  "map": "meadow",
+  "seed": 42,
+  "budget": 10000,
+  "red": [
+    {
+      "type": "militia",
+      "x": -4,
+      "z": -8,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": -4,
+      "z": -6,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": -4,
+      "z": -4,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": -4,
+      "z": -2,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": -4,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": -4,
+      "z": 2,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": -4,
+      "z": 4,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": -4,
+      "z": 6,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": -4,
+      "z": 8,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": -6.7,
+      "z": -8,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": -6.7,
+      "z": -6,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": -6.7,
+      "z": -4,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": -6.7,
+      "z": -2,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": -6.7,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": -6.7,
+      "z": 2,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": -6.7,
+      "z": 4,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": -6.7,
+      "z": 6,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": -6.7,
+      "z": 8,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": -9.4,
+      "z": -8,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": -9.4,
+      "z": -6,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": -9.4,
+      "z": -4,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": -9.4,
+      "z": -2,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": -9.4,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": -9.4,
+      "z": 2,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": -9.4,
+      "z": 4,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": -9.4,
+      "z": 6,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": -9.4,
+      "z": 8,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": -12.100000000000001,
+      "z": -8,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": -12.100000000000001,
+      "z": -6,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": -12.100000000000001,
+      "z": -4,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": -12.100000000000001,
+      "z": -2,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": -12.100000000000001,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": -12.100000000000001,
+      "z": 2,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": -12.100000000000001,
+      "z": 4,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": -12.100000000000001,
+      "z": 6,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": -12.100000000000001,
+      "z": 8,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": -14.8,
+      "z": -8,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": -14.8,
+      "z": -6,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": -14.8,
+      "z": -4,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": -14.8,
+      "z": -2,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": -14.8,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": -14.8,
+      "z": 2,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": -14.8,
+      "z": 4,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": -14.8,
+      "z": 6,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": -14.8,
+      "z": 8,
+      "stance": "advance"
+    }
+  ],
+  "blue": [
+    {
+      "type": "militia",
+      "x": 4,
+      "z": -8,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 4,
+      "z": -6,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 4,
+      "z": -4,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": 4,
+      "z": -2,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": 4,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": 4,
+      "z": 2,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 4,
+      "z": 4,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 4,
+      "z": 6,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": 4,
+      "z": 8,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": 6.7,
+      "z": -8,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": 6.7,
+      "z": -6,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 6.7,
+      "z": -4,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 6.7,
+      "z": -2,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": 6.7,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": 6.7,
+      "z": 2,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": 6.7,
+      "z": 4,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 6.7,
+      "z": 6,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 6.7,
+      "z": 8,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": 9.4,
+      "z": -8,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": 9.4,
+      "z": -6,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": 9.4,
+      "z": -4,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 9.4,
+      "z": -2,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 9.4,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": 9.4,
+      "z": 2,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": 9.4,
+      "z": 4,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": 9.4,
+      "z": 6,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 9.4,
+      "z": 8,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 12.100000000000001,
+      "z": -8,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": 12.100000000000001,
+      "z": -6,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": 12.100000000000001,
+      "z": -4,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": 12.100000000000001,
+      "z": -2,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 12.100000000000001,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 12.100000000000001,
+      "z": 2,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": 12.100000000000001,
+      "z": 4,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": 12.100000000000001,
+      "z": 6,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": 12.100000000000001,
+      "z": 8,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 14.8,
+      "z": -8,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 14.8,
+      "z": -6,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": 14.8,
+      "z": -4,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": 14.8,
+      "z": -2,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": 14.8,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 14.8,
+      "z": 2,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 14.8,
+      "z": 4,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": 14.8,
+      "z": 6,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": 14.8,
+      "z": 8,
+      "stance": "advance"
+    }
+  ],
+  "props": []
+}

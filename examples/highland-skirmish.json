@@ -1,0 +1,162 @@
+{
+  "version": "0.2.0",
+  "map": "highland",
+  "seed": 20261116,
+  "budget": 2200,
+  "red": [
+    {
+      "type": "cavalry",
+      "x": -5,
+      "z": -4.8,
+      "stance": "advance"
+    },
+    {
+      "type": "cavalry",
+      "x": -5,
+      "z": -2.4,
+      "stance": "advance"
+    },
+    {
+      "type": "cavalry",
+      "x": -5,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "cavalry",
+      "x": -5,
+      "z": 2.4,
+      "stance": "advance"
+    },
+    {
+      "type": "cavalry",
+      "x": -5,
+      "z": 4.8,
+      "stance": "advance"
+    },
+    {
+      "type": "crossbow",
+      "x": -10,
+      "z": -2.7,
+      "stance": "advance"
+    },
+    {
+      "type": "crossbow",
+      "x": -10,
+      "z": -0.9,
+      "stance": "advance"
+    },
+    {
+      "type": "crossbow",
+      "x": -10,
+      "z": 0.9,
+      "stance": "advance"
+    },
+    {
+      "type": "crossbow",
+      "x": -10,
+      "z": 2.7,
+      "stance": "advance"
+    },
+    {
+      "type": "medic",
+      "x": -12.5,
+      "z": 0,
+      "stance": "advance"
+    }
+  ],
+  "blue": [
+    {
+      "type": "shield",
+      "x": 5,
+      "z": -2.7,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 5,
+      "z": -0.9,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 5,
+      "z": 0.9,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 5,
+      "z": 2.7,
+      "stance": "advance"
+    },
+    {
+      "type": "crossbow",
+      "x": 9,
+      "z": -3.6,
+      "stance": "advance"
+    },
+    {
+      "type": "crossbow",
+      "x": 9,
+      "z": -1.8,
+      "stance": "advance"
+    },
+    {
+      "type": "crossbow",
+      "x": 9,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "crossbow",
+      "x": 9,
+      "z": 1.8,
+      "stance": "advance"
+    },
+    {
+      "type": "crossbow",
+      "x": 9,
+      "z": 3.6,
+      "stance": "advance"
+    },
+    {
+      "type": "catapult",
+      "x": 12.5,
+      "z": -3,
+      "stance": "advance"
+    },
+    {
+      "type": "catapult",
+      "x": 12.5,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "catapult",
+      "x": 12.5,
+      "z": 3,
+      "stance": "advance"
+    }
+  ],
+  "props": [
+    {
+      "type": "spikes",
+      "team": "red",
+      "x": -3.5,
+      "z": 1.5
+    },
+    {
+      "type": "banner",
+      "team": "red",
+      "x": -11,
+      "z": -6
+    },
+    {
+      "type": "barrel",
+      "team": "blue",
+      "x": 3.5,
+      "z": 1.5
+    }
+  ]
+}

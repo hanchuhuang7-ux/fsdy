@@ -20,14 +20,15 @@
         <a class="brand" href="./"
           ><span class="brand-mark">⚑</span
           ><span>阵线实验室<small>FRONTLINE LAB</small></span
-          ><span class="version">ALPHA 0.1</span></a
+          ><span class="version">ALPHA 0.2</span></a
         >
         <nav aria-label="游戏模式">
           <button class="nav active" id="sandbox">自由沙盘</button
-          ><button class="nav" id="campaign">战术试炼 <span>03</span></button>
+          ><button class="nav" id="campaign">战术试炼 <span>06</span></button>
         </nav>
         <div class="top-actions">
-          <span class="local-tag"><i></i>本地物理模拟</span
+          <span class="local-tag"
+            ><i></i><span id="performance">本地物理模拟</span></span
           ><button class="icon-button" id="help" title="玩法说明">?</button
           ><button class="text-button" id="workshop">策略 / 导入导出 ↗</button>
         </div>
@@ -48,8 +49,14 @@
             ><strong id="money">1,500<small> / 1,500</small></strong>
             <div class="budget-track"><i id="budget-fill"></i></div>
           </div>
+          <div class="catalog-tabs" role="group" aria-label="布置类别">
+            <button id="catalog-units" class="active">
+              兵种 <small>10</small></button
+            ><button id="catalog-props">道具 <small>05</small></button>
+          </div>
           <div class="section-label">
-            招募兵种 <span>点选后在战场放置</span>
+            <span id="catalog-hint">点选后在本方场地放置</span
+            ><span id="prop-count">道具 0 / 12</span>
           </div>
           <div id="unit-cards" class="unit-cards"></div>
           <div class="stance-row">
@@ -71,7 +78,12 @@
           </div>
           <div class="panel-footer">
             <span>物理有点认真。战争有点胡闹。</span
-            ><span>MIT OPEN SOURCE</span>
+            ><a
+              href="https://github.com/hanchuhuang7-ux/fsdy"
+              target="_blank"
+              rel="noopener"
+              >MIT OPEN SOURCE ↗</a
+            >
           </div>
         </aside>
         <section class="arena" aria-label="3D 战场">
@@ -88,7 +100,17 @@
               </div>
               <p id="map-description">开阔平原。让阵型与兵种决定胜负。</p>
             </div>
-            <button class="camera-button" id="camera">⌖ 重置视角</button>
+            <div class="scene-tools">
+              <button class="camera-button" id="camera">⌖ 重置视角</button
+              ><label class="quality-label"
+                >画质
+                <select id="quality" aria-label="画质">
+                  <option value="low">流畅</option>
+                  <option value="balanced" selected>均衡</option>
+                  <option value="high">精细</option>
+                </select></label
+              >
+            </div>
           </div>
           <div class="scoreboard">
             <div class="red">
@@ -103,6 +125,9 @@
             <span class="north">N ↑</span
             ><span>RIGID BODY PHYSICS · 60 Hz</span>
           </div>
+          <button id="terrain-info" class="terrain-info">
+            地形与道具情报 ↗
+          </button>
           <div id="mission" class="mission hidden"></div>
           <div id="result" class="result hidden" role="status"></div>
           <div class="bottom-dock">
@@ -143,7 +168,12 @@
           </button>
         </div>
         <div id="modal-body"></div>
-        <p id="modal-feedback" class="modal-feedback" role="status" aria-live="polite"></p>
+        <p
+          id="modal-feedback"
+          class="modal-feedback"
+          role="status"
+          aria-live="polite"
+        ></p>
       </dialog>
     </div>
     <script type="module" src="/src/main.js"></script>

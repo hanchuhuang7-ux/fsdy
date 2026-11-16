@@ -1,6 +1,12 @@
 import fs from "node:fs/promises";
 import { Battle, initPhysics } from "../src/engine.js";
-import { defaultConfig, formation, MAPS, validateConfig } from "../src/data.js";
+import {
+  VERSION,
+  defaultConfig,
+  formation,
+  MAPS,
+  validateConfig,
+} from "../src/data.js";
 
 const args = process.argv.slice(2);
 let map = "meadow",
@@ -41,7 +47,9 @@ try {
         break;
       case "--help":
         console.log(
-          "npm run battle -- [--map meadow|bridge|island] [--red balanced|rush|volley] [--blue balanced|rush|volley] [--seed N] [--rounds N] [--config battle.json] [--out result.json]",
+          "npm run battle -- [--map " +
+            Object.keys(MAPS).join("|") +
+            "] [--red balanced|rush|volley|cavalry|support|siege] [--blue PRESET] [--seed N] [--rounds N] [--config battle.json] [--out result.json]",
         );
         process.exit(0);
       default:
@@ -55,6 +63,9 @@ try {
     "phalanx",
     "battery",
     "titans",
+    "cavalry",
+    "support",
+    "siege",
   ];
   if (!presets.includes(red) || !presets.includes(blue))
     throw Error("未知阵型");
@@ -82,7 +93,7 @@ try {
     }
   }
   const report = {
-    engine: "frontline-lab@0.1.0",
+    engine: "frontline-lab@" + VERSION,
     map: base.map,
     rounds,
     wins: {

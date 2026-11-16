@@ -1,67 +1,67 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "map": "bridge",
   "seed": 20261116,
-  "budget": 1500,
+  "budget": 2200,
   "red": [
     {
       "type": "shield",
       "x": -5,
-      "z": -2.4749999999999996,
+      "z": -2.7,
       "stance": "advance"
     },
     {
       "type": "shield",
       "x": -5,
-      "z": -0.825,
+      "z": -0.9,
       "stance": "advance"
     },
     {
       "type": "shield",
       "x": -5,
-      "z": 0.825,
+      "z": 0.9,
       "stance": "advance"
     },
     {
       "type": "shield",
       "x": -5,
-      "z": 2.4749999999999996,
+      "z": 2.7,
       "stance": "advance"
     },
     {
       "type": "archer",
       "x": -9,
-      "z": -4.125,
+      "z": -4.5,
       "stance": "advance"
     },
     {
       "type": "archer",
       "x": -9,
-      "z": -2.4749999999999996,
+      "z": -2.7,
       "stance": "advance"
     },
     {
       "type": "archer",
       "x": -9,
-      "z": -0.825,
+      "z": -0.9,
       "stance": "advance"
     },
     {
       "type": "archer",
       "x": -9,
-      "z": 0.825,
+      "z": 0.9,
       "stance": "advance"
     },
     {
       "type": "archer",
       "x": -9,
-      "z": 2.4749999999999996,
+      "z": 2.7,
       "stance": "advance"
     },
     {
       "type": "archer",
       "x": -9,
-      "z": 4.125,
+      "z": 4.5,
       "stance": "advance"
     },
     {
@@ -93,50 +93,51 @@
     {
       "type": "archer",
       "x": 10,
-      "z": -2.4749999999999996,
+      "z": -2.7,
       "stance": "advance"
     },
     {
       "type": "archer",
       "x": 10,
-      "z": -0.825,
+      "z": -0.9,
       "stance": "advance"
     },
     {
       "type": "archer",
       "x": 10,
-      "z": 0.825,
+      "z": 0.9,
       "stance": "advance"
     },
     {
       "type": "archer",
       "x": 10,
-      "z": 2.4749999999999996,
+      "z": 2.7,
       "stance": "advance"
     },
     {
       "type": "militia",
       "x": 7.5,
-      "z": -2.4749999999999996,
+      "z": -2.7,
       "stance": "advance"
     },
     {
       "type": "militia",
       "x": 7.5,
-      "z": -0.825,
+      "z": -0.9,
       "stance": "advance"
     },
     {
       "type": "militia",
       "x": 7.5,
-      "z": 0.825,
+      "z": 0.9,
       "stance": "advance"
     },
     {
       "type": "militia",
       "x": 7.5,
-      "z": 2.4749999999999996,
+      "z": 2.7,
       "stance": "advance"
     }
-  ]
+  ],
+  "props": []
 }
