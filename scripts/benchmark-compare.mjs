@@ -5,11 +5,11 @@ import { pathToFileURL } from "node:url";
 import { Battle, initPhysics } from "../src/engine.js";
 import { VERSION } from "../src/data.js";
 
-// A local, trusted v0.2 checkout with the same pinned dependencies is required.
+// A local, trusted previous checkout with the same pinned dependencies is required.
 const root = process.argv[2];
 if (!root)
   throw Error(
-    "Usage: node scripts/benchmark-compare.mjs <v0.2-checkout> [report.json]",
+    "Usage: node scripts/benchmark-compare.mjs <previous-checkout> [report.json]",
   );
 const baseline = await import(
   pathToFileURL(path.resolve(root, "src/engine.js"))
@@ -17,7 +17,8 @@ const baseline = await import(
 const baselineData = await import(
   pathToFileURL(path.resolve(root, "src/data.js"))
 );
-if (baselineData.VERSION !== "0.2.0") throw Error("对照目录必须是干净 v0.2.0");
+if (!["0.2.0", "0.3.0"].includes(baselineData.VERSION))
+  throw Error("对照目录必须是干净 v0.2.0 或 v0.3.0");
 await initPhysics();
 await baseline.initPhysics();
 const types = ["militia", "shield", "spear", "archer", "bomber"];
@@ -29,7 +30,7 @@ const army = (team) =>
     stance: "advance",
   }));
 const input = {
-  version: "0.2.0",
+  version: baselineData.VERSION,
   map: "meadow",
   seed: 42,
   budget: 10000,
@@ -73,7 +74,7 @@ const median = (list) =>
 const before = median(samples.baseline),
   after = median(samples.current);
 const report = {
-  baselineVersion: "0.2.0",
+  baselineVersion: baselineData.VERSION,
   currentVersion: VERSION,
   node: process.version,
   platform: process.platform,

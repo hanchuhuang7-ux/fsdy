@@ -2,6 +2,10 @@ import "./style.css";
 import "./mobile.css";
 import "./expansion.css";
 import "./tactics.css";
+import "./command.css";
+import { BattleAudio } from "./audio.js";
+import { BattleSeries } from "./series.js";
+import { saveFavorite, loadFavorite, readFavorites } from "./favorites.js";
 import { AI_STYLES, withAI, aiDuel } from "./tactics.js";
 import {
   squad,
@@ -10,7 +14,7 @@ import {
   hotseatView,
   nextHotseat,
 } from "./deployment.js";
-import { replayPackage, validateReplay } from "./replay.js";
+import { replayPackage, validateReplay, createReplayBattle } from "./replay.js";
 import { BattlefieldView } from "./scene.js";
 import { initPhysics, Battle } from "./engine.js";
 import {
@@ -30,6 +34,9 @@ import {
   defaultConfig,
   canPlace,
   missionArmy,
+  STANCES,
+  ORDERS,
+  combatPower,
 } from "./data.js";
 
 const $ = (selector) => document.querySelector(selector);
@@ -58,6 +65,15 @@ let playMode = "sandbox",
   editTool = "place",
   lastResult = null,
   replayConfig = null;
+const audio = new BattleAudio();
+let series = null,
+  roundRecorded = false,
+  seriesPreparing = false,
+  pendingOrder = null,
+  favorites = Array(5).fill(null),
+  initialPower = { red: 1, blue: 1 },
+  replayEngineVersion = VERSION;
+let orderPoint = null;
 const storageKey = "frontline-lab-v1";
 const clone = (value) => structuredClone(value);
 const escape = (s) =>
@@ -124,6 +140,9 @@ function renderCatalog() {
       (b.onclick = () => {
         if (catalog === "units") selected = b.dataset.type;
         else selectedProp = b.dataset.type;
+        document.body.classList.remove("compact-catalog-open");
+        const toggle = $(".compact-panel-toggle");
+        if (toggle) toggle.textContent = "⚑ 兵种 / 布阵";
         updatePanel();
       }),
   );
@@ -187,6 +206,23 @@ function updatePanel() {
     $("#mission").innerHTML =
       `<strong>${m.name}</strong><p>${m.description}</p>`;
   }
+  $("#bo3-enabled").disabled =
+    mode !== "deploy" || missionIndex !== null || !!series?.rounds.length;
+  $("#commander-enabled").disabled =
+    mode !== "deploy" || !!series?.rounds.length;
+  $("#commander-enabled").checked = config.commander?.enabled || false;
+  if (series?.rounds.length) {
+    $("#map").disabled = true;
+    $("#play-mode").disabled = true;
+  }
+  $("#series-status").textContent = series
+    ? `Bo3 · 红 ${series.wins.red} : ${series.wins.blue} 蓝 · ${series.complete ? "已结束" : "第 " + (series.rounds.length + 1) + " 局"}`
+    : $("#bo3-enabled").checked
+      ? "Bo3 · 等待第 1 局"
+      : "单局推演";
+  $("#restart-series").classList.toggle("hidden", !series);
+  $("#round-label").classList.toggle("hidden", !series);
+  $("#round-label").textContent = $("#series-status").textContent;
   $("#play-mode").value = playMode;
   $("#play-mode").disabled = mode !== "deploy" || missionIndex !== null;
   $(".ai-settings").classList.toggle(
@@ -232,6 +268,13 @@ function updatePanel() {
         : hotseatStage === "blue"
           ? "揭晓并开战 ↗"
           : "等待交接";
+  if (series?.rounds.length) {
+    $("#map").disabled = true;
+    $("#play-mode").disabled = true;
+  }
+  $("#favorites").disabled = mode !== "deploy" || playMode === "ai-ai";
+  if ($(".compact-panel-toggle"))
+    $(".compact-panel-toggle").disabled = mode !== "deploy";
 }
 function redraw() {
   const visible =
@@ -240,10 +283,25 @@ function redraw() {
   selection = selection.filter((i) => config[team][i]);
   view.selection(team, selection);
   view.controls.enabled = editTool !== "select";
+  updatePower(
+    visible["red"]
+      .map((u) => ({ ...u, team: "red", alive: true, hp: UNITS[u.type].hp }))
+      .concat(
+        visible["blue"].map((u) => ({
+          ...u,
+          team: "blue",
+          alive: true,
+          hp: UNITS[u.type].hp,
+        })),
+      ),
+    true,
+  );
   updatePanel();
   persist();
 }
 function reset() {
+  if (series && !series.complete && roundRecorded && !seriesPreparing)
+    return prepareNextRound();
   battle?.dispose();
   battle = null;
   liveState = null;
@@ -259,6 +317,11 @@ function reset() {
   $("#status-dot").style.background = "#a3ae8a";
   $(".replay-bar")?.remove();
   frames = [];
+  pendingOrder = null;
+  audio.reset();
+  roundRecorded = false;
+  replayEngineVersion = VERSION;
+  if (series?.complete && !seriesPreparing) series = null;
   lastResult = null;
   replayConfig = null;
   selection = [];
@@ -272,6 +335,7 @@ function reset() {
   $("#hotseat-cover").classList.add("hidden");
   $("#preview-label").classList.add("hidden");
   redraw();
+  updateCommandUI();
 }
 function changeMap(id) {
   if (!editable(true)) return;
@@ -289,17 +353,142 @@ function changeMap(id) {
 function refreshAI(notify = true) {
   if (mode !== "deploy" || missionIndex !== null) return;
   if (playMode === "human-ai")
-    config = withAI(config, "blue", $("#blue-ai").value);
+    config = withAI(
+      config,
+      "blue",
+      $("#blue-ai").value,
+      config.red,
+      series?.last,
+    );
   if (playMode === "ai-ai")
-    config = aiDuel(config, $("#red-ai").value, $("#blue-ai").value);
+    config = aiDuel(
+      config,
+      $("#red-ai").value,
+      $("#blue-ai").value,
+      series?.last,
+    );
   if (notify) {
     redraw();
     toast("AI 已按当前地图、军费与公开编队重新布阵。");
   }
 }
+function updatePower(units, deploy = false) {
+  const values = combatPower(units);
+  if (deploy) initialPower = { ...values };
+  for (const t of ["red", "blue"]) {
+    const hidden =
+      mode === "deploy" &&
+      playMode === "hotseat" &&
+      hotseatStage !== "revealed" &&
+      hotseatStage !== t;
+    $("#" + t + "-power-value").textContent = hidden
+      ? "?"
+      : Math.round(values[t]).toLocaleString();
+    $("#" + t + "-power-fill").style.width =
+      (hidden
+        ? 0
+        : Math.min(100, (values[t] / Math.max(1, initialPower[t])) * 100)) +
+      "%";
+  }
+}
+function updateCommandUI(state = null) {
+  const enabled = (replayConfig || config).commander?.enabled;
+  $("#command-dock").classList.toggle(
+    "hidden",
+    !enabled || !["battle", "replay"].includes(mode),
+  );
+  if (!enabled) return;
+  const own = state?.commander || battle?.orderState,
+    tick = state?.tick ?? battle?.tick ?? 0;
+  if (!own) return;
+  const t = $("#command-team").value,
+    ai = (replayConfig || config).commander.aiTeams.includes(t),
+    cool = Math.max(0, (own.readyAt[t] - tick) / 60);
+  $("#command-status").textContent =
+    `${ai ? "AI · " : ""}${own.points[t]} 点 · ${cool > 0 ? cool.toFixed(1) + "s 冷却" : "可下令"}${pendingOrder ? " · 点地面指定区域" : ""}`;
+  $("#command-team").disabled =
+    playMode === "human-ai" || missionIndex !== null || mode === "replay";
+  for (const b of document.querySelectorAll("[data-order]")) {
+    b.disabled =
+      mode !== "battle" || ai || own.points[t] < 1 || cool > 0 || paused;
+    b.classList.toggle("active", pendingOrder === b.dataset.order);
+  }
+}
+function prepareNextRound() {
+  if (!series || series.complete) return;
+  const next = series.nextConfig();
+  seriesPreparing = true;
+  reset();
+  seriesPreparing = false;
+  config = next;
+  history = [];
+  team = "red";
+  if (playMode === "hotseat") {
+    hotseatStage = "red";
+    config.red = [];
+    config.blue = [];
+    config.props = [];
+  } else refreshAI(false);
+  view.map(config.map);
+  redraw();
+  toast("上一局公开阵型和战报已保留；可微调后开始下一局。");
+}
+function favoriteDialog() {
+  if (!editable()) return;
+  dialog(
+    "常用阵型收藏夹",
+    `<p>保存当前阵营的士兵和道具，共五槽。载入时检查当前地图与军费；载入到另一阵营会镜像 x 坐标。试炼仍遵守玩家军费。</p>${favorites.map((s, i) => `<div class="favorite-slot"><span><strong>槽 ${i + 1} · ${s ? escape(s.name) : "空"}</strong><br>${s ? escape(MAPS[s.map].name) + " · " + s.units.length + " 人" : ""}</span><button data-load-favorite="${i}" ${s ? "" : "disabled"}>载入</button><button data-save-favorite="${i}">保存本方</button></div>`).join("")}<label>收藏名称 <input id="favorite-name" maxlength="32" value="我的阵型"></label>`,
+  );
+  document.querySelectorAll("[data-save-favorite]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        try {
+          favorites = saveFavorite(
+            favorites,
+            Number(b.dataset.saveFavorite),
+            $("#favorite-name").value,
+            config,
+            team,
+          );
+          localStorage.setItem(
+            "frontline-favorites-v1",
+            JSON.stringify(favorites),
+          );
+          favoriteDialog();
+          toast("阵型已存入收藏槽。");
+        } catch (e) {
+          toast(e.message);
+        }
+      }),
+  );
+  document.querySelectorAll("[data-load-favorite]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        try {
+          const next = loadFavorite(
+            config,
+            team,
+            favorites[Number(b.dataset.loadFavorite)],
+            budget(),
+          );
+          commit();
+          config = next;
+          selection = [];
+          editTool = "place";
+          redraw();
+          $("#modal").close();
+          audio.play("place");
+          toast("收藏阵型已载入。");
+        } catch (e) {
+          toast(e.message);
+        }
+      }),
+  );
+}
 function changePlayMode(value) {
   if (mode !== "deploy" || missionIndex !== null) return;
   playMode = value;
+  series = null;
   hotseatStage = value === "hotseat" ? "red" : null;
   team = "red";
   selection = [];
@@ -351,6 +540,7 @@ function buildSquad() {
       editTool = "place";
       redraw();
       $("#modal").close();
+      audio.play("place");
       toast(`已放置 ${additions.length} 名士兵。`);
     } catch (e) {
       toast(e.message);
@@ -412,14 +602,34 @@ function start() {
     }
   }
   if (playMode === "human-ai")
-    config = withAI(config, "blue", $("#blue-ai").value);
+    config = withAI(
+      config,
+      "blue",
+      $("#blue-ai").value,
+      config.red,
+      series?.last,
+    );
   if (playMode === "ai-ai")
-    config = aiDuel(config, $("#red-ai").value, $("#blue-ai").value);
+    config = aiDuel(
+      config,
+      $("#red-ai").value,
+      $("#blue-ai").value,
+      series?.last,
+    );
   if (!config.red.length || !config.blue.length) {
     toast("双方都需要至少一名士兵。");
     return;
   }
   try {
+    config.commander = {
+      enabled: $("#commander-enabled").checked,
+      aiTeams:
+        playMode === "ai-ai"
+          ? ["red", "blue"]
+          : playMode === "human-ai" || missionIndex !== null
+            ? ["blue"]
+            : [],
+    };
     validateConfig(config);
     battle = new Battle(config);
   } catch (e) {
@@ -427,6 +637,15 @@ function start() {
     return;
   }
   mode = "battle";
+  if (playMode === "human-ai" || missionIndex !== null)
+    $("#command-team").value = "red";
+  replayEngineVersion = VERSION;
+  if ($("#bo3-enabled").checked && !series) series = new BattleSeries(config);
+  roundRecorded = false;
+  pendingOrder = null;
+  audio.reset();
+  audio.play("start");
+  initialPower = combatPower(battle.snapshot().units);
   config = validateConfig(config);
   replayConfig = clone(config);
   lastResult = null;
@@ -458,6 +677,10 @@ function finish() {
           : "靛蓝军获胜";
   const victory = missionIndex !== null && r.winner === "red";
   lastResult = r;
+  if (series && !roundRecorded && battle?.result) {
+    series.record(replayConfig, r);
+    roundRecorded = true;
+  }
   $("#red-count").textContent = r.red;
   $("#blue-count").textContent = r.blue;
   $("#battle-time").textContent = r.time.toFixed(1) + " 秒 / 90 秒";
@@ -468,12 +691,31 @@ function finish() {
   $("#result").innerHTML =
     `<span class="eyebrow">${victory ? "TRIAL COMPLETED" : "THE DUST SETTLES"}</span><h2 class="${r.winner}">${winner}</h2><p>用时 ${r.time.toFixed(1)} 秒 · 剩余 ${r.red} : ${r.blue}<br>${r.reason === "timeout" ? "时间耗尽，按存活兵力价值判定。" : "最后一名敌人，已离开战场。"}</p>${contributionsHTML(r.report)}<div class="result-actions"><button id="watch-replay">▶ 战斗回放</button><button id="export-replay">导出完整回放</button><button id="export-seed">导出种子重演包</button><button id="retry">调整阵型</button>${missionIndex !== null && missionIndex < MISSIONS.length - 1 ? '<button id="next-mission">下一试炼 →</button>' : ""}</div>`;
   $("#result").classList.remove("hidden");
+  if (series) {
+    const note = document.createElement("div");
+    note.className = "series-note";
+    note.textContent = `Bo3 红 ${series.wins.red} : ${series.wins.blue} 蓝${series.complete ? " · 系列赛结束" : " · 可复盘并调整下一局"}`;
+    $("#result").prepend(note);
+    if (!series.complete) {
+      const next = document.createElement("button");
+      next.className = "series-next";
+      next.textContent = "复盘调阵 → 第 " + (series.rounds.length + 1) + " 局";
+      next.onclick = prepareNextRound;
+      $(".result-actions").prepend(next);
+    }
+    const save = document.createElement("button");
+    save.textContent = "导出 Bo3 档案";
+    save.onclick = () => saveJson("frontline-bo3.json", series.export());
+    $(".result-actions").append(save);
+  }
   $("#watch-replay").onclick = beginReplay;
   $("#retry").onclick = reset;
   $("#export-replay").onclick = () => exportReplay("trajectory");
   $("#export-seed").onclick = () => exportReplay("seed");
   if ($("#next-mission"))
     $("#next-mission").onclick = () => loadMission(missionIndex + 1);
+  updateCommandUI();
+  updatePanel();
 }
 function beginReplay() {
   if (!frames.length) {
@@ -481,6 +723,7 @@ function beginReplay() {
     return;
   }
   mode = "replay";
+  audio.reset();
   $(".replay-bar")?.remove();
   replayTime = 0;
   paused = false;
@@ -496,6 +739,8 @@ function beginReplay() {
   $("#timeline").oninput = (e) => {
     replayTime = frames[Number(e.target.value)].time;
     paused = true;
+    audio.cursor = frames[Number(e.target.value)].cues?.at(-1)?.id || 0;
+    view.feedbackCursor = audio.cursor;
     $("#pause").textContent = "▶ 继续";
     showReplay();
   };
@@ -510,7 +755,10 @@ function showReplay() {
     replayTime >= frames.at(-1).time
       ? frames.length - 1
       : Math.min(frames.length - 1, Math.floor(replayTime * 10));
-  view.frame(frames[i]);
+  view.frame(frames[i], paused);
+  updatePower(frames[i].units);
+  updateCommandUI(frames[i]);
+  audio.consume(frames[i].cues, !paused);
   $("#timeline").value = i;
   $("#replay-position").textContent = frames[i].time.toFixed(1) + " s";
   $("#battle-time").textContent = frames[i].time.toFixed(1) + " 秒";
@@ -535,7 +783,17 @@ function exportReplay(kind) {
   try {
     saveJson(
       `frontline-${kind}-replay.json`,
-      replayPackage(replayConfig || config, frames, lastResult, kind),
+      replayEngineVersion === VERSION
+        ? replayPackage(replayConfig || config, frames, lastResult, kind)
+        : validateReplay({
+            format: "frontline-replay",
+            version: 1,
+            engineVersion: replayEngineVersion,
+            kind,
+            config: replayConfig || config,
+            frames: kind === "trajectory" ? frames : undefined,
+            result: kind === "trajectory" ? lastResult : undefined,
+          }),
       true,
     );
     toast("回放包已导出。");
@@ -549,7 +807,7 @@ async function loadReplay(raw) {
     result = pkg.result;
   if (pkg.kind === "seed") {
     toast("正在按种子重演…");
-    const simulator = new Battle(pkg.config);
+    const simulator = await createReplayBattle(pkg);
     loadedFrames = [simulator.snapshot()];
     try {
       while (!simulator.result) {
@@ -563,9 +821,22 @@ async function loadReplay(raw) {
     } finally {
       simulator.dispose();
     }
+    if (pkg.engineVersion !== VERSION) {
+      const migrated = validateReplay({
+        ...pkg,
+        kind: "trajectory",
+        frames: loadedFrames,
+        result,
+      });
+      loadedFrames = migrated.frames;
+      result = migrated.result;
+    }
   }
   battle?.dispose();
   battle = null;
+  series = null;
+  audio.reset();
+  replayEngineVersion = pkg.engineVersion;
   config = pkg.config;
   replayConfig = clone(config);
   lastResult = result;
@@ -577,6 +848,7 @@ async function loadReplay(raw) {
   editTool = "place";
   team = "red";
   view.controls.enabled = true;
+  initialPower = combatPower(loadedFrames[0].units);
   view.map(config.map);
   mode = "ended";
   updatePanel();
@@ -589,7 +861,7 @@ function workshop() {
     return toast("盲选封存期间，策略档案与导出已关闭。");
   dialog(
     "策略与战场档案",
-    `<p>把布阵文件交给 AI，让它研究兵种、坐标与姿态，写出自己的军队。这里保存完整对局配置；导入不会运行任何脚本。</p><div class="settings"><label for="seed">对局种子</label><input id="seed" type="number" min="0" max="4294967295" value="${config.seed}" ${mode !== "deploy" ? "disabled" : ""}><button class="action" id="apply-seed" ${mode !== "deploy" ? "disabled" : ""}>应用</button></div><button class="action" id="export-config">导出对局 JSON</button><button class="action" id="import-config">从文件导入</button><button class="action" id="save-local">保存当前阵型</button><input id="file-input" type="file" accept=".json,application/json" hidden><h3>编辑对局</h3><p>每方最多 ${MAX_UNITS} 人。x 为左右方向，z 为前后方向；红方 x ≤ -2.5，蓝方 x ≥ 2.5。姿态：advance / hold / flank / hunt；省略时默认 advance。</p><textarea id="config-editor" spellcheck="false" aria-label="对局配置 JSON">${escape(JSON.stringify(config, null, 2))}</textarea><button class="action" id="apply-config" ${mode !== "deploy" ? "disabled" : ""}>载入编辑的对局</button><h3>复现与评测</h3><p>项目提供无界面的 Node.js 评测命令、策略示例和 AI 提示词。回放会记录当前对局的物理轨迹；相同引擎版本与种子可复现模拟。完整文档见项目 README。</p>`,
+    `<p>把布阵文件交给 AI，让它研究兵种、坐标与姿态，写出自己的军队。这里保存完整对局配置；导入不会运行任何脚本。</p><div class="settings"><label for="seed">对局种子</label><input id="seed" type="number" min="0" max="4294967295" value="${config.seed}" ${mode !== "deploy" ? "disabled" : ""}><button class="action" id="apply-seed" ${mode !== "deploy" ? "disabled" : ""}>应用</button></div><button class="action" id="export-config">导出对局 JSON</button><button class="action" id="import-config">从文件导入</button><button class="action" id="save-local">保存当前阵型</button><input id="file-input" type="file" accept=".json,application/json" hidden><h3>编辑对局</h3><p>每方最多 ${MAX_UNITS} 人。x 为左右方向，z 为前后方向；红方 x ≤ -2.5，蓝方 x ≥ 2.5。姿态：advance / hold / flank / hunt；省略时默认 advance。可选统帅军令配置 commander: {enabled:true,aiTeams:[&quot;blue&quot;]}。</p><textarea id="config-editor" spellcheck="false" aria-label="对局配置 JSON">${escape(JSON.stringify(config, null, 2))}</textarea><button class="action" id="apply-config" ${mode !== "deploy" ? "disabled" : ""}>载入编辑的对局</button><h3>复现与评测</h3><p>项目提供无界面的 Node.js 评测命令、策略示例和 AI 提示词。回放会记录当前对局的物理轨迹；相同引擎版本与种子可复现模拟。完整文档见项目 README。</p>`,
   );
   const replayTools = document.createElement("div");
   replayTools.innerHTML = `<h3>回放档案</h3><button class="action" id="import-replay">载入回放包 / 种子包</button><input id="replay-file" type="file" accept=".json,application/json" hidden><p>完整回放保存 10 Hz 轨迹；种子包使用同一版本引擎重新推演。回放文件最多 64 MB。</p>`;
@@ -627,12 +899,15 @@ function workshop() {
     )}</select><button class="action" id="apply-budget" ${mode !== "deploy" || missionIndex !== null ? "disabled" : ""}>应用军费</button>`;
   $("#modal-body").prepend(settings);
   $("#apply-budget").onclick = () => {
+    if (series?.rounds.length)
+      return toast("系列赛内军费固定；重新开始系列赛后可修改。");
     const n = Number($("#budget-setting").value);
     if (["red", "blue"].some((t) => teamCost(config, t) > n))
       return toast("当前兵力和道具超出这档军费，请先精简。");
     commit();
     config.budget = n;
     refreshAI(false);
+    redraw();
     updatePanel();
     persist();
     $("#config-editor").value = JSON.stringify(config, null, 2);
@@ -643,6 +918,8 @@ function workshop() {
     toast("阵型已保存在此浏览器。");
   };
   $("#apply-seed").onclick = () => {
+    if (series?.rounds.length)
+      return toast("系列赛种子按小局递增；重新开始后可修改。");
     const seed = Number($("#seed").value);
     if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff)
       return toast("请输入有效的 32 位整数种子。");
@@ -658,6 +935,8 @@ function workshop() {
       history = [];
       missionIndex = null;
       config = clone(normalized);
+      series = null;
+      $("#bo3-enabled").checked = false;
       playMode = "sandbox";
       hotseatStage = null;
       selection = [];
@@ -725,6 +1004,8 @@ function choosePreset() {
   );
 }
 function loadMission(index) {
+  series = null;
+  $("#bo3-enabled").checked = false;
   playMode = "sandbox";
   hotseatStage = null;
   reset();
@@ -793,11 +1074,57 @@ function terrainInfo() {
 function help() {
   dialog(
     "战场手册",
-    `<p>先排兵，再布置道具。骑兵需要冲锋距离，军医提供持续治疗，投石车可以越过低矮掩体。每个士兵都有实体碰撞；箭、炸弹、冲击波与重力会共同决定结果。</p><h3>如何操作</h3><ul><li>选兵种，左键点击本方半场放置。右键点击士兵移除，或按住 Shift 点击。</li><li>拖动旋转视角，滚轮缩放，右键拖动平移。触屏双指缩放。</li><li><span class="key">空格</span> 开战 / 暂停，<span class="key">R</span> 返回布阵，<span class="key">Ctrl Z</span> 撤销布阵。</li><li>自由沙盘可编辑双方；玩家 vs AI 编辑红方；自动演武由双方 AI 布阵。热座按红方 → 封存交接 → 蓝方 → 揭晓开战操作。</li><li>混编整队可选方阵、横排、楔形并镜像追加。框选模式拖动地面矩形或逐个点击；选中同兵种后可移动、删除、改姿态。取消选择后恢复视角旋转。</li><li>悬停部队或道具查看地面射程圈；高地加成按最近公开敌军的地面高度计算。骑兵箭头表示开场冲锋方向。</li></ul><h3>几条实用战术</h3><ul><li>盾卫面向敌军才能减伤。长枪在盾后也能攻击。</li><li>弓手会预测移动目标，但箭可能撞上友军。</li><li>炸弹 1.8 秒引爆，双方都会受到伤害与击飞。</li><li>危桥上的单位会尝试走桥；拥挤或冲击可能把它推下去。</li><li>交战上限 90 秒；超时按剩余血量折算的兵力价值决胜。</li></ul><h3>关于这个版本</h3><p>原创开源 Alpha 0.3。三种布阵 AI、双人盲选热座、混编整队、贡献榜与回放文件。十种兵种、六张地图、五种可布置道具。近战使用距离与冷却判定，移动、碰撞、抛射与倒地由 Rapier 求解。玩法灵感来自《纸上谈兵》和全面战争式物理沙盘。</p>`,
+    `<p>先排兵，再布置道具。骑兵需要冲锋距离，军医提供持续治疗，投石车可以越过低矮掩体。每个士兵都有实体碰撞；箭、炸弹、冲击波与重力会共同决定结果。</p><h3>如何操作</h3><ul><li>选兵种，左键点击本方半场放置。右键点击士兵移除，或按住 Shift 点击。</li><li>拖动旋转视角，滚轮缩放，右键拖动平移。触屏双指缩放。</li><li><span class="key">空格</span> 开战 / 暂停，<span class="key">R</span> 返回布阵，<span class="key">Ctrl Z</span> 撤销布阵。</li><li>自由沙盘可编辑双方；玩家 vs AI 编辑红方；自动演武由双方 AI 布阵。热座按红方 → 封存交接 → 蓝方 → 揭晓开战操作。</li><li>混编整队可选方阵、横排、楔形并镜像追加。框选模式拖动地面矩形或逐个点击；选中同兵种后可移动、删除、改姿态。取消选择后恢复视角旋转。</li><li>悬停部队或道具查看地面射程圈；高地加成按最近公开敌军的地面高度计算。骑兵箭头表示开场冲锋方向。</li></ul><h3>几条实用战术</h3><ul><li>盾卫面向敌军才能减伤。长枪在盾后也能攻击。</li><li>弓手会预测移动目标，但箭可能撞上友军。</li><li>炸弹 1.8 秒引爆，双方都会受到伤害与击飞。</li><li>危桥上的单位会尝试走桥；拥挤或冲击可能把它推下去。</li><li>交战上限 90 秒；超时按剩余血量折算的兵力价值决胜。</li></ul><h3>关于这个版本</h3><p>原创开源 Alpha 0.4。公开侦察 AI、Bo3 复盘调阵、统帅军令、合成音效、实时战力与收藏夹。十种兵种、六张地图、五种可布置道具。近战使用距离与冷却判定，移动、碰撞、抛射与倒地由 Rapier 求解。玩法灵感来自《纸上谈兵》和全面战争式物理沙盘。</p>`,
   );
 }
 
 async function boot() {
+  try {
+    favorites = readFavorites(
+      JSON.parse(localStorage.getItem("frontline-favorites-v1") || "[]"),
+    );
+  } catch {}
+  try {
+    const p = JSON.parse(localStorage.getItem("frontline-feedback") || "{}");
+    if (p.volume !== undefined) audio.setVolume(p.volume);
+    audio.setMuted(p.muted);
+    $("#camera-shake").checked = p.shake !== false;
+  } catch {}
+  $("#volume").value = Math.round(audio.volume * 100);
+  const saveFeedback = () => {
+    try {
+      localStorage.setItem(
+        "frontline-feedback",
+        JSON.stringify({
+          volume: audio.volume,
+          muted: audio.muted,
+          shake: $("#camera-shake").checked,
+        }),
+      );
+    } catch {}
+  };
+  const syncAudio = () => {
+    $("#audio-toggle").textContent = audio.muted ? "♫×" : "♫";
+    $("#audio-toggle").setAttribute("aria-pressed", String(audio.muted));
+    $("#audio-toggle").title = audio.muted ? "开启声音" : "静音";
+  };
+  syncAudio();
+  document.addEventListener(
+    "pointerdown",
+    () => {
+      if (!audio.context || audio.context.state === "suspended") audio.unlock();
+    },
+    { capture: true },
+  );
+  $("#audio-toggle").onclick = () => {
+    audio.setMuted(!audio.muted);
+    syncAudio();
+    saveFeedback();
+  };
+  $("#volume").oninput = (e) => {
+    audio.setVolume(Number(e.target.value) / 100);
+    saveFeedback();
+  };
   for (const id of ["red-ai", "blue-ai"])
     $("#" + id).innerHTML = Object.entries(AI_STYLES)
       .map(([key, s]) => `<option value="${key}">${s.name}</option>`)
@@ -818,6 +1145,7 @@ async function boot() {
   } catch {}
   try {
     view = new BattlefieldView($("#viewport"));
+    view.shakeEnabled = $("#camera-shake").checked;
     let quality = "balanced";
     try {
       quality = localStorage.getItem("frontline-quality") || "balanced";
@@ -858,6 +1186,62 @@ async function boot() {
     } catch {}
   };
   $("#terrain-info").onclick = terrainInfo;
+  $("#camera-shake").onchange = (e) => {
+    view.shakeEnabled = e.target.checked;
+    saveFeedback();
+  };
+  $("#camera-preset").onchange = (e) => view.cameraPreset(e.target.value);
+  $("#viewport").addEventListener("camera-manual", () => {
+    $("#camera-preset").value = "overview";
+  });
+  $("#favorites").onclick = favoriteDialog;
+  $("#commander-enabled").onchange = (e) => {
+    config.commander = { enabled: e.target.checked, aiTeams: [] };
+    persist();
+  };
+  $("#bo3-enabled").onchange = () => {
+    series = null;
+    updatePanel();
+  };
+  $("#restart-series").onclick = () => {
+    if (mode === "battle") return toast("请先返回布阵。");
+    const initial = series?.initial;
+    series = null;
+    reset();
+    if (initial) config = clone(initial);
+    redraw();
+  };
+  $("#command-team").onchange = () => {
+    pendingOrder = null;
+    updateCommandUI();
+  };
+  document.querySelectorAll("[data-order]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        pendingOrder = b.dataset.order;
+        updateCommandUI();
+        toast("点选战场地面，指定" + ORDERS[pendingOrder].name + "区域。");
+      }),
+  );
+  $("#cancel-order").onclick = () => {
+    pendingOrder = null;
+    view.preview(config, null);
+    updateCommandUI();
+  };
+  const compact = document.createElement("button");
+  compact.className = "compact-panel-toggle";
+  compact.textContent = "⚑ 兵种 / 布阵";
+  compact.onclick = () => {
+    const open = document.body.classList.toggle("compact-catalog-open");
+    compact.textContent = open ? "收起兵种 ×" : "⚑ 兵种 / 布阵";
+    if (open) {
+      catalog = "units";
+      renderCatalog();
+      updatePanel();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+  document.body.append(compact);
   $("#team-blue").onclick = () => {
     if (!editable()) return;
     team = "blue";
@@ -925,6 +1309,8 @@ async function boot() {
   $("#pause").onclick = () => {
     paused = !paused;
     $("#pause").textContent = paused ? "▶ 继续" : "Ⅱ 暂停";
+    if (mode === "battle") view.frame(battle.snapshot(), paused);
+    updateCommandUI();
   };
   $("#clear").onclick = () => {
     if (!editable()) return;
@@ -940,13 +1326,18 @@ async function boot() {
     view.map(config.map);
     redraw();
   };
-  $("#camera").onclick = () => view.resetCamera();
+  $("#camera").onclick = () => {
+    view.resetCamera();
+    $("#camera-preset").value = "overview";
+  };
   $("#help").onclick = help;
   $("#workshop").onclick = workshop;
   $("#campaign").onclick = chooseMission;
   $("#sandbox").onclick = () => {
     if (mode === "battle") return toast("请先返回布阵。");
     playMode = "sandbox";
+    series = null;
+    $("#bo3-enabled").checked = false;
     hotseatStage = null;
     reset();
     history = [];
@@ -989,6 +1380,37 @@ async function boot() {
     };
   });
   canvas.addEventListener("pointermove", (e) => {
+    if (mode === "battle" && pendingOrder) {
+      const p = view.pick(e.clientX, e.clientY);
+      orderPoint = p ? { x: p.x, z: p.z } : null;
+      view.preview(
+        config,
+        p ? { type: pendingOrder, x: p.x, z: p.z } : null,
+        "order",
+        $("#command-team").value,
+      );
+      return;
+    }
+    if (mode === "battle" && paused) {
+      const p = view.pick(e.clientX, e.clientY),
+        state = battle.snapshot(),
+        u = p
+          ? state.units.find(
+              (u) => u.alive && Math.hypot(u.t[0] - p.x, u.t[2] - p.z) < 0.9,
+            )
+          : null;
+      const data = view.preview(
+        config,
+        u ? { type: u.type, x: u.t[0], z: u.t[2] } : null,
+        "unit",
+        u?.team || "red",
+      );
+      $("#preview-label").classList.toggle("hidden", !u);
+      if (u)
+        $("#preview-label").textContent =
+          `${UNITS[u.type].name} · ${STANCES[u.stance]} · 射程 ${data.radius.toFixed(1)} 米`;
+      return;
+    }
     if (mode === "deploy") {
       const p = view.pick(e.clientX, e.clientY);
       if (p) {
@@ -1030,7 +1452,11 @@ async function boot() {
           }
         }
         if (!item && editTool === "place") {
-          item = { ...p, type: catalog === "units" ? selected : selectedProp };
+          item = {
+            ...p,
+            type: catalog === "units" ? selected : selectedProp,
+            stance: $("#stance").value,
+          };
           kind = catalog === "units" ? "unit" : "prop";
         }
       }
@@ -1040,7 +1466,7 @@ async function boot() {
       $("#preview-label").classList.toggle("hidden", !data);
       if (data)
         $("#preview-label").textContent =
-          `${kind === "unit" ? UNITS[item.type].name : PROPS[item.type].name} · ${kind === "unit" ? "攻击射程" : "作用半径"} ${data.radius.toFixed(1)} 米${data.bonus ? " · 对最近敌军高地 +18%" : ""}${data.charge ? " · 箭头为开场冲锋方向" : ""}`;
+          `${kind === "unit" ? UNITS[item.type].name + " · " + STANCES[item.stance || "advance"] : PROPS[item.type].name} · ${kind === "unit" ? "攻击射程" : "作用半径"} ${data.radius.toFixed(1)} 米${data.bonus ? " · 对最近敌军高地 +18%" : ""}${data.charge ? " · 箭头为开场冲锋方向" : ""}`;
     }
   });
   canvas.addEventListener("pointerleave", () => {
@@ -1050,6 +1476,28 @@ async function boot() {
   });
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
   canvas.addEventListener("pointerup", (e) => {
+    if (
+      mode === "battle" &&
+      pendingOrder &&
+      down?.button === 0 &&
+      !paused &&
+      Math.hypot(down.x - e.clientX, down.y - e.clientY) < 6
+    ) {
+      const p = view.pick(e.clientX, e.clientY);
+      if (!p) return;
+      const result = battle.issueOrder($("#command-team").value, {
+        type: pendingOrder,
+        x: p.x,
+        z: p.z,
+      });
+      if (result.ok) {
+        pendingOrder = null;
+        audio.play("order");
+        toast("军令已下达。");
+      } else toast(result.reason);
+      updateCommandUI();
+      return;
+    }
     if (
       mode === "deploy" &&
       down &&
@@ -1183,6 +1631,7 @@ async function boot() {
       z: p.z,
       stance: $("#stance").value,
     });
+    audio.play("place");
     redraw();
   });
   window.addEventListener("keydown", (e) => {
@@ -1221,8 +1670,18 @@ async function boot() {
       }
       const state = battle.snapshot((liveState ||= {}));
       view.frame(state);
+      if (pendingOrder && orderPoint)
+        view.preview(
+          config,
+          { ...orderPoint, type: pendingOrder },
+          "order",
+          $("#command-team").value,
+        );
+      audio.consume(state.cues);
       if (Math.floor(state.time * 10) !== statusTick) {
         statusTick = Math.floor(state.time * 10);
+        updatePower(state.units);
+        updateCommandUI(state);
         $("#battle-time").textContent = state.time.toFixed(1) + " 秒 / 90 秒";
         $("#red-count").textContent = state.units.filter(
           (u) => u.alive && u.team === "red",

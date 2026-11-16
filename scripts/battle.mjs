@@ -10,6 +10,7 @@ import {
 } from "../src/data.js";
 import { AI_STYLES, withAI, aiDuel } from "../src/tactics.js";
 import { replayPackage } from "../src/replay.js";
+import { BattleSeries } from "../src/series.js";
 
 const options = {
   map: "meadow",
@@ -60,11 +61,15 @@ async function applySide(base, team, spec) {
 try {
   for (let i = 0; i < args.length; i++) {
     const name = args[i].slice(2);
+    if (["bo3", "commander"].includes(name)) {
+      options[name] = true;
+      continue;
+    }
     if (name === "help") {
       console.log(
         "npm run battle -- [--red ai:guardian|ai:maneuver|ai:counter|PRESET|file:army.json] [--blue SPEC] [--red-ai STYLE] [--blue-ai STYLE] [--config battle.json] [--map " +
           Object.keys(MAPS).join("|") +
-          "] [--budget 2200] [--seed N] [--rounds 1..100] [--out report.json] [--replay-out replay.json]",
+          "] [--budget 2200] [--seed N] [--rounds 1..100] [--out report.json] [--replay-out replay.json] [--bo3] [--commander]",
       );
       process.exit(0);
     }
@@ -98,7 +103,7 @@ try {
     options.rounds > 100
   )
     throw Error("rounds 须为 1–100");
-  if (options["replay-out"] && options.rounds !== 1)
+  if (options["replay-out"] && (options.rounds !== 1 || options.bo3))
     throw Error("回放导出要求 rounds=1");
   if (!Object.hasOwn(MAPS, options.map)) throw Error("未知地图");
   const raw = options.config
@@ -126,10 +131,38 @@ try {
     for (const t of order) base = await applySide(base, t, options[t]);
   }
   base = validateConfig(base);
+  if (options.commander)
+    base.commander = { enabled: true, aiTeams: ["red", "blue"] };
   await initPhysics();
   const results = [];
-  for (let i = 0; i < options.rounds; i++) {
-    const config = { ...base, seed: (base.seed + i) >>> 0 };
+  const series = options.bo3 ? new BattleSeries(base) : null;
+  const isAI = (t) =>
+    options[t].startsWith("ai:") &&
+    (!options.config ||
+      args.includes("--" + t) ||
+      args.includes("--" + t + "-ai"));
+  for (let i = 0; i < (series ? 3 : options.rounds); i++) {
+    let config = { ...base, seed: (base.seed + i) >>> 0 };
+    if (series?.last) {
+      config = series.nextConfig();
+      if (isAI("red") && isAI("blue"))
+        config = aiDuel(
+          config,
+          options.red.slice(3),
+          options.blue.slice(3),
+          series.last,
+        );
+      else
+        for (const t of ["red", "blue"])
+          if (isAI(t))
+            config = withAI(
+              config,
+              t,
+              options[t].slice(3),
+              config[t === "red" ? "blue" : "red"],
+              series.last,
+            );
+    }
     const b = new Battle(config),
       frames = options["replay-out"] ? [b.snapshot()] : null;
     try {
@@ -145,9 +178,11 @@ try {
         );
       }
       results.push({ seed: config.seed, ...b.result });
+      if (series) series.record(config, b.result);
     } finally {
       b.dispose();
     }
+    if (series?.complete) break;
   }
   const report = {
     schema: "frontline-evaluation@1",
@@ -167,8 +202,11 @@ try {
               : "config:blue",
         }
       : { red: options.red, blue: options.blue },
-    rounds: options.rounds,
-    formationPolicy: "fixed formations; seed increments per round",
+    rounds: results.length,
+    formationPolicy: series
+      ? "Bo3 public report adaptation; seed increments per game"
+      : "fixed formations; seed increments per round",
+    series: series?.export() || null,
     config: base,
     wins: Object.fromEntries(
       ["red", "blue", "draw"].map((t) => [

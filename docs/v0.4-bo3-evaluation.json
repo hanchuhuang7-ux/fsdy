@@ -1,0 +1,5079 @@
+{
+  "schema": "frontline-evaluation@1",
+  "engine": "frontline-lab@0.4.0",
+  "map": "ruins",
+  "budget": 2200,
+  "participants": {
+    "red": "ai:counter",
+    "blue": "ai:maneuver"
+  },
+  "rounds": 2,
+  "formationPolicy": "Bo3 public report adaptation; seed increments per game",
+  "series": {
+    "format": "frontline-bo3",
+    "version": 1,
+    "initial": {
+      "version": "0.4.0",
+      "map": "ruins",
+      "seed": 20261116,
+      "budget": 2200,
+      "red": [
+        {
+          "type": "spear",
+          "x": -4.5,
+          "z": -2.7347692056326194,
+          "stance": "advance"
+        },
+        {
+          "type": "spear",
+          "x": -4.5,
+          "z": 4.46523079436738,
+          "stance": "advance"
+        },
+        {
+          "type": "medic",
+          "x": -8.1,
+          "z": 0.3347692056326195,
+          "stance": "advance"
+        },
+        {
+          "type": "archer",
+          "x": -8.1,
+          "z": 2.0652307943673804,
+          "stance": "advance"
+        },
+        {
+          "type": "archer",
+          "x": -8.1,
+          "z": -2.7347692056326194,
+          "stance": "advance"
+        },
+        {
+          "type": "spear",
+          "x": -4.5,
+          "z": 2.7347692056326194,
+          "stance": "advance"
+        },
+        {
+          "type": "spear",
+          "x": -4.5,
+          "z": -4.46523079436738,
+          "stance": "advance"
+        },
+        {
+          "type": "crossbow",
+          "x": -8.1,
+          "z": -4.46523079436738,
+          "stance": "advance"
+        },
+        {
+          "type": "shield",
+          "x": -4.5,
+          "z": 6.86523079436738,
+          "stance": "advance"
+        },
+        {
+          "type": "catapult",
+          "x": -8.1,
+          "z": 4.46523079436738,
+          "stance": "advance"
+        },
+        {
+          "type": "spear",
+          "x": -4.5,
+          "z": -7.53476920563262,
+          "stance": "advance"
+        },
+        {
+          "type": "medic",
+          "x": -8.1,
+          "z": 6.86523079436738,
+          "stance": "advance"
+        },
+        {
+          "type": "spear",
+          "x": -4.5,
+          "z": -9.26523079436738,
+          "stance": "advance"
+        },
+        {
+          "type": "spear",
+          "x": -4.5,
+          "z": 9.93476920563262,
+          "stance": "advance"
+        },
+        {
+          "type": "shield",
+          "x": -7.1,
+          "z": -7.53476920563262,
+          "stance": "advance"
+        },
+        {
+          "type": "spear",
+          "x": -7.1,
+          "z": -9.26523079436738,
+          "stance": "advance"
+        },
+        {
+          "type": "militia",
+          "x": -7.1,
+          "z": 9.26523079436738,
+          "stance": "advance"
+        },
+        {
+          "type": "archer",
+          "x": -10.7,
+          "z": -0.3347692056326195,
+          "stance": "advance"
+        }
+      ],
+      "blue": [
+        {
+          "type": "cavalry",
+          "x": 4.5,
+          "z": -9.6,
+          "stance": "flank"
+        },
+        {
+          "type": "militia",
+          "x": 4.5,
+          "z": 9.6,
+          "stance": "flank"
+        },
+        {
+          "type": "cavalry",
+          "x": 4.5,
+          "z": 7.1,
+          "stance": "flank"
+        },
+        {
+          "type": "crossbow",
+          "x": 8.1,
+          "z": -9.6,
+          "stance": "hunt"
+        },
+        {
+          "type": "spear",
+          "x": 4.5,
+          "z": -7.1,
+          "stance": "advance"
+        },
+        {
+          "type": "medic",
+          "x": 8.1,
+          "z": 9.6,
+          "stance": "advance"
+        },
+        {
+          "type": "militia",
+          "x": 4.5,
+          "z": -4.7,
+          "stance": "flank"
+        },
+        {
+          "type": "cavalry",
+          "x": 4.5,
+          "z": 4.7,
+          "stance": "flank"
+        },
+        {
+          "type": "militia",
+          "x": 4.5,
+          "z": -2.3,
+          "stance": "flank"
+        },
+        {
+          "type": "cavalry",
+          "x": 4.5,
+          "z": 2.3,
+          "stance": "flank"
+        },
+        {
+          "type": "crossbow",
+          "x": 8.1,
+          "z": 7.1,
+          "stance": "hunt"
+        },
+        {
+          "type": "spear",
+          "x": 4.5,
+          "z": 0,
+          "stance": "advance"
+        },
+        {
+          "type": "medic",
+          "x": 8.1,
+          "z": -7.1,
+          "stance": "advance"
+        },
+        {
+          "type": "militia",
+          "x": 7.1,
+          "z": -4.7,
+          "stance": "flank"
+        },
+        {
+          "type": "cavalry",
+          "x": 7.1,
+          "z": 4.7,
+          "stance": "flank"
+        },
+        {
+          "type": "militia",
+          "x": 7.1,
+          "z": 2.3,
+          "stance": "flank"
+        },
+        {
+          "type": "spear",
+          "x": 7.1,
+          "z": -2.3,
+          "stance": "advance"
+        }
+      ],
+      "props": [
+        {
+          "type": "barricade",
+          "team": "red",
+          "x": -3.1,
+          "z": -1.4
+        },
+        {
+          "type": "barricade",
+          "team": "red",
+          "x": -3.1,
+          "z": 1.4
+        },
+        {
+          "type": "banner",
+          "team": "red",
+          "x": -9.8,
+          "z": -1.4
+        },
+        {
+          "type": "banner",
+          "team": "blue",
+          "x": 9.8,
+          "z": -1.4
+        },
+        {
+          "type": "spikes",
+          "team": "blue",
+          "x": 6.6,
+          "z": 0
+        }
+      ],
+      "commander": {
+        "enabled": true,
+        "aiTeams": [
+          "red",
+          "blue"
+        ]
+      }
+    },
+    "rounds": [
+      {
+        "config": {
+          "version": "0.4.0",
+          "map": "ruins",
+          "seed": 20261116,
+          "budget": 2200,
+          "red": [
+            {
+              "type": "spear",
+              "x": -4.5,
+              "z": -2.7347692056326194,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -4.5,
+              "z": 4.46523079436738,
+              "stance": "advance"
+            },
+            {
+              "type": "medic",
+              "x": -8.1,
+              "z": 0.3347692056326195,
+              "stance": "advance"
+            },
+            {
+              "type": "archer",
+              "x": -8.1,
+              "z": 2.0652307943673804,
+              "stance": "advance"
+            },
+            {
+              "type": "archer",
+              "x": -8.1,
+              "z": -2.7347692056326194,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -4.5,
+              "z": 2.7347692056326194,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -4.5,
+              "z": -4.46523079436738,
+              "stance": "advance"
+            },
+            {
+              "type": "crossbow",
+              "x": -8.1,
+              "z": -4.46523079436738,
+              "stance": "advance"
+            },
+            {
+              "type": "shield",
+              "x": -4.5,
+              "z": 6.86523079436738,
+              "stance": "advance"
+            },
+            {
+              "type": "catapult",
+              "x": -8.1,
+              "z": 4.46523079436738,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -4.5,
+              "z": -7.53476920563262,
+              "stance": "advance"
+            },
+            {
+              "type": "medic",
+              "x": -8.1,
+              "z": 6.86523079436738,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -4.5,
+              "z": -9.26523079436738,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -4.5,
+              "z": 9.93476920563262,
+              "stance": "advance"
+            },
+            {
+              "type": "shield",
+              "x": -7.1,
+              "z": -7.53476920563262,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -7.1,
+              "z": -9.26523079436738,
+              "stance": "advance"
+            },
+            {
+              "type": "militia",
+              "x": -7.1,
+              "z": 9.26523079436738,
+              "stance": "advance"
+            },
+            {
+              "type": "archer",
+              "x": -10.7,
+              "z": -0.3347692056326195,
+              "stance": "advance"
+            }
+          ],
+          "blue": [
+            {
+              "type": "cavalry",
+              "x": 4.5,
+              "z": -9.6,
+              "stance": "flank"
+            },
+            {
+              "type": "militia",
+              "x": 4.5,
+              "z": 9.6,
+              "stance": "flank"
+            },
+            {
+              "type": "cavalry",
+              "x": 4.5,
+              "z": 7.1,
+              "stance": "flank"
+            },
+            {
+              "type": "crossbow",
+              "x": 8.1,
+              "z": -9.6,
+              "stance": "hunt"
+            },
+            {
+              "type": "spear",
+              "x": 4.5,
+              "z": -7.1,
+              "stance": "advance"
+            },
+            {
+              "type": "medic",
+              "x": 8.1,
+              "z": 9.6,
+              "stance": "advance"
+            },
+            {
+              "type": "militia",
+              "x": 4.5,
+              "z": -4.7,
+              "stance": "flank"
+            },
+            {
+              "type": "cavalry",
+              "x": 4.5,
+              "z": 4.7,
+              "stance": "flank"
+            },
+            {
+              "type": "militia",
+              "x": 4.5,
+              "z": -2.3,
+              "stance": "flank"
+            },
+            {
+              "type": "cavalry",
+              "x": 4.5,
+              "z": 2.3,
+              "stance": "flank"
+            },
+            {
+              "type": "crossbow",
+              "x": 8.1,
+              "z": 7.1,
+              "stance": "hunt"
+            },
+            {
+              "type": "spear",
+              "x": 4.5,
+              "z": 0,
+              "stance": "advance"
+            },
+            {
+              "type": "medic",
+              "x": 8.1,
+              "z": -7.1,
+              "stance": "advance"
+            },
+            {
+              "type": "militia",
+              "x": 7.1,
+              "z": -4.7,
+              "stance": "flank"
+            },
+            {
+              "type": "cavalry",
+              "x": 7.1,
+              "z": 4.7,
+              "stance": "flank"
+            },
+            {
+              "type": "militia",
+              "x": 7.1,
+              "z": 2.3,
+              "stance": "flank"
+            },
+            {
+              "type": "spear",
+              "x": 7.1,
+              "z": -2.3,
+              "stance": "advance"
+            }
+          ],
+          "props": [
+            {
+              "type": "barricade",
+              "team": "red",
+              "x": -3.1,
+              "z": -1.4
+            },
+            {
+              "type": "barricade",
+              "team": "red",
+              "x": -3.1,
+              "z": 1.4
+            },
+            {
+              "type": "banner",
+              "team": "red",
+              "x": -9.8,
+              "z": -1.4
+            },
+            {
+              "type": "banner",
+              "team": "blue",
+              "x": 9.8,
+              "z": -1.4
+            },
+            {
+              "type": "spikes",
+              "team": "blue",
+              "x": 6.6,
+              "z": 0
+            }
+          ],
+          "commander": {
+            "enabled": true,
+            "aiTeams": [
+              "red",
+              "blue"
+            ]
+          }
+        },
+        "result": {
+          "winner": "red",
+          "time": 46.166666666666664,
+          "red": 12,
+          "blue": 0,
+          "reason": "elimination",
+          "remainingValue": {
+            "red": 1100,
+            "blue": 0
+          },
+          "report": {
+            "teams": {
+              "red": {
+                "initial": 18,
+                "survived": 12,
+                "lost": 6,
+                "remainingValue": 1100,
+                "damageDealt": 2345.547,
+                "damageTaken": 2047.663,
+                "healing": 987.163,
+                "kills": 14,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 171.747,
+                "friendlyKills": 0,
+                "byType": {
+                  "spear": {
+                    "initial": 8,
+                    "survived": 8,
+                    "lost": 0,
+                    "damageDealt": 1336.0980000000002,
+                    "damageTaken": 375.554,
+                    "healing": 0,
+                    "kills": 13,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 0,
+                    "friendlyKills": 0
+                  },
+                  "medic": {
+                    "initial": 2,
+                    "survived": 2,
+                    "lost": 0,
+                    "damageDealt": 0,
+                    "damageTaken": 152.356,
+                    "healing": 953.163,
+                    "kills": 0,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 0,
+                    "friendlyKills": 0
+                  },
+                  "archer": {
+                    "initial": 3,
+                    "survived": 0,
+                    "lost": 3,
+                    "damageDealt": 392,
+                    "damageTaken": 229.8,
+                    "healing": 0,
+                    "kills": 0,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 84,
+                    "friendlyKills": 0
+                  },
+                  "crossbow": {
+                    "initial": 1,
+                    "survived": 0,
+                    "lost": 1,
+                    "damageDealt": 224,
+                    "damageTaken": 186.8,
+                    "healing": 0,
+                    "kills": 1,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 48,
+                    "friendlyKills": 0
+                  },
+                  "shield": {
+                    "initial": 2,
+                    "survived": 2,
+                    "lost": 0,
+                    "damageDealt": 119,
+                    "damageTaken": 298.853,
+                    "healing": 0,
+                    "kills": 0,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 0,
+                    "friendlyKills": 0
+                  },
+                  "catapult": {
+                    "initial": 1,
+                    "survived": 0,
+                    "lost": 1,
+                    "damageDealt": 242.949,
+                    "damageTaken": 248,
+                    "healing": 0,
+                    "kills": 0,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 39.747,
+                    "friendlyKills": 0
+                  },
+                  "militia": {
+                    "initial": 1,
+                    "survived": 0,
+                    "lost": 1,
+                    "damageDealt": 31.5,
+                    "damageTaken": 100.8,
+                    "healing": 0,
+                    "kills": 0,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 0,
+                    "friendlyKills": 0
+                  }
+                }
+              },
+              "blue": {
+                "initial": 17,
+                "survived": 0,
+                "lost": 17,
+                "remainingValue": 0,
+                "damageDealt": 1809.933,
+                "damageTaken": 2556.502,
+                "healing": 251.502,
+                "kills": 6,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 96,
+                "friendlyKills": 0,
+                "byType": {
+                  "cavalry": {
+                    "initial": 5,
+                    "survived": 0,
+                    "lost": 5,
+                    "damageDealt": 973.253,
+                    "damageTaken": 1281,
+                    "healing": 0,
+                    "kills": 5,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 0,
+                    "friendlyKills": 0
+                  },
+                  "militia": {
+                    "initial": 5,
+                    "survived": 0,
+                    "lost": 5,
+                    "damageDealt": 388.18,
+                    "damageTaken": 400,
+                    "healing": 0,
+                    "kills": 1,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 0,
+                    "friendlyKills": 0
+                  },
+                  "crossbow": {
+                    "initial": 2,
+                    "survived": 0,
+                    "lost": 2,
+                    "damageDealt": 210.5,
+                    "damageTaken": 180,
+                    "healing": 0,
+                    "kills": 0,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 96,
+                    "friendlyKills": 0
+                  },
+                  "spear": {
+                    "initial": 3,
+                    "survived": 0,
+                    "lost": 3,
+                    "damageDealt": 208,
+                    "damageTaken": 362.4,
+                    "healing": 0,
+                    "kills": 0,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 0,
+                    "friendlyKills": 0
+                  },
+                  "medic": {
+                    "initial": 2,
+                    "survived": 0,
+                    "lost": 2,
+                    "damageDealt": 30,
+                    "damageTaken": 333.102,
+                    "healing": 251.502,
+                    "kills": 0,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 0,
+                    "friendlyKills": 0
+                  }
+                }
+              }
+            },
+            "units": [
+              {
+                "id": 1,
+                "team": "red",
+                "type": "spear",
+                "alive": true,
+                "hp": 100,
+                "spawn": {
+                  "x": -4.5,
+                  "z": -2.7347692056326194
+                },
+                "damageDealt": 170.851,
+                "damageTaken": 0,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 2,
+                "team": "red",
+                "type": "spear",
+                "alive": true,
+                "hp": 100,
+                "spawn": {
+                  "x": -4.5,
+                  "z": 4.46523079436738
+                },
+                "damageDealt": 76.8,
+                "damageTaken": 29.397,
+                "healing": 0,
+                "kills": 2,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 3,
+                "team": "red",
+                "type": "medic",
+                "alive": true,
+                "hp": 100,
+                "spawn": {
+                  "x": -8.1,
+                  "z": 0.3347692056326195
+                },
+                "damageDealt": 0,
+                "damageTaken": 98.356,
+                "healing": 485.953,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 4,
+                "team": "red",
+                "type": "archer",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": -8.1,
+                  "z": 2.0652307943673804
+                },
+                "damageDealt": 56,
+                "damageTaken": 91.8,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 5,
+                "team": "red",
+                "type": "archer",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": -8.1,
+                  "z": -2.7347692056326194
+                },
+                "damageDealt": 168,
+                "damageTaken": 73,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 28,
+                "friendlyKills": 0
+              },
+              {
+                "id": 6,
+                "team": "red",
+                "type": "spear",
+                "alive": true,
+                "hp": 100,
+                "spawn": {
+                  "x": -4.5,
+                  "z": 2.7347692056326194
+                },
+                "damageDealt": 81.347,
+                "damageTaken": 28.157,
+                "healing": 0,
+                "kills": 2,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 7,
+                "team": "red",
+                "type": "spear",
+                "alive": true,
+                "hp": 100,
+                "spawn": {
+                  "x": -4.5,
+                  "z": -4.46523079436738
+                },
+                "damageDealt": 85,
+                "damageTaken": 0,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 8,
+                "team": "red",
+                "type": "crossbow",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": -8.1,
+                  "z": -4.46523079436738
+                },
+                "damageDealt": 224,
+                "damageTaken": 186.8,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 48,
+                "friendlyKills": 0
+              },
+              {
+                "id": 9,
+                "team": "red",
+                "type": "shield",
+                "alive": true,
+                "hp": 220,
+                "spawn": {
+                  "x": -4.5,
+                  "z": 6.86523079436738
+                },
+                "damageDealt": 94.5,
+                "damageTaken": 249.253,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 10,
+                "team": "red",
+                "type": "catapult",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": -8.1,
+                  "z": 4.46523079436738
+                },
+                "damageDealt": 242.949,
+                "damageTaken": 248,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 39.747,
+                "friendlyKills": 0
+              },
+              {
+                "id": 11,
+                "team": "red",
+                "type": "spear",
+                "alive": true,
+                "hp": 100,
+                "spawn": {
+                  "x": -4.5,
+                  "z": -7.53476920563262
+                },
+                "damageDealt": 212,
+                "damageTaken": 0,
+                "healing": 0,
+                "kills": 2,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 12,
+                "team": "red",
+                "type": "medic",
+                "alive": true,
+                "hp": 100,
+                "spawn": {
+                  "x": -8.1,
+                  "z": 6.86523079436738
+                },
+                "damageDealt": 0,
+                "damageTaken": 54,
+                "healing": 467.21,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 13,
+                "team": "red",
+                "type": "spear",
+                "alive": true,
+                "hp": 100,
+                "spawn": {
+                  "x": -4.5,
+                  "z": -9.26523079436738
+                },
+                "damageDealt": 195.4,
+                "damageTaken": 67.5,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 14,
+                "team": "red",
+                "type": "spear",
+                "alive": true,
+                "hp": 100,
+                "spawn": {
+                  "x": -4.5,
+                  "z": 9.93476920563262
+                },
+                "damageDealt": 282,
+                "damageTaken": 175.5,
+                "healing": 0,
+                "kills": 2,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 15,
+                "team": "red",
+                "type": "shield",
+                "alive": true,
+                "hp": 220,
+                "spawn": {
+                  "x": -7.1,
+                  "z": -7.53476920563262
+                },
+                "damageDealt": 24.5,
+                "damageTaken": 49.6,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 16,
+                "team": "red",
+                "type": "spear",
+                "alive": true,
+                "hp": 100,
+                "spawn": {
+                  "x": -7.1,
+                  "z": -9.26523079436738
+                },
+                "damageDealt": 232.7,
+                "damageTaken": 75,
+                "healing": 0,
+                "kills": 2,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 17,
+                "team": "red",
+                "type": "militia",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": -7.1,
+                  "z": 9.26523079436738
+                },
+                "damageDealt": 31.5,
+                "damageTaken": 100.8,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 18,
+                "team": "red",
+                "type": "archer",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": -10.7,
+                  "z": -0.3347692056326195
+                },
+                "damageDealt": 168,
+                "damageTaken": 65,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 56,
+                "friendlyKills": 0
+              },
+              {
+                "id": 19,
+                "team": "blue",
+                "type": "cavalry",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": -9.6
+                },
+                "damageDealt": 94.5,
+                "damageTaken": 245,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 20,
+                "team": "blue",
+                "type": "militia",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": 9.6
+                },
+                "damageDealt": 82.8,
+                "damageTaken": 80,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 21,
+                "team": "blue",
+                "type": "cavalry",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": 7.1
+                },
+                "damageDealt": 294.3,
+                "damageTaken": 269,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 22,
+                "team": "blue",
+                "type": "crossbow",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 8.1,
+                  "z": -9.6
+                },
+                "damageDealt": 162.5,
+                "damageTaken": 90,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 48,
+                "friendlyKills": 0
+              },
+              {
+                "id": 23,
+                "team": "blue",
+                "type": "spear",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": -7.1
+                },
+                "damageDealt": 32,
+                "damageTaken": 141.6,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 24,
+                "team": "blue",
+                "type": "medic",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 8.1,
+                  "z": 9.6
+                },
+                "damageDealt": 10,
+                "damageTaken": 111.2,
+                "healing": 128.302,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 25,
+                "team": "blue",
+                "type": "militia",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": -4.7
+                },
+                "damageDealt": 18,
+                "damageTaken": 80,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 26,
+                "team": "blue",
+                "type": "cavalry",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": 4.7
+                },
+                "damageDealt": 241.9,
+                "damageTaken": 265.8,
+                "healing": 0,
+                "kills": 2,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 27,
+                "team": "blue",
+                "type": "militia",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": -2.3
+                },
+                "damageDealt": 54,
+                "damageTaken": 80,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 28,
+                "team": "blue",
+                "type": "cavalry",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": 2.3
+                },
+                "damageDealt": 164.053,
+                "damageTaken": 256.2,
+                "healing": 0,
+                "kills": 2,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 29,
+                "team": "blue",
+                "type": "crossbow",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 8.1,
+                  "z": 7.1
+                },
+                "damageDealt": 48,
+                "damageTaken": 90,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 48,
+                "friendlyKills": 0
+              },
+              {
+                "id": 30,
+                "team": "blue",
+                "type": "spear",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": 0
+                },
+                "damageDealt": 128,
+                "damageTaken": 120.8,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 31,
+                "team": "blue",
+                "type": "medic",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 8.1,
+                  "z": -7.1
+                },
+                "damageDealt": 20,
+                "damageTaken": 221.902,
+                "healing": 123.2,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 32,
+                "team": "blue",
+                "type": "militia",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 7.1,
+                  "z": -4.7
+                },
+                "damageDealt": 144,
+                "damageTaken": 80,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 33,
+                "team": "blue",
+                "type": "cavalry",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 7.1,
+                  "z": 4.7
+                },
+                "damageDealt": 178.5,
+                "damageTaken": 245,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 34,
+                "team": "blue",
+                "type": "militia",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 7.1,
+                  "z": 2.3
+                },
+                "damageDealt": 89.38,
+                "damageTaken": 80,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 35,
+                "team": "blue",
+                "type": "spear",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 7.1,
+                  "z": -2.3
+                },
+                "damageDealt": 48,
+                "damageTaken": 100,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              }
+            ],
+            "props": [
+              {
+                "id": 36,
+                "team": "neutral",
+                "type": "barrel",
+                "alive": false,
+                "damageDealt": 382.583,
+                "damageTaken": 45,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 45,
+                "friendlyKills": 0
+              },
+              {
+                "id": 37,
+                "team": "neutral",
+                "type": "barrel",
+                "alive": false,
+                "damageDealt": 351.103,
+                "damageTaken": 45,
+                "healing": 0,
+                "kills": 3,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 38,
+                "team": "neutral",
+                "type": "barricade",
+                "alive": false,
+                "damageDealt": 0,
+                "damageTaken": 240,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 39,
+                "team": "red",
+                "type": "barricade",
+                "alive": false,
+                "damageDealt": 0,
+                "damageTaken": 240,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 40,
+                "team": "red",
+                "type": "barricade",
+                "alive": true,
+                "damageDealt": 0,
+                "damageTaken": 95.5,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 41,
+                "team": "red",
+                "type": "banner",
+                "alive": false,
+                "damageDealt": 0,
+                "damageTaken": 120,
+                "healing": 34,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 42,
+                "team": "blue",
+                "type": "banner",
+                "alive": true,
+                "damageDealt": 0,
+                "damageTaken": 0,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 43,
+                "team": "blue",
+                "type": "spikes",
+                "alive": true,
+                "damageDealt": 0,
+                "damageTaken": 0,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              }
+            ],
+            "mvp": {
+              "id": 3,
+              "team": "red",
+              "type": "medic",
+              "alive": true,
+              "hp": 100,
+              "spawn": {
+                "x": -8.1,
+                "z": 0.3347692056326195
+              },
+              "damageDealt": 0,
+              "damageTaken": 98.356,
+              "healing": 485.953,
+              "kills": 0,
+              "falls": 0,
+              "fallKills": 0,
+              "friendlyFire": 0,
+              "friendlyKills": 0,
+              "score": 364.465
+            }
+          },
+          "orders": [
+            {
+              "id": 1,
+              "team": "red",
+              "type": "inspire",
+              "x": -4.5,
+              "z": -2.734769105911255,
+              "tick": 0
+            },
+            {
+              "id": 2,
+              "team": "blue",
+              "type": "inspire",
+              "x": 4.5,
+              "z": -9.600000381469727,
+              "tick": 0
+            },
+            {
+              "id": 3,
+              "team": "red",
+              "type": "focus",
+              "x": -3.785590832883661,
+              "z": -0.12163398482582782,
+              "tick": 480
+            },
+            {
+              "id": 4,
+              "team": "blue",
+              "type": "fortify",
+              "x": -8.807007789611816,
+              "z": 1.3913586139678955,
+              "tick": 480
+            },
+            {
+              "id": 5,
+              "team": "red",
+              "type": "inspire",
+              "x": 3.4836370944976807,
+              "z": 0.08293227106332779,
+              "tick": 960
+            },
+            {
+              "id": 6,
+              "team": "blue",
+              "type": "fortify",
+              "x": -6.242298603057861,
+              "z": -1.03965163230896,
+              "tick": 960
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "version": "0.4.0",
+          "map": "ruins",
+          "seed": 20261117,
+          "budget": 2200,
+          "red": [
+            {
+              "type": "spear",
+              "x": -4.5,
+              "z": -9.422018226981162,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -4.5,
+              "z": 9.777981773018837,
+              "stance": "advance"
+            },
+            {
+              "type": "catapult",
+              "x": -8.1,
+              "z": -9.422018226981162,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -4.5,
+              "z": -7.022018226981163,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -4.5,
+              "z": 7.022018226981163,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -4.5,
+              "z": -4.6220182269811625,
+              "stance": "advance"
+            },
+            {
+              "type": "giant",
+              "x": -4.5,
+              "z": 4.977981773018837,
+              "stance": "advance"
+            },
+            {
+              "type": "shield",
+              "x": -7.1,
+              "z": 9.422018226981162,
+              "stance": "advance"
+            },
+            {
+              "type": "giant",
+              "x": -7.1,
+              "z": -7.022018226981163,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -7.1,
+              "z": 7.022018226981163,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -7.1,
+              "z": 4.6220182269811625,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -7.1,
+              "z": -4.977981773018837,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -7.1,
+              "z": 2.222018226981163,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -7.1,
+              "z": -2.577981773018837,
+              "stance": "advance"
+            },
+            {
+              "type": "shield",
+              "x": -7.1,
+              "z": 0.17798177301883697,
+              "stance": "advance"
+            },
+            {
+              "type": "spear",
+              "x": -9.7,
+              "z": -9.422018226981162,
+              "stance": "advance"
+            }
+          ],
+          "blue": [
+            {
+              "type": "crossbow",
+              "x": 8.1,
+              "z": 9.6,
+              "stance": "hunt"
+            },
+            {
+              "type": "cavalry",
+              "x": 4.5,
+              "z": 9.6,
+              "stance": "flank"
+            },
+            {
+              "type": "militia",
+              "x": 4.5,
+              "z": -9.6,
+              "stance": "flank"
+            },
+            {
+              "type": "cavalry",
+              "x": 4.5,
+              "z": -7.1,
+              "stance": "flank"
+            },
+            {
+              "type": "crossbow",
+              "x": 8.1,
+              "z": -9.6,
+              "stance": "hunt"
+            },
+            {
+              "type": "spear",
+              "x": 4.5,
+              "z": 7.1,
+              "stance": "advance"
+            },
+            {
+              "type": "medic",
+              "x": 8.1,
+              "z": 7.1,
+              "stance": "advance"
+            },
+            {
+              "type": "militia",
+              "x": 4.5,
+              "z": -4.7,
+              "stance": "flank"
+            },
+            {
+              "type": "crossbow",
+              "x": 8.1,
+              "z": -7.1,
+              "stance": "hunt"
+            },
+            {
+              "type": "cavalry",
+              "x": 4.5,
+              "z": 4.7,
+              "stance": "flank"
+            },
+            {
+              "type": "militia",
+              "x": 4.5,
+              "z": 2.3,
+              "stance": "flank"
+            },
+            {
+              "type": "cavalry",
+              "x": 4.5,
+              "z": -2.3,
+              "stance": "flank"
+            },
+            {
+              "type": "crossbow",
+              "x": 8.1,
+              "z": -4.7,
+              "stance": "hunt"
+            },
+            {
+              "type": "spear",
+              "x": 4.5,
+              "z": 0,
+              "stance": "advance"
+            },
+            {
+              "type": "medic",
+              "x": 8.1,
+              "z": 4.7,
+              "stance": "advance"
+            },
+            {
+              "type": "militia",
+              "x": 7.1,
+              "z": -2.3,
+              "stance": "flank"
+            }
+          ],
+          "props": [
+            {
+              "type": "barricade",
+              "team": "red",
+              "x": -3.1,
+              "z": 1.4
+            },
+            {
+              "type": "barricade",
+              "team": "red",
+              "x": -3.1,
+              "z": -1.4
+            },
+            {
+              "type": "banner",
+              "team": "red",
+              "x": -9.8,
+              "z": 1.4
+            },
+            {
+              "type": "banner",
+              "team": "blue",
+              "x": 9.8,
+              "z": 1.4
+            },
+            {
+              "type": "spikes",
+              "team": "blue",
+              "x": 6.6,
+              "z": 1.4
+            }
+          ],
+          "commander": {
+            "enabled": true,
+            "aiTeams": [
+              "red",
+              "blue"
+            ]
+          }
+        },
+        "result": {
+          "winner": "red",
+          "time": 90,
+          "red": 9,
+          "blue": 1,
+          "reason": "timeout",
+          "remainingValue": {
+            "red": 875.719,
+            "blue": 160
+          },
+          "report": {
+            "teams": {
+              "red": {
+                "initial": 16,
+                "survived": 9,
+                "lost": 7,
+                "remainingValue": 875.72,
+                "damageDealt": 1906.953,
+                "damageTaken": 1809.635,
+                "healing": 0,
+                "kills": 13,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 40.933,
+                "friendlyKills": 0,
+                "byType": {
+                  "spear": {
+                    "initial": 11,
+                    "survived": 5,
+                    "lost": 6,
+                    "damageDealt": 1069.62,
+                    "damageTaken": 748.5550000000001,
+                    "healing": 0,
+                    "kills": 6,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 0,
+                    "friendlyKills": 0
+                  },
+                  "catapult": {
+                    "initial": 1,
+                    "survived": 0,
+                    "lost": 1,
+                    "damageDealt": 218.552,
+                    "damageTaken": 240,
+                    "healing": 0,
+                    "kills": 1,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 40.933,
+                    "friendlyKills": 0
+                  },
+                  "giant": {
+                    "initial": 2,
+                    "survived": 2,
+                    "lost": 0,
+                    "damageDealt": 604.781,
+                    "damageTaken": 292.5,
+                    "healing": 0,
+                    "kills": 6,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 0,
+                    "friendlyKills": 0
+                  },
+                  "shield": {
+                    "initial": 2,
+                    "survived": 2,
+                    "lost": 0,
+                    "damageDealt": 14,
+                    "damageTaken": 139.08,
+                    "healing": 0,
+                    "kills": 0,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 0,
+                    "friendlyKills": 0
+                  }
+                }
+              },
+              "blue": {
+                "initial": 16,
+                "survived": 1,
+                "lost": 15,
+                "remainingValue": 160,
+                "damageDealt": 1640.881,
+                "damageTaken": 2240.4,
+                "healing": 270.4,
+                "kills": 7,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 144,
+                "friendlyKills": 0,
+                "byType": {
+                  "crossbow": {
+                    "initial": 4,
+                    "survived": 1,
+                    "lost": 3,
+                    "damageDealt": 606.38,
+                    "damageTaken": 270,
+                    "healing": 0,
+                    "kills": 4,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 144,
+                    "friendlyKills": 0
+                  },
+                  "cavalry": {
+                    "initial": 4,
+                    "survived": 0,
+                    "lost": 4,
+                    "damageDealt": 674.501,
+                    "damageTaken": 1053.6,
+                    "healing": 0,
+                    "kills": 3,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 0,
+                    "friendlyKills": 0
+                  },
+                  "militia": {
+                    "initial": 4,
+                    "survived": 0,
+                    "lost": 4,
+                    "damageDealt": 90,
+                    "damageTaken": 328,
+                    "healing": 0,
+                    "kills": 0,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 0,
+                    "friendlyKills": 0
+                  },
+                  "spear": {
+                    "initial": 2,
+                    "survived": 0,
+                    "lost": 2,
+                    "damageDealt": 160,
+                    "damageTaken": 200,
+                    "healing": 0,
+                    "kills": 0,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 0,
+                    "friendlyKills": 0
+                  },
+                  "medic": {
+                    "initial": 2,
+                    "survived": 0,
+                    "lost": 2,
+                    "damageDealt": 110,
+                    "damageTaken": 388.79999999999995,
+                    "healing": 270.4,
+                    "kills": 0,
+                    "falls": 0,
+                    "fallKills": 0,
+                    "friendlyFire": 0,
+                    "friendlyKills": 0
+                  }
+                }
+              }
+            },
+            "units": [
+              {
+                "id": 1,
+                "team": "red",
+                "type": "spear",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": -4.5,
+                  "z": -9.422018226981162
+                },
+                "damageDealt": 32,
+                "damageTaken": 100,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 2,
+                "team": "red",
+                "type": "spear",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": -4.5,
+                  "z": 9.777981773018837
+                },
+                "damageDealt": 121.6,
+                "damageTaken": 100,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 3,
+                "team": "red",
+                "type": "catapult",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": -8.1,
+                  "z": -9.422018226981162
+                },
+                "damageDealt": 218.552,
+                "damageTaken": 240,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 40.933,
+                "friendlyKills": 0
+              },
+              {
+                "id": 4,
+                "team": "red",
+                "type": "spear",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": -4.5,
+                  "z": -7.022018226981163
+                },
+                "damageDealt": 64,
+                "damageTaken": 100,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 5,
+                "team": "red",
+                "type": "spear",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": -4.5,
+                  "z": 7.022018226981163
+                },
+                "damageDealt": 243.184,
+                "damageTaken": 100,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 6,
+                "team": "red",
+                "type": "spear",
+                "alive": true,
+                "hp": 22.504,
+                "spawn": {
+                  "x": -4.5,
+                  "z": -4.6220182269811625
+                },
+                "damageDealt": 32,
+                "damageTaken": 77.496,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 7,
+                "team": "red",
+                "type": "giant",
+                "alive": true,
+                "hp": 467,
+                "spawn": {
+                  "x": -4.5,
+                  "z": 4.977981773018837
+                },
+                "damageDealt": 396,
+                "damageTaken": 153,
+                "healing": 0,
+                "kills": 3,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 8,
+                "team": "red",
+                "type": "shield",
+                "alive": true,
+                "hp": 80.92,
+                "spawn": {
+                  "x": -7.1,
+                  "z": 9.422018226981162
+                },
+                "damageDealt": 14,
+                "damageTaken": 139.08,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 9,
+                "team": "red",
+                "type": "giant",
+                "alive": true,
+                "hp": 480.5,
+                "spawn": {
+                  "x": -7.1,
+                  "z": -7.022018226981163
+                },
+                "damageDealt": 208.781,
+                "damageTaken": 139.5,
+                "healing": 0,
+                "kills": 3,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 10,
+                "team": "red",
+                "type": "spear",
+                "alive": true,
+                "hp": 100,
+                "spawn": {
+                  "x": -7.1,
+                  "z": 7.022018226981163
+                },
+                "damageDealt": 0,
+                "damageTaken": 0,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 11,
+                "team": "red",
+                "type": "spear",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": -7.1,
+                  "z": 4.6220182269811625
+                },
+                "damageDealt": 183.236,
+                "damageTaken": 100,
+                "healing": 0,
+                "kills": 3,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 12,
+                "team": "red",
+                "type": "spear",
+                "alive": true,
+                "hp": 77.694,
+                "spawn": {
+                  "x": -7.1,
+                  "z": -4.977981773018837
+                },
+                "damageDealt": 32,
+                "damageTaken": 22.306,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 13,
+                "team": "red",
+                "type": "spear",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": -7.1,
+                  "z": 2.222018226981163
+                },
+                "damageDealt": 96,
+                "damageTaken": 100,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 14,
+                "team": "red",
+                "type": "spear",
+                "alive": true,
+                "hp": 51.247,
+                "spawn": {
+                  "x": -7.1,
+                  "z": -2.577981773018837
+                },
+                "damageDealt": 138,
+                "damageTaken": 48.753,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 15,
+                "team": "red",
+                "type": "shield",
+                "alive": true,
+                "hp": 220,
+                "spawn": {
+                  "x": -7.1,
+                  "z": 0.17798177301883697
+                },
+                "damageDealt": 0,
+                "damageTaken": 0,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 16,
+                "team": "red",
+                "type": "spear",
+                "alive": true,
+                "hp": 100,
+                "spawn": {
+                  "x": -9.7,
+                  "z": -9.422018226981162
+                },
+                "damageDealt": 127.6,
+                "damageTaken": 0,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 17,
+                "team": "blue",
+                "type": "crossbow",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 8.1,
+                  "z": 9.6
+                },
+                "damageDealt": 187.747,
+                "damageTaken": 90,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 18,
+                "team": "blue",
+                "type": "cavalry",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": 9.6
+                },
+                "damageDealt": 121.6,
+                "damageTaken": 245,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 19,
+                "team": "blue",
+                "type": "militia",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": -9.6
+                },
+                "damageDealt": 0,
+                "damageTaken": 80,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 20,
+                "team": "blue",
+                "type": "cavalry",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": -7.1
+                },
+                "damageDealt": 216,
+                "damageTaken": 285,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 21,
+                "team": "blue",
+                "type": "crossbow",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 8.1,
+                  "z": -9.6
+                },
+                "damageDealt": 262.807,
+                "damageTaken": 90,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 144,
+                "friendlyKills": 0
+              },
+              {
+                "id": 22,
+                "team": "blue",
+                "type": "spear",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": 7.1
+                },
+                "damageDealt": 32,
+                "damageTaken": 100,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 23,
+                "team": "blue",
+                "type": "medic",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 8.1,
+                  "z": 7.1
+                },
+                "damageDealt": 50,
+                "damageTaken": 175.2,
+                "healing": 128,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 24,
+                "team": "blue",
+                "type": "militia",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": -4.7
+                },
+                "damageDealt": 0,
+                "damageTaken": 80,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 25,
+                "team": "blue",
+                "type": "crossbow",
+                "alive": true,
+                "hp": 90,
+                "spawn": {
+                  "x": 8.1,
+                  "z": -7.1
+                },
+                "damageDealt": 84.48,
+                "damageTaken": 0,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 26,
+                "team": "blue",
+                "type": "cavalry",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": 4.7
+                },
+                "damageDealt": 216,
+                "damageTaken": 270.6,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 27,
+                "team": "blue",
+                "type": "militia",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": 2.3
+                },
+                "damageDealt": 18,
+                "damageTaken": 80,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 28,
+                "team": "blue",
+                "type": "cavalry",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": -2.3
+                },
+                "damageDealt": 120.901,
+                "damageTaken": 253,
+                "healing": 0,
+                "kills": 2,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 29,
+                "team": "blue",
+                "type": "crossbow",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 8.1,
+                  "z": -4.7
+                },
+                "damageDealt": 71.346,
+                "damageTaken": 90,
+                "healing": 0,
+                "kills": 2,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 30,
+                "team": "blue",
+                "type": "spear",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 4.5,
+                  "z": 0
+                },
+                "damageDealt": 128,
+                "damageTaken": 100,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 31,
+                "team": "blue",
+                "type": "medic",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 8.1,
+                  "z": 4.7
+                },
+                "damageDealt": 60,
+                "damageTaken": 213.6,
+                "healing": 142.4,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 32,
+                "team": "blue",
+                "type": "militia",
+                "alive": false,
+                "hp": 0,
+                "spawn": {
+                  "x": 7.1,
+                  "z": -2.3
+                },
+                "damageDealt": 72,
+                "damageTaken": 88,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              }
+            ],
+            "props": [
+              {
+                "id": 33,
+                "team": "neutral",
+                "type": "barrel",
+                "alive": false,
+                "damageDealt": 321.006,
+                "damageTaken": 45,
+                "healing": 0,
+                "kills": 2,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 34,
+                "team": "neutral",
+                "type": "barrel",
+                "alive": false,
+                "damageDealt": 466.195,
+                "damageTaken": 45,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 45,
+                "friendlyKills": 0
+              },
+              {
+                "id": 35,
+                "team": "neutral",
+                "type": "barricade",
+                "alive": false,
+                "damageDealt": 0,
+                "damageTaken": 240,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 36,
+                "team": "red",
+                "type": "barricade",
+                "alive": false,
+                "damageDealt": 0,
+                "damageTaken": 240,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 37,
+                "team": "red",
+                "type": "barricade",
+                "alive": true,
+                "damageDealt": 0,
+                "damageTaken": 149.5,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 38,
+                "team": "red",
+                "type": "banner",
+                "alive": true,
+                "damageDealt": 0,
+                "damageTaken": 0,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 39,
+                "team": "blue",
+                "type": "banner",
+                "alive": true,
+                "damageDealt": 0,
+                "damageTaken": 0,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              {
+                "id": 40,
+                "team": "blue",
+                "type": "spikes",
+                "alive": true,
+                "damageDealt": 0,
+                "damageTaken": 0,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              }
+            ],
+            "mvp": {
+              "id": 7,
+              "team": "red",
+              "type": "giant",
+              "alive": true,
+              "hp": 467,
+              "spawn": {
+                "x": -4.5,
+                "z": 4.977981773018837
+              },
+              "damageDealt": 396,
+              "damageTaken": 153,
+              "healing": 0,
+              "kills": 3,
+              "falls": 0,
+              "fallKills": 0,
+              "friendlyFire": 0,
+              "friendlyKills": 0,
+              "score": 486
+            }
+          },
+          "orders": [
+            {
+              "id": 1,
+              "team": "red",
+              "type": "inspire",
+              "x": -4.5,
+              "z": -9.422018051147461,
+              "tick": 0
+            },
+            {
+              "id": 2,
+              "team": "blue",
+              "type": "inspire",
+              "x": 4.5,
+              "z": 9.600000381469727,
+              "tick": 0
+            },
+            {
+              "id": 3,
+              "team": "red",
+              "type": "focus",
+              "x": -1.9488241153303534,
+              "z": -4.9038936868309975,
+              "tick": 480
+            },
+            {
+              "id": 4,
+              "team": "blue",
+              "type": "focus",
+              "x": -4.250476512041959,
+              "z": 0.577894513579932,
+              "tick": 480
+            },
+            {
+              "id": 5,
+              "team": "red",
+              "type": "focus",
+              "x": 0.9178604384263357,
+              "z": -3.0323861440022783,
+              "tick": 960
+            },
+            {
+              "id": 6,
+              "team": "blue",
+              "type": "fortify",
+              "x": -5.919615745544434,
+              "z": 4.739256381988525,
+              "tick": 960
+            }
+          ]
+        }
+      }
+    ],
+    "wins": {
+      "red": 2,
+      "blue": 0,
+      "draw": 0
+    },
+    "winner": "red"
+  },
+  "config": {
+    "version": "0.4.0",
+    "map": "ruins",
+    "seed": 20261116,
+    "budget": 2200,
+    "red": [
+      {
+        "type": "spear",
+        "x": -4.5,
+        "z": -2.7347692056326194,
+        "stance": "advance"
+      },
+      {
+        "type": "spear",
+        "x": -4.5,
+        "z": 4.46523079436738,
+        "stance": "advance"
+      },
+      {
+        "type": "medic",
+        "x": -8.1,
+        "z": 0.3347692056326195,
+        "stance": "advance"
+      },
+      {
+        "type": "archer",
+        "x": -8.1,
+        "z": 2.0652307943673804,
+        "stance": "advance"
+      },
+      {
+        "type": "archer",
+        "x": -8.1,
+        "z": -2.7347692056326194,
+        "stance": "advance"
+      },
+      {
+        "type": "spear",
+        "x": -4.5,
+        "z": 2.7347692056326194,
+        "stance": "advance"
+      },
+      {
+        "type": "spear",
+        "x": -4.5,
+        "z": -4.46523079436738,
+        "stance": "advance"
+      },
+      {
+        "type": "crossbow",
+        "x": -8.1,
+        "z": -4.46523079436738,
+        "stance": "advance"
+      },
+      {
+        "type": "shield",
+        "x": -4.5,
+        "z": 6.86523079436738,
+        "stance": "advance"
+      },
+      {
+        "type": "catapult",
+        "x": -8.1,
+        "z": 4.46523079436738,
+        "stance": "advance"
+      },
+      {
+        "type": "spear",
+        "x": -4.5,
+        "z": -7.53476920563262,
+        "stance": "advance"
+      },
+      {
+        "type": "medic",
+        "x": -8.1,
+        "z": 6.86523079436738,
+        "stance": "advance"
+      },
+      {
+        "type": "spear",
+        "x": -4.5,
+        "z": -9.26523079436738,
+        "stance": "advance"
+      },
+      {
+        "type": "spear",
+        "x": -4.5,
+        "z": 9.93476920563262,
+        "stance": "advance"
+      },
+      {
+        "type": "shield",
+        "x": -7.1,
+        "z": -7.53476920563262,
+        "stance": "advance"
+      },
+      {
+        "type": "spear",
+        "x": -7.1,
+        "z": -9.26523079436738,
+        "stance": "advance"
+      },
+      {
+        "type": "militia",
+        "x": -7.1,
+        "z": 9.26523079436738,
+        "stance": "advance"
+      },
+      {
+        "type": "archer",
+        "x": -10.7,
+        "z": -0.3347692056326195,
+        "stance": "advance"
+      }
+    ],
+    "blue": [
+      {
+        "type": "cavalry",
+        "x": 4.5,
+        "z": -9.6,
+        "stance": "flank"
+      },
+      {
+        "type": "militia",
+        "x": 4.5,
+        "z": 9.6,
+        "stance": "flank"
+      },
+      {
+        "type": "cavalry",
+        "x": 4.5,
+        "z": 7.1,
+        "stance": "flank"
+      },
+      {
+        "type": "crossbow",
+        "x": 8.1,
+        "z": -9.6,
+        "stance": "hunt"
+      },
+      {
+        "type": "spear",
+        "x": 4.5,
+        "z": -7.1,
+        "stance": "advance"
+      },
+      {
+        "type": "medic",
+        "x": 8.1,
+        "z": 9.6,
+        "stance": "advance"
+      },
+      {
+        "type": "militia",
+        "x": 4.5,
+        "z": -4.7,
+        "stance": "flank"
+      },
+      {
+        "type": "cavalry",
+        "x": 4.5,
+        "z": 4.7,
+        "stance": "flank"
+      },
+      {
+        "type": "militia",
+        "x": 4.5,
+        "z": -2.3,
+        "stance": "flank"
+      },
+      {
+        "type": "cavalry",
+        "x": 4.5,
+        "z": 2.3,
+        "stance": "flank"
+      },
+      {
+        "type": "crossbow",
+        "x": 8.1,
+        "z": 7.1,
+        "stance": "hunt"
+      },
+      {
+        "type": "spear",
+        "x": 4.5,
+        "z": 0,
+        "stance": "advance"
+      },
+      {
+        "type": "medic",
+        "x": 8.1,
+        "z": -7.1,
+        "stance": "advance"
+      },
+      {
+        "type": "militia",
+        "x": 7.1,
+        "z": -4.7,
+        "stance": "flank"
+      },
+      {
+        "type": "cavalry",
+        "x": 7.1,
+        "z": 4.7,
+        "stance": "flank"
+      },
+      {
+        "type": "militia",
+        "x": 7.1,
+        "z": 2.3,
+        "stance": "flank"
+      },
+      {
+        "type": "spear",
+        "x": 7.1,
+        "z": -2.3,
+        "stance": "advance"
+      }
+    ],
+    "props": [
+      {
+        "type": "barricade",
+        "team": "red",
+        "x": -3.1,
+        "z": -1.4
+      },
+      {
+        "type": "barricade",
+        "team": "red",
+        "x": -3.1,
+        "z": 1.4
+      },
+      {
+        "type": "banner",
+        "team": "red",
+        "x": -9.8,
+        "z": -1.4
+      },
+      {
+        "type": "banner",
+        "team": "blue",
+        "x": 9.8,
+        "z": -1.4
+      },
+      {
+        "type": "spikes",
+        "team": "blue",
+        "x": 6.6,
+        "z": 0
+      }
+    ],
+    "commander": {
+      "enabled": true,
+      "aiTeams": [
+        "red",
+        "blue"
+      ]
+    }
+  },
+  "wins": {
+    "red": 2,
+    "blue": 0,
+    "draw": 0
+  },
+  "results": [
+    {
+      "seed": 20261116,
+      "winner": "red",
+      "time": 46.166666666666664,
+      "red": 12,
+      "blue": 0,
+      "reason": "elimination",
+      "remainingValue": {
+        "red": 1100,
+        "blue": 0
+      },
+      "report": {
+        "teams": {
+          "red": {
+            "initial": 18,
+            "survived": 12,
+            "lost": 6,
+            "remainingValue": 1100,
+            "damageDealt": 2345.547,
+            "damageTaken": 2047.663,
+            "healing": 987.163,
+            "kills": 14,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 171.747,
+            "friendlyKills": 0,
+            "byType": {
+              "spear": {
+                "initial": 8,
+                "survived": 8,
+                "lost": 0,
+                "damageDealt": 1336.0980000000002,
+                "damageTaken": 375.554,
+                "healing": 0,
+                "kills": 13,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              "medic": {
+                "initial": 2,
+                "survived": 2,
+                "lost": 0,
+                "damageDealt": 0,
+                "damageTaken": 152.356,
+                "healing": 953.163,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              "archer": {
+                "initial": 3,
+                "survived": 0,
+                "lost": 3,
+                "damageDealt": 392,
+                "damageTaken": 229.8,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 84,
+                "friendlyKills": 0
+              },
+              "crossbow": {
+                "initial": 1,
+                "survived": 0,
+                "lost": 1,
+                "damageDealt": 224,
+                "damageTaken": 186.8,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 48,
+                "friendlyKills": 0
+              },
+              "shield": {
+                "initial": 2,
+                "survived": 2,
+                "lost": 0,
+                "damageDealt": 119,
+                "damageTaken": 298.853,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              "catapult": {
+                "initial": 1,
+                "survived": 0,
+                "lost": 1,
+                "damageDealt": 242.949,
+                "damageTaken": 248,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 39.747,
+                "friendlyKills": 0
+              },
+              "militia": {
+                "initial": 1,
+                "survived": 0,
+                "lost": 1,
+                "damageDealt": 31.5,
+                "damageTaken": 100.8,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              }
+            }
+          },
+          "blue": {
+            "initial": 17,
+            "survived": 0,
+            "lost": 17,
+            "remainingValue": 0,
+            "damageDealt": 1809.933,
+            "damageTaken": 2556.502,
+            "healing": 251.502,
+            "kills": 6,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 96,
+            "friendlyKills": 0,
+            "byType": {
+              "cavalry": {
+                "initial": 5,
+                "survived": 0,
+                "lost": 5,
+                "damageDealt": 973.253,
+                "damageTaken": 1281,
+                "healing": 0,
+                "kills": 5,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              "militia": {
+                "initial": 5,
+                "survived": 0,
+                "lost": 5,
+                "damageDealt": 388.18,
+                "damageTaken": 400,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              "crossbow": {
+                "initial": 2,
+                "survived": 0,
+                "lost": 2,
+                "damageDealt": 210.5,
+                "damageTaken": 180,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 96,
+                "friendlyKills": 0
+              },
+              "spear": {
+                "initial": 3,
+                "survived": 0,
+                "lost": 3,
+                "damageDealt": 208,
+                "damageTaken": 362.4,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              "medic": {
+                "initial": 2,
+                "survived": 0,
+                "lost": 2,
+                "damageDealt": 30,
+                "damageTaken": 333.102,
+                "healing": 251.502,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              }
+            }
+          }
+        },
+        "units": [
+          {
+            "id": 1,
+            "team": "red",
+            "type": "spear",
+            "alive": true,
+            "hp": 100,
+            "spawn": {
+              "x": -4.5,
+              "z": -2.7347692056326194
+            },
+            "damageDealt": 170.851,
+            "damageTaken": 0,
+            "healing": 0,
+            "kills": 1,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 2,
+            "team": "red",
+            "type": "spear",
+            "alive": true,
+            "hp": 100,
+            "spawn": {
+              "x": -4.5,
+              "z": 4.46523079436738
+            },
+            "damageDealt": 76.8,
+            "damageTaken": 29.397,
+            "healing": 0,
+            "kills": 2,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 3,
+            "team": "red",
+            "type": "medic",
+            "alive": true,
+            "hp": 100,
+            "spawn": {
+              "x": -8.1,
+              "z": 0.3347692056326195
+            },
+            "damageDealt": 0,
+            "damageTaken": 98.356,
+            "healing": 485.953,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 4,
+            "team": "red",
+            "type": "archer",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": -8.1,
+              "z": 2.0652307943673804
+            },
+            "damageDealt": 56,
+            "damageTaken": 91.8,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 5,
+            "team": "red",
+            "type": "archer",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": -8.1,
+              "z": -2.7347692056326194
+            },
+            "damageDealt": 168,
+            "damageTaken": 73,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 28,
+            "friendlyKills": 0
+          },
+          {
+            "id": 6,
+            "team": "red",
+            "type": "spear",
+            "alive": true,
+            "hp": 100,
+            "spawn": {
+              "x": -4.5,
+              "z": 2.7347692056326194
+            },
+            "damageDealt": 81.347,
+            "damageTaken": 28.157,
+            "healing": 0,
+            "kills": 2,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 7,
+            "team": "red",
+            "type": "spear",
+            "alive": true,
+            "hp": 100,
+            "spawn": {
+              "x": -4.5,
+              "z": -4.46523079436738
+            },
+            "damageDealt": 85,
+            "damageTaken": 0,
+            "healing": 0,
+            "kills": 1,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 8,
+            "team": "red",
+            "type": "crossbow",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": -8.1,
+              "z": -4.46523079436738
+            },
+            "damageDealt": 224,
+            "damageTaken": 186.8,
+            "healing": 0,
+            "kills": 1,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 48,
+            "friendlyKills": 0
+          },
+          {
+            "id": 9,
+            "team": "red",
+            "type": "shield",
+            "alive": true,
+            "hp": 220,
+            "spawn": {
+              "x": -4.5,
+              "z": 6.86523079436738
+            },
+            "damageDealt": 94.5,
+            "damageTaken": 249.253,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 10,
+            "team": "red",
+            "type": "catapult",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": -8.1,
+              "z": 4.46523079436738
+            },
+            "damageDealt": 242.949,
+            "damageTaken": 248,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 39.747,
+            "friendlyKills": 0
+          },
+          {
+            "id": 11,
+            "team": "red",
+            "type": "spear",
+            "alive": true,
+            "hp": 100,
+            "spawn": {
+              "x": -4.5,
+              "z": -7.53476920563262
+            },
+            "damageDealt": 212,
+            "damageTaken": 0,
+            "healing": 0,
+            "kills": 2,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 12,
+            "team": "red",
+            "type": "medic",
+            "alive": true,
+            "hp": 100,
+            "spawn": {
+              "x": -8.1,
+              "z": 6.86523079436738
+            },
+            "damageDealt": 0,
+            "damageTaken": 54,
+            "healing": 467.21,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 13,
+            "team": "red",
+            "type": "spear",
+            "alive": true,
+            "hp": 100,
+            "spawn": {
+              "x": -4.5,
+              "z": -9.26523079436738
+            },
+            "damageDealt": 195.4,
+            "damageTaken": 67.5,
+            "healing": 0,
+            "kills": 1,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 14,
+            "team": "red",
+            "type": "spear",
+            "alive": true,
+            "hp": 100,
+            "spawn": {
+              "x": -4.5,
+              "z": 9.93476920563262
+            },
+            "damageDealt": 282,
+            "damageTaken": 175.5,
+            "healing": 0,
+            "kills": 2,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 15,
+            "team": "red",
+            "type": "shield",
+            "alive": true,
+            "hp": 220,
+            "spawn": {
+              "x": -7.1,
+              "z": -7.53476920563262
+            },
+            "damageDealt": 24.5,
+            "damageTaken": 49.6,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 16,
+            "team": "red",
+            "type": "spear",
+            "alive": true,
+            "hp": 100,
+            "spawn": {
+              "x": -7.1,
+              "z": -9.26523079436738
+            },
+            "damageDealt": 232.7,
+            "damageTaken": 75,
+            "healing": 0,
+            "kills": 2,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 17,
+            "team": "red",
+            "type": "militia",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": -7.1,
+              "z": 9.26523079436738
+            },
+            "damageDealt": 31.5,
+            "damageTaken": 100.8,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 18,
+            "team": "red",
+            "type": "archer",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": -10.7,
+              "z": -0.3347692056326195
+            },
+            "damageDealt": 168,
+            "damageTaken": 65,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 56,
+            "friendlyKills": 0
+          },
+          {
+            "id": 19,
+            "team": "blue",
+            "type": "cavalry",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": -9.6
+            },
+            "damageDealt": 94.5,
+            "damageTaken": 245,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 20,
+            "team": "blue",
+            "type": "militia",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": 9.6
+            },
+            "damageDealt": 82.8,
+            "damageTaken": 80,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 21,
+            "team": "blue",
+            "type": "cavalry",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": 7.1
+            },
+            "damageDealt": 294.3,
+            "damageTaken": 269,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 22,
+            "team": "blue",
+            "type": "crossbow",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 8.1,
+              "z": -9.6
+            },
+            "damageDealt": 162.5,
+            "damageTaken": 90,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 48,
+            "friendlyKills": 0
+          },
+          {
+            "id": 23,
+            "team": "blue",
+            "type": "spear",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": -7.1
+            },
+            "damageDealt": 32,
+            "damageTaken": 141.6,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 24,
+            "team": "blue",
+            "type": "medic",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 8.1,
+              "z": 9.6
+            },
+            "damageDealt": 10,
+            "damageTaken": 111.2,
+            "healing": 128.302,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 25,
+            "team": "blue",
+            "type": "militia",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": -4.7
+            },
+            "damageDealt": 18,
+            "damageTaken": 80,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 26,
+            "team": "blue",
+            "type": "cavalry",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": 4.7
+            },
+            "damageDealt": 241.9,
+            "damageTaken": 265.8,
+            "healing": 0,
+            "kills": 2,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 27,
+            "team": "blue",
+            "type": "militia",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": -2.3
+            },
+            "damageDealt": 54,
+            "damageTaken": 80,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 28,
+            "team": "blue",
+            "type": "cavalry",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": 2.3
+            },
+            "damageDealt": 164.053,
+            "damageTaken": 256.2,
+            "healing": 0,
+            "kills": 2,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 29,
+            "team": "blue",
+            "type": "crossbow",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 8.1,
+              "z": 7.1
+            },
+            "damageDealt": 48,
+            "damageTaken": 90,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 48,
+            "friendlyKills": 0
+          },
+          {
+            "id": 30,
+            "team": "blue",
+            "type": "spear",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": 0
+            },
+            "damageDealt": 128,
+            "damageTaken": 120.8,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 31,
+            "team": "blue",
+            "type": "medic",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 8.1,
+              "z": -7.1
+            },
+            "damageDealt": 20,
+            "damageTaken": 221.902,
+            "healing": 123.2,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 32,
+            "team": "blue",
+            "type": "militia",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 7.1,
+              "z": -4.7
+            },
+            "damageDealt": 144,
+            "damageTaken": 80,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 33,
+            "team": "blue",
+            "type": "cavalry",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 7.1,
+              "z": 4.7
+            },
+            "damageDealt": 178.5,
+            "damageTaken": 245,
+            "healing": 0,
+            "kills": 1,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 34,
+            "team": "blue",
+            "type": "militia",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 7.1,
+              "z": 2.3
+            },
+            "damageDealt": 89.38,
+            "damageTaken": 80,
+            "healing": 0,
+            "kills": 1,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 35,
+            "team": "blue",
+            "type": "spear",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 7.1,
+              "z": -2.3
+            },
+            "damageDealt": 48,
+            "damageTaken": 100,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          }
+        ],
+        "props": [
+          {
+            "id": 36,
+            "team": "neutral",
+            "type": "barrel",
+            "alive": false,
+            "damageDealt": 382.583,
+            "damageTaken": 45,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 45,
+            "friendlyKills": 0
+          },
+          {
+            "id": 37,
+            "team": "neutral",
+            "type": "barrel",
+            "alive": false,
+            "damageDealt": 351.103,
+            "damageTaken": 45,
+            "healing": 0,
+            "kills": 3,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 38,
+            "team": "neutral",
+            "type": "barricade",
+            "alive": false,
+            "damageDealt": 0,
+            "damageTaken": 240,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 39,
+            "team": "red",
+            "type": "barricade",
+            "alive": false,
+            "damageDealt": 0,
+            "damageTaken": 240,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 40,
+            "team": "red",
+            "type": "barricade",
+            "alive": true,
+            "damageDealt": 0,
+            "damageTaken": 95.5,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 41,
+            "team": "red",
+            "type": "banner",
+            "alive": false,
+            "damageDealt": 0,
+            "damageTaken": 120,
+            "healing": 34,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 42,
+            "team": "blue",
+            "type": "banner",
+            "alive": true,
+            "damageDealt": 0,
+            "damageTaken": 0,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 43,
+            "team": "blue",
+            "type": "spikes",
+            "alive": true,
+            "damageDealt": 0,
+            "damageTaken": 0,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          }
+        ],
+        "mvp": {
+          "id": 3,
+          "team": "red",
+          "type": "medic",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": -8.1,
+            "z": 0.3347692056326195
+          },
+          "damageDealt": 0,
+          "damageTaken": 98.356,
+          "healing": 485.953,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 364.465
+        }
+      },
+      "orders": [
+        {
+          "id": 1,
+          "team": "red",
+          "type": "inspire",
+          "x": -4.5,
+          "z": -2.734769105911255,
+          "tick": 0
+        },
+        {
+          "id": 2,
+          "team": "blue",
+          "type": "inspire",
+          "x": 4.5,
+          "z": -9.600000381469727,
+          "tick": 0
+        },
+        {
+          "id": 3,
+          "team": "red",
+          "type": "focus",
+          "x": -3.785590832883661,
+          "z": -0.12163398482582782,
+          "tick": 480
+        },
+        {
+          "id": 4,
+          "team": "blue",
+          "type": "fortify",
+          "x": -8.807007789611816,
+          "z": 1.3913586139678955,
+          "tick": 480
+        },
+        {
+          "id": 5,
+          "team": "red",
+          "type": "inspire",
+          "x": 3.4836370944976807,
+          "z": 0.08293227106332779,
+          "tick": 960
+        },
+        {
+          "id": 6,
+          "team": "blue",
+          "type": "fortify",
+          "x": -6.242298603057861,
+          "z": -1.03965163230896,
+          "tick": 960
+        }
+      ]
+    },
+    {
+      "seed": 20261117,
+      "winner": "red",
+      "time": 90,
+      "red": 9,
+      "blue": 1,
+      "reason": "timeout",
+      "remainingValue": {
+        "red": 875.719,
+        "blue": 160
+      },
+      "report": {
+        "teams": {
+          "red": {
+            "initial": 16,
+            "survived": 9,
+            "lost": 7,
+            "remainingValue": 875.72,
+            "damageDealt": 1906.953,
+            "damageTaken": 1809.635,
+            "healing": 0,
+            "kills": 13,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 40.933,
+            "friendlyKills": 0,
+            "byType": {
+              "spear": {
+                "initial": 11,
+                "survived": 5,
+                "lost": 6,
+                "damageDealt": 1069.62,
+                "damageTaken": 748.5550000000001,
+                "healing": 0,
+                "kills": 6,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              "catapult": {
+                "initial": 1,
+                "survived": 0,
+                "lost": 1,
+                "damageDealt": 218.552,
+                "damageTaken": 240,
+                "healing": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 40.933,
+                "friendlyKills": 0
+              },
+              "giant": {
+                "initial": 2,
+                "survived": 2,
+                "lost": 0,
+                "damageDealt": 604.781,
+                "damageTaken": 292.5,
+                "healing": 0,
+                "kills": 6,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              "shield": {
+                "initial": 2,
+                "survived": 2,
+                "lost": 0,
+                "damageDealt": 14,
+                "damageTaken": 139.08,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              }
+            }
+          },
+          "blue": {
+            "initial": 16,
+            "survived": 1,
+            "lost": 15,
+            "remainingValue": 160,
+            "damageDealt": 1640.881,
+            "damageTaken": 2240.4,
+            "healing": 270.4,
+            "kills": 7,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 144,
+            "friendlyKills": 0,
+            "byType": {
+              "crossbow": {
+                "initial": 4,
+                "survived": 1,
+                "lost": 3,
+                "damageDealt": 606.38,
+                "damageTaken": 270,
+                "healing": 0,
+                "kills": 4,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 144,
+                "friendlyKills": 0
+              },
+              "cavalry": {
+                "initial": 4,
+                "survived": 0,
+                "lost": 4,
+                "damageDealt": 674.501,
+                "damageTaken": 1053.6,
+                "healing": 0,
+                "kills": 3,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              "militia": {
+                "initial": 4,
+                "survived": 0,
+                "lost": 4,
+                "damageDealt": 90,
+                "damageTaken": 328,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              "spear": {
+                "initial": 2,
+                "survived": 0,
+                "lost": 2,
+                "damageDealt": 160,
+                "damageTaken": 200,
+                "healing": 0,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              },
+              "medic": {
+                "initial": 2,
+                "survived": 0,
+                "lost": 2,
+                "damageDealt": 110,
+                "damageTaken": 388.79999999999995,
+                "healing": 270.4,
+                "kills": 0,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyFire": 0,
+                "friendlyKills": 0
+              }
+            }
+          }
+        },
+        "units": [
+          {
+            "id": 1,
+            "team": "red",
+            "type": "spear",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": -4.5,
+              "z": -9.422018226981162
+            },
+            "damageDealt": 32,
+            "damageTaken": 100,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 2,
+            "team": "red",
+            "type": "spear",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": -4.5,
+              "z": 9.777981773018837
+            },
+            "damageDealt": 121.6,
+            "damageTaken": 100,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 3,
+            "team": "red",
+            "type": "catapult",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": -8.1,
+              "z": -9.422018226981162
+            },
+            "damageDealt": 218.552,
+            "damageTaken": 240,
+            "healing": 0,
+            "kills": 1,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 40.933,
+            "friendlyKills": 0
+          },
+          {
+            "id": 4,
+            "team": "red",
+            "type": "spear",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": -4.5,
+              "z": -7.022018226981163
+            },
+            "damageDealt": 64,
+            "damageTaken": 100,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 5,
+            "team": "red",
+            "type": "spear",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": -4.5,
+              "z": 7.022018226981163
+            },
+            "damageDealt": 243.184,
+            "damageTaken": 100,
+            "healing": 0,
+            "kills": 1,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 6,
+            "team": "red",
+            "type": "spear",
+            "alive": true,
+            "hp": 22.504,
+            "spawn": {
+              "x": -4.5,
+              "z": -4.6220182269811625
+            },
+            "damageDealt": 32,
+            "damageTaken": 77.496,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 7,
+            "team": "red",
+            "type": "giant",
+            "alive": true,
+            "hp": 467,
+            "spawn": {
+              "x": -4.5,
+              "z": 4.977981773018837
+            },
+            "damageDealt": 396,
+            "damageTaken": 153,
+            "healing": 0,
+            "kills": 3,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 8,
+            "team": "red",
+            "type": "shield",
+            "alive": true,
+            "hp": 80.92,
+            "spawn": {
+              "x": -7.1,
+              "z": 9.422018226981162
+            },
+            "damageDealt": 14,
+            "damageTaken": 139.08,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 9,
+            "team": "red",
+            "type": "giant",
+            "alive": true,
+            "hp": 480.5,
+            "spawn": {
+              "x": -7.1,
+              "z": -7.022018226981163
+            },
+            "damageDealt": 208.781,
+            "damageTaken": 139.5,
+            "healing": 0,
+            "kills": 3,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 10,
+            "team": "red",
+            "type": "spear",
+            "alive": true,
+            "hp": 100,
+            "spawn": {
+              "x": -7.1,
+              "z": 7.022018226981163
+            },
+            "damageDealt": 0,
+            "damageTaken": 0,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 11,
+            "team": "red",
+            "type": "spear",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": -7.1,
+              "z": 4.6220182269811625
+            },
+            "damageDealt": 183.236,
+            "damageTaken": 100,
+            "healing": 0,
+            "kills": 3,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 12,
+            "team": "red",
+            "type": "spear",
+            "alive": true,
+            "hp": 77.694,
+            "spawn": {
+              "x": -7.1,
+              "z": -4.977981773018837
+            },
+            "damageDealt": 32,
+            "damageTaken": 22.306,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 13,
+            "team": "red",
+            "type": "spear",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": -7.1,
+              "z": 2.222018226981163
+            },
+            "damageDealt": 96,
+            "damageTaken": 100,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 14,
+            "team": "red",
+            "type": "spear",
+            "alive": true,
+            "hp": 51.247,
+            "spawn": {
+              "x": -7.1,
+              "z": -2.577981773018837
+            },
+            "damageDealt": 138,
+            "damageTaken": 48.753,
+            "healing": 0,
+            "kills": 1,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 15,
+            "team": "red",
+            "type": "shield",
+            "alive": true,
+            "hp": 220,
+            "spawn": {
+              "x": -7.1,
+              "z": 0.17798177301883697
+            },
+            "damageDealt": 0,
+            "damageTaken": 0,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 16,
+            "team": "red",
+            "type": "spear",
+            "alive": true,
+            "hp": 100,
+            "spawn": {
+              "x": -9.7,
+              "z": -9.422018226981162
+            },
+            "damageDealt": 127.6,
+            "damageTaken": 0,
+            "healing": 0,
+            "kills": 1,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 17,
+            "team": "blue",
+            "type": "crossbow",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 8.1,
+              "z": 9.6
+            },
+            "damageDealt": 187.747,
+            "damageTaken": 90,
+            "healing": 0,
+            "kills": 1,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 18,
+            "team": "blue",
+            "type": "cavalry",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": 9.6
+            },
+            "damageDealt": 121.6,
+            "damageTaken": 245,
+            "healing": 0,
+            "kills": 1,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 19,
+            "team": "blue",
+            "type": "militia",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": -9.6
+            },
+            "damageDealt": 0,
+            "damageTaken": 80,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 20,
+            "team": "blue",
+            "type": "cavalry",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": -7.1
+            },
+            "damageDealt": 216,
+            "damageTaken": 285,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 21,
+            "team": "blue",
+            "type": "crossbow",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 8.1,
+              "z": -9.6
+            },
+            "damageDealt": 262.807,
+            "damageTaken": 90,
+            "healing": 0,
+            "kills": 1,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 144,
+            "friendlyKills": 0
+          },
+          {
+            "id": 22,
+            "team": "blue",
+            "type": "spear",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": 7.1
+            },
+            "damageDealt": 32,
+            "damageTaken": 100,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 23,
+            "team": "blue",
+            "type": "medic",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 8.1,
+              "z": 7.1
+            },
+            "damageDealt": 50,
+            "damageTaken": 175.2,
+            "healing": 128,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 24,
+            "team": "blue",
+            "type": "militia",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": -4.7
+            },
+            "damageDealt": 0,
+            "damageTaken": 80,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 25,
+            "team": "blue",
+            "type": "crossbow",
+            "alive": true,
+            "hp": 90,
+            "spawn": {
+              "x": 8.1,
+              "z": -7.1
+            },
+            "damageDealt": 84.48,
+            "damageTaken": 0,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 26,
+            "team": "blue",
+            "type": "cavalry",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": 4.7
+            },
+            "damageDealt": 216,
+            "damageTaken": 270.6,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 27,
+            "team": "blue",
+            "type": "militia",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": 2.3
+            },
+            "damageDealt": 18,
+            "damageTaken": 80,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 28,
+            "team": "blue",
+            "type": "cavalry",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": -2.3
+            },
+            "damageDealt": 120.901,
+            "damageTaken": 253,
+            "healing": 0,
+            "kills": 2,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 29,
+            "team": "blue",
+            "type": "crossbow",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 8.1,
+              "z": -4.7
+            },
+            "damageDealt": 71.346,
+            "damageTaken": 90,
+            "healing": 0,
+            "kills": 2,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 30,
+            "team": "blue",
+            "type": "spear",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 4.5,
+              "z": 0
+            },
+            "damageDealt": 128,
+            "damageTaken": 100,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 31,
+            "team": "blue",
+            "type": "medic",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 8.1,
+              "z": 4.7
+            },
+            "damageDealt": 60,
+            "damageTaken": 213.6,
+            "healing": 142.4,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 32,
+            "team": "blue",
+            "type": "militia",
+            "alive": false,
+            "hp": 0,
+            "spawn": {
+              "x": 7.1,
+              "z": -2.3
+            },
+            "damageDealt": 72,
+            "damageTaken": 88,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          }
+        ],
+        "props": [
+          {
+            "id": 33,
+            "team": "neutral",
+            "type": "barrel",
+            "alive": false,
+            "damageDealt": 321.006,
+            "damageTaken": 45,
+            "healing": 0,
+            "kills": 2,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 34,
+            "team": "neutral",
+            "type": "barrel",
+            "alive": false,
+            "damageDealt": 466.195,
+            "damageTaken": 45,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 45,
+            "friendlyKills": 0
+          },
+          {
+            "id": 35,
+            "team": "neutral",
+            "type": "barricade",
+            "alive": false,
+            "damageDealt": 0,
+            "damageTaken": 240,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 36,
+            "team": "red",
+            "type": "barricade",
+            "alive": false,
+            "damageDealt": 0,
+            "damageTaken": 240,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 37,
+            "team": "red",
+            "type": "barricade",
+            "alive": true,
+            "damageDealt": 0,
+            "damageTaken": 149.5,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 38,
+            "team": "red",
+            "type": "banner",
+            "alive": true,
+            "damageDealt": 0,
+            "damageTaken": 0,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 39,
+            "team": "blue",
+            "type": "banner",
+            "alive": true,
+            "damageDealt": 0,
+            "damageTaken": 0,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          },
+          {
+            "id": 40,
+            "team": "blue",
+            "type": "spikes",
+            "alive": true,
+            "damageDealt": 0,
+            "damageTaken": 0,
+            "healing": 0,
+            "kills": 0,
+            "falls": 0,
+            "fallKills": 0,
+            "friendlyFire": 0,
+            "friendlyKills": 0
+          }
+        ],
+        "mvp": {
+          "id": 7,
+          "team": "red",
+          "type": "giant",
+          "alive": true,
+          "hp": 467,
+          "spawn": {
+            "x": -4.5,
+            "z": 4.977981773018837
+          },
+          "damageDealt": 396,
+          "damageTaken": 153,
+          "healing": 0,
+          "kills": 3,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 486
+        }
+      },
+      "orders": [
+        {
+          "id": 1,
+          "team": "red",
+          "type": "inspire",
+          "x": -4.5,
+          "z": -9.422018051147461,
+          "tick": 0
+        },
+        {
+          "id": 2,
+          "team": "blue",
+          "type": "inspire",
+          "x": 4.5,
+          "z": 9.600000381469727,
+          "tick": 0
+        },
+        {
+          "id": 3,
+          "team": "red",
+          "type": "focus",
+          "x": -1.9488241153303534,
+          "z": -4.9038936868309975,
+          "tick": 480
+        },
+        {
+          "id": 4,
+          "team": "blue",
+          "type": "focus",
+          "x": -4.250476512041959,
+          "z": 0.577894513579932,
+          "tick": 480
+        },
+        {
+          "id": 5,
+          "team": "red",
+          "type": "focus",
+          "x": 0.9178604384263357,
+          "z": -3.0323861440022783,
+          "tick": 960
+        },
+        {
+          "id": 6,
+          "team": "blue",
+          "type": "fortify",
+          "x": -5.919615745544434,
+          "z": 4.739256381988525,
+          "tick": 960
+        }
+      ]
+    }
+  ]
+}
