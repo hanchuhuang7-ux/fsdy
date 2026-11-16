@@ -1,0 +1,176 @@
+.catalog-tabs {
+  display: flex;
+  gap: 5px;
+  margin: 0 0 12px;
+  border-bottom: 1px solid #dce0d0;
+}
+.catalog-tabs button {
+  padding: 7px 16px 9px;
+  border-bottom: 2px solid transparent;
+  color: #96a08b;
+  font-size: 12px;
+}
+.catalog-tabs button.active {
+  border-color: #6e875a;
+  color: #435a36;
+}
+.catalog-tabs small {
+  font-size: 8px;
+  margin-left: 6px;
+  color: #9da68e;
+}
+.scene-tools {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.quality-label {
+  font-size: 9px;
+  color: #7b8d70;
+  background: #eef1e780;
+  padding: 3px 7px;
+  border-radius: 4px;
+}
+.quality-label select {
+  font-size: 10px;
+  padding: 3px;
+}
+.terrain-info {
+  position: absolute;
+  bottom: 122px;
+  right: 30px;
+  background: #f3f5e7b8;
+  border: 1px solid #b5c1a480;
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: #748764;
+  font-size: 10px;
+  max-width: 50%;
+  text-align: right;
+}
+.army-panel .panel-heading h1 {
+  font-size: 25px;
+  line-height: 1.4;
+  margin-bottom: 5px;
+}
+.army-panel .panel-heading p {
+  margin-bottom: 15px;
+}
+.army-panel .budget {
+  margin: 15px 0;
+}
+.unit-card {
+  min-height: 63px;
+  padding: 8px 7px;
+}
+.unit-card .glyph {
+  font-size: 25px;
+}
+.unit-card small {
+  font-size: 8px;
+}
+.unit-card b {
+  font-size: 9px;
+}
+.unit-cards {
+  gap: 6px;
+}
+#unit-detail {
+  min-height: 48px;
+}
+.field-notes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.field-notes article {
+  background: #edf0e3;
+  border: 1px solid #d9dfce;
+  border-radius: 4px;
+  padding: 12px;
+}
+.field-notes h3 {
+  margin: 0 !important;
+}
+.field-notes p {
+  font-size: 11px !important;
+  margin-bottom: 0;
+}
+.army-panel .tip {
+  margin-top: 12px;
+}
+.settings {
+  flex-wrap: wrap;
+}
+.settings select {
+  border: 1px solid #d2dac3;
+  border-radius: 4px;
+}
+.panel-footer a {
+  font-size: 7px;
+  letter-spacing: 2px;
+}
+@media (max-width: 1100px) {
+  .terrain-info {
+    bottom: 119px;
+    right: 20px;
+    font-size: 9px;
+  }
+  .scene-tools {
+    gap: 7px;
+  }
+}
+@media (max-width: 760px) {
+  .catalog-tabs {
+    margin-top: 5px;
+  }
+  .catalog-tabs button {
+    padding: 8px 23px;
+  }
+  .unit-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .unit-card {
+    min-height: 65px;
+  }
+  .terrain-info {
+    bottom: 85px;
+    right: 15px;
+    font-size: 8px;
+    padding: 6px;
+    max-width: 64%;
+  }
+  .field-notes {
+    grid-template-columns: 1fr;
+  }
+  .scene-tools {
+    gap: 6px;
+  }
+  .quality-label {
+    font-size: 8px;
+    padding: 1px 6px;
+  }
+  .quality-label select {
+    font-size: 9px;
+  }
+  #unit-detail {
+    min-height: 30px;
+  }
+  .scoreboard {
+    top: 115px;
+  }
+  .mission {
+    top: 153px;
+    max-width: 230px;
+  }
+  .scene-top p {
+    max-width: 180px;
+  }
+  .camera-button {
+    padding: 6px;
+  }
+  .top-actions {
+    gap: 8px;
+  }
+}

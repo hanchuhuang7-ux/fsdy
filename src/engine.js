@@ -1,17 +1,51 @@
 import RAPIER from "@dimforge/rapier3d-compat";
-import { UNITS, MAPS, DT, MAX_TIME, validateConfig } from "./data.js";
-
+import {
+  UNITS,
+  PROPS,
+  MAPS,
+  DT,
+  MAX_TIME,
+  heightAt,
+  terrainAt,
+  validateConfig,
+} from "./data.js";
 let ready;
 export function initPhysics() {
   return (ready ||= RAPIER.init());
 }
 const vec = (x = 0, y = 0, z = 0) => ({ x, y, z });
-const horizontal = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+const groups = (member, filter) => ((member << 16) | filter) >>> 0;
+const GROUP = {
+  ground: groups(1, 65535),
+  unit: groups(2, 1 | 2 | 4 | 16),
+  shot: groups(4, 1 | 2 | 16),
+  corpse: groups(8, 1 | 16),
+  prop: groups(16, 1 | 2 | 4 | 8 | 16),
+};
+const transform = (body, out = []) => {
+  const p = body.translation(),
+    q = body.rotation();
+  out[0] = p.x;
+  out[1] = p.y;
+  out[2] = p.z;
+  out[3] = q.x;
+  out[4] = q.y;
+  out[5] = q.z;
+  out[6] = q.w;
+  return out;
+};
+function mapInto(source, out = [], copy) {
+  out.length = source.length;
+  for (let i = 0; i < source.length; i++) out[i] = copy(source[i], out[i]);
+  return out;
+}
+export const MAX_RAGDOLLS = 24;
 
-/** No renderer, wall clock or browser dependency: the same simulation runs in Node. */
+/** Fixed-step simulation shared by the browser and CLI. No wall-clock inputs. */
 export class Battle {
-  constructor(config) {
-    validateConfig(config);
+  constructor(input) {
+    const config = validateConfig(input);
     this.config = structuredClone(config);
     this.rng = config.seed >>> 0;
     this.world = new RAPIER.World(vec(0, -18, 0));
@@ -22,23 +56,43 @@ export class Battle {
     this.ragdolls = [];
     this.effects = [];
     this.events = [];
+    this.props = [];
     this.colliderUnits = new Map();
     this.colliderProjectiles = new Map();
+    this.colliderProps = new Map();
+    this.grid = new Map();
+    this.armies = { red: [], blue: [] };
     this.tick = 0;
     this.nextId = 1;
     this.result = null;
-    for (const p of MAPS[config.map].platforms)
+    this.stats = { targetChecks: 0, neighborChecks: 0 };
+    for (const p of MAPS[config.map].platforms) {
+      const a = p.angle || 0;
       this.world.createCollider(
         RAPIER.ColliderDesc.cuboid(p.hx, p.hy, p.hz)
           .setTranslation(p.x, p.y, p.z)
-          .setFriction(0.9),
+          .setRotation({ x: 0, y: 0, z: Math.sin(a / 2), w: Math.cos(a / 2) })
+          .setFriction(0.8)
+          .setCollisionGroups(GROUP.ground),
       );
+    }
     for (const p of MAPS[config.map].rocks)
       this.world.createCollider(
-        RAPIER.ColliderDesc.ball(p.r).setTranslation(p.x, p.r * 0.2, p.z),
+        RAPIER.ColliderDesc.ball(p.r)
+          .setTranslation(p.x, p.r * 0.2, p.z)
+          .setCollisionGroups(GROUP.ground),
+      );
+    for (const p of MAPS[config.map].walls)
+      this.world.createCollider(
+        RAPIER.ColliderDesc.cuboid(p.hx, p.hy, p.hz)
+          .setTranslation(p.x, p.hy, p.z)
+          .setCollisionGroups(GROUP.ground),
       );
     for (const team of ["red", "blue"])
       for (const u of config[team]) this.spawn(team, u);
+    for (const p of [...MAPS[config.map].props, ...config.props])
+      this.spawnProp(p);
+    this.cachePositions();
   }
   random() {
     this.rng = (Math.imul(this.rng, 1664525) + 1013904223) >>> 0;
@@ -46,19 +100,20 @@ export class Battle {
   }
   spawn(team, u) {
     const d = UNITS[u.type],
-      s = d.scale;
+      s = d.scale,
+      floor = heightAt(this.config.map, u.x, u.z);
     const body = this.world.createRigidBody(
       RAPIER.RigidBodyDesc.dynamic()
-        .setTranslation(u.x, 0.8 * s, u.z)
+        .setTranslation(u.x, floor + 0.8 * s, u.z)
         .lockRotations()
-        .setLinearDamping(0.6)
-        .setCcdEnabled(true),
+        .setLinearDamping(0.6),
     );
     const collider = this.world.createCollider(
       RAPIER.ColliderDesc.capsule(0.35 * s, 0.27 * s)
         .setMass(d.mass)
         .setFriction(0.2)
-        .setRestitution(0.05),
+        .setRestitution(0.05)
+        .setCollisionGroups(GROUP.unit),
       body,
     );
     const unit = {
@@ -75,19 +130,103 @@ export class Battle {
       attack: 0,
       stun: 0,
       kills: 0,
+      charge: 0,
+      target: null,
+      position: vec(u.x, floor + 0.8 * s, u.z),
+      floor,
     };
     this.units.push(unit);
+    this.armies[team].push(unit);
     this.colliderUnits.set(collider.handle, unit);
     return unit;
   }
+  spawnProp(input) {
+    const d = PROPS[input.type],
+      floor = heightAt(this.config.map, input.x, input.z);
+    const p = {
+      ...input,
+      team: input.team || "neutral",
+      id: this.nextId++,
+      hp: d.hp,
+      alive: true,
+      floor,
+      cooldown: 0,
+      fuse: -1,
+    };
+    let desc;
+    if (p.type === "barrel")
+      desc = RAPIER.ColliderDesc.cylinder(0.55, 0.42).setTranslation(
+        p.x,
+        floor + 0.55,
+        p.z,
+      );
+    else if (p.type === "barricade")
+      desc = RAPIER.ColliderDesc.cuboid(0.38, 0.7, 1.2).setTranslation(
+        p.x,
+        floor + 0.7,
+        p.z,
+      );
+    else if (p.type === "banner")
+      desc = RAPIER.ColliderDesc.cylinder(0.9, 0.13).setTranslation(
+        p.x,
+        floor + 0.9,
+        p.z,
+      );
+    else
+      desc = RAPIER.ColliderDesc.cuboid(0.85, 0.08, 0.85)
+        .setTranslation(p.x, floor + 0.08, p.z)
+        .setSensor(true);
+    p.collider = this.world.createCollider(desc.setCollisionGroups(GROUP.prop));
+    this.colliderProps.set(p.collider.handle, p);
+    this.props.push(p);
+    return p;
+  }
+  cachePositions() {
+    for (const bucket of this.grid.values()) bucket.length = 0;
+    for (const u of this.units)
+      if (u.alive) {
+        u.position = u.body.translation();
+        const x = Math.floor(u.position.x / 3),
+          z = Math.floor(u.position.z / 3),
+          key = (x + 64) * 128 + z + 64;
+        let bucket = this.grid.get(key);
+        if (!bucket) {
+          bucket = [];
+          this.grid.set(key, bucket);
+        }
+        bucket.push(u);
+        u.floor = heightAt(this.config.map, u.position.x, u.position.z);
+      }
+  }
+  nearby(p, r, visit) {
+    for (let x = Math.floor((p.x - r) / 3); x <= Math.floor((p.x + r) / 3); x++)
+      for (
+        let z = Math.floor((p.z - r) / 3);
+        z <= Math.floor((p.z + r) / 3);
+        z++
+      ) {
+        const bucket = this.grid.get((x + 64) * 128 + z + 64);
+        if (bucket)
+          for (const u of bucket)
+            if (u.alive) {
+              this.stats.neighborChecks++;
+              if (
+                (p.x - u.position.x) ** 2 + (p.z - u.position.z) ** 2 <=
+                r * r
+              )
+                visit(u);
+            }
+      }
+  }
   target(unit) {
-    const p = unit.body.translation();
+    const p = unit.position;
     let best = null,
       score = Infinity;
-    for (const e of this.units)
-      if (e.alive && e.team !== unit.team) {
-        let s = horizontal(p, e.body.translation());
-        if (unit.stance === "flank" && UNITS[e.type].ranged) s *= 0.65;
+    for (const e of this.armies[unit.team === "red" ? "blue" : "red"])
+      if (e.alive) {
+        this.stats.targetChecks++;
+        let s = (p.x - e.position.x) ** 2 + (p.z - e.position.z) ** 2;
+        if (unit.stance === "flank" && UNITS[e.type].ranged) s *= 0.42;
         if (s < score) {
           best = e;
           score = s;
@@ -95,9 +234,33 @@ export class Battle {
       }
     return best;
   }
+  rangeFor(u, target) {
+    return (
+      UNITS[u.type].range *
+      (UNITS[u.type].ranged && u.floor > target.floor + 1 ? 1.18 : 1)
+    );
+  }
+  heal(target, amount) {
+    if (target.alive) target.hp = Math.min(target.maxHp, target.hp + amount);
+  }
+  medic(u) {
+    let ally = null,
+      ratio = 1;
+    this.nearby(u.position, 6, (e) => {
+      if (e.team === u.team && e.hp / e.maxHp < ratio) {
+        ratio = e.hp / e.maxHp;
+        ally = e;
+      }
+    });
+    if (ally) {
+      this.heal(ally, UNITS.medic.heal * 0.1);
+      if ((this.tick + u.id) % 30 === 0)
+        this.effect("heal", ally.position, 0.5);
+    }
+  }
   command(u) {
     const d = UNITS[u.type],
-      p = u.body.translation();
+      p = u.position;
     if (p.y < -4 || Math.abs(p.x) > 23 || Math.abs(p.z) > 19) {
       this.kill(u, vec());
       return;
@@ -105,195 +268,387 @@ export class Battle {
     u.cooldown -= DT;
     u.attack = Math.max(0, u.attack - DT * 3);
     u.stun = Math.max(0, u.stun - DT);
-    const target = this.target(u);
+    const ai = (this.tick + u.id) % 6 === 0;
+    if (ai || !u.target?.alive) u.target = this.target(u);
+    if (u.type === "medic" && ai) this.medic(u);
+    const target = u.target;
     if (!target) return;
-    const tp = target.body.translation(),
-      dist = horizontal(p, tp);
-    const dx = tp.x - p.x,
+    const tp = target.position,
+      dist = distance(p, tp),
+      dx = tp.x - p.x,
       dz = tp.z - p.z;
     u.angle = Math.atan2(dx, dz);
-    const min = UNITS[target.type].scale * 0.25;
+    const min = UNITS[target.type].scale * 0.25,
+      range = this.rangeFor(u, target);
     let mx = dx / (dist || 1),
       mz = dz / (dist || 1),
       speed = d.speed;
-    const firing = d.ranged && dist < d.range;
-    if (d.ranged && dist < 4 && u.stance !== "hold") {
+    let firing = d.ranged && dist < range;
+    // Low crossbow trajectories need an opening through the tall ruin walls.
+    if (
+      u.type === "crossbow" &&
+      p.x * tp.x < 0 &&
+      this.config.map === "ruins"
+    ) {
+      const z = p.z + (tp.z - p.z) * (-p.x / (tp.x - p.x));
+      if (Math.abs(z) > 2.1 && Math.abs(z) < 9.1) firing = false;
+    }
+    if ((d.ranged || u.type === "medic") && dist < 4 && u.stance !== "hold") {
       mx *= -1;
       mz *= -1;
       speed *= 0.7;
     } else if (
-      (d.ranged && firing) ||
-      (!d.ranged && dist < d.range + min - 0.15) ||
+      firing ||
+      (!d.ranged && dist < range + min - 0.15) ||
       u.stance === "hold"
     )
       speed = 0;
-    // A waypoint brings troops to the bridge before they try to cross the chasm.
+    if (u.type === "medic" && dist > 5 && dist < 9) speed = 0;
+    const passage = MAPS[this.config.map].passage;
     if (
-      this.config.map === "bridge" &&
-      Math.abs(p.x) > 3.5 &&
-      p.x * tp.x < 0 &&
-      Math.abs(p.z) > 1.1
+      passage &&
+      u.stance !== "hold" &&
+      !firing &&
+      dist > range + min - 0.15
     ) {
-      const wx = (p.x < 0 ? -4.2 : 4.2) - p.x,
-        wz = -p.z,
-        wl = Math.hypot(wx, wz) || 1;
-      mx = wx / wl;
-      mz = wz / wl;
-      if (u.stance !== "hold") speed = d.speed;
-    } else if (
-      u.stance === "flank" &&
-      !d.ranged &&
-      dist > 6 &&
-      this.config.map !== "bridge"
-    ) {
-      const flank = Math.sign(u.z || 1) * 5;
-      mz = (tp.z + flank - p.z) / (dist + 3);
-      const norm = Math.hypot(mx, mz) || 1;
-      mx /= norm;
-      mz /= norm;
+      if (!u.route && p.x * tp.x < 0) {
+        const lanes = passage.lanes,
+          lane =
+            u.stance === "flank" && lanes.length > 1
+              ? u.z >= 0
+                ? Math.max(...lanes)
+                : Math.min(...lanes)
+              : lanes[0];
+        u.route = {
+          sign: tp.x >= 0 ? 1 : -1,
+          lane,
+          stage: Math.abs(p.z - lane) > 1 ? "entry" : "cross",
+        };
+      }
+      if (u.route) {
+        const route = u.route,
+          entry = { x: -route.sign * passage.approach, z: route.lane };
+        if (route.stage === "entry" && distance(p, entry) < 0.85)
+          route.stage = "cross";
+        if (
+          route.stage === "cross" &&
+          route.sign * p.x > passage.approach + 0.5
+        )
+          u.route = null;
+        else {
+          const x =
+              route.stage === "entry"
+                ? entry.x
+                : route.sign * (passage.approach + 0.8),
+            wx = x - p.x,
+            wz = route.lane - p.z,
+            l = Math.hypot(wx, wz) || 1;
+          mx = wx / l;
+          mz = wz / l;
+          speed = d.speed;
+        }
+      }
+    } else if (u.stance === "flank" && !d.ranged && dist > 6 && !passage) {
+      mz = (tp.z + Math.sign(u.z || 1) * 5 - p.z) / (dist + 3);
+      const n = Math.hypot(mx, mz) || 1;
+      mx /= n;
+      mz /= n;
     }
-    // Soft separation lets physics resolve the remaining contact pressure.
+    const terrain = terrainAt(this.config.map, p.x, p.z);
+    if (terrain === "mud") speed *= 0.45;
     if (speed > 0)
-      for (const friend of this.units)
-        if (friend !== u && friend.alive && friend.team === u.team) {
-          const fp = friend.body.translation(),
-            dd = horizontal(p, fp),
-            radius = 0.65 * (d.scale + UNITS[friend.type].scale);
+      this.nearby(p, 3, (e) => {
+        if (e !== u && e.team === u.team) {
+          const dd = distance(p, e.position),
+            radius = 0.65 * (d.scale + UNITS[e.type].scale);
           if (dd < radius && dd > 0.01) {
-            mx += ((p.x - fp.x) / dd) * (radius - dd) * 0.7;
-            mz += ((p.z - fp.z) / dd) * (radius - dd) * 0.7;
+            mx += ((p.x - e.position.x) / dd) * (radius - dd) * 0.7;
+            mz += ((p.z - e.position.z) / dd) * (radius - dd) * 0.7;
           }
         }
-    const v = u.body.linvel(),
+      });
+    const velocity = u.body.linvel(),
       norm = Math.max(1, Math.hypot(mx, mz)),
-      response = u.stun > 0 ? 0.015 : 0.16;
-    // Do not steer while airborne: explosions retain their momentum.
-    if (p.y < d.scale * 1.1)
+      response = u.stun > 0 ? 0.015 : terrain === "ice" ? 0.035 : 0.16;
+    const grounded = Number.isFinite(u.floor) && p.y < u.floor + d.scale * 1.12;
+    if (grounded)
       u.body.applyImpulse(
         vec(
-          ((mx / norm) * speed - v.x) * d.mass * response,
+          ((mx / norm) * speed - velocity.x) * d.mass * response,
           0,
-          ((mz / norm) * speed - v.z) * d.mass * response,
+          ((mz / norm) * speed - velocity.z) * d.mass * response,
         ),
         true,
       );
-    if (u.cooldown <= 0 && p.y < d.scale * 1.4 && dist < d.range + min) {
-      u.cooldown = d.cooldown;
-      u.attack = 1;
-      if (d.ranged) this.shoot(u, target);
-      else if (u.type === "giant") {
-        for (const e of this.units)
-          if (
-            e.alive &&
-            e.team !== u.team &&
-            horizontal(p, e.body.translation()) < d.range + min
-          )
-            this.hit(e, d.damage, u, d.knock);
-        this.effect("slam", p, 1.1);
-      } else this.hit(target, d.damage, u, d.knock);
+    if (u.type === "cavalry")
+      u.charge = Math.min(
+        1.5,
+        Math.max(
+          0,
+          u.charge +
+            (Math.hypot(velocity.x, velocity.z) > 3.8 && terrain !== "mud"
+              ? DT
+              : -DT * 0.5),
+        ),
+      );
+    if (u.cooldown <= 0 && grounded) {
+      if (!d.ranged) {
+        const obstruction = this.props.find(
+          (q) =>
+            q.alive &&
+            ((q.type === "barricade" && q.team !== u.team) ||
+              (q.type === "banner" &&
+                q.team !== "neutral" &&
+                q.team !== u.team)) &&
+            Math.abs(p.y - q.floor) < 2.8 &&
+            distance(p, q) < range + PROPS[q.type].radius,
+        );
+        if (obstruction) {
+          this.damageProp(obstruction, d.damage);
+          u.cooldown = d.cooldown;
+          u.attack = 1;
+          return;
+        }
+      }
+      if (dist < range + min && Math.abs(p.y - tp.y) < (d.ranged ? 20 : 2.2)) {
+        u.cooldown = d.cooldown;
+        u.attack = 1;
+        if (d.ranged) this.shoot(u, target);
+        else if (u.type === "giant") {
+          this.nearby(p, range + min, (e) => {
+            if (e.team !== u.team) this.hit(e, d.damage, u, d.knock);
+          });
+          this.effect("slam", p, 0.6);
+        } else {
+          const charge = u.type === "cavalry" && u.charge > 0.55,
+            brace =
+              u.type === "spear" &&
+              target.type === "cavalry" &&
+              Math.hypot(target.body.linvel().x, target.body.linvel().z) > 3;
+          this.hit(
+            target,
+            d.damage * (charge ? 2.5 : brace ? 1.8 : 1),
+            u,
+            d.knock * (charge ? 3.5 : brace ? 1.4 : 1),
+          );
+          if (charge) {
+            u.charge = 0;
+            this.effect("charge", p, 0.45);
+          }
+        }
+      }
     }
   }
-  hit(target, damage, attacker, knock, origin = null) {
+  hit(target, damage, attacker, knock, origin = null, pierce = 0) {
     if (!target.alive) return;
     const p = target.body.translation(),
-      from = origin || attacker.body.translation();
-    const dx = p.x - from.x,
+      from = origin || attacker?.position || p,
+      dx = p.x - from.x,
       dz = p.z - from.z,
       dist = Math.hypot(dx, dz) || 1;
-    // Shields only protect the facing hemisphere.
     if (
       target.type === "shield" &&
       (Math.sin(target.angle) * -dx + Math.cos(target.angle) * -dz) / dist >
         0.25
     )
-      damage *= 0.4;
+      damage *= 0.4 + 0.6 * pierce;
     target.hp -= damage;
     target.stun = 0.25;
     const impulse = vec((dx / dist) * knock, knock * 0.32, (dz / dist) * knock);
     target.body.applyImpulse(impulse, true);
     if (target.hp <= 0) {
-      attacker && attacker.kills++;
+      if (attacker) attacker.kills++;
       this.kill(target, impulse);
     }
   }
   shoot(u, target) {
     const d = UNITS[u.type],
       p = u.body.translation(),
-      t = target.body.translation();
-    const dx = t.x - p.x,
+      t = target.body.translation(),
+      dx = t.x - p.x,
       dz = t.z - p.z,
       dist = Math.hypot(dx, dz) || 1;
-    const bomb = u.type === "bomber",
-      flight = Math.max(0.35, dist / (bomb ? 10 : 19));
+    const type =
+      u.type === "bomber"
+        ? "bomb"
+        : u.type === "catapult"
+          ? "stone"
+          : u.type === "crossbow"
+            ? "bolt"
+            : "arrow";
+    const bomb = type === "bomb",
+      stone = type === "stone",
+      bolt = type === "bolt";
+    const flight = Math.max(
+        0.22,
+        dist / (bomb ? 10 : stone ? 12 : bolt ? 28 : 19),
+      ),
+      gravity = bolt ? 0.2 : 1;
     const spawn = vec(
-      p.x + (dx / dist) * 0.7,
+      p.x + (dx / dist) * (stone ? 0.9 : 0.7),
       p.y + 0.5 * d.scale,
-      p.z + (dz / dist) * 0.7,
+      p.z + (dz / dist) * (stone ? 0.9 : 0.7),
     );
-    const spread = (this.random() - 0.5) * (bomb ? 0.9 : 0.55),
+    const spread =
+        (this.random() - 0.5) * (bomb ? 0.9 : stone ? 1.1 : bolt ? 0.2 : 0.55),
       tv = target.body.linvel();
     const velocity = vec(
       (t.x + tv.x * flight * 0.6 - spawn.x + spread) / flight,
-      (t.y + 0.15 - spawn.y + 9 * flight * flight) / flight,
+      (t.y + 0.15 - spawn.y + 9 * gravity * flight * flight) / flight,
       (t.z + tv.z * flight * 0.6 - spawn.z + spread) / flight,
     );
     const body = this.world.createRigidBody(
       RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(spawn.x, spawn.y, spawn.z)
         .setLinvel(velocity.x, velocity.y, velocity.z)
+        .setGravityScale(gravity)
         .setCcdEnabled(true),
     );
     const collider = this.world.createCollider(
-      RAPIER.ColliderDesc.ball(bomb ? 0.18 : 0.09)
-        .setMass(bomb ? 1.5 : 0.15)
+      RAPIER.ColliderDesc.ball(bomb ? 0.18 : stone ? 0.28 : 0.09)
+        .setMass(bomb ? 1.5 : stone ? 4 : 0.15)
         .setRestitution(bomb ? 0.35 : 0)
+        .setCollisionGroups(GROUP.shot)
         .setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS),
       body,
     );
-    const projectile = {
+    const shot = {
       id: this.nextId++,
-      type: bomb ? "bomb" : "arrow",
+      type,
       body,
       collider,
       owner: u,
-      life: bomb ? 1.8 : 5,
+      life: bomb ? 1.8 : 6,
+      damage: d.damage,
+      knock: d.knock,
+      pierce: bolt ? 0.6 : 0,
       removed: false,
     };
-    this.projectiles.push(projectile);
-    this.colliderProjectiles.set(collider.handle, projectile);
+    this.projectiles.push(shot);
+    this.colliderProjectiles.set(collider.handle, shot);
   }
-  explode(projectile) {
-    const p = projectile.body.translation();
-    this.effect("explosion", p, 0.7);
+  blast(origin, radius, damage, knock, owner = null) {
+    const p = { ...origin };
+    this.effect("explosion", p, 0.65);
+    // Explosions use current rigid-body transforms, including airborne targets.
     for (const e of this.units)
       if (e.alive) {
-        const ep = e.body.translation(),
-          dist = Math.hypot(ep.x - p.x, ep.y - p.y, ep.z - p.z);
-        if (dist < 3.6)
+        const q = e.body.translation(),
+          dist = Math.hypot(q.x - p.x, q.y - p.y, q.z - p.z);
+        if (dist < radius)
           this.hit(
             e,
-            UNITS.bomber.damage * (1 - dist / 4.5),
-            projectile.owner,
-            UNITS.bomber.knock * (1 - dist / 4.5),
+            damage * (1 - dist / (radius * 1.3)),
+            owner,
+            knock * (1 - dist / (radius * 1.3)),
             p,
           );
       }
-    // Corpses also react to explosions.
-    for (const doll of this.ragdolls)
-      for (const part of doll.parts) {
+    for (const q of this.props)
+      if (
+        q.alive &&
+        Math.hypot(q.x - p.x, q.floor + 0.5 - p.y, q.z - p.z) < radius
+      )
+        this.damageProp(q, damage * 0.9);
+    for (const d of this.ragdolls)
+      for (const part of d.parts) {
         const q = part.body.translation(),
           dx = q.x - p.x,
-          dz = q.z - p.z,
-          dist = Math.hypot(dx, dz);
-        if (dist < 4) part.body.applyImpulse(vec(dx * 1.5, 5, dz * 1.5), true);
+          dz = q.z - p.z;
+        if (Math.hypot(dx, dz) < radius)
+          part.body.applyImpulse(vec(dx, 4, dz), true);
       }
+  }
+  explode(projectile) {
+    if (projectile.removed) return;
+    const p = projectile.body.translation(),
+      stone = projectile.type === "stone";
     this.removeProjectile(projectile);
+    this.blast(
+      p,
+      stone ? 2.1 : 3.6,
+      projectile.damage,
+      projectile.knock,
+      projectile.owner,
+    );
   }
   removeProjectile(p) {
     if (p.removed) return;
     p.removed = true;
     this.colliderProjectiles.delete(p.collider.handle);
     this.world.removeRigidBody(p.body);
+  }
+  damageProp(p, damage) {
+    if (!p.alive) return;
+    p.hp -= damage;
+    if (p.hp > 0) return;
+    p.alive = false;
+    this.colliderProps.delete(p.collider.handle);
+    this.world.removeCollider(p.collider, true);
+    this.events.push({ tick: this.tick, type: "prop-destroyed", prop: p.type });
+    if (p.type === "barrel")
+      this.blast(vec(p.x, p.floor + 0.45, p.z), 4.2, 95, 28);
+    else this.effect("slam", vec(p.x, p.floor + 0.4, p.z), 0.6);
+  }
+  tickProps() {
+    for (const p of this.props)
+      if (p.alive) {
+        p.cooldown = Math.max(0, p.cooldown - 0.1);
+        if (p.type === "barrel") {
+          if (p.fuse < 0)
+            this.nearby(p, 1.5, (e) => {
+              if (
+                (p.team === "neutral" || e.team !== p.team) &&
+                Math.abs(e.position.y - p.floor) < 2.3
+              )
+                p.fuse = 0.7;
+            });
+          if (p.fuse >= 0) {
+            p.fuse -= 0.1;
+            if (p.fuse <= 0) this.damageProp(p, 9999);
+          }
+        } else if (p.type === "banner")
+          this.nearby(p, 3.2, (e) => {
+            if (
+              (p.team === "neutral" || e.team === p.team) &&
+              Math.abs(e.position.y - p.floor) < 3
+            )
+              this.heal(e, 1);
+          });
+        else if (p.type === "spikes" && p.cooldown === 0) {
+          let triggered = false;
+          this.nearby(p, 1.15, (e) => {
+            if (
+              (p.team === "neutral" || e.team !== p.team) &&
+              e.position.y < p.floor + 1.7
+            ) {
+              this.hit(e, 14, null, 0.2, vec(p.x, p.floor, p.z));
+              triggered = true;
+            }
+          });
+          if (triggered) {
+            p.cooldown = 0.6;
+            this.effect("spikes", vec(p.x, p.floor + 0.1, p.z), 0.4);
+          }
+        } else if (p.type === "spring" && p.cooldown === 0) {
+          let triggered = false;
+          this.nearby(p, 0.95, (e) => {
+            if (triggered || e.position.y > p.floor + 1.5) return;
+            const sign =
+                (p.team === "neutral" ? e.team : p.team) === "red" ? 1 : -1,
+              mass = UNITS[e.type].mass;
+            e.body.applyImpulse(vec(sign * mass * 7, mass * 8, 0), true);
+            e.stun = 0.7;
+            p.cooldown = 1.5;
+            triggered = true;
+            this.effect("spring", vec(p.x, p.floor, p.z), 0.5);
+          });
+        }
+      }
+  }
+  retireDoll(d) {
+    for (const p of d.parts) this.world.removeRigidBody(p.body);
+    d.removed = true;
   }
   kill(u, impulse) {
     if (!u.alive) return;
@@ -304,26 +659,30 @@ export class Battle {
       s = UNITS[u.type].scale;
     this.colliderUnits.delete(u.collider.handle);
     this.world.removeRigidBody(u.body);
-    const specifications = [
-      { name: "torso", o: vec(0, 0, 0), h: vec(0.23, 0.32, 0.16) },
+    if (this.ragdolls.length >= MAX_RAGDOLLS) {
+      this.retireDoll(this.ragdolls.shift());
+    }
+    const specs = [
+      { name: "torso", o: vec(), h: vec(0.23, 0.32, 0.16) },
       { name: "head", o: vec(0, 0.53, 0), h: vec(0.2, 0.2, 0.2) },
       { name: "armL", o: vec(-0.4, -0.02, 0), h: vec(0.11, 0.3, 0.11) },
       { name: "armR", o: vec(0.4, -0.02, 0), h: vec(0.11, 0.3, 0.11) },
       { name: "legL", o: vec(-0.16, -0.57, 0), h: vec(0.12, 0.3, 0.13) },
       { name: "legR", o: vec(0.16, -0.57, 0), h: vec(0.12, 0.3, 0.13) },
     ];
-    const parts = specifications.map((q) => {
+    const parts = specs.map((q) => {
       const body = this.world.createRigidBody(
         RAPIER.RigidBodyDesc.dynamic()
           .setTranslation(p.x + q.o.x * s, p.y + q.o.y * s, p.z + q.o.z * s)
           .setLinvel(v.x, v.y, v.z)
           .setAngularDamping(0.8)
-          .setLinearDamping(0.2),
+          .setLinearDamping(0.25),
       );
       this.world.createCollider(
         RAPIER.ColliderDesc.cuboid(q.h.x * s, q.h.y * s, q.h.z * s)
           .setMass(q.name === "torso" ? 2 : 0.5)
-          .setFriction(0.8),
+          .setFriction(0.8)
+          .setCollisionGroups(GROUP.corpse),
         body,
       );
       body.applyImpulse(
@@ -358,6 +717,7 @@ export class Battle {
     });
   }
   effect(type, p, life) {
+    if (this.effects.length > 40) this.effects.shift();
     this.effects.push({
       id: this.nextId++,
       type,
@@ -370,86 +730,95 @@ export class Battle {
   }
   step() {
     if (this.result) return;
+    this.cachePositions();
+    if (this.tick % 6 === 0) this.tickProps();
     for (const u of this.units) if (u.alive) this.command(u);
     this.world.step(this.queue);
     this.queue.drainCollisionEvents((a, b, started) => {
       if (!started) return;
-      const projectile =
+      const shot =
         this.colliderProjectiles.get(a) || this.colliderProjectiles.get(b);
-      if (!projectile || projectile.removed || projectile.type === "bomb")
+      if (!shot || shot.removed || shot.type === "bomb") return;
+      const other = shot.collider.handle === a ? b : a,
+        unit = this.colliderUnits.get(other),
+        prop = this.colliderProps.get(other);
+      if (unit === shot.owner) return;
+      if (shot.type === "stone") {
+        this.explode(shot);
         return;
-      const other = projectile.collider.handle === a ? b : a,
-        unit = this.colliderUnits.get(other);
-      if (unit === projectile.owner) return;
+      }
       if (unit)
         this.hit(
           unit,
-          UNITS.archer.damage,
-          projectile.owner,
-          UNITS.archer.knock,
-          projectile.body.translation(),
+          shot.damage,
+          shot.owner,
+          shot.knock,
+          shot.body.translation(),
+          shot.pierce,
         );
-      this.removeProjectile(projectile);
+      if (prop) this.damageProp(prop, shot.damage);
+      this.removeProjectile(shot);
     });
     for (const p of this.projectiles)
       if (!p.removed) {
         p.life -= DT;
-        if (p.life <= 0 || p.body.translation().y < -5) {
-          if (p.type === "bomb" && p.life <= 0) this.explode(p);
+        if (p.body.translation().y < -5) this.removeProjectile(p);
+        else if (p.life <= 0) {
+          if (p.type === "bomb" || p.type === "stone") this.explode(p);
           else this.removeProjectile(p);
         }
       }
     this.projectiles = this.projectiles.filter((p) => !p.removed);
     for (const e of this.effects) e.life -= DT;
     this.effects = this.effects.filter((e) => e.life > 0);
-    for (const d of this.ragdolls) d.age += DT;
-    // Bound physics load during larger battles; settled corpses disappear after 18 s.
-    for (const d of this.ragdolls)
-      if (d.age > 18 && !d.removed) {
-        for (const p of d.parts) this.world.removeRigidBody(p.body);
-        d.removed = true;
-      }
+    for (const d of this.ragdolls) {
+      d.age += DT;
+      if (d.age > 12 && !d.removed) this.retireDoll(d);
+    }
     this.ragdolls = this.ragdolls.filter((d) => !d.removed);
     this.tick++;
-    const red = this.units.filter((u) => u.alive && u.team === "red"),
-      blue = this.units.filter((u) => u.alive && u.team === "blue");
-    if (!red.length || !blue.length || this.time >= MAX_TIME) {
-      const score = (army) =>
-        army.reduce((sum, u) => sum + (u.hp / u.maxHp) * UNITS[u.type].cost, 0);
-      let winner =
-        !red.length && !blue.length
-          ? "draw"
-          : !red.length
-            ? "blue"
-            : !blue.length
-              ? "red"
-              : Math.abs(score(red) - score(blue)) < 1
-                ? "draw"
-                : score(red) > score(blue)
-                  ? "red"
-                  : "blue";
+    let red = 0,
+      blue = 0,
+      redScore = 0,
+      blueScore = 0;
+    for (const u of this.units)
+      if (u.alive) {
+        if (u.team === "red") {
+          red++;
+          redScore += (u.hp / u.maxHp) * UNITS[u.type].cost;
+        } else {
+          blue++;
+          blueScore += (u.hp / u.maxHp) * UNITS[u.type].cost;
+        }
+      }
+    if (!red || !blue || this.time >= MAX_TIME)
       this.result = {
-        winner,
+        winner:
+          !red && !blue
+            ? "draw"
+            : !red
+              ? "blue"
+              : !blue
+                ? "red"
+                : Math.abs(redScore - blueScore) < 1
+                  ? "draw"
+                  : redScore > blueScore
+                    ? "red"
+                    : "blue",
         time: this.time,
-        red: red.length,
-        blue: blue.length,
+        red,
+        blue,
         reason: this.time >= MAX_TIME ? "timeout" : "elimination",
       };
-    }
   }
   get time() {
     return this.tick * DT;
   }
-  snapshot() {
-    const transform = (body) => {
-      const p = body.translation(),
-        q = body.rotation();
-      return [p.x, p.y, p.z, q.x, q.y, q.z, q.w];
-    };
-    return {
-      time: this.time,
-      result: this.result,
-      units: this.units.map((u) => ({
+  snapshot(state = {}) {
+    state.time = this.time;
+    state.result = this.result;
+    state.units = mapInto(this.units, state.units, (u, out = {}) =>
+      Object.assign(out, {
         id: u.id,
         type: u.type,
         team: u.team,
@@ -457,22 +826,48 @@ export class Battle {
         alive: u.alive,
         angle: u.angle,
         attack: u.attack,
-        t: u.alive ? transform(u.body) : null,
-      })),
-      projectiles: this.projectiles.map((p) => ({
-        id: p.id,
-        type: p.type,
-        t: transform(p.body),
-        v: p.body.linvel(),
-      })),
-      ragdolls: this.ragdolls.map((d) => ({
+        charge: u.charge,
+        t: u.alive ? transform(u.body, out.t || []) : null,
+      }),
+    );
+    state.projectiles = mapInto(
+      this.projectiles,
+      state.projectiles,
+      (p, out = {}) =>
+        Object.assign(out, {
+          id: p.id,
+          type: p.type,
+          t: transform(p.body, out.t),
+          v: p.body.linvel(),
+        }),
+    );
+    state.ragdolls = mapInto(this.ragdolls, state.ragdolls, (d, out = {}) =>
+      Object.assign(out, {
         id: d.id,
         team: d.team,
         type: d.type,
-        parts: d.parts.map((p) => ({ name: p.name, t: transform(p.body) })),
-      })),
-      effects: this.effects.map((e) => ({ ...e })),
-    };
+        parts: mapInto(d.parts, out.parts, (p, part = {}) =>
+          Object.assign(part, { name: p.name, t: transform(p.body, part.t) }),
+        ),
+      }),
+    );
+    state.effects = mapInto(this.effects, state.effects, (e, out = {}) =>
+      Object.assign(out, e),
+    );
+    state.props = mapInto(this.props, state.props, (p, out = {}) =>
+      Object.assign(out, {
+        id: p.id,
+        type: p.type,
+        x: p.x,
+        z: p.z,
+        floor: p.floor,
+        team: p.team,
+        hp: p.hp,
+        alive: p.alive,
+        active: p.fuse >= 0 || p.cooldown > 0,
+      }),
+    );
+    return state;
   }
   dispose() {
     this.queue.free();

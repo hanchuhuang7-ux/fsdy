@@ -1,6 +1,18 @@
 /* Keep both game modes reachable when the army panel moves below the battlefield. */
-.modal-feedback:empty { display: none; }
-.modal-feedback { position: sticky; bottom: 0; padding: 12px; border: 1px solid #cbd4bc; border-radius: 4px; background: #e9eddd; font-size: 12px; line-height: 1.7; color: #5d704e; }
+.modal-feedback:empty {
+  display: none;
+}
+.modal-feedback {
+  position: sticky;
+  bottom: 0;
+  padding: 12px;
+  border: 1px solid #cbd4bc;
+  border-radius: 4px;
+  background: #e9eddd;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #5d704e;
+}
 @media (max-width: 760px) {
   .topbar {
     height: 102px;
