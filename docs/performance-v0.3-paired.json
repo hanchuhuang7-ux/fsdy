@@ -1,0 +1,114 @@
+{
+  "baselineVersion": "0.2.0",
+  "currentVersion": "0.3.0",
+  "node": "v26.13.0",
+  "platform": "win32",
+  "fixture": "45v45 mixed, seed 42, 720 fixed steps + 10 Hz snapshots; alternating A/B then B/A, first pair warmup",
+  "samples": {
+    "baseline": [
+      {
+        "round": 0,
+        "ms": 783.8133,
+        "steps": 720,
+        "msPerStep": 1.0886295833333333,
+        "surviving": 40,
+        "corpses": 24
+      },
+      {
+        "round": 1,
+        "ms": 408.1265000000001,
+        "steps": 720,
+        "msPerStep": 0.5668423611111112,
+        "surviving": 40,
+        "corpses": 24
+      },
+      {
+        "round": 2,
+        "ms": 390.1785,
+        "steps": 720,
+        "msPerStep": 0.5419145833333333,
+        "surviving": 40,
+        "corpses": 24
+      },
+      {
+        "round": 3,
+        "ms": 420.0945999999999,
+        "steps": 720,
+        "msPerStep": 0.5834647222222221,
+        "surviving": 40,
+        "corpses": 24
+      },
+      {
+        "round": 4,
+        "ms": 461.72400000000016,
+        "steps": 720,
+        "msPerStep": 0.6412833333333335,
+        "surviving": 40,
+        "corpses": 24
+      },
+      {
+        "round": 5,
+        "ms": 460.0466999999999,
+        "steps": 720,
+        "msPerStep": 0.6389537499999999,
+        "surviving": 40,
+        "corpses": 24
+      }
+    ],
+    "current": [
+      {
+        "round": 0,
+        "ms": 492.5775,
+        "steps": 720,
+        "msPerStep": 0.6841354166666667,
+        "surviving": 41,
+        "corpses": 24
+      },
+      {
+        "round": 1,
+        "ms": 414.6012999999998,
+        "steps": 720,
+        "msPerStep": 0.5758351388888886,
+        "surviving": 41,
+        "corpses": 24
+      },
+      {
+        "round": 2,
+        "ms": 379.25350000000026,
+        "steps": 720,
+        "msPerStep": 0.5267409722222226,
+        "surviving": 41,
+        "corpses": 24
+      },
+      {
+        "round": 3,
+        "ms": 384.4625000000001,
+        "steps": 720,
+        "msPerStep": 0.5339756944444446,
+        "surviving": 41,
+        "corpses": 24
+      },
+      {
+        "round": 4,
+        "ms": 449.0048999999999,
+        "steps": 720,
+        "msPerStep": 0.6236179166666665,
+        "surviving": 41,
+        "corpses": 24
+      },
+      {
+        "round": 5,
+        "ms": 449.1986999999999,
+        "steps": 720,
+        "msPerStep": 0.6238870833333332,
+        "surviving": 41,
+        "corpses": 24
+      }
+    ]
+  },
+  "baselineMedianMsPerStep": 0.5834647222222221,
+  "currentMedianMsPerStep": 0.5758351388888886,
+  "changePercent": -1.307634042427619,
+  "regressionLimitPercent": 10,
+  "passed": true
+}

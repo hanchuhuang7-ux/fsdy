@@ -36,6 +36,11 @@ for (let r = 0; r < 6; r++) {
 }
 const report = {
   version: VERSION,
+  node: process.version,
+  platform: process.platform,
+  seed: 42,
+  warmupRuns: 1,
+  measuredRuns: 5,
   fixture: "45v45 mixed, 720 fixed steps + 10 Hz snapshots",
   samples,
   medianMsPerStep: samples

@@ -1,0 +1,258 @@
+{
+  "version": "0.3.0",
+  "map": "ruins",
+  "seed": 20261116,
+  "budget": 2200,
+  "red": [
+    {
+      "type": "cavalry",
+      "x": -4.5,
+      "z": -9.6,
+      "stance": "flank"
+    },
+    {
+      "type": "militia",
+      "x": -4.5,
+      "z": 9.6,
+      "stance": "flank"
+    },
+    {
+      "type": "cavalry",
+      "x": -4.5,
+      "z": 7.1,
+      "stance": "flank"
+    },
+    {
+      "type": "crossbow",
+      "x": -8.1,
+      "z": 9.6,
+      "stance": "hunt"
+    },
+    {
+      "type": "spear",
+      "x": -4.5,
+      "z": -7.1,
+      "stance": "advance"
+    },
+    {
+      "type": "medic",
+      "x": -8.1,
+      "z": -9.6,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": -4.5,
+      "z": 4.7,
+      "stance": "flank"
+    },
+    {
+      "type": "cavalry",
+      "x": -4.5,
+      "z": -4.7,
+      "stance": "flank"
+    },
+    {
+      "type": "militia",
+      "x": -4.5,
+      "z": 2.3,
+      "stance": "flank"
+    },
+    {
+      "type": "cavalry",
+      "x": -4.5,
+      "z": -2.3,
+      "stance": "flank"
+    },
+    {
+      "type": "crossbow",
+      "x": -8.1,
+      "z": 7.1,
+      "stance": "hunt"
+    },
+    {
+      "type": "spear",
+      "x": -4.5,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "medic",
+      "x": -8.1,
+      "z": -7.1,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": -7.1,
+      "z": -4.7,
+      "stance": "flank"
+    },
+    {
+      "type": "cavalry",
+      "x": -7.1,
+      "z": 4.7,
+      "stance": "flank"
+    },
+    {
+      "type": "militia",
+      "x": -7.1,
+      "z": 2.3,
+      "stance": "flank"
+    },
+    {
+      "type": "spear",
+      "x": -7.1,
+      "z": -2.3,
+      "stance": "advance"
+    }
+  ],
+  "blue": [
+    {
+      "type": "spear",
+      "x": 4.5,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 4.5,
+      "z": -2.4,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 4.5,
+      "z": 2.4,
+      "stance": "advance"
+    },
+    {
+      "type": "crossbow",
+      "x": 8.1,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "medic",
+      "x": 8.1,
+      "z": -2.4,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 4.5,
+      "z": -4.8,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": 8.1,
+      "z": 2.4,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 4.5,
+      "z": 4.8,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 4.5,
+      "z": -7.2,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 4.5,
+      "z": 7.2,
+      "stance": "advance"
+    },
+    {
+      "type": "crossbow",
+      "x": 8.1,
+      "z": 4.8,
+      "stance": "advance"
+    },
+    {
+      "type": "medic",
+      "x": 8.1,
+      "z": -4.8,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 4.5,
+      "z": -9.6,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": 8.1,
+      "z": 7.2,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 4.5,
+      "z": 9.6,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 7.1,
+      "z": -7.2,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 7.1,
+      "z": 9.6,
+      "stance": "advance"
+    },
+    {
+      "type": "crossbow",
+      "x": 8.1,
+      "z": -9.6,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 9.7,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "militia",
+      "x": 9.7,
+      "z": 2.4,
+      "stance": "advance"
+    }
+  ],
+  "props": [
+    {
+      "type": "banner",
+      "team": "red",
+      "x": -9.8,
+      "z": 1.4
+    },
+    {
+      "type": "spikes",
+      "team": "red",
+      "x": -6.6,
+      "z": 0
+    },
+    {
+      "type": "banner",
+      "team": "blue",
+      "x": 9.8,
+      "z": -1.4
+    },
+    {
+      "type": "spikes",
+      "team": "blue",
+      "x": 3.1,
+      "z": -1.4
+    }
+  ]
+}

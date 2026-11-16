@@ -1,6 +1,6 @@
 {
   "name": "frontline-lab",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "An open-source 3D physics battle sandbox. 阵线实验室",
