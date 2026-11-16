@@ -1,4 +1,62 @@
-export const VERSION = "0.3.0";
+export const VERSION = "0.4.0";
+export const ORDERS = {
+  inspire: { name: "全军鼓舞", duration: 300, radius: 6, cost: 1 },
+  focus: { name: "集火令", duration: 360, radius: 8, cost: 1 },
+  fortify: { name: "固守盾阵", duration: 300, radius: 6, cost: 1 },
+};
+export const ORDER_POINTS = 3;
+export const ORDER_COOLDOWN = 480;
+export function validateOrderLog(log, config, maxTick = 5399) {
+  assertSafeData(log);
+  if (
+    !Array.isArray(log) ||
+    log.length > 6 ||
+    (!config.commander.enabled && log.length)
+  )
+    throw Error("军令日志无效");
+  const points = { red: 3, blue: 3 },
+    ready = { red: 0, blue: 0 };
+  let previous = -1;
+  return log.map((o, i) => {
+    if (
+      !o ||
+      !["red", "blue"].includes(o.team) ||
+      !Object.hasOwn(ORDERS, o.type) ||
+      !Number.isInteger(o.tick) ||
+      o.tick < previous ||
+      o.tick < 0 ||
+      o.tick > maxTick ||
+      o.tick < ready[o.team] ||
+      points[o.team] < 1 ||
+      !Number.isFinite(o.x) ||
+      !Number.isFinite(o.z) ||
+      Math.abs(o.x) > 18 ||
+      Math.abs(o.z) > 12 ||
+      !groundAt(config.map, o.x, o.z) ||
+      (o.id !== undefined && o.id !== i + 1)
+    )
+      throw Error("军令日志越界、超额或违反冷却");
+    previous = o.tick;
+    points[o.team]--;
+    ready[o.team] = o.tick + ORDER_COOLDOWN;
+    return {
+      id: i + 1,
+      team: o.team,
+      type: o.type,
+      x: o.x,
+      z: o.z,
+      tick: o.tick,
+    };
+  });
+}
+export const unitPower = (u) =>
+  (Math.max(0, u.hp) / (u.maxHp || UNITS[u.type].hp)) * UNITS[u.type].cost;
+export function combatPower(units) {
+  const value = { red: 0, blue: 0 };
+  for (const u of units)
+    if (u.alive && Object.hasOwn(value, u.team)) value[u.team] += unitPower(u);
+  return value;
+}
 export const STANCES = {
   advance: "常规推进",
   hold: "坚守阵地",
@@ -487,7 +545,7 @@ export function terrainAt(map, x, z) {
 }
 export function validateConfig(input) {
   assertSafeData(input);
-  if (!input || !["0.1.0", "0.2.0", VERSION].includes(input.version))
+  if (!input || !["0.1.0", "0.2.0", "0.3.0", VERSION].includes(input.version))
     throw Error("不支持的文件版本，需要 " + VERSION);
   const config = {
     version: VERSION,
@@ -497,7 +555,21 @@ export function validateConfig(input) {
     red: input.red,
     blue: input.blue,
     props: input.props || [],
+    commander: { enabled: false, aiTeams: [] },
   };
+  if (input.commander !== undefined) {
+    const c = input.commander;
+    if (
+      !c ||
+      typeof c.enabled !== "boolean" ||
+      !Array.isArray(c.aiTeams) ||
+      c.aiTeams.length > 2 ||
+      new Set(c.aiTeams).size !== c.aiTeams.length ||
+      c.aiTeams.some((t) => !["red", "blue"].includes(t))
+    )
+      throw Error("军令模式配置无效");
+    config.commander = { enabled: c.enabled, aiTeams: [...c.aiTeams] };
+  }
   if (!Object.hasOwn(MAPS, config.map)) throw Error("未知战场");
   if (
     !Number.isInteger(config.seed) ||
@@ -627,6 +699,8 @@ export function canPlace(config, team, item, kind = "unit") {
 
 export function tacticalPreview(config, item, kind = "unit", team = "red") {
   const floor = heightAt(config.map, item.x, item.z);
+  if (kind === "order")
+    return { radius: ORDERS[item.type].radius, floor, bonus: false };
   if (kind === "prop")
     return {
       radius: {
@@ -668,5 +742,6 @@ export function defaultConfig(map = "meadow") {
     red: formation(),
     blue: formation("balanced", "blue"),
     props: [],
+    commander: { enabled: false, aiTeams: [] },
   };
 }

@@ -6,7 +6,15 @@ import {
   MAPS,
   assertSafeData,
   validateConfig,
+  validateOrderLog,
+  STANCES,
+  ORDERS,
+  ORDER_COOLDOWN,
 } from "./data.js";
+import {
+  Battle as CurrentBattle,
+  initPhysics as initCurrentPhysics,
+} from "./engine.js";
 
 const keys = [
   "damageDealt",
@@ -119,17 +127,23 @@ function validResult(r, config) {
 }
 
 /** Strict, bounded plain-JSON boundary. Trajectory playback never runs imported code. */
-export function validateReplay(input) {
+export function validateReplay(input, legacy = false) {
   assertSafeData(input);
+  if (
+    input?.version === 1 &&
+    ["0.1.0", "0.2.0", "0.3.0"].includes(input.engineVersion)
+  )
+    return validateLegacy(input);
   if (
     !input ||
     input.format !== "frontline-replay" ||
-    input.version !== 1 ||
+    input.version !== 2 ||
     input.engineVersion !== VERSION ||
     !["seed", "trajectory"].includes(input.kind)
   )
     throw Error("不支持的回放格式或引擎版本");
   const config = validateConfig(input.config);
+  const orderLog = validateOrderLog(input.orderLog || [], config);
   if (input.kind === "seed") {
     if (
       input.frames !== undefined &&
@@ -138,10 +152,11 @@ export function validateReplay(input) {
       fail();
     return {
       format: input.format,
-      version: 1,
+      version: 2,
       engineVersion: VERSION,
       kind: "seed",
       config,
+      orderLog,
     };
   }
   if (
@@ -174,12 +189,49 @@ export function validateReplay(input) {
       !Array.isArray(f.effects) ||
       f.effects.length > 41 ||
       !Array.isArray(f.props) ||
-      f.props.length !== MAPS[config.map].props.length + config.props.length
+      (legacy
+        ? f.props.length > 40
+        : f.props.length !==
+          MAPS[config.map].props.length + config.props.length)
     )
       fail();
     last = f.time;
+    if (
+      !Number.isInteger(f.tick) ||
+      Math.abs(f.tick / 60 - f.time) > 0.00001 ||
+      !validCommander(f.commander, orderLog, f.tick) ||
+      !Array.isArray(f.cues) ||
+      f.cues.length > 24
+    )
+      fail();
+    for (const c of f.cues)
+      if (
+        !id(c.id) ||
+        !Number.isInteger(c.tick) ||
+        c.tick < 0 ||
+        c.tick > f.tick ||
+        ![
+          "bow",
+          "crossbow",
+          "melee",
+          "block",
+          "slam",
+          "charge",
+          "catapult",
+          "explosion",
+          "heal",
+          "order",
+          "bomb",
+        ].includes(c.type) ||
+        ![c.x, c.y, c.z].every((n) => finite(n)) ||
+        !finite(c.strength, 0, 1)
+      )
+        fail();
     for (const [i, u] of f.units.entries())
       if (
+        !Object.hasOwn(STANCES, u.stance) ||
+        typeof u.inspired !== "boolean" ||
+        typeof u.fortified !== "boolean" ||
         u.id !== i + 1 ||
         u.type !== roster[i].type ||
         u.team !== roster[i].team ||
@@ -234,9 +286,17 @@ export function validateReplay(input) {
     for (const e of f.effects)
       if (
         !id(e.id) ||
-        !["explosion", "slam", "heal", "charge", "spikes", "spring"].includes(
-          e.type,
-        ) ||
+        ![
+          "explosion",
+          "slam",
+          "heal",
+          "charge",
+          "spikes",
+          "spring",
+          "hit",
+          "block",
+          "order",
+        ].includes(e.type) ||
         ![e.x, e.y, e.z].every((n) => finite(n)) ||
         !finite(e.maxLife, 0.01, 1) ||
         !finite(e.life, 0, e.maxLife)
@@ -260,6 +320,11 @@ export function validateReplay(input) {
   });
   const final = frames.at(-1);
   if (
+    final.commander.log.length !== orderLog.length ||
+    orderLog.some((o) => o.tick >= final.tick)
+  )
+    fail();
+  if (
     Math.abs(final.time - input.result.time) > 0.00001 ||
     final.units.filter((u) => u.alive && u.team === "red").length !==
       input.result.red ||
@@ -269,23 +334,187 @@ export function validateReplay(input) {
     fail();
   return structuredClone({
     format: input.format,
-    version: 1,
+    version: 2,
     engineVersion: VERSION,
     kind: "trajectory",
     config,
     result: input.result,
     frames,
+    orderLog,
   });
 }
 
 export function replayPackage(config, frames, result, kind = "trajectory") {
   return validateReplay({
     format: "frontline-replay",
-    version: 1,
+    version: 2,
     engineVersion: VERSION,
     kind,
     config,
     frames: kind === "seed" ? undefined : frames,
     result: kind === "seed" ? undefined : result,
+    orderLog: result?.orders || frames?.at(-1)?.commander?.log || [],
   });
+}
+
+function validCommander(state, log, tick) {
+  if (
+    !state ||
+    !state.points ||
+    !state.readyAt ||
+    !Array.isArray(state.log) ||
+    state.log.length > log.length ||
+    !Array.isArray(state.active) ||
+    state.active.length > 6
+  )
+    return false;
+  const same = (a, b) =>
+    ["id", "team", "type", "x", "z", "tick"].every((k) => a[k] === b[k]);
+  if (!state.log.every((o, i) => same(o, log[i]) && o.tick <= tick))
+    return false;
+  for (const t of ["red", "blue"]) {
+    const own = state.log.filter((o) => o.team === t);
+    if (
+      state.points[t] !== 3 - own.length ||
+      state.readyAt[t] !==
+        (own.at(-1)?.tick ?? -ORDER_COOLDOWN) + ORDER_COOLDOWN
+    )
+      return false;
+  }
+  return state.active.every(
+    (o) =>
+      state.log.some((e) => same(o, e)) &&
+      o.endTick === o.tick + ORDERS[o.type].duration &&
+      o.endTick >= tick,
+  );
+}
+
+function validateLegacy(input) {
+  const copy = structuredClone(input),
+    version = copy.engineVersion;
+  // Historical builds did not expose commander orders; no hidden rule can enter through a v1 package.
+  if (copy.orderLog?.length || copy.config?.commander?.enabled) fail();
+  copy.config = validateConfig(copy.config);
+  copy.version = 2;
+  copy.engineVersion = VERSION;
+  copy.orderLog = [];
+  if (copy.kind === "trajectory") {
+    if (
+      !Array.isArray(copy.frames) ||
+      copy.frames.length < 2 ||
+      copy.frames.length > 902 ||
+      !copy.result
+    )
+      fail();
+    const roster = [...copy.config.red, ...copy.config.blue];
+    const metrics = {
+      damageDealt: 0,
+      damageTaken: 0,
+      healing: 0,
+      kills: 0,
+      falls: 0,
+      fallKills: 0,
+      friendlyFire: 0,
+      friendlyKills: 0,
+    };
+    for (const f of copy.frames) {
+      if (
+        !Array.isArray(f.units) ||
+        f.units.length > 120 ||
+        !Array.isArray(f.ragdolls) ||
+        f.ragdolls.length > 24
+      )
+        fail();
+      f.tick = Math.round(f.time * 60);
+      f.commander = {
+        points: { red: 3, blue: 3 },
+        readyAt: { red: 0, blue: 0 },
+        active: [],
+        log: [],
+      };
+      f.cues = [];
+      f.props ||= [];
+      for (const [i, u] of (f.units || []).entries()) {
+        u.charge ??= 0;
+        u.stance = roster[i]?.stance || "advance";
+        u.inspired = false;
+        u.fortified = false;
+      }
+      for (const d of f.ragdolls || []) {
+        d.age ??= 0;
+        d.wreck ??= null;
+      }
+    }
+    const final = copy.frames.at(-1);
+    // v0.1/v0.2 predate portable replay/statistics. Accept their bounded snapshots and synthesize explicitly empty contributions.
+    if (!copy.result.report) {
+      const units = final.units.map((u) => ({
+        ...metrics,
+        id: u.id,
+        type: u.type,
+        team: u.team,
+        alive: u.alive,
+        hp: u.hp,
+      }));
+      const teams = {};
+      for (const t of ["red", "blue"]) {
+        const own = units.filter((u) => u.team === t),
+          byType = {};
+        for (const u of own) {
+          const row = (byType[u.type] ||= {
+            ...metrics,
+            initial: 0,
+            survived: 0,
+            lost: 0,
+          });
+          row.initial++;
+          row[u.alive ? "survived" : "lost"]++;
+        }
+        teams[t] = {
+          ...metrics,
+          initial: own.length,
+          survived: own.filter((u) => u.alive).length,
+          lost: own.filter((u) => !u.alive).length,
+          remainingValue: own.reduce(
+            (s, u) => s + (u.hp / UNITS[u.type].hp) * UNITS[u.type].cost,
+            0,
+          ),
+          byType,
+        };
+      }
+      copy.result.report = { teams, units, props: [], mvp: null };
+      copy.result.legacyStatsUnavailable = true;
+    }
+    copy.result.remainingValue ||= {
+      red: copy.result.report.teams.red.remainingValue,
+      blue: copy.result.report.teams.blue.remainingValue,
+    };
+    copy.result.orders = [];
+    // Old maps had no preset props. Validation uses a temporary marker rather than adding new props to old footage.
+  }
+  const normalized = validateReplay(copy, true);
+  return {
+    ...normalized,
+    version: 1,
+    engineVersion: version,
+    legacyStatsUnavailable: copy.result?.legacyStatsUnavailable || false,
+  };
+}
+
+export async function createReplayBattle(pkg) {
+  let module;
+  if (pkg.engineVersion === "0.1.0")
+    module = await import("./legacy/v0.1/engine.js");
+  else if (pkg.engineVersion === "0.2.0")
+    module = await import("./legacy/v0.2/engine.js");
+  else if (pkg.engineVersion === "0.3.0")
+    module = await import("./legacy/v0.3/engine.js");
+  else module = { Battle: CurrentBattle, initPhysics: initCurrentPhysics };
+  await module.initPhysics();
+  const battle = new module.Battle({
+    ...pkg.config,
+    version: pkg.engineVersion,
+  });
+  if (pkg.engineVersion === VERSION) battle.useOrderLog(pkg.orderLog || []);
+  return battle;
 }

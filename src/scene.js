@@ -1,6 +1,14 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { MAPS, UNITS, PROPS, heightAt, tacticalPreview } from "./data.js";
+import {
+  MAPS,
+  UNITS,
+  PROPS,
+  heightAt,
+  tacticalPreview,
+  STANCES,
+  ORDERS,
+} from "./data.js";
 import { ActorBatches } from "./batches.js";
 
 const PALETTE = {
@@ -35,6 +43,16 @@ export class BattlefieldView {
     this.controls.maxPolarAngle = Math.PI * 0.47;
     this.controls.minDistance = 13;
     this.controls.maxDistance = 75;
+    this.follow = false;
+    this.focusPoint = new THREE.Vector3();
+    this.focusOffset = new THREE.Vector3(16, 22, 24);
+    this.shakeEnabled = true;
+    this.shake = 0;
+    this.feedbackCursor = 0;
+    this.controls.addEventListener("start", () => {
+      this.follow = false;
+      this.container.dispatchEvent(new CustomEvent("camera-manual"));
+    });
     this.controls.mouseButtons = {
       LEFT: THREE.MOUSE.ROTATE,
       MIDDLE: THREE.MOUSE.DOLLY,
@@ -63,6 +81,7 @@ export class BattlefieldView {
     this.actorBatches = new ActorBatches(this.actors);
     this.scene.add(this.actorBatches.group);
     this.propModels = new Map();
+    this.orderModels = new Map();
     this.groundMeshes = [];
     this.sun = sun;
     this.metrics = { fps: 60, calls: 0, meshes: 0, batches: 0 };
@@ -175,9 +194,55 @@ export class BattlefieldView {
     this.camera.updateProjectionMatrix();
   }
   resetCamera() {
+    this.follow = false;
     this.camera.position.set(25, 30, 35);
     this.controls.target.set(0, 0, 0);
     this.controls.update();
+  }
+  cameraPreset(preset) {
+    this.follow = preset === "follow";
+    if (preset === "overview") this.resetCamera();
+    else if (preset === "top") {
+      this.controls.target.set(0, 0, 0);
+      this.camera.position.set(0, 49, 0.01);
+      this.controls.update();
+    } else if (preset === "follow") {
+      this.focusPoint.copy(this.controls.target);
+      this.focusOffset.set(16, 22, 24);
+    }
+  }
+  stanceBadge(stance = "advance") {
+    const g = new THREE.Group(),
+      color =
+        { advance: 0x698957, hold: 0x497fae, flank: 0xc49638, hunt: 0xb24f70 }[
+          stance
+        ] || 0x698957;
+    const ring = this.mesh(
+      this.geo("stanceRing", () => new THREE.RingGeometry(0.43, 0.48, 20)),
+      this.mat(color, { side: THREE.DoubleSide }),
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.castShadow = false;
+    g.add(ring);
+    if (stance === "hold")
+      for (const x of [-0.15, 0.15])
+        this.addBox(g, [0.12, 0.03, 0.35], [x, 0.02, 0], color);
+    else if (stance === "hunt") {
+      this.addBox(g, [0.4, 0.03, 0.08], [0, 0.02, 0], color);
+      this.addBox(g, [0.08, 0.03, 0.4], [0, 0.02, 0], color);
+    } else
+      for (let i = 0; i < (stance === "flank" ? 2 : 1); i++) {
+        const arrow = this.mesh(
+          this.geo("stanceArrow", () => new THREE.ConeGeometry(0.15, 0.3, 3)),
+          this.mat(color),
+        );
+        arrow.rotation.x = Math.PI / 2;
+        arrow.position.set(i * 0.22 - 0.1, 0.025, 0.05);
+        arrow.castShadow = false;
+        g.add(arrow);
+      }
+    g.position.y = -0.78;
+    return g;
   }
   map(id) {
     this.mapId = id;
@@ -407,12 +472,15 @@ export class BattlefieldView {
     if (id !== "bridge") this.terrain.add(center);
   }
   clearActors() {
+    this.feedbackCursor = 0;
+    this.shake = 0;
     this.actors.clear();
     this.models.clear();
     this.dolls.clear();
     this.shots.clear();
     this.bursts.clear();
     this.propModels.clear();
+    this.orderModels.clear();
   }
   soldier(type, team) {
     const group = new THREE.Group(),
@@ -594,6 +662,19 @@ export class BattlefieldView {
     health.position.y = 1.05;
     health.visible = false;
     group.add(health);
+    const buffRing = this.mesh(
+      this.geo("buffRing", () => new THREE.RingGeometry(0.52, 0.6, 24)),
+      this.mat(0xe8be51, {
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.65,
+      }),
+    );
+    buffRing.rotation.x = -Math.PI / 2;
+    buffRing.position.y = -0.75;
+    buffRing.visible = false;
+    buffRing.castShadow = false;
+    group.add(buffRing);
     group.userData = {
       armL,
       armR,
@@ -603,6 +684,7 @@ export class BattlefieldView {
       health,
       fill,
       ring,
+      buffRing,
       type,
       team,
     };
@@ -620,6 +702,8 @@ export class BattlefieldView {
           u.z,
         );
         m.rotation.y = team === "red" ? Math.PI / 2 : -Math.PI / 2;
+        m.userData.badge = this.stanceBadge(u.stance);
+        m.add(m.userData.badge);
         this.actors.add(m);
         this.models.set(`${team}-${i}`, m);
       });
@@ -767,7 +851,65 @@ export class BattlefieldView {
     object.position.set(t[0], t[1], t[2]);
     object.quaternion.set(t[3], t[4], t[5], t[6]);
   }
-  frame(state) {
+  frame(state, paused = false) {
+    const active = state.commander?.active || [],
+      orderIds = new Set(active.map((o) => o.id));
+    for (const [id, m] of this.orderModels)
+      if (!orderIds.has(id)) {
+        this.actors.remove(m);
+        this.orderModels.delete(id);
+      }
+    for (const o of active) {
+      let m = this.orderModels.get(o.id);
+      if (!m) {
+        m = new THREE.Group();
+        const ring = this.mesh(
+          this.geo(
+            "orderArea" + o.type,
+            () =>
+              new THREE.RingGeometry(
+                ORDERS[o.type].radius - 0.06,
+                ORDERS[o.type].radius,
+                48,
+              ),
+          ),
+          this.mat(PALETTE[o.team], {
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.3,
+          }),
+        );
+        ring.rotation.x = -Math.PI / 2;
+        ring.castShadow = false;
+        m.add(ring);
+        this.actors.add(m);
+        this.orderModels.set(o.id, m);
+      }
+      const floor = heightAt(this.mapId, o.x, o.z);
+      m.position.set(o.x, Number.isFinite(floor) ? floor + 0.13 : 0.13, o.z);
+    }
+    if (this.follow) {
+      const live = state.units.filter((u) => u.alive && u.t),
+        front = live.filter((u) => Math.abs(u.t[0]) < 7),
+        focus = front.length ? front : live;
+      if (focus.length) {
+        this.focusPoint.set(0, 0, 0);
+        for (const u of focus)
+          this.focusPoint.add(
+            new THREE.Vector3(
+              u.t[0] / focus.length,
+              Math.max(0, u.t[1] - 0.8) / focus.length,
+              u.t[2] / focus.length,
+            ),
+          );
+      }
+    }
+    for (const c of state.cues || [])
+      if (c.id > this.feedbackCursor) {
+        if (["explosion", "slam", "catapult"].includes(c.type))
+          this.shake = Math.min(0.16, this.shake + 0.07);
+        this.feedbackCursor = c.id;
+      }
     this.previewLine.visible = false;
     this.grid.forEach((g) => (g.visible = false));
     this.ghost.visible = false;
@@ -788,6 +930,8 @@ export class BattlefieldView {
       }
       if (!m) {
         m = this.soldier(u.type, u.team);
+        m.userData.badge = this.stanceBadge(u.stance);
+        m.add(m.userData.badge);
         this.actors.add(m);
         this.models.set(u.id, m);
       }
@@ -795,6 +939,14 @@ export class BattlefieldView {
       m.rotation.y = u.angle;
       const a = m.userData,
         walk = Math.sin(state.time * 11 + u.id) * 0.35;
+      a.badge.visible = paused;
+      a.buffRing.visible = Boolean(u.inspired || u.fortified);
+      if (a.buffRing.visible)
+        a.buffRing.material = this.mat(u.fortified ? 0x78bbd7 : 0xe8be51, {
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.65,
+        });
       a.legL.rotation.x = walk;
       a.legR.rotation.x = -walk;
       a.armL.rotation.x = -walk * 0.5;
@@ -935,12 +1087,18 @@ export class BattlefieldView {
           new THREE.MeshBasicMaterial({
             color:
               e.type === "heal"
-                ? 0xaaca8b
-                : e.type === "spring"
-                  ? 0xa4d3cd
-                  : e.type === "explosion"
-                    ? 0xf5cb70
-                    : 0xe8d6a1,
+                ? 0x6fe6a2
+                : e.type === "hit"
+                  ? 0xffe6a6
+                  : e.type === "block"
+                    ? 0x97ccef
+                    : e.type === "order"
+                      ? 0xe3bc58
+                      : e.type === "spring"
+                        ? 0xa4d3cd
+                        : e.type === "explosion"
+                          ? 0xf5cb70
+                          : 0xe8d6a1,
             transparent: true,
             opacity: 0.5,
             wireframe: e.type === "slam",
@@ -956,7 +1114,13 @@ export class BattlefieldView {
       m.scale.setScalar(
         0.2 +
           progress *
-            (e.type === "heal" ? 0.7 : e.type === "explosion" ? 3.6 : 2),
+            (e.type === "heal"
+              ? 0.7
+              : ["hit", "block"].includes(e.type)
+                ? 0.4
+                : e.type === "explosion"
+                  ? 3.6
+                  : 2),
       );
       m.material.opacity = (1 - progress) * 0.65;
     }
@@ -1093,8 +1257,28 @@ export class BattlefieldView {
       pos.needsUpdate = true;
     }
     this.controls.update();
+    if (this.follow) {
+      const factor = 1 - Math.exp(-Math.min(0.05, Math.max(0, delta)) * 2.8);
+      this.controls.target.lerp(this.focusPoint, factor);
+      const next = this.focusPoint.clone().add(this.focusOffset);
+      this.camera.position.lerp(next, factor);
+      this.camera.lookAt(this.controls.target);
+    }
     this.actorBatches.sync();
+    const sx =
+        this.shakeEnabled && this.quality !== "low"
+          ? Math.sin(time * 71) * this.shake
+          : 0,
+      sy =
+        this.shakeEnabled && this.quality !== "low"
+          ? Math.cos(time * 83) * this.shake * 0.5
+          : 0;
+    this.camera.position.x += sx;
+    this.camera.position.y += sy;
     this.renderer.render(this.scene, this.camera);
+    this.camera.position.x -= sx;
+    this.camera.position.y -= sy;
+    this.shake *= Math.exp(-Math.max(0, delta) * 15);
     this.metrics.calls = this.renderer.info.render.calls;
     this.metrics.meshes = this.actorBatches.meshCount;
     this.metrics.batches = this.actorBatches.batchCount;

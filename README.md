@@ -2,9 +2,9 @@
 
 一个能在浏览器里玩的 **3D 物理混战沙盘**。花军费、排兵布阵、布置道具，然后看骑兵、弓箭、石弹、碰撞与重力把计划变成意外。
 
-**Alpha 0.3：三种战术 AI、玩家对战 AI、AI 自动演武、双人盲选热座、混编整队、贡献榜和回放文件。** 保留十种兵种、六张地图、五种道具。原创实现，玩法灵感来自 [《纸上谈兵》 / meow-ai-arena](https://github.com/chen-006/meow-ai-arena) 与物理战斗沙盘，没有复用其代码、素材、选手提交或关卡。
+**Alpha 0.4：公开侦察与战报调阵、Bo3、同规则统帅军令、程序化音效、实时战力、姿态徽章、快捷视角和五槽收藏。** 保留十种兵种、六张地图、五种道具、人机 / 双 AI / 盲选热座。原创实现，玩法灵感来自 [《纸上谈兵》 / meow-ai-arena](https://github.com/chen-006/meow-ai-arena) 与物理战斗沙盘，没有复用其代码、素材、选手提交或关卡。
 
-![阵线实验室 0.3 战术 AI 演武](docs/screenshots/v0.3-tactics.jpg)
+![阵线实验室 0.4 统帅军令](docs/screenshots/v0.4-command.jpg)
 
 ## 开始玩
 
@@ -24,7 +24,18 @@ npm run preview
 
 `dist/` 可放到任意静态托管平台。资源使用相对路径，适用于 GitHub Pages 的仓库子路径。首次安装需要联网；构建后的游戏不依赖 CDN、外部字体或外部 API。
 
-## 0.3 更新
+## 0.4 更新
+
+- 反制 AI 同时分析重甲、突进、后排集群与空间展开；根据上一局敌方贡献兵种和己方重创侧翼调阵。
+- Bo3 保留双方每局阵型与公开战报；人类可微调，AI 可复盘；先两胜或最多三局结束。
+- 可选统帅军令：双方每局各 3 点、统一 8 秒冷却，鼓舞 / 集火 / 盾阵共用 `issueOrder()`，记录进回放。
+- Web Audio 零外部资源合成音效，支持静音 / 音量；实时战力条、轻震动、命中治疗光效和增益圈。
+- 开场 / 暂停姿态徽章，俯视 / 全览 / 跟随视角；窄屏浮动兵种条、折叠抽屉、五槽本地收藏。
+- 新回放 v2 支持军令；旧 v1 轨迹与 0.1 / 0.2 / 0.3 种子按对应冻结模拟器兼容。原有 48 项加 14 项，共 62 项测试。
+
+完整规则与工程口径见 [v0.4 开发说明](docs/V0.4.md)。
+
+## 0.3 基础能力
 
 - 稳健守阵、机动迂回、环境反制三种付费且合法的布阵 AI，网页与 CLI 共用。
 - 一键玩家 vs AI、AI vs AI；热座按红方封存、交接遮屏、蓝方布阵、揭晓开战，隐藏对方数量和道具。
@@ -111,6 +122,7 @@ npm run battle -- --config examples/large-battle.json --out result.json
 npm run battle -- --red-ai maneuver --blue-ai counter --map ruins --rounds 2 --out result.json
 npm run battle -- --red file:red-army.json --blue file:blue-army.json --map meadow --out result.json
 npm run battle -- --config examples/ai-duel.json --replay-out replay.json
+npm run battle -- --red-ai counter --blue-ai maneuver --map ruins --bo3 --commander --out bo3.json
 ```
 
 `--rounds` 按种子递增，最多 100 局。网页与 CLI 共用 `src/engine.js`。`examples/bridge-battle.json`、`examples/highland-skirmish.json` 和 `examples/large-battle.json` 均可直接导入网页。
@@ -125,15 +137,15 @@ npm run build
 npm run benchmark
 ```
 
-v0.3 与干净 v0.2 的同进程交替基准为 0.5835 → 0.5758 ms/步，约低 1.3%，通过本次 10% 回退门槛。长时间开发期间机器负载出现波动，普通命令的初测与后测、诊断样本均保留。历史 v0.1 → v0.2 优化和默认 360 部件 / 38 批次记录也保留在 [性能记录](docs/PERFORMANCE.md)；这些不是所有设备的帧率保证。
+v0.4 与干净 v0.3 的同进程交替基准为 0.3340 → 0.3392 ms/步，增加约 1.53%，通过 10% 回退门槛。普通基准为 0.3408 → 0.3220 ms/步；不同测量存在负载与 JIT 波动，原始样本与历史版本记录均保存在 [性能记录](docs/PERFORMANCE.md)。这些不是所有设备的帧率保证。
 
 三档画质只改变像素比和阴影，物理规则一致。物理尸体最多保留 24 具、12 秒后移除；尸体只与地形和掩体发生接触，爆炸仍能推动它们。
 
 自动化测试覆盖六张图完整结算、六关参考方案可通关、寻敌复现、布娃娃、投射物与掩体、连锁爆炸与友伤、骑兵冲锋、军医和旗帜治疗、地刺、弹射板、沼泽减速、坡道支撑、高地射程、冰面惯性、迂回通道、快照隔离、实例合批以及导入校验。
 
-新增测试覆盖 AI 合法性与反制、四种姿态、盲选隔离、混编与批量移动、贡献统计、回放往返与非法输入、防卡死和独立双方 JSON CLI，共 48 项。
+新增测试覆盖 AI 合法性与反制、四种姿态、盲选隔离、混编与批量移动、贡献统计、回放往返与非法输入、防卡死和独立双方 JSON CLI；v0.4 再补公开侦察、Bo3、军令公平与重演、战力计算、旧回放、收藏和音效节流，共 62 项。
 
-相同依赖、环境、输入与种子可复现。v0.3 支持完整 10 Hz 轨迹包和种子重演包导出与重新载入；回放文件最多 64 MB，当前要求匹配引擎版本。没有跨引擎版本或跨平台逐位一致性的保证。旧布阵能载入，但规则升级后战果可能变化。
+相同依赖、环境、输入、种子与军令日志可复现。v0.4 支持回放 v2 和旧 v1，旧种子按对应 0.1 / 0.2 / 0.3 模拟器重演；回放文件最多 64 MB。没有跨平台逐位一致性的保证。旧布阵能载入，新版本重新开战时仍使用新规则。
 
 ## 开发结构
 
@@ -142,6 +154,10 @@ src/data.js        兵种、道具、地形、阵型、关卡、输入校验
 src/tactics.js     共用战术 AI 规划与公平双 AI 草案侦察
 src/deployment.js  混编、原子编辑、热座可见性
 src/replay.js      有界回放包校验、轨迹/种子格式
+src/series.js      Bo3 比分、配置与公开战报档案
+src/favorites.js   五槽收藏、镜像与军费校验
+src/audio.js       合成音效、交互解锁与节流
+src/legacy/        冻结的旧模拟器与数据，仅旧种子重演时加载
 src/engine.js      Rapier 模拟与空间索引，浏览器与 Node 共用
 src/batches.js     动态网格实例合批
 src/scene.js       Three.js 场景、模型和轨迹显示

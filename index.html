@@ -20,13 +20,30 @@
         <a class="brand" href="./"
           ><span class="brand-mark">⚑</span
           ><span>阵线实验室<small>FRONTLINE LAB</small></span
-          ><span class="version">ALPHA 0.3</span></a
+          ><span class="version">ALPHA 0.4</span></a
         >
         <nav aria-label="游戏模式">
           <button class="nav active" id="sandbox">自由沙盘</button
           ><button class="nav" id="campaign">战术试炼 <span>06</span></button>
         </nav>
         <div class="top-actions">
+          <button
+            id="audio-toggle"
+            aria-label="静音开关"
+            aria-pressed="false"
+            title="静音"
+          >
+            ♫</button
+          ><input
+            id="volume"
+            type="range"
+            min="0"
+            max="100"
+            value="25"
+            aria-label="音量"
+          /><label class="shake-label"
+            ><input id="camera-shake" type="checkbox" checked /> 微震</label
+          >
           <span class="local-tag"
             ><i></i><span id="performance">本地物理模拟</span></span
           ><button class="icon-button" id="help" title="玩法说明">?</button
@@ -44,23 +61,35 @@
             <button id="team-red" class="active red">● 朱砂军</button
             ><button id="team-blue" class="blue">● 靛蓝军</button>
           </div>
-          <div class="play-settings">
-            <label for="play-mode">对战方式</label>
-            <select id="play-mode">
-              <option value="sandbox">自由推演 · 编辑双方</option>
-              <option value="human-ai">玩家 vs 内置 AI</option>
-              <option value="ai-ai">AI vs AI 自动演武</option>
-              <option value="hotseat">双人盲选热座</option>
-            </select>
-            <div class="ai-settings">
-              <label for="red-ai">红方 AI</label
-              ><select id="red-ai"></select
-              ><label for="blue-ai">蓝方 AI</label
-              ><select id="blue-ai"></select
-              ><button id="generate-ai">重新推演 AI 布阵</button>
+          <details class="play-drawer">
+            <summary>对战 / AI / 赛制设置</summary>
+            <div class="play-settings">
+              <label for="play-mode">对战方式</label>
+              <select id="play-mode">
+                <option value="sandbox">自由推演 · 编辑双方</option>
+                <option value="human-ai">玩家 vs 内置 AI</option>
+                <option value="ai-ai">AI vs AI 自动演武</option>
+                <option value="hotseat">双人盲选热座</option>
+              </select>
+              <div class="ai-settings">
+                <label for="red-ai">红方 AI</label
+                ><select id="red-ai"></select
+                ><label for="blue-ai">蓝方 AI</label
+                ><select id="blue-ai"></select
+                ><button id="generate-ai">重新推演 AI 布阵</button>
+              </div>
+              <p id="mode-description">编辑双方，试验你的战术。</p>
+              <label
+                ><input id="bo3-enabled" type="checkbox" /> 三局两胜 ·
+                复盘调阵</label
+              ><label
+                ><input id="commander-enabled" type="checkbox" />
+                统帅军令模式</label
+              >
+              <p id="series-status">单局推演</p>
+              <button id="restart-series" class="hidden">重新开始系列赛</button>
             </div>
-            <p id="mode-description">编辑双方，试验你的战术。</p>
-          </div>
+          </details>
           <div class="budget">
             <span>可用军费</span
             ><strong id="money">1,500<small> / 1,500</small></strong>
@@ -85,22 +114,27 @@
               <option value="hunt">猎杀高价值远程</option>
             </select>
           </div>
-          <div class="squad-tools">
-            <button id="squad-builder">＋ 混编整队 / 镜像</button>
-            <div>
-              <button id="select-tool">框选部队</button
-              ><button id="select-type">选中同兵种</button>
+          <p class="stance-legend">▲ 推进　Ⅱ 坚守　» 迂回　＋ 猎杀</p>
+          <details class="tool-drawer">
+            <summary>混编 / 批选 / 收藏工具</summary>
+            <div class="squad-tools">
+              <button id="squad-builder">＋ 混编整队 / 镜像</button>
+              <div>
+                <button id="select-tool">框选部队</button
+                ><button id="select-type">选中同兵种</button>
+              </div>
+              <div>
+                <button id="move-selection">移动选中</button
+                ><button id="delete-selection">删除选中</button>
+              </div>
+              <div>
+                <button id="apply-stance">应用姿态到选中</button
+                ><button id="clear-selection">取消选择</button>
+              </div>
+              <span id="selection-info">未选中部队</span>
             </div>
-            <div>
-              <button id="move-selection">移动选中</button
-              ><button id="delete-selection">删除选中</button>
-            </div>
-            <div>
-              <button id="apply-stance">应用姿态到选中</button
-              ><button id="clear-selection">取消选择</button>
-            </div>
-            <span id="selection-info">未选中部队</span>
-          </div>
+            <button id="favorites">★ 常用阵型 · 5 个槽位</button>
+          </details>
           <div class="deploy-actions">
             <button id="preset">载入推荐阵型</button
             ><button id="clear">清空本方</button>
@@ -142,6 +176,11 @@
               <p id="map-description">开阔平原。让阵型与兵种决定胜负。</p>
             </div>
             <div class="scene-tools">
+              <select id="camera-preset" aria-label="快捷视角">
+                <option value="overview">斜角全览</option>
+                <option value="top">正俯视布阵</option>
+                <option value="follow">跟随焦点 / 战线</option>
+              </select>
               <button class="camera-button" id="camera">⌖ 重置视角</button
               ><label class="quality-label"
                 >画质
@@ -162,6 +201,28 @@
               <strong id="blue-count">0</strong><span>靛蓝军</span><i></i>
             </div>
           </div>
+          <div class="power-board" aria-label="实时战力">
+            <div>
+              <span id="red-power-value">0</span
+              ><i><b id="red-power-fill"></b></i>
+            </div>
+            <small>战力</small>
+            <div>
+              <i><b id="blue-power-fill"></b></i
+              ><span id="blue-power-value">0</span>
+            </div>
+          </div>
+          <div id="command-dock" class="command-dock hidden">
+            <select id="command-team" aria-label="下令阵营">
+              <option value="red">朱砂军</option>
+              <option value="blue">靛蓝军</option></select
+            ><button data-order="inspire">鼓舞</button
+            ><button data-order="focus">集火</button
+            ><button data-order="fortify">盾阵</button
+            ><span id="command-status"></span
+            ><button id="cancel-order">取消</button>
+          </div>
+          <div id="round-label" class="round-label hidden"></div>
           <div class="scene-caption">
             <span class="north">N ↑</span
             ><span>RIGID BODY PHYSICS · 60 Hz</span>

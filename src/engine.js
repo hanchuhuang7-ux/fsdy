@@ -8,6 +8,11 @@ import {
   heightAt,
   terrainAt,
   validateConfig,
+  ORDERS,
+  ORDER_POINTS,
+  ORDER_COOLDOWN,
+  unitPower,
+  validateOrderLog,
 } from "./data.js";
 let ready;
 export function initPhysics() {
@@ -76,6 +81,15 @@ export class Battle {
     this.tick = 0;
     this.nextId = 1;
     this.result = null;
+    this.orderState = {
+      points: { red: ORDER_POINTS, blue: ORDER_POINTS },
+      readyAt: { red: 0, blue: 0 },
+      active: [],
+      log: [],
+    };
+    this.cues = [];
+    this.cueTimes = new Map();
+    this.nextCueId = 1;
     this.stats = { targetChecks: 0, neighborChecks: 0 };
     for (const p of MAPS[config.map].platforms) {
       const a = p.angle || 0;
@@ -108,6 +122,136 @@ export class Battle {
   random() {
     this.rng = (Math.imul(this.rng, 1664525) + 1013904223) >>> 0;
     return this.rng / 4294967296;
+  }
+  cue(type, p, strength = 1) {
+    if (this.tick - (this.cueTimes.get(type) ?? -100) < 8) return;
+    this.cueTimes.set(type, this.tick);
+    if (this.cues.length >= 24) this.cues.shift();
+    this.cues.push({
+      id: this.nextCueId++,
+      tick: this.tick,
+      type,
+      x: p.x,
+      y: p.y || 0,
+      z: p.z,
+      strength,
+    });
+  }
+  issueOrder(team, order) {
+    const reject = (reason) => ({ ok: false, reason });
+    if (!this.config.commander.enabled) return reject("军令模式未开启");
+    if (this.result) return reject("本局已经结束");
+    if (
+      !["red", "blue"].includes(team) ||
+      !order ||
+      !Object.hasOwn(ORDERS, order.type)
+    )
+      return reject("军令或阵营无效");
+    if (
+      !Number.isFinite(order.x) ||
+      !Number.isFinite(order.z) ||
+      Math.abs(order.x) > 18 ||
+      Math.abs(order.z) > 12 ||
+      !Number.isFinite(heightAt(this.config.map, order.x, order.z))
+    )
+      return reject("请选择战场地面");
+    const d = ORDERS[order.type],
+      state = this.orderState;
+    if (state.points[team] < d.cost) return reject("军令点数不足");
+    if (this.tick < state.readyAt[team]) return reject("军令正在冷却");
+    // UI orders and tick-scheduled replay orders must sample the same current transforms.
+    this.cachePositions();
+    const entry = {
+      id: state.log.length + 1,
+      team,
+      type: order.type,
+      x: order.x,
+      z: order.z,
+      tick: this.tick,
+    };
+    state.points[team] -= d.cost;
+    state.readyAt[team] = this.tick + ORDER_COOLDOWN;
+    state.log.push(entry);
+    const active = { ...entry, endTick: this.tick + d.duration };
+    state.active.push(active);
+    this.nearby(order, d.radius, (u) => {
+      if (u.team !== team) return;
+      if (order.type === "inspire") u.inspireUntil = active.endTick;
+      else if (order.type === "fortify") {
+        if (["shield", "spear", "giant", "militia"].includes(u.type))
+          u.fortifyUntil = active.endTick;
+      } else u.focus = { x: order.x, z: order.z, endTick: active.endTick };
+      // Order feedback is bounded by the existing 41-effect budget.
+      if (u.id % 3 === 0) this.effect("order", u.position, 0.7);
+    });
+    this.cue("order", {
+      x: order.x,
+      y: heightAt(this.config.map, order.x, order.z) + 0.2,
+      z: order.z,
+    });
+    return { ok: true, entry: { ...entry } };
+  }
+  useOrderLog(log) {
+    if (this.tick !== 0 || this.orderState.log.length)
+      throw Error("军令重演须从初始状态开始");
+    this.replayOrders = validateOrderLog(log, this.config);
+    this.replayOrderIndex = 0;
+  }
+  tickOrders() {
+    this.orderState.active = this.orderState.active.filter(
+      (o) => o.endTick > this.tick,
+    );
+    if (this.replayOrders) {
+      while (
+        this.replayOrderIndex < this.replayOrders.length &&
+        this.replayOrders[this.replayOrderIndex].tick === this.tick
+      ) {
+        const o = this.replayOrders[this.replayOrderIndex++],
+          r = this.issueOrder(o.team, o);
+        if (!r.ok) throw Error("军令日志无法重演：" + r.reason);
+      }
+      return;
+    }
+    if (this.tick % 60 !== 0) return;
+    for (const team of this.config.commander.aiTeams) {
+      if (
+        this.orderState.points[team] <= 0 ||
+        this.tick < this.orderState.readyAt[team]
+      )
+        continue;
+      const own = this.armies[team].filter((u) => u.alive),
+        front = own.reduce(
+          (best, u) =>
+            !best ||
+            (team === "red"
+              ? u.position.x > best.position.x
+              : u.position.x < best.position.x)
+              ? u
+              : best,
+          null,
+        );
+      if (!front) continue;
+      const enemies = this.armies[team === "red" ? "blue" : "red"].filter(
+        (u) => u.alive && distance(front.position, u.position) < 8,
+      );
+      const type =
+        front.hp / front.maxHp < 0.65
+          ? "fortify"
+          : enemies.length >= 3
+            ? "focus"
+            : "inspire";
+      const p =
+        type === "focus"
+          ? enemies.reduce(
+              (s, u) => ({
+                x: s.x + u.position.x / enemies.length,
+                z: s.z + u.position.z / enemies.length,
+              }),
+              { x: 0, z: 0 },
+            )
+          : front.position;
+      this.issueOrder(team, { type, x: p.x, z: p.z });
+    }
   }
   spawn(team, u) {
     const d = UNITS[u.type],
@@ -146,6 +290,9 @@ export class Battle {
       progress: { x: u.x, z: u.z, blocked: 0, escapeUntil: 0, escapes: 0 },
       charge: 0,
       target: null,
+      inspireUntil: 0,
+      fortifyUntil: 0,
+      focus: null,
       position: vec(u.x, floor + 0.8 * s, u.z),
       floor,
     };
@@ -242,6 +389,13 @@ export class Battle {
       if (e.alive) {
         this.stats.targetChecks++;
         let s = (p.x - e.position.x) ** 2 + (p.z - e.position.z) ** 2;
+        if (
+          unit.focus &&
+          unit.focus.endTick > this.tick &&
+          Math.hypot(e.position.x - unit.focus.x, e.position.z - unit.focus.z) <
+            4
+        )
+          s *= 0.08;
         if (unit.stance === "flank" && UNITS[e.type].ranged) s *= 0.42;
         if (unit.stance === "hunt")
           s *= UNITS[e.type].ranged
@@ -267,6 +421,8 @@ export class Battle {
       const restored = Math.min(target.maxHp - target.hp, amount);
       target.hp += restored;
       if (source) source.contribution.healing += restored;
+      if (restored > 0 && (this.tick + target.id) % 12 === 0)
+        this.cue("heal", target.position);
     }
   }
   medic(u) {
@@ -291,7 +447,8 @@ export class Battle {
       this.kill(u, vec(), "fall");
       return;
     }
-    u.cooldown -= DT;
+    const inspired = u.inspireUntil > this.tick;
+    u.cooldown -= DT * (inspired ? 1.15 : 1);
     u.attack = Math.max(0, u.attack - DT * 3);
     u.stun = Math.max(0, u.stun - DT);
     const ai = (this.tick + u.id) % 6 === 0;
@@ -396,6 +553,7 @@ export class Battle {
       mz /= n;
     }
     const terrain = terrainAt(this.config.map, p.x, p.z);
+    if (inspired) speed *= 1.12;
     if (speed > 0 && u.stance !== "hold") {
       if ((this.tick + u.id) % 30 === 0) this.checkProgress(u, mx, mz);
       if (u.progress.escapeUntil > this.tick) {
@@ -602,12 +760,25 @@ export class Battle {
       dx = p.x - from.x,
       dz = p.z - from.z,
       dist = Math.hypot(dx, dz) || 1;
+    let blocked = false;
     if (
       target.type === "shield" &&
       (Math.sin(target.angle) * -dx + Math.cos(target.angle) * -dz) / dist >
         0.25
-    )
+    ) {
       damage *= 0.4 + 0.6 * pierce;
+      blocked = true;
+    }
+    if (
+      target.fortifyUntil > this.tick &&
+      ["shield", "spear", "giant", "militia"].includes(target.type)
+    ) {
+      damage *= 0.75;
+      knock *= 0.5;
+    }
+    this.cue(blocked ? "block" : "melee", p);
+    if ((this.tick + target.id) % 6 === 0)
+      this.effect(blocked ? "block" : "hit", p, 0.18);
     const actual = Math.min(target.hp, Math.max(0, damage));
     target.contribution.damageTaken += actual;
     if (attacker) {
@@ -626,6 +797,16 @@ export class Battle {
     }
   }
   shoot(u, target) {
+    this.cue(
+      u.type === "archer"
+        ? "bow"
+        : u.type === "crossbow"
+          ? "crossbow"
+          : u.type === "catapult"
+            ? "catapult"
+            : "bomb",
+      u.position,
+    );
     const d = UNITS[u.type],
       p = u.body.translation(),
       t = target.body.translation(),
@@ -910,6 +1091,7 @@ export class Battle {
     });
   }
   effect(type, p, life) {
+    if (["explosion", "slam", "charge"].includes(type)) this.cue(type, p);
     if (this.effects.length > 40) this.effects.shift();
     this.effects.push({
       id: this.nextId++,
@@ -924,6 +1106,7 @@ export class Battle {
   step() {
     if (this.result) return;
     this.cachePositions();
+    if (this.config.commander.enabled) this.tickOrders();
     if (this.tick % 6 === 0) this.tickProps();
     for (const u of this.units) if (u.alive) this.command(u);
     this.world.step(this.queue);
@@ -978,10 +1161,10 @@ export class Battle {
       if (u.alive) {
         if (u.team === "red") {
           red++;
-          redScore += (u.hp / u.maxHp) * UNITS[u.type].cost;
+          redScore += unitPower(u);
         } else {
           blue++;
-          blueScore += (u.hp / u.maxHp) * UNITS[u.type].cost;
+          blueScore += unitPower(u);
         }
       }
     if (!red || !blue || this.time >= MAX_TIME)
@@ -1009,6 +1192,7 @@ export class Battle {
         blue: rounded(blueScore),
       };
       this.result.report = this.report();
+      this.result.orders = structuredClone(this.orderState.log);
     }
   }
   report() {
@@ -1018,6 +1202,7 @@ export class Battle {
       type: u.type,
       alive: u.alive,
       hp: rounded(u.hp),
+      spawn: { x: u.x, z: u.z },
       ...Object.fromEntries(
         Object.entries(u.contribution).map(([k, v]) => [k, rounded(v)]),
       ),
@@ -1087,6 +1272,11 @@ export class Battle {
   snapshot(state = {}) {
     state.time = this.time;
     state.result = this.result;
+    state.tick = this.tick;
+    state.commander = structuredClone(this.orderState);
+    state.cues = mapInto(this.cues, state.cues, (cue, out = {}) =>
+      Object.assign(out, cue),
+    );
     state.units = mapInto(this.units, state.units, (u, out = {}) =>
       Object.assign(out, {
         id: u.id,
@@ -1097,6 +1287,9 @@ export class Battle {
         angle: u.angle,
         attack: u.attack,
         charge: u.charge,
+        stance: u.stance,
+        inspired: u.inspireUntil > this.tick,
+        fortified: u.fortifyUntil > this.tick,
         t: u.alive ? transform(u.body, out.t || []) : null,
       }),
     );

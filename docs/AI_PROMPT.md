@@ -14,13 +14,14 @@
 
 0.2 支持根级 `props` 数组。例如：`{"type":"barricade","team":"red","x":-4,"z":0}`。可用类型为 barrel / barricade / spikes / spring / banner。坐标必须在本方半场，和军队共用军费。地图自带的中立道具来自 MAPS，不需要在 JSON 重复添加。参阅 examples/highland-skirmish.json。
 
-## v0.3 布阵—复盘—调阵接口
+## v0.4 布阵—复盘—调阵接口
 
 ```sh
 npm run battle -- --red file:red-army.json --blue ai:guardian --map ruins --budget 2200 --seed 42 --rounds 5 --out report.json
 npm run battle -- --red file:red-army.json --blue file:blue-army.json --map highland --out report.json
 npm run battle -- --red-ai maneuver --blue-ai counter --map marsh --out report.json
 npm run battle -- --config examples/ai-duel.json --out report.json --replay-out replay.json
+npm run battle -- --red-ai counter --blue-ai maneuver --map ruins --bo3 --commander --out bo3.json
 ```
 
 三种内置策略名为 guardian / maneuver / counter。双方文件可以是单位数组、`{units,props}` 或完整对局；完整对局按 red / blue 提取对应一方。阵营坐标必须正确，不会自动镜像。`--config` 默认保留原双方，显式单方参数才覆盖。`--rounds` 固定编队，逐局递增物理种子，不是在每一局重新规划 AI。
@@ -30,3 +31,7 @@ npm run battle -- --config examples/ai-duel.json --out report.json --replay-out 
 每轮保留同样的对手与地图，修改自己的配兵、位置、姿态或道具，使用多个种子比较胜率、剩余战力与误伤。避免只对一个种子调参。若要导出网页可播放的完整回放，使用单局 `--replay-out`，不要把评测报告误当回放包。不要在结果未实际运行时声称获胜。
 
 为新阵型复用 `src/data.js` 的 `canPlace()` 或 `src/deployment.js` 的 `placeSquad()` 校验间距；网页与内置 AI 使用这些函数。旧 JSON 兼容导入保留历史重叠容忍，不应把重叠当成优化手段。JSON 只携带配置数据，不会执行任意程序，也不会接受修改伤害、生命或预算规则的额外字段。
+
+v0.4 的 `counter` 不只检查骑兵，也读取公开的重甲、突进、远程/军医集群和空间展开。Bo3 中可使用 `series.rounds[n].config` 和 `.result.report` 复盘；下一局地图、军费和军令开关固定，种子递增。最多三局，先两胜提前结束，含平局时按最终胜局数判断。
+
+可选 `commander: {enabled:true,aiTeams:["red","blue"]}` 让 CLI 双方自动使用统帅军令。人类与 AI 统一调用 `Battle.issueOrder()`，各 3 点、统一 8 秒冷却；军令日志是可复现输入的一部分。`--commander` 是该配置的快捷开关，`--bo3` 启用公开战报调阵。单局批量 `--rounds` 仍保持固定阵型。
