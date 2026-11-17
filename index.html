@@ -20,7 +20,7 @@
         <a class="brand" href="./"
           ><span class="brand-mark">⚑</span
           ><span>阵线实验室<small>FRONTLINE LAB</small></span
-          ><span class="version">ALPHA 0.4</span></a
+          ><span class="version">ALPHA 0.5</span></a
         >
         <nav aria-label="游戏模式">
           <button class="nav active" id="sandbox">自由沙盘</button
@@ -90,6 +90,8 @@
               <button id="restart-series" class="hidden">重新开始系列赛</button>
             </div>
           </details>
+          <p id="tactical-hint" class="tactical-hint" aria-live="polite"></p>
+          <div id="planning-status" role="status" hidden>正在推演…</div><button id="cancel-planning">取消推演</button>
           <div class="budget">
             <span>可用军费</span
             ><strong id="money">1,500<small> / 1,500</small></strong>
@@ -155,6 +157,7 @@
           </div>
         </aside>
         <section class="arena" aria-label="3D 战场">
+<button id="touch-mode" class="touch-mode" aria-pressed="false">☝ 拖拽视角</button><details id="battle-feed" class="battle-feed"><summary>战况快报</summary><ol id="battle-feed-list"></ol></details>
           <div id="viewport"></div>
           <div id="preview-label" class="preview-label hidden"></div>
           <div id="hotseat-cover" class="hotseat-cover hidden">

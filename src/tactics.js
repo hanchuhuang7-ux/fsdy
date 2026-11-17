@@ -1,3 +1,5 @@
+import { Battle } from "./engine.js";
+import { combatPower } from "./data.js";
 import {
   VERSION,
   UNITS,
@@ -11,6 +13,10 @@ import {
 } from "./data.js";
 
 export const AI_STYLES = {
+  oracle: {
+    name: "算策 · 推演择优",
+    description: "多候选固定步数快筛，再完整验算前两名；仅使用公开初始编队。",
+  },
   guardian: {
     name: "磐石 · 稳健守阵",
     description: "盾枪护住弓弩与军医，拒马、治疗旗稳住阵线。",
@@ -111,6 +117,8 @@ export function planArmy({
   opponent = [],
   previous = null,
 } = {}) {
+  if (style === "oracle")
+    return planOracle({ map, team, budget, seed, opponent, previous });
   if (
     !Object.hasOwn(AI_STYLES, style) ||
     !Object.hasOwn(MAPS, map) ||
@@ -440,13 +448,13 @@ export function aiDuel(
   const redDraft = planArmy({
     ...base,
     team: "red",
-    style: redStyle,
+    style: redStyle === "oracle" ? "counter" : redStyle,
     opponent: [],
   });
   const blueDraft = planArmy({
     ...base,
     team: "blue",
-    style: blueStyle,
+    style: blueStyle === "oracle" ? "counter" : blueStyle,
     opponent: [],
     seed: (base.seed + 7919) >>> 0,
   });
@@ -470,6 +478,228 @@ export function aiDuel(
     ...base,
     red: red.units,
     blue: blue.units,
+    props: [...red.props, ...blue.props],
+  });
+}
+
+/** Bounded generator: both sync CLI and asynchronously sliced web searches execute identical steps. */
+export function* oracleSearch(options = {}) {
+  const {
+    map = "meadow",
+    team = "blue",
+    budget = 2200,
+    seed = 42,
+    opponent = [],
+    previous = null,
+    candidateCount = 4,
+    screenSteps = 360,
+    finalSteps = 5400,
+  } = options;
+  if (
+    !Number.isInteger(candidateCount) ||
+    candidateCount < 3 ||
+    candidateCount > 6 ||
+    !Number.isInteger(screenSteps) ||
+    screenSteps < 60 ||
+    screenSteps > 720 ||
+    !Number.isInteger(finalSteps) ||
+    finalSteps < screenSteps ||
+    finalSteps > 5400
+  )
+    throw Error("推演预算无效");
+  const enemy = other(team),
+    styles = ["counter", "guardian", "maneuver"],
+    candidates = [];
+  // Deliberately copy only public initial placement fields. No object from a running battle crosses this boundary.
+  const visible = opponent
+    .filter((u) => Object.hasOwn(UNITS, u.type))
+    .map((u) => ({
+      type: u.type,
+      x: u.x,
+      z: u.z,
+      stance: u.stance || "advance",
+    }));
+  const foes = visible.length
+    ? visible
+    : planArmy({
+        map,
+        team: enemy,
+        budget,
+        seed: seed >>> 0,
+        style: "guardian",
+      }).units;
+  for (let i = 0; i < candidateCount; i++)
+    candidates.push(
+      planArmy({
+        map,
+        team,
+        budget,
+        seed: (seed + Math.imul(i, 104729)) >>> 0,
+        style: styles[i % 3],
+        opponent: visible,
+        previous,
+      }),
+    );
+  const results = [];
+  let done = 0;
+  const total = candidateCount * screenSteps + 2 * finalSteps;
+  function* trial(index, steps, phase) {
+    const plan = candidates[index],
+      config = validateConfig({
+        version: VERSION,
+        map,
+        budget,
+        seed: seed >>> 0,
+        [team]: plan.units,
+        [enemy]: foes,
+        props: plan.props,
+        commander: { enabled: false, aiTeams: [] },
+      }),
+      b = new Battle(config);
+    let used = 0;
+    try {
+      while (used < steps && !b.result) {
+        b.step();
+        used++;
+        if (used % 60 === 0)
+          yield { done: done + used, total, phase, candidate: index + 1 };
+      }
+      const power = combatPower(b.units);
+      return {
+        index,
+        score: power[team],
+        advantage: power[team] - power[enemy],
+        remaining: power[team],
+        steps: used,
+      };
+    } finally {
+      done += steps;
+      b.dispose();
+    }
+  }
+  for (let i = 0; i < candidates.length; i++)
+    results.push(yield* trial(i, screenSteps, "快筛"));
+  results.sort(
+    (a, b) =>
+      b.score - a.score || b.advantage - a.advantage || a.index - b.index,
+  );
+  const finals = [];
+  for (const row of results.slice(0, 2))
+    finals.push(yield* trial(row.index, finalSteps, "验算"));
+  finals.sort(
+    (a, b) =>
+      b.score - a.score || b.advantage - a.advantage || a.index - b.index,
+  );
+  const chosen = finals[0];
+  return {
+    ...candidates[chosen.index],
+    style: "oracle",
+    search: {
+      candidateCount,
+      screenSteps,
+      finalSteps,
+      chosen: chosen.index,
+      trials: results,
+      finalists: finals,
+      maxSteps: total,
+    },
+  };
+}
+export function planOracle(options) {
+  const g = oracleSearch(options);
+  let r;
+  do {
+    r = g.next();
+  } while (!r.done);
+  return r.value;
+}
+export async function planArmyAsync(
+  options,
+  { onProgress = () => {}, signal } = {},
+) {
+  if (options.style !== "oracle") return planArmy(options);
+  const g = oracleSearch(options);
+  try {
+    let r;
+    do {
+      if (signal?.aborted) throw Error("推演已取消");
+      r = g.next();
+      if (!r.done) {
+        onProgress(r.value);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    } while (!r.done);
+    return r.value;
+  } finally {
+    g.return();
+  }
+}
+export async function withAIAsync(
+  input,
+  team,
+  style,
+  opponent = input[other(team)],
+  previous = null,
+  control = {},
+) {
+  const c = validateConfig(input),
+    plan = await planArmyAsync(
+      {
+        ...c,
+        team,
+        style,
+        opponent,
+        previous,
+        seed: (c.seed + (team === "blue" ? 7919 : 0)) >>> 0,
+      },
+      control,
+    );
+  return validateConfig({
+    ...c,
+    [team]: plan.units,
+    props: [...c.props.filter((p) => p.team !== team), ...plan.props],
+  });
+}
+export async function aiDuelAsync(
+  input,
+  redStyle = "guardian",
+  blueStyle = "counter",
+  previous = null,
+  control = {},
+) {
+  const base = validateConfig({ ...input, red: [], blue: [], props: [] });
+  // Drafts use cheap public plans. Oracle spends its bounded budget on the final, fair one-pass scout.
+  const rd = planArmy({
+      ...base,
+      team: "red",
+      style: redStyle === "oracle" ? "counter" : redStyle,
+    }),
+    bd = planArmy({
+      ...base,
+      team: "blue",
+      style: blueStyle === "oracle" ? "counter" : blueStyle,
+      seed: (base.seed + 7919) >>> 0,
+    });
+  const red = await withAIAsync(
+    { ...base, blue: bd.units },
+    "red",
+    redStyle,
+    bd.units,
+    previous,
+    control,
+  );
+  const blue = await withAIAsync(
+    { ...base, red: rd.units },
+    "blue",
+    blueStyle,
+    rd.units,
+    previous,
+    control,
+  );
+  return validateConfig({
+    ...base,
+    red: red.red,
+    blue: blue.blue,
     props: [...red.props, ...blue.props],
   });
 }

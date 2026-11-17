@@ -1,3 +1,4 @@
+import { validateHighlights } from "./highlights.js";
 import {
   VERSION,
   MAX_TIME,
@@ -138,12 +139,16 @@ export function validateReplay(input, legacy = false) {
     !input ||
     input.format !== "frontline-replay" ||
     input.version !== 2 ||
-    input.engineVersion !== VERSION ||
+    ![VERSION, "0.4.0"].includes(input.engineVersion) ||
     !["seed", "trajectory"].includes(input.kind)
   )
     throw Error("不支持的回放格式或引擎版本");
   const config = validateConfig(input.config);
   const orderLog = validateOrderLog(input.orderLog || [], config);
+  const highlights = validateHighlights(
+    input.highlights || input.result?.highlights || [],
+    input.kind === "trajectory" ? Math.round(input.result?.time * 60) : 5400,
+  );
   if (input.kind === "seed") {
     if (
       input.frames !== undefined &&
@@ -153,10 +158,11 @@ export function validateReplay(input, legacy = false) {
     return {
       format: input.format,
       version: 2,
-      engineVersion: VERSION,
+      engineVersion: input.engineVersion,
       kind: "seed",
       config,
       orderLog,
+      highlights,
     };
   }
   if (
@@ -335,11 +341,12 @@ export function validateReplay(input, legacy = false) {
   return structuredClone({
     format: input.format,
     version: 2,
-    engineVersion: VERSION,
+    engineVersion: input.engineVersion,
     kind: "trajectory",
     config,
     result: input.result,
     frames,
+    highlights,
     orderLog,
   });
 }
@@ -353,6 +360,7 @@ export function replayPackage(config, frames, result, kind = "trajectory") {
     config,
     frames: kind === "seed" ? undefined : frames,
     result: kind === "seed" ? undefined : result,
+    highlights: result?.highlights || [],
     orderLog: result?.orders || frames?.at(-1)?.commander?.log || [],
   });
 }
@@ -509,12 +517,15 @@ export async function createReplayBattle(pkg) {
     module = await import("./legacy/v0.2/engine.js");
   else if (pkg.engineVersion === "0.3.0")
     module = await import("./legacy/v0.3/engine.js");
+  else if (pkg.engineVersion === "0.4.0")
+    module = await import("./legacy/v0.4/engine.js");
   else module = { Battle: CurrentBattle, initPhysics: initCurrentPhysics };
   await module.initPhysics();
   const battle = new module.Battle({
     ...pkg.config,
     version: pkg.engineVersion,
   });
-  if (pkg.engineVersion === VERSION) battle.useOrderLog(pkg.orderLog || []);
+  if ([VERSION, "0.4.0"].includes(pkg.engineVersion))
+    battle.useOrderLog(pkg.orderLog || []);
   return battle;
 }

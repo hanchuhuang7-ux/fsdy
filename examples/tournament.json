@@ -1,0 +1,12 @@
+{
+  "entrants": [
+    {"name": "磐石", "ai": "guardian"},
+    {"name": "疾风", "ai": "maneuver"},
+    {"name": "观势", "ai": "counter"},
+    {"name": "算策", "ai": "oracle"}
+  ],
+  "maps": ["meadow", "ruins"],
+  "seeds": [42, 43],
+  "budget": 1000,
+  "commander": false
+}

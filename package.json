@@ -1,6 +1,6 @@
 {
   "name": "frontline-lab",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "description": "An open-source 3D physics battle sandbox. 阵线实验室",
@@ -14,7 +14,9 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test test/*.test.js",
     "battle": "node scripts/battle.mjs",
-    "benchmark": "node scripts/benchmark.mjs"
+    "benchmark": "node scripts/benchmark.mjs",
+    "tournament": "node scripts/tournament.mjs",
+    "agent-battle": "node scripts/agent-bridge.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

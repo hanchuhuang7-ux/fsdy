@@ -1,0 +1,51 @@
+{
+  "baseline": {
+    "files": [
+      {
+        "file": "index.html",
+        "bytes": 12191,
+        "gzip": 4163
+      },
+      {
+        "file": "assets/index-DSAIXGyz.js",
+        "bytes": 5025269,
+        "gzip": 1829965
+      },
+      {
+        "file": "assets/index-CPd0gk6R.css",
+        "bytes": 23518,
+        "gzip": 5994
+      }
+    ],
+    "bytes": 5060978,
+    "gzip": 1840122
+  },
+  "current": {
+    "files": [
+      {
+        "file": "index.html",
+        "bytes": 12606,
+        "gzip": 4304
+      },
+      {
+        "file": "assets/index-BC7ExvW5.js",
+        "bytes": 930966,
+        "gzip": 229671
+      },
+      {
+        "file": "assets/index-BHdu8j6d.css",
+        "bytes": 27954,
+        "gzip": 6962
+      },
+      {
+        "file": "assets/rapier-0.21.0-C6GCbKVJ.wasm",
+        "bytes": 3082103,
+        "gzip": 1176707
+      }
+    ],
+    "bytes": 4053629,
+    "gzip": 1417644
+  },
+  "changePercent": -19.904235900650036,
+  "gzipChangePercent": -22.959238572225104
+}

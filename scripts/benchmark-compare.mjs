@@ -17,8 +17,8 @@ const baseline = await import(
 const baselineData = await import(
   pathToFileURL(path.resolve(root, "src/data.js"))
 );
-if (!["0.2.0", "0.3.0"].includes(baselineData.VERSION))
-  throw Error("对照目录必须是干净 v0.2.0 或 v0.3.0");
+if (!["0.2.0", "0.3.0", "0.4.0"].includes(baselineData.VERSION))
+  throw Error("对照目录必须是干净 v0.2.0 / v0.3.0 / v0.4.0");
 await initPhysics();
 await baseline.initPhysics();
 const types = ["militia", "shield", "spear", "archer", "bomber"];
