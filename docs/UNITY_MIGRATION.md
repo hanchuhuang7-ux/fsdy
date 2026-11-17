@@ -1,6 +1,6 @@
 # Unity 版迁移说明
 
-Unity 工程位于 `Unity/`，固定编辑器 **6000.6.9f1**，游戏版本 **0.6.0**。目标为 Windows x64 与 WebGL。正式游戏的规则、物理、渲染、音效、输入和界面均在 Unity C# 内执行。
+Unity 工程位于 `Unity/`，固定编辑器 **6000.6.9f1**，游戏版本 **0.7.0**。目标为 Windows x64 与 WebGL。正式游戏的规则、物理、渲染、音效、输入和界面均在 Unity C# 内执行。
 
 ## 环境与构建
 
@@ -37,7 +37,7 @@ Windows 成品为 `Builds/Windows/FrontlineLab.exe`，网页成品为 `dist/`。
 
 ## 兼容与确定性
 
-- 0.1–0.5 布阵保持坐标、兵种、姿态和预算语义，导入后规范到 0.6。
+- 0.1–0.6 布阵保持坐标、兵种、姿态和预算语义，导入后规范到存档格式 0.6（产品版本独立为0.7）。
 - 0.1–0.5 完整轨迹回放可由 Unity 直接播放，不会重算旧物理。
 - 旧种子包需用保留的旧版 Rapier 引擎展开：
 
@@ -45,7 +45,7 @@ Windows 成品为 `Builds/Windows/FrontlineLab.exe`，网页成品为 `dist/`。
 node Tools/convert-legacy-replay.mjs old-seed.json full-trajectory.json
 ```
 
-- Unity 新回放为 v3，`engineVersion: unity-0.6.0`。可导出完整轨迹或原生种子包。
+- Unity 新回放为 v3，`engineVersion: unity-0.7.0`。可导出完整轨迹或原生种子包。
 - 更换为 PhysX 后，战斗结果不会与 Rapier 逐帧相等。不能承诺不同平台、编辑器版本或 CPU 的 PhysX 种子包位级一致；跨平台分享使用完整轨迹。检查同一构建重复运行的完整战报，避免把此检查误述成跨平台确定性保证。
 - 根目录 `src/`、`test/` 与旧脚本是冻结的旧版转换与回归工具，不会打入 Unity WebGL 游戏，也不会在 Unity 内嵌网页。
 
@@ -87,4 +87,14 @@ Noto Sans CJK 字体遵守随附 OFL；其余游戏源码沿用 MIT。不要提�
 
 随包字体是 1.93MB 的子集，覆盖常用 GB2312 字、拉丁、标点、符号和所有随包 C#/JSON 文字。罕用字名称可能显示缺字，原始 JSON 字符仍被保留。可选维护工具位于 `Tools/FontSubset/`，其 manifest 记录原字体与子集哈希；普通构建无需安装该维护工具或重新下载字体。
 
-实测结果和性能差距见 [Unity 0.6 验证记录](V0.6_VALIDATION.md)。
+v0.7 实测、不同测法及限制见 [Unity 0.7 验证记录](V0.7_VALIDATION.md)。0.6历史性能基准仍保留于旧报告。
+
+## v0.7 视觉与性能管线
+
+`Editor/ModelBaker.Bake()`预生成128个带顶点色/平面法线的Mesh资产，存于`Models/Resources/Models`；构建会确定性重烘焙。Runtime仅加载资产并以共享材质实例化，保留双LOD与矩阵动作。`MapEcology`使用独立装饰种子，不创建GameObject/Collider，不修改地图高度或寻路。策略菜单的流畅/均衡/精细控制草木、粒子和阴影距离。
+
+新物理适配器预热投射物和24套六刚体布娃娃，历史帧与显示帧各有独立快照存储。战斗开始前预分配最多902帧，会增加开始时的内存和初始化工作；性能基准不包含这部分准备时间。
+
+0.6 Unity完整轨迹继续直接校验；0.6种子通过`LegacyUnityPhysics.cs`冻结适配器重建，保留旧浮点距离求值。0.7优化使用新的engineVersion；不要把新结果标成0.6。跨平台继续交换完整轨迹，不保证PhysX位级一致。
+
+验收专用：`node Tools/unity.mjs profile`生成独立Development构建；`node Tools/serve-qa.mjs`配合`?frontlineQA=1`运行本地截图/遥测。`QA_PROFILE=1`选Development网页。遥测上传只允许loopback。GC计数器不可用时写-1，不把不可用值当成零分配。

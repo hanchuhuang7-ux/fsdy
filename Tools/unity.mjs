@@ -6,9 +6,9 @@ const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),[task='build',.
 mkdirSync(resolve(root,'Builds/Logs'),{recursive:true});
 const editor=process.env.UNITY_EDITOR_PATH||'C:/Program Files/Unity/Hub/Editor/6000.6.9f1/Editor/Unity.exe';
 let executable,args,log;
-if(['build','windows','web','physics'].includes(task)){
+if(['build','windows','web','physics','profile'].includes(task)){
  if(!existsSync(editor))throw Error('请安装 Unity 6000.6.9f1，并设置 UNITY_EDITOR_PATH 指向 Unity.exe。');
- const target={build:'Both',windows:'Windows',web:'Web',physics:'CheckPhysics'}[task];
+ const target={build:'Both',windows:'Windows',web:'Web',physics:'CheckPhysics',profile:'ProfileBoth'}[task];
  log=resolve(root,`Builds/Logs/${target}.log`);executable=editor;
  args=['-batchmode','-nographics',...(task==='physics'?[]:['-quit']),'-projectPath',resolve(root,'Unity'),'-executeMethod',`Frontline.Editor.BuildTools.${target}`,'-logFile',log];
  if(task==='physics')args.push('--frontline-task','checks','--out',resolve(root,'Builds/Checks'));

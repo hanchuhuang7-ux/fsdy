@@ -2,11 +2,11 @@
 
 原生 Unity 3D 物理对战沙盘，支持 **Windows x64 + WebGL 网页版**。10 个兵种、6 张地图、5 种道具，以及人机、双 AI、热座、Bo3、统帅军令、算策推演、演武擂台与高光回放。
 
-游戏版本 **0.6.0**，Unity **6000.6.9f1**。运行时使用 C# + Unity PhysX，60Hz 固定步长、3 米空间网格和 GPU 实例合批。Three.js / Rapier 仅保留为旧回放转换与回归工具，不在 Unity 成品中运行。
+游戏版本 **0.7.0**，Unity **6000.6.9f1**。运行时使用 C# + Unity PhysX，60Hz 固定步长、3 米空间网格和 GPU 实例合批。Three.js / Rapier 仅保留为旧回放转换与回归工具，不在 Unity 成品中运行。
 
 ![Unity 网页版](docs/screenshots/unity-desktop.jpg)
 
-已执行的 139 项测试、双平台构建、原生 Bot 对战、六图与浏览器检查，以及尚未持平的 CPU 基准差距，见 [实际验证记录](docs/V0.6_VALIDATION.md)。
+v0.7 使用128个预烘焙低多边形网格、顶点色实例染色、六图纯视觉生态和三档画质。151项检查、双平台构建、实际性能与限制见 [v0.7 验证记录](docs/V0.7_VALIDATION.md)；[v0.6历史报告](docs/V0.6_VALIDATION.md)保留原始性能对照。
 
 ## 构建与运行
 
@@ -35,13 +35,13 @@ npm run agent-battle -- --red-bot red-bot.json --blue-bot blue-bot.json
 
 ## 历史兼容
 
-0.1–0.5 布阵可导入，完整轨迹回放可直接播放。旧种子包先展开为完整轨迹：
+0.1–0.6 布阵可导入，完整轨迹回放可直接播放。旧种子包先展开为完整轨迹：
 
 ```powershell
 node Tools/convert-legacy-replay.mjs old-seed.json full-trajectory.json
 ```
 
-更换物理引擎后，旧 Rapier 的种子不会在 PhysX 中得到相同结果。跨平台复盘应交换完整轨迹；Unity 原生种子包仅用于同引擎和同平台复现。
+更换物理引擎后，旧 Rapier 的种子不会在 PhysX 中得到相同结果。跨平台复盘应交换完整轨迹；0.6 Unity 种子由冻结的适配器重建；0.7 新种子使用 unity-0.7.0。原生种子仅用于同引擎和同平台复现。
 
 ## 目录
 

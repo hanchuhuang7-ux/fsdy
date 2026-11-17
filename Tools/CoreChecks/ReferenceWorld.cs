@@ -9,7 +9,7 @@ sealed class ReferenceWorld:IPhysicsWorld
  public IBody Unit(int id,UnitPlacement p,string team,UnitDef d){var b=new Body{Id=id,p=new V3(p.x,data.Height(config.map,p.x,p.z)+.8f*d.scale,p.z),mass=d.mass,height=.8f*d.scale};bodies.Add(b);return b;}
  public IBody Prop(int id,PropPlacement p,PropDef d){var b=new Body{Id=id,p=new V3(p.x,data.Height(config.map,p.x,p.z)+.5f,p.z),fixedBody=true};bodies.Add(b);return b;}
  public IBody Projectile(int id,string type,V3 p,V3 velocity,float gravityScale,int ownerId){var b=new Body{Id=id,p=p,v=velocity,height=0,gravity=gravityScale};bodies.Add(b);return b;}
- public void Remove(IBody b){bodies.Remove((Body)b);}public void Corpse(int id,string type,string team,UnitDef def,V3 p,V3 v,V3 impulse){}public void PushCorpses(V3 p,float radius){}public void AgeCorpses(float dt){}public List<CorpseFrame> Corpses(){return new List<CorpseFrame>();}public List<Contact> Contacts(){return new List<Contact>();}
+ public void Remove(IBody b){bodies.Remove((Body)b);}public void Corpse(int id,string type,string team,UnitDef def,V3 p,V3 v,V3 impulse){}public void PushCorpses(V3 p,float radius){}public void AgeCorpses(float dt){}public List<CorpseFrame> Corpses(List<CorpseFrame> reuse=null){var result=reuse??new List<CorpseFrame>();result.Clear();return result;}public List<Contact> Contacts(){return new List<Contact>();}
  public void Step(float dt){foreach(var b in bodies)if(!b.fixedBody){b.v+=new V3(0,-18*b.gravity*dt,0);b.p+=b.v*dt;float h=data.Height(config.map,b.p.x,b.p.z)+b.height;if(b.p.y<h){b.p.y=h;b.v.y=0;}b.v*=.99f;}}
  public void Dispose(){if(disposed)return;disposed=true;owner.live--;bodies.Clear();}
 }

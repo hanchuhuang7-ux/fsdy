@@ -6,7 +6,7 @@ namespace Frontline.Core
 {
     public static class Replay
     {
-        public const string Engine="unity-0.6.0";
+        public const string Engine="unity-0.7.0";
         public static void ValidateOrders(Catalog catalog,Deployment c,List<OrderEntry> log)
         {
             if(log==null||log.Count>6||(!c.commander.enabled&&log.Count>0))throw new FormatException("军令日志无效");var points=new Dictionary<string,int>{{"red",3},{"blue",3}};var ready=new Dictionary<string,int>{{"red",0},{"blue",0}};int previous=-1;
@@ -24,7 +24,7 @@ namespace Frontline.Core
         public static ReplayPackage Validate(Catalog catalog,ReplayPackage p)
         {
             if(p==null||p.format!="frontline-replay"||!(p.kind=="seed"||p.kind=="trajectory"))throw new FormatException("不支持的回放格式");
-            bool native=p.version==3&&p.engineVersion==Engine,legacy=(p.version==1&&new[]{"0.1.0","0.2.0","0.3.0"}.Contains(p.engineVersion))||(p.version==2&&new[]{"0.4.0","0.5.0"}.Contains(p.engineVersion));
+            bool native=p.version==3&&(p.engineVersion==Engine||p.engineVersion=="unity-0.6.0"),legacy=(p.version==1&&new[]{"0.1.0","0.2.0","0.3.0"}.Contains(p.engineVersion))||(p.version==2&&new[]{"0.4.0","0.5.0"}.Contains(p.engineVersion));
             if(!native&&!legacy)throw new FormatException("不支持的引擎版本");p.config=catalog.Validate(p.config);p.orderLog=p.orderLog??new List<OrderEntry>();ValidateOrders(catalog,p.config,p.orderLog);
             if(p.kind=="seed"){if(!native)throw new FormatException("旧 Rapier 种子包请先用 Tools/convert-legacy-replay.mjs 转为完整轨迹，再在 Unity 导入。");if(p.frames!=null&&p.frames.Count>0)throw new FormatException("种子包不应包含轨迹");return p;}
             if(p.frames==null||p.frames.Count<2||p.frames.Count>902||p.result==null||!new[]{"red","blue","draw"}.Contains(p.result.winner)||!Catalog.Finite(p.result.time)||p.result.time<0||p.result.time>90.02f)throw new FormatException("回放帧数或战果无效");

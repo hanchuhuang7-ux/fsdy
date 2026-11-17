@@ -1,6 +1,6 @@
 # Agent Observation & Command · v1
 
-协议标识 `frontline-agent@1`。Unity 0.6.0 的桥接入口为 `Runtime/HeadlessRunner.cs`，边界为 `Core/AgentProtocol.cs`。旧引擎的协议文档保留于 [LEGACY_AGENT_PROTOCOL.md](LEGACY_AGENT_PROTOCOL.md)。Node、Python 或大模型适配进程均通过 UTF-8 标准输入输出参与。
+协议标识 `frontline-agent@1`。Unity 0.7.0 的桥接入口为 `Runtime/HeadlessRunner.cs`，边界为 `Core/AgentProtocol.cs`。旧引擎的协议文档保留于 [LEGACY_AGENT_PROTOCOL.md](LEGACY_AGENT_PROTOCOL.md)。Node、Python 或大模型适配进程均通过 UTF-8 标准输入输出参与。
 
 ## 直接运行 Unity 版
 

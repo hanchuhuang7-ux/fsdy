@@ -15,7 +15,7 @@ namespace Frontline.UnityGame
         public readonly IWorldFactory Factory=new UnityWorldFactory();public readonly List<int> Selected=new List<int>();public readonly List<Entrant> ImportedEntrants=new List<Entrant>();
         public string Phase="deploy",Mode="ai",Team="red",Hotseat="red",Style="counter",UnitType="militia",PropType,Stance="advance",Tool="place",OrderType="inspire",Message="欢迎来到阵线实验室",Progress;
         public bool Paused,Bo3,TouchCamera=true,Modal,Busy,Muted,BriefOpen,Mirror;public float Speed=1,ReplayTime;public int PlayerLimit=2200,FavoriteSlot;public List<Favorite> Favorites=new List<Favorite>();
-        public event Action Changed;public event Action<string> Notice;readonly Stack<Deployment> undo=new Stack<Deployment>();readonly List<Frame> recorded=new List<Frame>();Frame live;float accumulator;Coroutine job;IEnumerator activeJob;bool loaded;
+        public event Action Changed;public event Action<string> Notice;readonly Stack<Deployment> undo=new Stack<Deployment>();readonly List<Frame> recorded=new List<Frame>();Frame live;Frame[] archive;int archiveIndex;float accumulator;Coroutine job;IEnumerator activeJob;bool loaded;
         public string EditingTeam {get{return Mode=="hotseat"?Hotseat=="blue"?"blue":"red":Team;}}
         public bool CanEdit {get{return Phase=="deploy"&&!Busy&&(Mode!="hotseat"||Hotseat=="red"||Hotseat=="blue");}}
         public Deployment PublicConfig {get{return Mode=="hotseat"&&Hotseat!="revealed"?Catalog.Visible(Config,Hotseat):Json.Clone(Config);}}
@@ -26,7 +26,7 @@ namespace Frontline.UnityGame
             Application.targetFrameRate=60;Time.fixedDeltaTime=Catalog.Step;Screen.sleepTimeout=SleepTimeout.NeverSleep;
             Data=new Catalog(Resources.Load<TextAsset>("catalog").text);if(HeadlessRunner.Requested){gameObject.AddComponent<HeadlessRunner>().Initialize(Data,Factory);enabled=false;return;}
             Config=Data.Default();try{var favorites=PlayerPrefs.GetString("frontline.unity.favorites","");if(favorites.Length>0)Favorites=Json.Read<List<Favorite>>(favorites,1024*1024);}catch(Exception e){Debug.LogWarning(e.Message);}while(Favorites.Count<5)Favorites.Add(null);if(Favorites.Count>5)Favorites=Favorites.Take(5).ToList();
-            View=gameObject.AddComponent<BattleView>();View.Data=Data;gameObject.AddComponent<BattleInput>().Initialize(this);gameObject.AddComponent<NativeHud>().Initialize(this);gameObject.AddComponent<BattleAudio>().Initialize(this);loaded=true;Refresh();
+            View=gameObject.AddComponent<BattleView>();View.Data=Data;gameObject.AddComponent<BattleInput>().Initialize(this);gameObject.AddComponent<NativeHud>().Initialize(this);gameObject.AddComponent<BattleAudio>().Initialize(this);loaded=true;Refresh();if(VisualValidation.Requested)gameObject.AddComponent<VisualValidation>().Initialize(this);
         }
         public void Refresh(){if(!loaded)return;View.Config=Config;View.Current=Phase=="deploy"?null:live;View.Deploying=Phase=="deploy";View.HiddenTeam=Mode=="hotseat"&&Hotseat!="revealed"?(Hotseat=="red"?"blue":Hotseat=="blue"?"red":"both"):null;View.Selection.Clear();int offset=EditingTeam=="red"?1:Config.red.Count+1;foreach(int i in Selected)View.Selection.Add(i+offset);Changed?.Invoke();}
         public void Tell(string message){Message=message;Notice?.Invoke(message);}
@@ -86,20 +86,21 @@ namespace Frontline.UnityGame
         IEnumerator AutoPlan(){foreach(string team in new[]{"red","blue"}){Busy=true;Refresh();var r=PlanRoutine(team,false);try{while(r.MoveNext()){Busy=true;yield return r.Current;}}finally{(r as IDisposable)?.Dispose();}}Busy=false;StartBattle();}
         void StartBattle()
         {
-            Config=Data.Validate(Config);if(Config.red.Count==0||Config.blue.Count==0)throw new FormatException("双方至少需要一名士兵");Config.commander.aiTeams=Config.commander.enabled?(Mode=="auto"?new List<string>{"red","blue"}:Mode=="ai"?new List<string>{"blue"}:new List<string>()):new List<string>();Battle?.Dispose();Battle=new Battle(Data,Config,Factory);ReplayFile=null;recorded.Clear();recorded.Add(Battle.Snapshot());live=Battle.Snapshot();Phase="battle";Paused=false;accumulator=0;Selected.Clear();if(Bo3&&Series==null)Series=new BattleSeries(Data,Config);Refresh();
+            Config=Data.Validate(Config);if(Config.red.Count==0||Config.blue.Count==0)throw new FormatException("双方至少需要一名士兵");Config.commander.aiTeams=Config.commander.enabled?(Mode=="auto"?new List<string>{"red","blue"}:Mode=="ai"?new List<string>{"blue"}:new List<string>()):new List<string>();Battle?.Dispose();Battle=new Battle(Data,Config,Factory);ReplayFile=null;recorded.Clear();archive=new Frame[902];for(int i=0;i<archive.Length;i++)archive[i]=Battle.PrepareSnapshot();archiveIndex=0;recorded.Add(RecordFrame());live=Battle.Snapshot(Battle.PrepareSnapshot());Phase="battle";Paused=false;accumulator=0;Selected.Clear();if(Bo3&&Series==null)Series=new BattleSeries(Data,Config);Refresh();
         }
         void Update()
         {
             if(!loaded||Busy)return;
             if(Phase=="replay"&&ReplayFile!=null&&!Paused){ReplayTime=Mathf.Min(ReplayFile.result.time,ReplayTime+Time.unscaledDeltaTime*Speed);live=ReplayFile.frames[Replay.AtTime(ReplayFile.frames,ReplayTime)];View.Current=live;if(ReplayTime>=ReplayFile.result.time)Paused=true;return;}
-            if(Phase!="battle"||Paused||Battle==null)return;accumulator=Mathf.Min(.25f,accumulator+Time.unscaledDeltaTime*Speed);int steps=0;while(accumulator>=Catalog.Step&&steps++<16&&Battle.Result==null){Battle.Step();accumulator-=Catalog.Step;if(Battle.Tick%6==0)recorded.Add(Battle.Snapshot());}live=Battle.Snapshot(live);View.Current=live;
-            if(Battle.Result!=null){if(recorded[recorded.Count-1].tick!=Battle.Tick)recorded.Add(Battle.Snapshot());ReplayFile=Replay.Create(Data,Config,recorded,Battle.Result);if(Bo3&&Series!=null)Series.Record(Config,Battle.Result);Phase="result";Tell(Battle.Result.winner=="draw"?"本局平局":(Battle.Result.winner=="red"?"红方":"蓝方")+"获胜");Refresh();}
+            if(Phase!="battle"||Paused||Battle==null)return;accumulator=Mathf.Min(.25f,accumulator+Time.unscaledDeltaTime*Speed);int steps=0;while(accumulator>=Catalog.Step&&steps++<16&&Battle.Result==null){Battle.Step();accumulator-=Catalog.Step;if(Battle.Tick%6==0)recorded.Add(RecordFrame());}live=Battle.Snapshot(live);View.Current=live;
+            if(Battle.Result!=null){if(recorded[recorded.Count-1].tick!=Battle.Tick)recorded.Add(RecordFrame());ReplayFile=Replay.Create(Data,Config,recorded,Battle.Result);if(Bo3&&Series!=null)Series.Record(Config,Battle.Result);Phase="result";Tell(Battle.Result.winner=="draw"?"本局平局":(Battle.Result.winner=="red"?"红方":"蓝方")+"获胜");Refresh();}
         }
+        Frame RecordFrame(){if(archiveIndex>=archive.Length)throw new InvalidOperationException("Replay frame limit exceeded");return Battle.Snapshot(archive[archiveIndex++]);}
         public Frame CurrentFrame {get{return live;}}
         public List<Highlight> Highlights {get{return ReplayFile?.highlights??Battle?.Highlights??new List<Highlight>();}}
         public void TogglePause(){if(Phase=="battle"||Phase=="replay"){Paused=!Paused;Refresh();}}
         public void CommandAt(Vector3 p){if(Phase!="battle"||Battle==null)return;string team=Team;if(Mode=="ai")team="red";if(!Battle.IssueOrder(team,new Order(OrderType,p.x,p.z),out string reason))Tell(reason);else Tell((team=="red"?"红方":"蓝方")+"军令已下达");Refresh();}
-        public void ReturnToDeploy(){CancelJob();Battle?.Dispose();Battle=null;Phase="deploy";live=null;ReplayTime=0;Paused=false;Selected.Clear();if(Mode=="hotseat")Hotseat="revealed";Refresh();}
+        public void ReturnToDeploy(){CancelJob();Battle?.Dispose();Battle=null;archive=null;Phase="deploy";live=null;ReplayTime=0;Paused=false;Selected.Clear();if(Mode=="hotseat")Hotseat="revealed";Refresh();}
         public void NextRound(){if(Series==null||Series.Complete)return;var next=Series.Next();ReturnToDeploy();Config=next;Hotseat=Mode=="hotseat"?"red":"revealed";if(Mode=="hotseat"){Config.red.Clear();Config.blue.Clear();Config.props.Clear();}undo.Clear();Tell("下一局可调整布阵，地图与总军费已锁定");Refresh();}
         public void Watch(){if(ReplayFile?.kind!="trajectory")return;Battle?.Dispose();Battle=null;Phase="replay";ReplayTime=0;Paused=false;live=ReplayFile.frames[0];Refresh();}
         public void Seek(float time){if(ReplayFile?.kind!="trajectory")return;Phase="replay";ReplayTime=Mathf.Clamp(time,0,ReplayFile.result.time);live=ReplayFile.frames[Replay.AtTime(ReplayFile.frames,ReplayTime)];View.Current=live;Paused=true;}
@@ -116,7 +117,7 @@ namespace Frontline.UnityGame
         }
         IEnumerator ExpandSeed(ReplayPackage replay)
         {
-            var frames=new List<Frame>();using(var b=new Battle(Data,replay.config,Factory)){b.UseOrderLog(replay.orderLog);frames.Add(b.Snapshot());while(b.Result==null){for(int i=0;i<60&&b.Result==null;i++){b.Step();if(b.Tick%6==0)frames.Add(b.Snapshot());}Progress="重建 Unity 种子回放 · "+b.Tick+" / 5400";yield return null;}if(frames[frames.Count-1].tick!=b.Tick)frames.Add(b.Snapshot());ReplayFile=Replay.Create(Data,replay.config,frames,b.Result);}Busy=false;Watch();
+            var frames=new List<Frame>();using(var b=new Battle(Data,replay.config,replay.engineVersion=="unity-0.6.0"?(IWorldFactory)new LegacyUnityWorldFactory():Factory)){b.UseOrderLog(replay.orderLog);frames.Add(b.Snapshot());while(b.Result==null){for(int i=0;i<60&&b.Result==null;i++){b.Step();if(b.Tick%6==0)frames.Add(b.Snapshot());}Progress="重建 Unity 种子回放 · "+b.Tick+" / 5400";yield return null;}if(frames[frames.Count-1].tick!=b.Tick)frames.Add(b.Snapshot());ReplayFile=Replay.Create(Data,replay.config,frames,b.Result);}Busy=false;Watch();
         }
         public void AddArenaFormation(string json){var c=Data.Import(json);string team=c.red.Count>0?"red":"blue";if(c.Army(team).Count==0)throw new FormatException("导入阵型为空");ImportedEntrants.Add(new Entrant{id="import-"+ImportedEntrants.Count,name="导入阵型 "+(ImportedEntrants.Count+1),map=c.map,team=team,units=c.Army(team),props=c.props.Where(p=>p.team==team).ToList()});Tell("已加入擂台参赛列表");}
         public void Arena(List<Entrant> entrants,List<string> maps,List<uint> seeds){if(Busy)return;var tournament=new Tournament(Data,Factory,entrants,maps,seeds,Config.budget,Config.commander.enabled);StartJob(ArenaRoutine(tournament));}
