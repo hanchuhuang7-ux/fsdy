@@ -1,194 +1,54 @@
-# 阵线实验室 · Frontline Lab
+# 阵线实验室 · Unity Edition
 
-一个能在浏览器里玩的 **3D 物理混战沙盘**。花军费、排兵布阵、布置道具，然后看骑兵、弓箭、石弹、碰撞与重力把计划变成意外。
+原生 Unity 3D 物理对战沙盘，支持 **Windows x64 + WebGL 网页版**。10 个兵种、6 张地图、5 种道具，以及人机、双 AI、热座、Bo3、统帅军令、算策推演、演武擂台与高光回放。
 
-**Alpha 0.5：算策推演 AI、循环赛擂台、外部 stdio 智能体与回放高光。** 延续 v0.4 的公开侦察与战报调阵、Bo3、同规则统帅军令、程序化音效、实时战力、姿态徽章、快捷视角和五槽收藏。 保留十种兵种、六张地图、五种道具、人机 / 双 AI / 盲选热座。原创实现，玩法灵感来自 [《纸上谈兵》 / meow-ai-arena](https://github.com/chen-006/meow-ai-arena) 与物理战斗沙盘，没有复用其代码、素材、选手提交或关卡。
+游戏版本 **0.6.0**，Unity **6000.6.9f1**。运行时使用 C# + Unity PhysX，60Hz 固定步长、3 米空间网格和 GPU 实例合批。Three.js / Rapier 仅保留为旧回放转换与回归工具，不在 Unity 成品中运行。
 
-![阵线实验室 0.5 演武擂台](docs/screenshots/v0.5-desktop.jpg)
+![Unity 网页版](docs/screenshots/unity-desktop.jpg)
 
-## 开始玩
+已执行的 138 项测试、双平台构建、原生 Bot 对战、六图与浏览器检查，以及尚未持平的 CPU 基准差距，见 [实际验证记录](docs/V0.6_VALIDATION.md)。
 
-需要 **Node.js 22.12+** 和支持 WebGL 2 的现代浏览器。无需模型 API Key、数据库或账号。
+## 构建与运行
 
-```sh
+安装并激活上述 Unity Editor，同时安装 Web Build Support。开发工具需要 Node 22.12+；独立规则检查需要 .NET 8 SDK。
+
+```powershell
 npm ci
+npm test
+npm run build
 npm run dev
 ```
 
-打开终端显示的本地地址。生产构建：
+浏览器打开终端显示的本地地址。Windows 运行 `Builds/Windows/FrontlineLab.exe`，网页完整目录为 `dist/`。Editor 路径不同时设置 `UNITY_EDITOR_PATH`。详情见 [Unity 迁移与操作说明](docs/UNITY_MIGRATION.md)。
 
-```sh
-npm run build
-npm run preview
-```
+## 验证与智能体
 
-`dist/` 可放到任意静态托管平台。资源使用相对路径，适用于 GitHub Pages 的仓库子路径。首次安装需要联网；构建后的游戏不依赖 CDN、外部字体或外部 API。
-
-## 0.5 更新
-
-- 算策 oracle：多候选固定预算快筛与验算，网页显示进度并可取消。
-- 演武擂台：内置 AI、收藏与 JSON 阵型同场循环赛，红蓝换边、多地图多种子、排行及胜平负矩阵。
-- 外部 Agent：每 60 步一次公开观察，stdio 子进程双 Bot 实时军令、超时降级、Bo3 与合法 v2 回放。
-- 战前诊断、稀疏高光、可点击回放刻度、最近五条战况，以及 390px 单手视角/布阵切换。
-- main.js 拆成状态协调与 UI 模块，既有 62 项测试文件保留，新增 15 项，共 77 项。兼容 0.1–0.4 存档与回放。
-
-详见 [v0.5 说明](docs/V0.5.md)、[Agent 协议](docs/AGENT_PROTOCOL.md)、[实际验证](docs/V0.5_VALIDATION.md)。
-
-```sh
-npm run tournament -- --config examples/tournament.json --out ranking.json
-npm run tournament -- --config examples/tournament-json.json --out custom-ranking.json
-npm run agent-battle -- --out-dir agent-results
-```
-
-## 0.4 基础能力
-
-- 反制 AI 同时分析重甲、突进、后排集群与空间展开；根据上一局敌方贡献兵种和己方重创侧翼调阵。
-- Bo3 保留双方每局阵型与公开战报；人类可微调，AI 可复盘；先两胜或最多三局结束。
-- 可选统帅军令：双方每局各 3 点、统一 8 秒冷却，鼓舞 / 集火 / 盾阵共用 `issueOrder()`，记录进回放。
-- Web Audio 零外部资源合成音效，支持静音 / 音量；实时战力条、轻震动、命中治疗光效和增益圈。
-- 开场 / 暂停姿态徽章，俯视 / 全览 / 跟随视角；窄屏浮动兵种条、折叠抽屉、五槽本地收藏。
-- 新回放 v2 支持军令；旧 v1 轨迹与 0.1 / 0.2 / 0.3 种子按对应冻结模拟器兼容。原有 48 项加 14 项，共 62 项测试。
-
-完整规则与工程口径见 [v0.4 开发说明](docs/V0.4.md)。
-
-## 0.3 基础能力
-
-- 稳健守阵、机动迂回、环境反制三种付费且合法的布阵 AI，网页与 CLI 共用。
-- 一键玩家 vs AI、AI vs AI；热座按红方封存、交接遮屏、蓝方布阵、揭晓开战，隐藏对方数量和道具。
-- 常规推进 / 坚守阵地 / 侧翼迂回 / 猎杀远程四种姿态；可对选中部队批量设置。
-- 方阵、横排、楔形混编与镜像追加；框选或按兵种选择后移动 / 删除。悬停显示地形贴合的射程和道具作用圈。
-- 战果增加分兵种战损、贡献、单位榜和 MVP；支持双方独立 JSON / AI 策略评测与完整战报。
-- 局部受阻脱困、倒马 / 碎车视觉残骸、完整轨迹或种子回放包导入导出；兼容 0.1 / 0.2 布阵。
-- 保留 60 Hz、实例合批、3 米网格、每六步寻敌和 24 组尸体上限。原有 26 项测试加 22 项，总计 48 项。
-
-使用方法、数据结构、统计口径与局限见 [v0.3 开发说明](docs/V0.3.md)，回放契约见 [回放格式](docs/REPLAY_FORMAT.md)。
-
-## 0.2 基础能力
-
-- 新增骑兵、弩手、军医、投石车，分别提供冲锋、破盾、治疗和高抛范围冲击。
-- 新增烽火遗迹、雾沼营地、霜岭高台。废墙阻挡弹药；沼泽减速；坡道可通行；高地增加射程；冰面保留更多惯性。
-- 炸药桶、拒马、地刺、弹射板、治疗旗可以在本方半场布置，和兵种共用军费。地图也自带中立道具。
-- 六个战术试炼、六套推荐军队、每方最多 60 人和 12 件道具。默认军费 2,200，可在策略面板调整到最高 10,000。
-- 使用实例化合并单位绘制、空间网格邻近查询、10 Hz 寻敌和画面快照复用。新增三档画质和帧率显示。
-- 保留暂停、¼× / 1× / 2× / 4×、轨迹回放、时间轴、JSON 导入导出、浏览器本地保存和 CLI 批量评测。兼容 0.1 对局文件。
-
-## 操作
-
-| 操作                           | 效果               |
-| ------------------------------ | ------------------ |
-| 选兵种 / 道具 → 左键点本方场地 | 招募并放置         |
-| 右键点击 / Shift + 左键        | 移除本方单位或道具 |
-| 左键拖动                       | 旋转视角           |
-| 右键拖动                       | 平移视角           |
-| 滚轮 / 双指                    | 缩放               |
-| 空格                           | 开战 / 暂停 / 继续 |
-| R                              | 返回布阵           |
-| Ctrl + Z                       | 撤销布阵           |
-
-自由沙盘可编辑双方。试炼只编辑朱砂军，军费受关卡限制。点击战场上的地形说明，查看当前地图和道具效果。地图自带的道具不能在布阵阶段移除，但可在战斗中被破坏。
-
-## 兵种
-
-| 兵种   | 军费 | 生命 | 作用                                 |
-| ------ | ---: | ---: | ------------------------------------ |
-| 游勇   |   40 |   80 | 快速低价近战                         |
-| 盾卫   |   90 |  220 | 正面减伤 60%                         |
-| 长枪兵 |   75 |  100 | 长距离突刺；克制高速骑兵             |
-| 弓手   |  110 |   65 | 预测移动、真实弹道、可误伤           |
-| 掷弹兵 |  180 |   85 | 1.8 秒延时爆炸，不分敌我             |
-| 大锤   |  320 |  620 | 范围近战、重击击退                   |
-| 骑兵   |  190 |  245 | 持续奔跑后的冲锋增加伤害与击退       |
-| 弩手   |  160 |   90 | 低弧度直射，部分穿透盾牌减伤         |
-| 军医   |  160 |  100 | 每秒治疗六米内伤势最重的活友军 16 点 |
-| 投石车 |  280 |  240 | 高抛石弹，命中后范围冲击，可造成友伤 |
-
-## 地形与道具
-
-| 地图       | 可利用的地形                                                          |
-| ---------- | --------------------------------------------------------------------- |
-| 风起草甸   | 开阔地，自由组织火力线与掩体                                          |
-| 独木危桥   | 狭桥和深谷，炸药桶与击退能决定桥头战斗                                |
-| 浮岛角斗场 | 四面临空，弹射与重锤都有风险                                          |
-| 烽火遗迹   | 不可破坏的废墙；中央和两侧开口；中立拒马与连锁炸药桶                  |
-| 雾沼营地   | 沼泽中速度为 45%；两侧快路；中立补给旗与地刺                          |
-| 霜岭高台   | 可通行坡道，地面比目标高一米以上时远程射程 +18%；台顶冰面降低横向控制 |
-
-| 道具   | 军费 | 效果                                                              |
-| ------ | ---: | ----------------------------------------------------------------- |
-| 炸药桶 |   65 | 敌军靠近后延时引爆，受击也会爆炸。爆炸可连锁引爆附近桶并造成友伤  |
-| 拒马   |   80 | 有生命值的实体掩体，阻挡移动和弹药，可被近战或炮火拆毁            |
-| 地刺   |   70 | 对敌军造成周期伤害；中立地刺对双方生效                            |
-| 弹射板 |   85 | 将踩上的单位向前上方弹射，间隔 1.5 秒，可越过战线，也可能造成坠落 |
-| 治疗旗 |  100 | 每秒治疗 3.2 米内友军 10 点；中立旗对双方生效，旗杆可被毁         |
-
-## 模拟规则
-
-Rapier 以固定的 **1/60 秒** 步长处理刚体移动、碰撞、抛射物、爆炸冲量和六刚体五球关节布娃娃。近战使用距离与冷却判定。活兵锁定旋转保持直立，阵亡后转换为布娃娃；骑兵和投石车的碰撞体仍是简化胶囊，另有随尸体生命周期回收的倒马 / 碎车视觉残骸。
-
-单位坠落至 y < -4 时出局。全歼获胜；90 秒后按 `Σ(剩余生命 / 最大生命 × 兵种造价)` 判胜，差值小于 1 判平。道具不计为需要消灭的士兵。常规推进 `advance`、坚守阵地 `hold`、侧翼迂回 `flank`、猎杀远程 `hunt` 是四种内置行为。危桥、遗迹和高台使用入口与出口航点，迂回单位会选择遗迹外侧通道及沼泽侧路。
-
-## 让 AI 布阵与批量评测
-
-将 [AI 提示词](docs/AI_PROMPT.md)、[兵种和地图数据](src/data.js) 以及 [高台示例](examples/highland-skirmish.json) 交给 coding agent。AI 生成对局 JSON 后可在网页“策略 / 导入导出”中载入。
-
-```sh
-npm run battle -- --config examples/highland-skirmish.json
-npm run battle -- --map ruins --red siege --blue cavalry --rounds 10
-npm run battle -- --config examples/large-battle.json --out result.json
-npm run battle -- --red-ai maneuver --blue-ai counter --map ruins --rounds 2 --out result.json
-npm run battle -- --red file:red-army.json --blue file:blue-army.json --map meadow --out result.json
-npm run battle -- --config examples/ai-duel.json --replay-out replay.json
-npm run battle -- --red-ai counter --blue-ai maneuver --map ruins --bo3 --commander --out bo3.json
-```
-
-`--rounds` 按种子递增，最多 100 局。网页与 CLI 共用 `src/engine.js`。`examples/bridge-battle.json`、`examples/highland-skirmish.json` 和 `examples/large-battle.json` 均可直接导入网页。
-
-AI 接口是**布阵 JSON、道具、四种内置行为与结构化贡献战报**；网页导入只解析数据；v0.5 CLI 支持以 stdio 接入 Python / Node 等外部程序实时下军令，见 Agent 协议。详见 [AI 接口说明](docs/AI_PROMPT.md)。
-
-## 性能与验证
-
-```sh
-npm test
-npm run build
+```powershell
+npm run test:physics
+node Tools/unity.mjs smoke
 npm run benchmark
+npm run tournament -- --maps meadow,bridge --seeds 42,77
+npm run agent-battle -- --red-bot red-bot.json --blue-bot blue-bot.json
 ```
 
-v0.5 最终同进程交替对照为 0.3515 → 0.3497 ms/步，变化 -0.50%，通过原 10% 门槛；首轮交替与普通基准原始样本也完整保留，见 [v0.5 验证](docs/V0.5_VALIDATION.md)。
+两个本地 Bot 通过版本化 stdio 协议接收脱敏公开战场并发出军令。所有军令使用同一规则校验，超时跳过，输出 Bo3 战报和可播放的 v3 轨迹。参见 [Agent 协议](docs/AGENT_PROTOCOL.md) 与 [迁移说明](docs/UNITY_MIGRATION.md)。网页可导入外部 Bot 回放，外部进程桥接需使用 Windows 版。
 
-历史 v0.4 与干净 v0.3 的同进程交替基准为 0.3340 → 0.3392 ms/步，增加约 1.53%，通过 10% 回退门槛。普通基准为 0.3408 → 0.3220 ms/步；不同测量存在负载与 JIT 波动，原始样本与历史版本记录均保存在 [性能记录](docs/PERFORMANCE.md)。这些不是所有设备的帧率保证。
+## 历史兼容
 
-三档画质只改变像素比和阴影，物理规则一致。物理尸体最多保留 24 具、12 秒后移除；尸体只与地形和掩体发生接触，爆炸仍能推动它们。
+0.1–0.5 布阵可导入，完整轨迹回放可直接播放。旧种子包先展开为完整轨迹：
 
-自动化测试覆盖六张图完整结算、六关参考方案可通关、寻敌复现、布娃娃、投射物与掩体、连锁爆炸与友伤、骑兵冲锋、军医和旗帜治疗、地刺、弹射板、沼泽减速、坡道支撑、高地射程、冰面惯性、迂回通道、快照隔离、实例合批以及导入校验。
-
-新增测试覆盖 AI 合法性与反制、四种姿态、盲选隔离、混编与批量移动、贡献统计、回放往返与非法输入、防卡死和独立双方 JSON CLI；v0.4 再补公开侦察、Bo3、军令公平与重演、战力计算、旧回放、收藏和音效节流，共 62 项。
-
-相同依赖、环境、输入、种子与军令日志可复现。v0.5 支持回放 v2 和旧 v1，旧种子按对应 0.1 / 0.2 / 0.3 / 0.4 模拟器重演；回放文件最多 64 MB。没有跨平台逐位一致性的保证。旧布阵能载入，新版本重新开战时仍使用新规则。
-
-## 开发结构
-
-```text
-src/data.js        兵种、道具、地形、阵型、关卡、输入校验
-src/tactics.js     共用战术 AI 规划与公平双 AI 草案侦察
-src/deployment.js  混编、原子编辑、热座可见性
-src/replay.js      有界回放包校验、轨迹/种子格式
-src/series.js      Bo3 比分、配置与公开战报档案
-src/favorites.js   五槽收藏、镜像与军费校验
-src/audio.js       合成音效、交互解锁与节流
-src/legacy/        冻结的旧模拟器与数据，仅旧种子重演时加载
-src/engine.js      Rapier 模拟与空间索引，浏览器与 Node 共用
-src/batches.js     动态网格实例合批
-src/scene.js       Three.js 场景、模型和轨迹显示
-src/main.js        主状态、阶段协调与渲染循环
-src/ui/            弹窗、布阵、HUD、指针、快捷键和擂台
-src/tournament.js  网页与 CLI 共用循环赛核心
-src/agent-protocol.js  公开观察与受限命令边界
-scripts/          无界面评测、基准测试、示例生成
-test/             Node 内置测试
+```powershell
+node Tools/convert-legacy-replay.mjs old-seed.json full-trajectory.json
 ```
 
-目前仍是早期沙盘。提供本地演武擂台排行与受限外部军令协议；尚无在线匹配、云排行榜、桥面破坏或复杂导航网格。拥挤和复杂障碍可能造成停滞，90 秒结算结束僵局。欢迎提交 Issue / PR；提交前运行测试与构建，并说明玩法变化和验证结果。
+更换物理引擎后，旧 Rapier 的种子不会在 PhysX 中得到相同结果。跨平台复盘应交换完整轨迹；Unity 原生种子包仅用于同引擎和同平台复现。
 
-## 协议与致谢
+## 目录
 
-[MIT](LICENSE)。程序化美术与游戏代码随项目开放。依赖 Three.js（MIT）、Rapier（Apache-2.0）和 Vite（MIT），见 [第三方说明](THIRD_PARTY_NOTICES.md)。感谢 [chen-006/meow-ai-arena](https://github.com/chen-006/meow-ai-arena) 的玩法启发。
+- `Unity/Assets/Frontline/Core`：与引擎无关的数据、规则、AI、擂台、回放和协议。
+- `Unity/Assets/Frontline/Runtime`：Unity 物理、渲染、界面、文件桥与原生无头工具。
+- `Unity/Assets/Frontline/Editor`：工程准备、构建和 Play Mode 检查入口。
+- `Tools`：构建与验证命令、旧回放转换、测试替身与兼容样例。
+- `src` / `test` / `scripts`：冻结的旧版工具与 77 项回归测试；[旧版说明](docs/LEGACY_README.md)。
+
+源码 MIT。中文字体为 Noto Sans CJK，附 OFL。原创游戏实现，玩法灵感来自物理混战沙盘，没有复用其他游戏的源码、素材或选手提交。

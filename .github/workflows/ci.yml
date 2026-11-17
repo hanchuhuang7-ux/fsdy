@@ -1,4 +1,4 @@
-name: Check battle engine
+name: Check Unity rules and legacy compatibility
 on: [push, pull_request]
 permissions:
   contents: read
@@ -12,5 +12,8 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
       - run: npm test
-      - run: npm run build
+      # Licensed native Unity builds are verified locally; this job checks portable rules.

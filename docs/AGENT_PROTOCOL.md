@@ -1,23 +1,22 @@
 # Agent Observation & Command · v1
 
-协议标识 `frontline-agent@1`，引擎 v0.5.0。桥接入口为 `scripts/agent-bridge.mjs`，共用数据边界在 `src/agent-protocol.js`。任意能读写 UTF-8 标准输入输出的 Node、Python 或模型适配进程均可参与。网页继续只接收数据文件，本地子进程由 CLI 启动。
+协议标识 `frontline-agent@1`。Unity 0.6.0 的桥接入口为 `Runtime/HeadlessRunner.cs`，边界为 `Core/AgentProtocol.cs`。旧引擎的协议文档保留于 [LEGACY_AGENT_PROTOCOL.md](LEGACY_AGENT_PROTOCOL.md)。Node、Python 或大模型适配进程均通过 UTF-8 标准输入输出参与。
 
-## 直接运行
+## 直接运行 Unity 版
 
-```sh
-npm run agent-battle -- --out-dir agent-results
-npm run agent-battle -- --config examples/ai-duel.json --out-dir agent-results
+先构建 Windows 版，再为红蓝双方分别保存启动配置，如 `red-bot.json`：
+
+```json
+{"command":"node","args":["scripts/bots/minimal.mjs"]}
 ```
-
-默认启动两份独立的 `scripts/bots/minimal.mjs`，进行 Bo3；军令强制开启，内置 AI 统帅关闭。每局使用初始阵型，种子递增。Bot 只负责实时军令；本协议不允许临时增兵、移动单位、改 HP、预算或伤害。输出 `series.json` 与每局 `round-N.replay.json`，后者为可在网页导入的完整 v2 回放。
-
-指定程序时传 **JSON 参数数组**，不经 shell 拼接。PowerShell 示例：
 
 ```powershell
-npm.cmd run agent-battle -- --red-bot '["node","scripts/bots/minimal.mjs"]' --blue-bot '["python","scripts/bots/minimal.py"]' --timeout-ms 1000 --out-dir agent-results
+npm run agent-battle -- --red-bot red-bot.json --blue-bot blue-bot.json --timeout 250 --out Builds/Agents
 ```
 
-Python 示例只用标准库，需要自己已安装 Python 3。模型适配器可以在其进程内部请求模型，读取观察并输出同一响应格式；本项目不需要或保存模型密钥。
+不经 shell 拼接命令。Python 配置可使用 `{"command":"python","args":["scripts/bots/minimal.py"]}`。模型适配器在自身进程内访问模型；游戏不需要或保存模型密钥。程序和脚本路径相对工程根目录，命令行可执行文件也可使用绝对路径。
+
+桥接强制开启军令、关闭内置 AI 统帅，按同一初始阵型和递增种子完成 Bo3。输出 `series.json`、`agent-stats.json` 与每局 `round-N.replay.json`。Unity 完整轨迹为 **v3**；旧 JS 桥仍输出 v2。WebGL 可导入这些公开轨迹，不能启动本机子进程。
 
 ## 时序与观察
 
@@ -60,9 +59,9 @@ Python 示例只用标准库，需要自己已安装 Python 3。模型适配器�
 {"schema":"frontline-agent@1","kind":"command","requestId":"1:480:red","team":"red","order":null}
 ```
 
-只接受 `schema/kind/requestId/team/order`。军令对象只接受 `type/x/z`，类型为 `inspire`、`focus` 或 `fortify`。坐标必须有限、处于地图地面。每方每局 3 点，每道 1 点，统一 480 tick 冷却，最终都由 `Battle.issueOrder()` 检查。非法坐标、越权阵营、过期 ID、额外修改字段、冷却或额度不足均拒收，不扣点。
+只接受 `schema/kind/requestId/team/order`。军令对象只接受 `type/x/z`，类型为 `inspire`、`focus` 或 `fortify`。坐标必须有限、处于地图地面。每方每局 3 点，每道 1 点，统一 480 tick 冷却，最终都由 `Battle.IssueOrder()` 检查。非法坐标、越权阵营、过期 ID、额外修改字段、冷却或额度不足均拒收，不扣点。
 
-stdout 只写完整响应行；诊断写 stderr。每个 Bot 同时只有一个待处理请求。默认每次观察等待 1000ms，可设 5–10000ms。超时、无效 JSON、退出或管道失败时本次跳过，比赛继续；迟到的旧 ID 不会满足新请求。缓冲上限 16 KiB，越限终止该 Bot；stderr 只保留最后 2048 字符。`series.json` 记录接受、拒绝、超时及所在 tick。
+stdout 只写完整响应行；诊断写 stderr。每个 Bot 同时只有一个待处理请求。Unity 原生桥默认每次观察等待 250ms，可设 10–5000ms。无效 JSON 本次拒收；超时、退出或管道失败后停用该进程，后续军令跳过，比赛继续。迟到的旧 ID 不会满足新请求。JSON 边界最多 16 KiB，最多积压四行；stderr 被排空但不进入协议。`agent-stats.json` 记录观察、接受、拒绝和未响应次数，实际获准 tick 见回放 orderLog。
 
 ## 确定性、信任边界与回放
 
@@ -70,4 +69,4 @@ stdout 只写完整响应行；诊断写 stderr。每个 Bot 同时只有一个�
 
 这是游戏数据权限边界，不是操作系统进程沙箱。只启动自己信任的本地程序；协议不会给 Bot 一个可直接修改引擎的引用。网页不会执行导入 JSON 内的代码。
 
-自动化覆盖：脱敏观察、越权队伍、非法坐标、额外字段、冷却拒收、超时与旧响应隔离、两份真实 stdio 子进程完成 Bo3、v2 包校验与按日志重演。
+自动化覆盖：脱敏观察、越权队伍、非法坐标、额外字段、冷却拒收、超时与旧响应隔离、两份真实 stdio 子进程完成 Bo3、Unity v3 包校验与按日志重演；旧引擎 v2 检查保留于冻结的 JS 测试。

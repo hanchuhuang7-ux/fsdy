@@ -1,0 +1,6 @@
+import {existsSync,readdirSync,mkdirSync} from 'node:fs';import {spawnSync} from 'node:child_process';import {resolve,dirname} from 'node:path';import {fileURLToPath} from 'node:url';
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const dotnet=process.env.DOTNET_EXE||(existsSync(resolve(root,'../dotnet-sdk/dotnet.exe'))?resolve(root,'../dotnet-sdk/dotnet.exe'):'dotnet');
+const home=resolve(root,'Builds/DotnetHome');mkdirSync(home,{recursive:true});const env={...process.env,DOTNET_CLI_HOME:home,APPDATA:resolve(home,'AppData'),NUGET_PACKAGES:resolve(home,'Nuget'),DOTNET_CLI_TELEMETRY_OPTOUT:'1',DOTNET_SKIP_FIRST_TIME_EXPERIENCE:'1'};mkdirSync(env.APPDATA,{recursive:true});
+function run(args){const result=spawnSync(dotnet,args,{cwd:root,env,stdio:'inherit',windowsHide:true});if(result.error)throw Error('C# 核心检查需要 .NET 8 SDK；可通过 DOTNET_EXE 指定 dotnet。 '+result.error.message);if(result.status!==0)process.exit(result.status||1);}
+run(['build','Tools/CoreChecks/CoreChecks.csproj','--nologo','--configfile','Tools/CoreChecks/NuGet.Config']);const fixtures=readdirSync(resolve(root,'Tools/fixtures')).filter(f=>f.endsWith('.trajectory.json')).map(f=>resolve(root,'Tools/fixtures',f));run(['Tools/CoreChecks/bin/Debug/net8.0/CoreChecks.dll',...fixtures]);

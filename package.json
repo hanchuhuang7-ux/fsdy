@@ -1,22 +1,28 @@
 {
   "name": "frontline-lab",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
-  "description": "An open-source 3D physics battle sandbox. 阵线实验室",
+  "description": "Native Unity 3D physics battle sandbox for Windows and WebGL",
   "license": "MIT",
   "engines": {
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
-    "build": "vite build",
-    "preview": "vite preview --host 127.0.0.1",
-    "test": "node --test test/*.test.js",
-    "battle": "node scripts/battle.mjs",
-    "benchmark": "node scripts/benchmark.mjs",
-    "tournament": "node scripts/tournament.mjs",
-    "agent-battle": "node scripts/agent-bridge.mjs"
+    "dev": "node Tools/serve-web.mjs",
+    "build": "node Tools/unity.mjs build",
+    "build:windows": "node Tools/unity.mjs windows",
+    "build:web": "node Tools/unity.mjs web",
+    "test": "node --test test/*.test.js && node Tools/check-core.mjs",
+    "test:core": "node Tools/check-core.mjs",
+    "test:physics": "node Tools/unity.mjs physics",
+    "benchmark": "node Tools/unity.mjs benchmark",
+    "benchmark:legacy": "node scripts/benchmark.mjs",
+    "dev:legacy": "vite --host 127.0.0.1",
+    "build:legacy": "vite build",
+    "battle": "node Tools/unity.mjs smoke",
+    "tournament": "node Tools/unity.mjs tournament",
+    "agent-battle": "node Tools/unity.mjs agent"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",
