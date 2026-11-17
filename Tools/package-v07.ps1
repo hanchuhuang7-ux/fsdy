@@ -35,6 +35,8 @@ Space 暂停；Tab 切视角；1/2/3 军令；Ctrl+Z 撤销。
 '@ | Set-Content -LiteralPath (Join-Path $windowsPath 'README.txt') -Encoding utf8
 foreach($name in @('UNITY_MIGRATION.md','AGENT_PROTOCOL.md','V0.7_VALIDATION.md')){Copy-Item -LiteralPath (Join-Path $projectRoot "docs/$name") -Destination (Join-Path $windowsPath 'docs') -Force}
 Copy-Item -LiteralPath (Join-Path $projectRoot 'docs/validation') -Destination (Join-Path $windowsPath 'docs') -Recurse -Force
+New-Item -ItemType Directory -Path (Join-Path $windowsPath 'docs/screenshots') -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $projectRoot 'docs/screenshots/v07') -Destination (Join-Path $windowsPath 'docs/screenshots') -Recurse -Force
 Copy-Item -Path (Join-Path $projectRoot 'dist/*') -Destination (Join-Path $webPath 'dist') -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'Tools/serve-web.mjs') -Destination (Join-Path $webPath 'Tools') -Force
 @'
