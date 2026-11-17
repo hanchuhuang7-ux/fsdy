@@ -38,6 +38,10 @@ namespace Frontline.UnityGame
             foreach(string type in new[]{"militia","shield","spear","archer","crossbow","bomber","medic","giant","cavalry","catapult"})units.Add(type,new UnitVisual{body=Load("body_"+type),right=Load("arm_right_"+type)});
             foreach(string type in new[]{"barrel","barricade","banner","spikes","spring"})props.Add(type,Load("prop_"+type));
             dust=Load("mist",true);armLeft=Load("arm_left");leg=Load("leg");horse=Load("horse");horseLeg=Load("horse_leg");catapult=Load("catapult");catapultArm=Load("catapult_arm");shield=Load("shield");ring=Load("ring");dot=Load("dot");torso=Load("torso");head=Load("head");limb=Load("limb");wreckHorse=Load("wreck_horse");wreckCart=Load("wreck_catapult");arrow=Load("arrow");bolt=Load("bolt");bomb=Load("bomb");stone=Load("stone");
+
+            // 96 feedback effects x at most 12 strokes + 120 health bars x 2 fit in six pages.
+            // Allocate these at view setup, never on a mass-contact frame.
+            var feedback=Buffer(dot,moving,0);for(int i=1;i<6;i++){feedback.next=new Batch{mesh=dot};feedback=feedback.next;}
             SetQuality(Mathf.Clamp(PlayerPrefs.GetInt("frontline.visual.quality",1),0,2));
         }
         MeshSet Load(string name,bool transparent=false)
@@ -81,7 +85,7 @@ namespace Frontline.UnityGame
         static Color Team(string team){return team=="red"?Red:team=="blue"?Blue:Gold;}
         static Matrix4x4 Pose(Vector3 p,Quaternion rotation,Vector3 scale){return Matrix4x4.TRS(p,rotation,scale);}
         void Ring(Vector3 p,float radius,Color color){Add(ring,Pose(p,Quaternion.identity,new Vector3(radius,1,radius)),color);}
-        void Soldier(string type,string team,Vector3 p,float angle,float attack,float scale,int id,float hp=1,bool inspired=false,bool fortified=false,string stance="advance",float speed=0,float direction=0,float gait=0,float hitFlash=0,float hitTiltX=0,float hitTiltZ=0,float charge=0)
+        void Soldier(string type,string team,Vector3 p,float angle,float attack,float scale,int id,float hp=1,bool inspired=false,bool fortified=false,string stance="advance",float speed=0,float direction=0,float gait=0,float hitFlash=0,float hitTiltX=0,float hitTiltZ=0,float charge=0,float guard=0)
         {
             activeFlash=hitFlash;float time=Current?.time??Time.time;
             if(!Deploying&&gait==0&&id<oldMotion.Length){var m=oldMotion[id];if(time<m.time)m=default;if(m.valid&&time>m.time){var delta=p-m.p;float dt=time-m.time;m.speed=new Vector2(delta.x,delta.z).magnitude/dt;m.phase+=new Vector2(delta.x,delta.z).magnitude/scale;m.direction=(delta.x*Mathf.Sin(angle)+delta.z*Mathf.Cos(angle))/Mathf.Max(.001f,new Vector2(delta.x,delta.z).magnitude);}m.p=p;m.time=time;m.valid=true;oldMotion[id]=m;speed=m.speed;gait=m.phase;direction=m.direction;}
@@ -95,7 +99,7 @@ namespace Frontline.UnityGame
                 Add(leg,root*Pose(new Vector3(.15f,-.53f,0),Quaternion.Euler(-walk,0,0),Vector3.one),White);
                 Add(armLeft,root*Pose(new Vector3(-.36f,.27f,0),Quaternion.Euler(-walk*.5f,0,0),Vector3.one)*Matrix4x4.Translate(new Vector3(.36f,-.27f,0)),color);
                 Add(model.right,root*Pose(new Vector3(.36f,.27f,0),Quaternion.Euler(-swing+walk*.4f,0,-4),Vector3.one)*Matrix4x4.Translate(new Vector3(-.36f,-.27f,0)),color);
-                if(type=="shield")Add(shield,root,color);
+                if(type=="shield")Add(shield,root*Pose(new Vector3(0,guard*.1f,guard*.15f),Quaternion.Euler(-guard*14,0,0),Vector3.one),color);
                 if(type=="cavalry")
                 {
                     Add(horse,root,White);for(int i=0;i<4;i++){float x=i%2==0?-.24f:.24f,z=i<2?-.4f:.4f;Add(horseLeg,root*Pose(new Vector3(x,-.65f,z),Quaternion.Euler(i%2==0?walk:-walk,0,0),Vector3.one),White);}
@@ -109,11 +113,21 @@ namespace Frontline.UnityGame
             if(hp<.99f){Add(dot,Pose(p+Vector3.up*(1.1f*scale),Quaternion.identity,new Vector3(.7f*scale,.055f,.1f)),new Color(.12f,.15f,.18f));Add(dot,Pose(p+new Vector3(-.35f*scale*(1-hp),1.12f*scale,0),Quaternion.identity,new Vector3(.7f*scale*Mathf.Clamp01(hp),.06f,.11f)),color);}
         }
         public void Focus(Vector3 point,float zoom=19,float viewPitch=43,float viewYaw=0){target=point;distance=zoom;pitch=viewPitch;yaw=viewYaw;}
+        // The baked dot is 0.02m tall; Y scales below convert stroke lengths to world metres.
         void Impact(EffectFrame e)
         {
             float f=1-e.life/e.maxLife;var p=new Vector3(e.x,e.y,e.z);bool block=e.type=="block",heavy=e.type=="heavy";
+            if(e.type=="sweep"||e.type=="thrust"||e.type=="charge"){
+                bool thrust=e.type=="thrust";int count=thrust?3:9;float fade=1-f;
+                for(int i=0;i<count;i++){float a=e.angle+(thrust?(i-1)*.08f:(i/(float)(count-1)-.5f)*2.2f);var forward=new Vector3(Mathf.Sin(a),0,Mathf.Cos(a));var q=p+forward*(thrust?.45f+f*1.5f:1.05f+f*.65f);q.y+=.25f;
+                    var direction=thrust?forward:new Vector3(Mathf.Cos(a),.08f,-Mathf.Sin(a));Add(dot,Pose(q,Quaternion.FromToRotation(Vector3.up,direction),new Vector3(.075f*fade,(thrust?.9f:.43f)*fade*50,.07f*fade)),i%2==0?new Color(1,.86f,.42f):new Color(1,.97f,.8f));}return;
+            }
+            if(e.type=="wall"){
+                for(int i=0;i<4;i++){float a=i*2.4f+e.id;var q=p+new Vector3(Mathf.Cos(a),.3f,Mathf.Sin(a))*(.15f+f*.7f);Add(dust,Pose(q,Quaternion.Euler(0,a*40,0),Vector3.one*(.32f+f*.75f)),new Color(.67f,.6f,.47f,.44f*(1-f)));}return;
+            }
             if(block||heavy||e.type=="hit"){
-                int count=block?7:heavy?8:3;for(int i=0;i<count;i++){float a=i*2.39996f+e.id*1.13f;var d=new Vector3(Mathf.Cos(a),.35f+Mathf.Abs(Mathf.Sin(a*2)),Mathf.Sin(a));var q=p+d*f*(heavy?1.6f:.95f)+Vector3.down*f*f*.65f;float length=(1-f)*(block?.22f:.13f);Add(dot,Pose(q,Quaternion.FromToRotation(Vector3.up,d),new Vector3(.025f,length,.025f)),block?new Color(1,.88f,.46f):heavy?new Color(1,.54f,.18f):new Color(1,.94f,.85f));}
+                int count=block?8:heavy?10:4;for(int i=0;i<count;i++){float a=i*2.39996f+e.id*1.13f;var d=new Vector3(Mathf.Cos(a),.35f+Mathf.Abs(Mathf.Sin(a*2)),Mathf.Sin(a));var q=p+d*f*(heavy?1.6f:1.2f)+Vector3.down*f*f*.65f;float length=(1-f)*(block?.55f:heavy?.48f:.26f),width=(1-f)*(block?.085f:heavy?.095f:.06f);Add(dot,Pose(q,Quaternion.FromToRotation(Vector3.up,d),new Vector3(width,length*50,width)),block?new Color(1,.88f,.46f):heavy?new Color(1,.54f,.18f):new Color(1,.94f,.85f));}
+                if(block||heavy){var face=ViewCamera.transform.rotation;for(int i=0;i<2;i++)Add(dot,Pose(p,face*Quaternion.Euler(0,0,i==0?45:-45),new Vector3(.09f*(1-f),.95f*(1-f)*50,.07f)),block?new Color(1,.96f,.66f):new Color(1,.65f,.27f));}
                 if(!heavy)return;
             }
             Ring(p+Vector3.up*.12f,.3f+f*(e.type=="heal"?1:2.5f),e.type=="heal"?new Color(.37f,.89f,.55f):new Color(1,.49f,.13f));
@@ -137,7 +151,7 @@ namespace Frontline.UnityGame
             }
             else
             {
-                foreach(var u in Current.units)if(u.alive&&u.t!=null)Soldier(u.type,u.team,new Vector3(u.t[0],u.t[1],u.t[2]),u.angle,u.attack,Data.Units[u.type].scale,u.id,u.hp/Data.Units[u.type].hp,u.inspired,u.fortified,u.stance,u.moveSpeed,u.moveForward,u.gait,u.hitFlash,u.hitTiltX,u.hitTiltZ,u.charge);
+                foreach(var u in Current.units)if(u.alive&&u.t!=null)Soldier(u.type,u.team,new Vector3(u.t[0],u.t[1],u.t[2]),u.angle,u.attack,Data.Units[u.type].scale,u.id,u.hp/Data.Units[u.type].hp,u.inspired,u.fortified,u.stance,u.moveSpeed,u.moveForward,u.gait,u.hitFlash,u.hitTiltX,u.hitTiltZ,u.charge,u.guard);
                 foreach(var p in Current.props)if(p.alive)Prop(p.type,p.team,p.x,p.z,p.floor,p.active);
                 foreach(var s in Current.projectiles){var t=s.t;var mesh=s.type=="stone"?stone:s.type=="bomb"?bomb:s.type=="bolt"?bolt:arrow;var velocity=UnityWorld.Vector(s.v);Add(mesh,Pose(new Vector3(t[0],t[1],t[2]),velocity.sqrMagnitude>.0001f?Quaternion.LookRotation(velocity):Quaternion.identity,Vector3.one),White);}
                 foreach(var r in Current.ragdolls)

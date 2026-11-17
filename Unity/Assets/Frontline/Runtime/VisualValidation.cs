@@ -50,7 +50,7 @@ namespace Frontline.UnityGame
         }
         IEnumerator Capture(string map,string phase)
         {
-            yield return new WaitForEndOfFrame();var texture=new Texture2D(Screen.width,Screen.height,TextureFormat.RGB24,false);texture.ReadPixels(new Rect(0,0,Screen.width,Screen.height),0,0,false);texture.Apply();var bytes=texture.EncodeToPNG();Destroy(texture);yield return Save("v08-"+Application.platform+"-"+Screen.width+"-"+map+"-"+phase+".png",bytes,"image/png");
+            yield return new WaitForEndOfFrame();var texture=new Texture2D(Screen.width,Screen.height,TextureFormat.RGB24,false);texture.ReadPixels(new Rect(0,0,Screen.width,Screen.height),0,0,false);texture.Apply();var bytes=texture.EncodeToPNG();Destroy(texture);yield return Save("v09-"+Application.platform+"-"+Screen.width+"-"+map+"-"+phase+".png",bytes,"image/png");
         }
         static double Median(double[] values){Array.Sort(values);return values[values.Length/2];}
         IEnumerator Run()

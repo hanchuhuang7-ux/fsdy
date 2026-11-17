@@ -24,6 +24,10 @@ namespace Frontline.Core
     }
     // Retains v0.6 floating-point evaluation order when rebuilding its native seeds.
     public interface ILegacyCompatibilityWorld {}
+    public struct WallImpact {public int id;public V3 point,normal;public float speed;}
+    public interface IWallImpactBody {void ArmWallImpact(int steps);}
+    public interface IWallImpactWorld {List<WallImpact> WallImpacts();}
+    public interface ICorpseCount {int CorpseCount {get;}}
     public interface ICombatBody {void Facing(float angle,bool fast);}
     public interface IRecordedBattle:IDisposable
     {

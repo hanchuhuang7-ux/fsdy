@@ -10,5 +10,11 @@
     "tick": 2279,
     "winner": "blue",
     "sha256": "bdef881f7548d614c6633f635ad1472d92f5bcaebac4c44b59b4241535197249"
+  },
+  {
+    "engine": "unity-0.8.0",
+    "tick": 1468,
+    "winner": "blue",
+    "sha256": "076718f93f0f15e2991ce24fb0a8497d3945a58dbaea576180ad7704d961364d"
   }
 ]

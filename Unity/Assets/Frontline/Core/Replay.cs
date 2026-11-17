@@ -6,7 +6,7 @@ namespace Frontline.Core
 {
     public static class Replay
     {
-        public const string Engine="unity-0.8.0";
+        public const string Engine="unity-0.9.0";
         public static void ValidateOrders(Catalog catalog,Deployment c,List<OrderEntry> log)
         {
             if(log==null||log.Count>6||(!c.commander.enabled&&log.Count>0))throw new FormatException("军令日志无效");var points=new Dictionary<string,int>{{"red",3},{"blue",3}};var ready=new Dictionary<string,int>{{"red",0},{"blue",0}};int previous=-1;
@@ -24,19 +24,20 @@ namespace Frontline.Core
         public static ReplayPackage Validate(Catalog catalog,ReplayPackage p)
         {
             if(p==null||p.format!="frontline-replay"||!(p.kind=="seed"||p.kind=="trajectory"))throw new FormatException("不支持的回放格式");
-            bool native=p.version==3&&(p.engineVersion==Engine||p.engineVersion=="unity-0.6.0"||p.engineVersion=="unity-0.7.0"),legacy=(p.version==1&&new[]{"0.1.0","0.2.0","0.3.0"}.Contains(p.engineVersion))||(p.version==2&&new[]{"0.4.0","0.5.0"}.Contains(p.engineVersion));
+            bool native=p.version==3&&(p.engineVersion==Engine||p.engineVersion=="unity-0.8.0"||p.engineVersion=="unity-0.6.0"||p.engineVersion=="unity-0.7.0"),legacy=(p.version==1&&new[]{"0.1.0","0.2.0","0.3.0"}.Contains(p.engineVersion))||(p.version==2&&new[]{"0.4.0","0.5.0"}.Contains(p.engineVersion));
             if(!native&&!legacy)throw new FormatException("不支持的引擎版本");p.config=catalog.Validate(p.config);p.orderLog=p.orderLog??new List<OrderEntry>();ValidateOrders(catalog,p.config,p.orderLog);
             if(p.kind=="seed"){if(!native)throw new FormatException("旧 Rapier 种子包请先用 Tools/convert-legacy-replay.mjs 转为完整轨迹，再在 Unity 导入。");if(p.frames!=null&&p.frames.Count>0)throw new FormatException("种子包不应包含轨迹");return p;}
             if(p.frames==null||p.frames.Count<2||p.frames.Count>902||p.result==null||!new[]{"red","blue","draw"}.Contains(p.result.winner)||!Catalog.Finite(p.result.time)||p.result.time<0||p.result.time>90.02f)throw new FormatException("回放帧数或战果无效");
             var roster=p.config.red.Concat(p.config.blue).ToList();float previous=-1;
             for(int index=0;index<p.frames.Count;index++)
             {
-                var f=p.frames[index];if(f==null||!Catalog.Finite(f.time)||f.time<=previous||f.time<0||f.time>90.02f||f.units==null||f.units.Count!=roster.Count||f.projectiles==null||f.projectiles.Count>1024||f.ragdolls==null||f.ragdolls.Count>24||f.effects==null||f.effects.Count>(p.engineVersion==Engine?CombatMotion.EffectCapacity:41)||f.props==null||f.props.Count>40)throw new FormatException("轨迹结构无效");
+                var f=p.frames[index];if(f==null||!Catalog.Finite(f.time)||f.time<=previous||f.time<0||f.time>90.02f||f.units==null||f.units.Count!=roster.Count||f.projectiles==null||f.projectiles.Count>1024||f.ragdolls==null||f.ragdolls.Count>24||f.effects==null||f.effects.Count>((p.engineVersion==Engine||p.engineVersion=="unity-0.8.0")?CombatMotion.EffectCapacity:41)||f.props==null||f.props.Count>40)throw new FormatException("轨迹结构无效");
                 if(index==0&&Math.Abs(f.time)>.0001f)throw new FormatException("缺少初始帧");if(index>0&&index<p.frames.Count-1&&Math.Abs((f.time-previous)-.1f)>.002f)throw new FormatException("轨迹间隔无效");previous=f.time;f.tick=(int)Math.Round(f.time*60);
                 for(int i=0;i<f.units.Count;i++)
                 {
-                    var u=f.units[i];if(u==null||u.id!=i+1||u.type!=roster[i].type||u.team!=(i<p.config.red.Count?"red":"blue")||!Catalog.Finite(u.hp)||u.hp<0||u.hp>1000000||!Catalog.Finite(u.angle)||!Catalog.Finite(u.attack)||!Catalog.Finite(u.charge)||!Catalog.Finite(u.hitFlash)||u.hitFlash<0||u.hitFlash>1||!Catalog.Finite(u.hitTiltX)||!Catalog.Finite(u.hitTiltZ)||Math.Abs(u.hitTiltX)>1||Math.Abs(u.hitTiltZ)>1||!Catalog.Finite(u.moveSpeed)||u.moveSpeed<0||u.moveSpeed>1000||!Catalog.Finite(u.moveForward)||Math.Abs(u.moveForward)>1.001f||!Catalog.Finite(u.gait)||u.gait<0||u.alive&&!Transform(u.t))throw new FormatException("单位轨迹无效");if(string.IsNullOrEmpty(u.stance))u.stance=roster[i].stance;
+                    var u=f.units[i];if(u==null||u.id!=i+1||u.type!=roster[i].type||u.team!=(i<p.config.red.Count?"red":"blue")||!Catalog.Finite(u.hp)||u.hp<0||u.hp>1000000||!Catalog.Finite(u.angle)||!Catalog.Finite(u.attack)||!Catalog.Finite(u.charge)||!Catalog.Finite(u.hitFlash)||u.hitFlash<0||u.hitFlash>1||!Catalog.Finite(u.hitTiltX)||!Catalog.Finite(u.hitTiltZ)||Math.Abs(u.hitTiltX)>1||Math.Abs(u.hitTiltZ)>1||!Catalog.Finite(u.moveSpeed)||u.moveSpeed<0||u.moveSpeed>1000||!Catalog.Finite(u.moveForward)||Math.Abs(u.moveForward)>1.001f||!Catalog.Finite(u.guard)||u.guard<0||u.guard>1||!Catalog.Finite(u.gait)||u.gait<0||u.alive&&!Transform(u.t))throw new FormatException("单位轨迹无效");if(string.IsNullOrEmpty(u.stance))u.stance=roster[i].stance;
                 }
+                foreach(var effect in f.effects)if(effect==null||!Catalog.Finite(effect.angle))throw new FormatException("特效方向无效");
                 foreach(var shot in f.projectiles)if(shot==null||shot.id<=0||!new[]{"arrow","bolt","bomb","stone"}.Contains(shot.type)||!Transform(shot.t)||!Vector(shot.v))throw new FormatException("弹道轨迹无效");
                 foreach(var corpse in f.ragdolls)if(corpse==null||corpse.parts==null||corpse.parts.Count!=6||corpse.parts.Select(x=>x.name).Distinct().Count()!=6||corpse.parts.Any(x=>!Transform(x.t)))throw new FormatException("尸体轨迹无效");
                 foreach(var prop in f.props)if(prop==null||!catalog.Props.ContainsKey(prop.type??"")||!Catalog.Finite(prop.hp)||prop.hp<0||!Catalog.Finite(prop.x)||!Catalog.Finite(prop.z))throw new FormatException("道具轨迹无效");

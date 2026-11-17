@@ -16,9 +16,9 @@ namespace Frontline.UnityGame
             foreach(var golden in Json.Read<List<Golden>>(Resources.Load<TextAsset>("history-goldens").text))
             {
                 var config=data.Default();config.commander.enabled=true;
-                using(var b=new Frontline.Core.History07.Battle(data,config,golden.engine=="unity-0.6.0"?(IWorldFactory)new LegacyUnityWorldFactory():new Unity07WorldFactory()))
+                using(IRecordedBattle b=golden.engine=="unity-0.8.0"?(IRecordedBattle)new Frontline.Core.History08.Battle(data,config,new Unity08WorldFactory()):new Frontline.Core.History07.Battle(data,config,golden.engine=="unity-0.6.0"?(IWorldFactory)new LegacyUnityWorldFactory():new Unity07WorldFactory()))
                 {
-                    var frames=new List<Frame>{b.Snapshot()};b.IssueOrder("red",new Order("inspire",-6,0),out _);
+                    var frames=new List<Frame>{b.Snapshot()};b.UseOrderLog(new List<OrderEntry>{new OrderEntry{id=1,team="red",type="inspire",x=-6,z=0,tick=0,endTick=300}});
                     while(b.Result==null){b.Step();if(b.Tick%6==0)frames.Add(b.Snapshot());}
                     if(frames[frames.Count-1].tick!=b.Tick)frames.Add(b.Snapshot());
                     string json=Json.Write(Replay.Create(data,config,frames,b.Result,false,golden.engine));

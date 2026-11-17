@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -11,10 +12,10 @@ namespace Frontline.Core
     }
     public sealed class Soldier
     {
-        public Entity entity;public UnitDef definition;public string stance;public float angle,cooldown,attack,stun,charge,floor;public V3 anchor,progress;
+        public Entity entity;public UnitDef definition;public string stance;public float angle,cooldown,attack,stun,charge,floor;public V3 anchor,progress,avoidance,avoidanceTarget;
         public int inspireUntil,fortifyUntil,lastHitTick=-99999,escapeUntil,blocked,escapes,routeStage;public float routeLane;public bool hasRoute;
         public Entity lastSource;public Soldier target;public OrderEntry focus;
-        public ICombatBody combatBody;public float slope,hitFlash,hitTiltX,hitTiltZ,moveSpeed,moveForward,gait,windup;public bool preparing,collisionFast;public int lastVisualTick=-9999;
+        public ICombatBody combatBody;public float slope,hitFlash,hitTiltX,hitTiltZ,moveSpeed,moveForward,gait,windup;public float guard;public int lastWallTick=-999;public bool preparing,collisionFast;public int lastVisualTick=-9999;
     }
     public sealed class PropState {public Entity entity;public float floor,fuse=-1,cooldown;}
     public sealed class Shot {public int id;public string type;public Entity owner;public IBody body;public float life,damage,knock,pierce;public bool removed;}
@@ -29,7 +30,7 @@ namespace Frontline.Core
         public readonly List<Soldier> Units=new List<Soldier>();public readonly List<PropState> Props=new List<PropState>();public readonly List<Shot> Shots=new List<Shot>();
         public readonly CommanderState Commander=new CommanderState();public readonly List<Highlight> Highlights=new List<Highlight>();public readonly List<Cue> Cues=new List<Cue>(24);public readonly List<EffectFrame> Effects=new List<EffectFrame>(CombatMotion.EffectCapacity);
         public int Tick {get;private set;}public float Time {get{return Tick*Catalog.Step;}}public Result Result {get;private set;}
-        readonly List<Soldier>[] grid=new List<Soldier>[128*128];readonly List<List<Soldier>> gridBuckets=new List<List<Soldier>>();readonly Dictionary<int,List<Soldier>> overflowGrid=new Dictionary<int,List<Soldier>>();readonly Dictionary<int,Entity> entities=new Dictionary<int,Entity>();readonly Dictionary<int,Soldier> soldiersById=new Dictionary<int,Soldier>();readonly Dictionary<int,PropState> propsById=new Dictionary<int,PropState>();readonly Dictionary<int,Shot> shotsById=new Dictionary<int,Shot>();
+        readonly List<Soldier>[] grid=new List<Soldier>[128*128];readonly List<List<Soldier>> gridBuckets=new List<List<Soldier>>();readonly List<Soldier> redTargets=new List<Soldier>(60),blueTargets=new List<Soldier>(60);readonly Dictionary<int,List<Soldier>> overflowGrid=new Dictionary<int,List<Soldier>>();readonly Dictionary<int,Entity> entities=new Dictionary<int,Entity>();readonly Dictionary<int,Soldier> soldiersById=new Dictionary<int,Soldier>();readonly Dictionary<int,PropState> propsById=new Dictionary<int,PropState>();readonly Dictionary<int,Shot> shotsById=new Dictionary<int,Shot>();
         readonly Dictionary<string,int> cueTimes=new Dictionary<string,int>(),highlightTimes=new Dictionary<string,int>();
         readonly Stack<Cue> cuePool=new Stack<Cue>(24);readonly Stack<EffectFrame> effectPool=new Stack<EffectFrame>(CombatMotion.EffectCapacity);readonly bool legacyMath;readonly MapDef map;readonly GroundSample[] groundSamples;
         struct GroundSample {public float x,z,hz,extent,top,slope;}
@@ -54,18 +55,18 @@ namespace Frontline.Core
         }
         static readonly Passage MarshPassage=new Passage{approach=5.3f,lanes=new[]{-9.6f,9.6f}};
         static readonly float[] EscapeAngles={1.047f,1.571f,-1.047f,-1.571f,3.14159f};
-        static int Key(float x,float z){return ((int)Math.Floor(x/3)+64)*128+(int)Math.Floor(z/3)+64;}
-        List<Soldier> GridBucket(int key){if((uint)key<(uint)grid.Length)return grid[key];overflowGrid.TryGetValue(key,out var value);return value;}
-        float GroundAt(float x,float z){return GroundAt(x,z,out _);}
-        float GroundAt(float x,float z,out float slope)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] static int Key(float x,float z){return ((int)Math.Floor(x/3)+64)*128+(int)Math.Floor(z/3)+64;}
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] List<Soldier> GridBucket(int key){if((uint)key<(uint)grid.Length)return grid[key];overflowGrid.TryGetValue(key,out var value);return value;}
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] float GroundAt(float x,float z){return GroundAt(x,z,out _);}
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] float GroundAt(float x,float z,out float slope)
         {
             slope=0;if(legacyMath)return Data.Height(Config.map,x,z);if(!Catalog.Finite(x)||!Catalog.Finite(z))return float.NegativeInfinity;float height=float.NegativeInfinity;
-            for(int i=0;i<groundSamples.Length;i++){var p=groundSamples[i];if(Math.Abs(x-p.x)<=p.extent-.01f&&Math.Abs(z-p.z)<=p.hz-.01f){float h=p.top+p.slope*(x-p.x);if(h>height){height=h;slope=p.slope;}}}return height;
+            for(int i=0;i<groundSamples.Length;i++){ref readonly var p=ref groundSamples[i];if(Math.Abs(x-p.x)<=p.extent-.01f&&Math.Abs(z-p.z)<=p.hz-.01f){float h=p.slope==0?p.top:p.top+p.slope*(x-p.x);if(h>height){height=h;slope=p.slope;}}}return height;
         }
-        bool Within(V3 a,V3 b,float radius){if(legacyMath)return V3.DistanceXZ(a,b)<=radius;float x=a.x-b.x,z=a.z-b.z;return x*x+z*z<=radius*radius;}
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] bool Within(V3 a,V3 b,float radius){if(legacyMath)return V3.DistanceXZ(a,b)<=radius;float x=a.x-b.x,z=a.z-b.z;return x*x+z*z<=radius*radius;}
         void Cache()
         {
-            foreach(var bucket in gridBuckets)bucket.Clear();foreach(var u in Units)if(u.entity.alive){u.entity.position=u.entity.body.Position;u.floor=GroundAt(u.entity.position.x,u.entity.position.z,out u.slope);int k=Key(u.entity.position.x,u.entity.position.z);var bucket=GridBucket(k);if(bucket==null){bucket=new List<Soldier>(8);if((uint)k<(uint)grid.Length)grid[k]=bucket;else overflowGrid.Add(k,bucket);gridBuckets.Add(bucket);}bucket.Add(u);}
+            foreach(var bucket in gridBuckets)bucket.Clear();gridBuckets.Clear();redTargets.Clear();blueTargets.Clear();foreach(var u in Units)if(u.entity.alive){u.entity.position=u.entity.body.Position;(u.entity.team=="red"?redTargets:blueTargets).Add(u);u.floor=GroundAt(u.entity.position.x,u.entity.position.z,out u.slope);int k=Key(u.entity.position.x,u.entity.position.z);var bucket=GridBucket(k);if(bucket==null){bucket=new List<Soldier>(8);if((uint)k<(uint)grid.Length)grid[k]=bucket;else overflowGrid.Add(k,bucket);}if(bucket.Count==0)gridBuckets.Add(bucket);bucket.Add(u);}
         }
         Neighborhood Nearby(V3 p,float radius){return new Neighborhood(this,p,radius);}
         // foreach in the per-soldier avoidance path stays on the stack. LINQ consumers
@@ -87,11 +88,12 @@ namespace Frontline.Core
         }
         Soldier Target(Soldier own)
         {
-            Soldier best=null;float score=float.PositiveInfinity;foreach(var foe in Units)if(foe.entity.alive&&foe.entity.team!=own.entity.team)
+            Soldier best=null;float score=float.PositiveInfinity;bool flank=own.stance=="flank",hunt=own.stance=="hunt",focused=own.focus!=null&&own.focus.endTick>Tick;var targets=own.entity.team=="red"?blueTargets:redTargets;for(int targetIndex=0;targetIndex<targets.Count;targetIndex++)
             {
+                var foe=targets[targetIndex];if(!foe.entity.alive)continue;
                 float s;if(legacyMath){s=V3.DistanceXZ(own.entity.position,foe.entity.position);s*=s;}else{float dx=own.entity.position.x-foe.entity.position.x,dz=own.entity.position.z-foe.entity.position.z;s=dx*dx+dz*dz;}var def=foe.definition;
-                if(own.focus!=null&&own.focus.endTick>Tick&&Catalog.Distance(foe.entity.position.x,foe.entity.position.z,own.focus.x,own.focus.z)<4)s*=.08f;
-                if(own.stance=="flank"&&def.ranged)s*=.42f;if(own.stance=="hunt")s*=def.ranged?.12f*(160/def.cost):foe.entity.type=="medic"?.2f:1.5f;
+                if(focused&&Catalog.Distance(foe.entity.position.x,foe.entity.position.z,own.focus.x,own.focus.z)<4)s*=.08f;
+                if(flank&&def.ranged)s*=.42f;if(hunt)s*=def.ranged?.12f*(160/def.cost):foe.entity.type=="medic"?.2f:1.5f;
                 if(s<score){best=foe;score=s;}
             }return best;
         }
@@ -129,7 +131,7 @@ namespace Frontline.Core
         void Command(Soldier u)
         {
             var e=u.entity;var p=e.position;var d=u.definition;if(p.y< -4||Math.Abs(p.x)>23||Math.Abs(p.z)>19){Kill(u,new V3(),"fall",null);return;}
-            bool inspired=u.inspireUntil>Tick;u.cooldown-=Catalog.Step*(inspired?1.15f:1);u.attack=Math.Max(0,u.attack-Catalog.Step*3);u.stun=Math.Max(0,u.stun-Catalog.Step);u.hitFlash=Math.Max(0,u.hitFlash-Catalog.Step*7.5f);u.hitTiltX*=.83f;u.hitTiltZ*=.83f;
+            bool inspired=u.inspireUntil>Tick;u.cooldown-=Catalog.Step*(inspired?1.15f:1);u.attack=Math.Max(0,u.attack-Catalog.Step*3);u.stun=Math.Max(0,u.stun-Catalog.Step);u.hitFlash=Math.Max(0,u.hitFlash-Catalog.Step*7.5f);u.guard=Math.Max(0,u.guard-Catalog.Step*5);u.hitTiltX*=.83f;u.hitTiltZ*=.83f;
             bool ai=(Tick+e.id)%6==0;if(ai||u.target==null||!u.target.entity.alive)u.target=Target(u);
             if(e.type=="medic"&&ai){Soldier ally=null;float ratio=1;foreach(var a in Nearby(p,6))if(a.entity.team==e.team&&a.entity.hp/a.entity.maxHp<ratio){ally=a;ratio=a.entity.hp/a.entity.maxHp;}if(ally!=null)Heal(ally.entity,d.heal*.1f,e);}
             var target=u.target;if(target==null)return;var tp=target.entity.position;var diff=tp-p;float dist=diff.Planar,range=d.range*(d.ranged&&u.floor>target.floor+1?1.18f:1),min=target.definition.scale*.25f;
@@ -148,11 +150,13 @@ namespace Frontline.Core
             if(speed>0&&u.stance!="hold")
             {
                 if((Tick+e.id)%30==0){if(V3.DistanceXZ(p,u.progress)<.18f&&u.stun<=0)u.blocked++;else u.blocked=0;u.progress=p;if(u.blocked>=3){u.blocked=0;u.escapes++;u.escapeUntil=Tick+90;}}
-                if(u.escapeUntil>Tick&&!narrow)
+                if(u.escapeUntil>Tick)
                 {
-                    float side=(e.id%2==0?-1:1)*(u.escapes%2==0?-1:1);foreach(float baseAngle in EscapeAngles){float angle=baseAngle==3.14159f?baseAngle:baseAngle*side;var direction=new V3(move.x*(float)Math.Cos(angle)-move.z*(float)Math.Sin(angle),0,move.x*(float)Math.Sin(angle)+move.z*(float)Math.Cos(angle));var q=p+direction*1.2f;if(Catalog.Finite(Data.Height(Config.map,q.x,q.z))&&EscapeClear(q)){move=direction;break;}}
+                    if(narrow){float sign=tp.x>=p.x?1:-1;float side=(e.id%2==0?-1:1)*(u.escapes%2==0?-1:1);var trial=new V3(-sign*.65f,0,side*.45f);var q=p+trial*.55f;if(Catalog.Finite(GroundAt(q.x,q.z))&&EscapeClear(q)&&Math.Abs(q.z-u.routeLane)<1.35f){move=trial;speed*=.55f;}}
+                    else {float side=(e.id%2==0?-1:1)*(u.escapes%2==0?-1:1);foreach(float baseAngle in EscapeAngles){float angle=baseAngle==3.14159f?baseAngle:baseAngle*side;var direction=new V3(move.x*(float)Math.Cos(angle)-move.z*(float)Math.Sin(angle),0,move.x*(float)Math.Sin(angle)+move.z*(float)Math.Cos(angle));var q=p+direction*1.2f;if(Catalog.Finite(Data.Height(Config.map,q.x,q.z))&&EscapeClear(q)){move=direction;break;}}}
                 }
-                foreach(var a in Nearby(p,3))if(a!=u&&a.entity.team==e.team){var delta=p-a.entity.position;float squared=delta.x*delta.x+delta.z*delta.z,radius=.65f*(d.scale+a.definition.scale);if(squared<radius*radius&&squared>.0001f){float dd=(float)Math.Sqrt(squared);move+=CombatMotion.Separation(delta,radius,narrow,tp.x>=p.x?1:-1,dd);}}
+                // Stagger local perception at 10Hz; steering, forces and collision solving remain 60Hz.
+                if((Tick+e.id)%6==0){u.avoidanceTarget=new V3();foreach(var a in Nearby(p,3))if(a!=u&&a.entity.team==e.team){var delta=p-a.entity.position;float squared=delta.x*delta.x+delta.z*delta.z,radius=.65f*(d.scale+a.definition.scale);if(squared<radius*radius&&squared>.0001f){float dd=(float)Math.Sqrt(squared);u.avoidanceTarget+=CombatMotion.Separation(delta,radius,narrow,tp.x>=p.x?1:-1,dd);}}}u.avoidance+=(u.avoidanceTarget-u.avoidance)*.35f;move+=u.avoidance;
             }
             var velocity=e.body.Velocity;u.moveSpeed=velocity.Planar;float moveLength=move.Planar;bool faceMotion=!d.ranged&&speed>0&&moveLength>.001f;var facing=faceMotion?move:diff;float facingLength=faceMotion?moveLength:Math.Max(.001f,dist);float desiredAngle=(float)Math.Atan2(facing.x,facing.z);
             u.angle=CombatMotion.Turn(u.angle,desiredAngle,e.type,u.moveSpeed,Catalog.Step);var forward=u.angle==desiredAngle?new V3(facing.x/facingLength,0,facing.z/facingLength):CombatMotion.Forward(u.angle);
@@ -164,7 +168,7 @@ namespace Frontline.Core
                 if(e.type=="cavalry"){float alignment=Math.Max(0,move.x*forward.x+move.z*forward.z);desired=forward*(speed*(.22f+.78f*alignment));}
                 desired=CombatMotion.SlopeVelocity(desired,u.slope);float response=u.stun>0?.008f:terrain=="ice"?.035f:e.type=="cavalry"?.10f:.16f;
                 float vertical=u.stun<=0&&Math.Abs(u.slope)>.001f&&velocity.y<1.5f?(desired.y-velocity.y)*d.mass*.18f:0;
-                e.body.Impulse(new V3((desired.x-velocity.x)*d.mass*response,vertical,(desired.z-velocity.z)*d.mass*response));
+                if(speed>0||Math.Abs(velocity.x)>.12f||Math.Abs(velocity.z)>.12f||Math.Abs(vertical)>.0001f)e.body.Impulse(new V3((desired.x-velocity.x)*d.mass*response,vertical,(desired.z-velocity.z)*d.mass*response));
             }
             if(e.type=="cavalry")u.charge=Math.Min(1.5f,Math.Max(0,u.charge+(u.moveSpeed>3.8f&&terrain!="mud"?Catalog.Step:-Catalog.Step*.5f)));
             if(u.cooldown>0||!grounded||u.stun>0)return;
@@ -177,12 +181,12 @@ namespace Frontline.Core
             if(!u.preparing){u.preparing=true;u.windup=CombatMotion.Windup(e.type);u.attack=.85f;return;}
             u.windup-=Catalog.Step;u.attack=.7f;if(u.windup>0)return;u.preparing=false;u.cooldown=d.cooldown;u.attack=1;
             if(d.ranged)Shoot(u,target);
-            else if(e.type=="giant"){foreach(var a in Nearby(p,range+min))if(a.entity.team!=e.team)Hit(a,d.damage,e,d.knock);Effect("slam",p,.6f);Cue("slam",p);}
-            else{bool charge=e.type=="cavalry"&&u.charge>.55f,brace=e.type=="spear"&&target.entity.type=="cavalry"&&target.entity.body.Velocity.Planar>3;Hit(target,d.damage*(charge?2.5f:brace?1.8f:1),e,d.knock*(charge?3.5f:brace?1.4f:1));if(charge){u.charge=0;Effect("charge",p,.45f);Cue("charge",p);}}
+            else if(e.type=="giant"){foreach(var a in Nearby(p,range+min))if(a.entity.team!=e.team)Hit(a,d.damage,e,d.knock);Effect("sweep",p,.26f,u.angle);Effect("slam",p,.6f);Cue("heavy",p);}
+            else{bool charge=e.type=="cavalry"&&u.charge>.55f,brace=e.type=="spear"&&target.entity.type=="cavalry"&&target.entity.body.Velocity.Planar>3;Hit(target,d.damage*(charge?2.5f:brace?1.8f:1),e,d.knock*(charge?3.5f:brace?1.4f:1));if(e.type=="spear")Effect("thrust",p,.20f,u.angle);if(charge){u.charge=0;Effect("charge",p,.45f,u.angle);Cue("charge",p);}}
         }
         void Shoot(Soldier u,Soldier target)
         {
-            if(Shots.Count>=1024)return;var e=u.entity;var d=u.definition;var p=e.body.Position;var t=target.entity.body.Position;var delta=t-p;float dist=Math.Max(.01f,delta.Planar);
+            if(Shots.Count>=1024)return;var e=u.entity;var d=u.definition;var p=e.position;var t=target.entity.position;var delta=t-p;float dist=Math.Max(.01f,delta.Planar);
             string type=e.type=="bomber"?"bomb":e.type=="catapult"?"stone":e.type=="crossbow"?"bolt":"arrow";bool bomb=type=="bomb",stone=type=="stone",bolt=type=="bolt";
             float flight=Math.Max(.22f,dist/(bomb?10:stone?12:bolt?28:19)),gravity=bolt?.2f:1,spread=(Random.Next()-.5f)*(bomb?.9f:stone?1.1f:bolt?.2f:.55f);
             var spawn=CombatMotion.Launch(e.type,p,new V3(delta.x/dist,0,delta.z/dist),d.scale);var tv=target.entity.body.Velocity;var velocity=new V3((t.x+tv.x*flight*.6f-spawn.x+spread)/flight,(t.y+.15f-spawn.y+9*gravity*flight*flight)/flight,(t.z+tv.z*flight*.6f-spawn.z+spread)/flight);
@@ -195,8 +199,8 @@ namespace Frontline.Core
             if(source!=null){source.stats.damageDealt+=actual;if(source.team==e.team)source.stats.friendlyFire+=actual;target.lastSource=source;target.lastHitTick=Tick;}
             e.hp=Math.Max(0,e.hp-damage);target.stun=Math.Max(target.stun,CombatMotion.Stun(tier,block));
             if(tier>0&&target.preparing)target.windup=Math.Min(.42f,target.windup+(block?.025f:tier==2?.14f:.055f));
-            target.hitFlash=block?.38f:1;float tilt=(block?.025f:tier==2?.27f:.10f);target.hitTiltX=diff.x/dist*tilt;target.hitTiltZ=diff.z/dist*tilt;
-            var impulse=new V3(diff.x/dist*knock,knock*(block?.06f:tier==2?.58f:.14f),diff.z/dist*knock);e.body.Impulse(impulse);
+            if(block)target.guard=1;target.hitFlash=block?.38f:1;float tilt=(block?.025f:tier==2?.27f:.10f);target.hitTiltX=diff.x/dist*tilt;target.hitTiltZ=diff.z/dist*tilt;
+            var impulse=new V3(diff.x/dist*knock,knock*(block?.06f:tier==2?.58f:.14f),diff.z/dist*knock);e.body.Impulse(impulse);if(knock/target.definition.mass>=2.5f)(e.body as IWallImpactBody)?.ArmWallImpact(60);
             Cue(block?"block":tier==2?"heavy":"melee",p);
             if(block||tier==2||e.hp<=0||Tick-target.lastVisualTick>=4){Effect(block?"block":tier==2?"heavy":"hit",p+new V3(block?-diff.x/dist*.55f:0,.23f,block?-diff.z/dist*.55f:0),block?.26f:tier==2?.32f:.18f);target.lastVisualTick=Tick;}
             if(e.hp<=0)Kill(target,impulse,"combat",source);
@@ -208,13 +212,14 @@ namespace Frontline.Core
             if(!firstDeath){firstDeath=true;Highlight("firstKill",source==null?"neutral":source.team);}
             var p=e.body.Position;var v=e.body.Velocity;e.position=p;e.alive=false;e.hp=0;World.Remove(e.body);World.Corpse(e.id,e.type,e.team,Data.Units[e.type],p,v,impulse);
         }
+        public void WallFeedback(WallImpact impact){if(impact.speed<5||!soldiersById.TryGetValue(impact.id,out var u)||!u.entity.alive||Tick-u.lastWallTick<12)return;u.lastWallTick=Tick;u.stun=Math.Max(u.stun,.10f);u.hitFlash=Math.Max(u.hitFlash,.4f);Effect("wall",impact.point,.38f,(float)Math.Atan2(impact.normal.x,impact.normal.z));Cue("wall",impact.point);}
         void ChargeContact(int attacker,int defender)
         {
             if(!soldiersById.TryGetValue(attacker,out var u)||u.entity.type!="cavalry"||!u.entity.alive||u.charge<=.55f||u.moveSpeed<3.8f)return;
             if(!soldiersById.TryGetValue(defender,out var target)||!target.entity.alive||target.entity.team==u.entity.team)return;
             var delta=target.entity.position-u.entity.position;var forward=CombatMotion.Forward(u.angle);if((delta.x*forward.x+delta.z*forward.z)/Math.Max(.01f,delta.Planar)<.45f)return;
             Hit(target,u.definition.damage*2.5f,u.entity,Math.Max(u.definition.knock*2.8f,u.definition.mass*u.moveSpeed*.35f));u.charge=0;u.cooldown=u.definition.cooldown;u.preparing=false;u.attack=1;
-            Effect("charge",u.entity.position,.45f);Cue("heavy",u.entity.position);
+            Effect("charge",u.entity.position,.45f,u.angle);Cue("heavy",u.entity.position);
         }
         void RemoveShot(Shot shot){if(shot.removed)return;shot.removed=true;shotsById.Remove(shot.id);World.Remove(shot.body);}
         void Explode(Shot shot){if(shot.removed)return;var p=shot.body.Position;RemoveShot(shot);Blast(p,shot.type=="stone"?2.1f:3.6f,shot.damage,shot.knock,shot.owner);}
@@ -247,10 +252,10 @@ namespace Frontline.Core
         {
             if(cueTimes.TryGetValue(type,out var previous)&&Tick-previous<8)return;cueTimes[type]=Tick;if(Cues.Count>=24){cuePool.Push(Cues[0]);Cues.RemoveAt(0);}var cue=cuePool.Pop();cue.id=nextCue++;cue.tick=Tick;cue.type=type;cue.x=p.x;cue.y=p.y;cue.z=p.z;cue.strength=1;Cues.Add(cue);
         }
-        void Effect(string type,V3 p,float life){if(Effects.Count>=CombatMotion.EffectCapacity){effectPool.Push(Effects[0]);Effects.RemoveAt(0);}var fx=effectPool.Pop();fx.id=nextEffect++;fx.type=type;fx.x=p.x;fx.y=p.y;fx.z=p.z;fx.life=fx.maxLife=life;Effects.Add(fx);}
+        void Effect(string type,V3 p,float life,float angle=0){if(Effects.Count>=CombatMotion.EffectCapacity){effectPool.Push(Effects[0]);Effects.RemoveAt(0);}var fx=effectPool.Pop();fx.id=nextEffect++;fx.type=type;fx.x=p.x;fx.y=p.y;fx.z=p.z;fx.life=fx.maxLife=life;fx.angle=angle;Effects.Add(fx);}
         public void Step()
         {
-            if(disposed)throw new ObjectDisposedException("Battle");if(Result!=null)return;Cache();if(Config.commander.enabled)TickOrders();if(Tick%6==0)TickProps();foreach(var u in Units)if(u.entity.alive)Command(u);World.Step(Catalog.Step);
+            if(disposed)throw new ObjectDisposedException("Battle");if(Result!=null)return;Cache();if(Config.commander.enabled)TickOrders();if(Tick%6==0)TickProps();foreach(var u in Units)if(u.entity.alive)Command(u);World.Step(Catalog.Step);if(World is IWallImpactWorld walls)foreach(var impact in walls.WallImpacts())WallFeedback(impact);
             foreach(var contact in World.Contacts())
             {
                 shotsById.TryGetValue(contact.a,out var shot);if(shot==null)shotsById.TryGetValue(contact.b,out shot);if(shot==null){ChargeContact(contact.a,contact.b);ChargeContact(contact.b,contact.a);continue;}if(shot.type=="bomb")continue;int other=contact.a==shot.id?contact.b:contact.a;if(other==shot.owner.id)continue;if(shot.type=="stone"){Explode(shot);continue;}if(entities.TryGetValue(other,out var entity)&&entity.alive){soldiersById.TryGetValue(entity.id,out var u);if(u!=null)Hit(u,shot.damage,shot.owner,shot.knock,shot.body.Position,shot.pierce);else{propsById.TryGetValue(entity.id,out var prop);if(prop!=null)DamageProp(prop,shot.damage,shot.owner);}}RemoveShot(shot);
@@ -269,19 +274,19 @@ namespace Frontline.Core
         public int SnapshotShotCapacity {get {int total=0;foreach(var u in Units)if(u.definition.ranged)total+=(int)Math.Ceiling(6f*1.15f/u.definition.cooldown)+2;return Math.Min(1024,total);}}
         public Frame PrepareSnapshot()
         {
-            var f=new Frame();f.storage=new SnapshotStorage();f.storage.Prepare(f,Units.Count,SnapshotShotCapacity,Props.Count,CombatMotion.EffectCapacity);return f;
+            var f=new Frame();f.storage=new SnapshotStorage();f.storage.Prepare(f,Units.Count,SnapshotShotCapacity,Props.Count,CombatMotion.EffectCapacity);for(int i=0;i<Units.Count;i++){var u=Units[i];var row=f.units[i];row.id=u.entity.id;row.type=u.entity.type;row.team=u.entity.team;}return f;
         }
         public Frame Snapshot(Frame reuse=null)
         {
-            var f=reuse??new Frame();if(f.storage==null)f.storage=new SnapshotStorage();var storage=f.storage;f.tick=Tick;f.time=Time;f.result=Result;
+            var f=reuse??new Frame();if(f.storage==null){f.storage=new SnapshotStorage(f);f.units.Capacity=Units.Count;}var storage=f.storage;f.tick=Tick;f.time=Time;f.result=Result;
             f.commander.points["red"]=Commander.points["red"];f.commander.points["blue"]=Commander.points["blue"];f.commander.readyAt["red"]=Commander.readyAt["red"];f.commander.readyAt["blue"]=Commander.readyAt["blue"];
             SnapshotStorage.Size(f.commander.log,storage.log,Commander.log.Count);for(int i=0;i<Commander.log.Count;i++)CopyOrder(Commander.log[i],f.commander.log[i]);
             SnapshotStorage.Size(f.commander.active,storage.active,Commander.active.Count);for(int i=0;i<Commander.active.Count;i++)CopyOrder(Commander.active[i],f.commander.active[i]);
             SnapshotStorage.Size(f.cues,storage.cues,Cues.Count);for(int i=0;i<Cues.Count;i++){var a=Cues[i];var b=f.cues[i];b.id=a.id;b.tick=a.tick;b.type=a.type;b.x=a.x;b.y=a.y;b.z=a.z;b.strength=a.strength;}
-            SnapshotStorage.Size(f.effects,storage.effects,Effects.Count);for(int i=0;i<Effects.Count;i++){var a=Effects[i];var b=f.effects[i];b.id=a.id;b.type=a.type;b.x=a.x;b.y=a.y;b.z=a.z;b.life=a.life;b.maxLife=a.maxLife;}
+            SnapshotStorage.Size(f.effects,storage.effects,Effects.Count);for(int i=0;i<Effects.Count;i++){var a=Effects[i];var b=f.effects[i];b.id=a.id;b.type=a.type;b.x=a.x;b.y=a.y;b.z=a.z;b.life=a.life;b.maxLife=a.maxLife;b.angle=a.angle;}
             // Restore the retained slots after a previous frame had fewer bodies.
-            SnapshotStorage.Size(f.ragdolls,storage.corpses,Math.Max(storage.corpses.Count,24));World.Corpses(f.ragdolls);
-            while(f.units.Count<Units.Count)f.units.Add(new UnitFrame());for(int i=0;i<Units.Count;i++){var u=Units[i];var e=u.entity;var v=f.units[i];v.id=e.id;v.type=e.type;v.team=e.team;v.stance=u.stance;v.hp=e.hp;v.alive=e.alive;v.angle=u.angle;v.attack=u.attack;v.charge=u.charge;v.hitFlash=u.hitFlash;v.hitTiltX=u.hitTiltX;v.hitTiltZ=u.hitTiltZ;v.moveSpeed=u.moveSpeed;v.moveForward=u.moveForward;v.gait=u.gait;v.inspired=u.inspireUntil>Tick;v.fortified=u.fortifyUntil>Tick;v.t=e.alive?e.body.Transform(v.t):null;}
+            SnapshotStorage.Size(f.ragdolls,storage.corpses,World is ICorpseCount count?count.CorpseCount:24);World.Corpses(f.ragdolls);
+            while(f.units.Count<Units.Count)f.units.Add(new UnitFrame());for(int i=0;i<Units.Count;i++){var u=Units[i];var e=u.entity;var v=f.units[i];if(v.id!=e.id){v.id=e.id;v.type=e.type;v.team=e.team;}v.stance=u.stance;v.hp=e.hp;v.alive=e.alive;v.angle=u.angle;v.attack=u.attack;v.charge=u.charge;v.hitFlash=u.hitFlash;v.hitTiltX=u.hitTiltX;v.hitTiltZ=u.hitTiltZ;v.moveSpeed=u.moveSpeed;v.moveForward=u.moveForward;v.gait=u.gait;v.guard=u.guard;v.inspired=u.inspireUntil>Tick;v.fortified=u.fortifyUntil>Tick;v.t=e.alive?e.body.Transform(v.t):null;}
             SnapshotStorage.Size(f.projectiles,storage.projectiles,Shots.Count);for(int i=0;i<Shots.Count;i++){var s=Shots[i];var p=f.projectiles[i];p.id=s.id;p.type=s.type;p.t=s.body.Transform(p.t);p.v=s.body.Velocity;}
             SnapshotStorage.Size(f.props,storage.props,Props.Count);for(int i=0;i<Props.Count;i++){var p=Props[i];var v=f.props[i];v.id=p.entity.id;v.type=p.entity.type;v.team=p.entity.team;v.x=p.entity.spawn.x;v.z=p.entity.spawn.z;v.floor=p.floor;v.hp=p.entity.hp;v.alive=p.entity.alive;v.active=p.fuse>=0||p.cooldown>0;}return f;
         }
