@@ -83,7 +83,7 @@ namespace Frontline.UnityGame
         }
         public void CancelJob(){if(job!=null)StopCoroutine(job);(activeJob as IDisposable)?.Dispose();activeJob=null;job=null;Busy=false;Progress=null;Tell("已停止计算");Refresh();}
         public void RequestStart(){if(Busy||Phase!="deploy")return;if(Mode=="hotseat"&&Hotseat!="revealed"){SealHotseat();return;}if(Mode=="ai")PlanArmy("blue",true);else if(Mode=="auto")StartJob(AutoPlan());else Try(StartBattle);}
-        IEnumerator AutoPlan(){foreach(string team in new[]{"red","blue"}){var r=PlanRoutine(team,false);while(r.MoveNext()){Busy=true;yield return r.Current;}}Busy=false;StartBattle();}
+        IEnumerator AutoPlan(){foreach(string team in new[]{"red","blue"}){var r=PlanRoutine(team,false);try{while(r.MoveNext()){Busy=true;yield return r.Current;}}finally{(r as IDisposable)?.Dispose();}}Busy=false;StartBattle();}
         void StartBattle()
         {
             Config=Data.Validate(Config);if(Config.red.Count==0||Config.blue.Count==0)throw new FormatException("双方至少需要一名士兵");Config.commander.aiTeams=Config.commander.enabled?(Mode=="auto"?new List<string>{"red","blue"}:Mode=="ai"?new List<string>{"blue"}:new List<string>()):new List<string>();Battle?.Dispose();Battle=new Battle(Data,Config,Factory);ReplayFile=null;recorded.Clear();recorded.Add(Battle.Snapshot());live=Battle.Snapshot();Phase="battle";Paused=false;accumulator=0;Selected.Clear();if(Bo3&&Series==null)Series=new BattleSeries(Data,Config);Refresh();
@@ -112,7 +112,7 @@ namespace Frontline.UnityGame
         {
             if(Busy)throw new InvalidOperationException("请先停止当前计算");var raw=Json.Parse(text) as Dictionary<string,object>;if(raw==null)throw new FormatException("JSON 需要是对象");
             if(raw.TryGetValue("format",out var format)&&(string)format=="frontline-replay"){var replay=Replay.Import(Data,text);ReturnToDeploy();Config=replay.config;ReplayFile=replay;if(replay.kind=="seed")StartJob(ExpandSeed(replay));else Watch();return;}
-            if(!CanEdit)throw new InvalidOperationException("请先返回布阵");var imported=Data.Import(text);if(Mode=="hotseat"&&Hotseat!="revealed"){if(imported.map!=Config.map||imported.budget!=Config.budget)throw new FormatException("热座封存不能变更地图和军费");Remember();Config=Data.LoadFavorite(Config,EditingTeam,Data.SaveFavorite(imported,EditingTeam,"导入"),PlayerLimit);}else{Remember();Config=imported;PlayerLimit=Config.budget;Series=null;}Selected.Clear();Tell("阵型已导入");Refresh();
+            if(!CanEdit)throw new InvalidOperationException("请先返回布阵");var imported=Data.Import(text);if(Mode=="hotseat"&&Hotseat!="revealed"){if(imported.map!=Config.map||imported.budget!=Config.budget)throw new FormatException("热座封存不能变更地图和军费");Remember();Config=Data.LoadFavorite(Config,EditingTeam,Data.SaveFavorite(imported,EditingTeam,"导入"),PlayerLimit);}else{Remember();Config=imported;PlayerLimit=Config.budget;Series=null;Mode="sandbox";Team="red";Hotseat="revealed";}Selected.Clear();Tell("阵型已导入");Refresh();
         }
         IEnumerator ExpandSeed(ReplayPackage replay)
         {

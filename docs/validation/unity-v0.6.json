@@ -141,6 +141,7 @@
       "native v3 replay import",
       "timeline seek and pause state",
       "first-kill marker seek",
+      "full formation import preserves both sides",
       "no browser error-level logs"
     ]
   }
