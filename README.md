@@ -6,7 +6,7 @@
 
 ![Unity 网页版](docs/screenshots/unity-desktop.jpg)
 
-已执行的 138 项测试、双平台构建、原生 Bot 对战、六图与浏览器检查，以及尚未持平的 CPU 基准差距，见 [实际验证记录](docs/V0.6_VALIDATION.md)。
+已执行的 139 项测试、双平台构建、原生 Bot 对战、六图与浏览器检查，以及尚未持平的 CPU 基准差距，见 [实际验证记录](docs/V0.6_VALIDATION.md)。
 
 ## 构建与运行
 

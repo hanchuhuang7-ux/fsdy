@@ -21,7 +21,7 @@ namespace Frontline.Core
         static bool Dangerous(string s) { return s == "__proto__" || s == "prototype" || s == "constructor"; }
         static object ConvertValue(object value, Type target)
         {
-            if (value == null) return target.IsValueType ? Activator.CreateInstance(target) : null;
+            if (value == null) {if(target.IsPrimitive||target.IsEnum||target==typeof(decimal))throw new FormatException("数值或布尔字段不能为 null");return target.IsValueType?Activator.CreateInstance(target):null;}
             if (target == typeof(object)) return value;
             if (target == typeof(string)) { if (!(value is string)) throw new FormatException("需要字符串"); return value; }
             if (target == typeof(bool)) { if (!(value is bool)) throw new FormatException("需要布尔值"); return value; }

@@ -67,7 +67,7 @@ namespace Frontline.UnityGame
         public void Mission(int index){ReturnToDeploy();Mode="ai";var m=Data.Data.missions[index];Config=Data.Default(m.map,m.budget);Data.ApplyFormation(Config,"blue",m.enemy);Config.red.Clear();PlayerLimit=m.budget;undo.Clear();Series=null;Tell(m.name+"："+m.description);Refresh();}
         public void PlanArmy(string team,bool start=false)
         {
-            if(Busy||Phase!="deploy")return;if(Mode=="hotseat"&&Hotseat!="revealed"&&team!=EditingTeam){Tell("封存期间不能推演对手");return;}StartJob(PlanRoutine(team,start));
+            if(!CanEdit)return;if(Mode=="hotseat"&&team!=EditingTeam){Tell("封存期间不能推演对手");return;}StartJob(PlanRoutine(team,start));
         }
         IEnumerator PlanRoutine(string team,bool start)
         {
@@ -83,7 +83,7 @@ namespace Frontline.UnityGame
         }
         public void CancelJob(){if(job!=null)StopCoroutine(job);(activeJob as IDisposable)?.Dispose();activeJob=null;job=null;Busy=false;Progress=null;Tell("已停止计算");Refresh();}
         public void RequestStart(){if(Busy||Phase!="deploy")return;if(Mode=="hotseat"&&Hotseat!="revealed"){SealHotseat();return;}if(Mode=="ai")PlanArmy("blue",true);else if(Mode=="auto")StartJob(AutoPlan());else Try(StartBattle);}
-        IEnumerator AutoPlan(){foreach(string team in new[]{"red","blue"}){var r=PlanRoutine(team,false);try{while(r.MoveNext()){Busy=true;yield return r.Current;}}finally{(r as IDisposable)?.Dispose();}}Busy=false;StartBattle();}
+        IEnumerator AutoPlan(){foreach(string team in new[]{"red","blue"}){Busy=true;Refresh();var r=PlanRoutine(team,false);try{while(r.MoveNext()){Busy=true;yield return r.Current;}}finally{(r as IDisposable)?.Dispose();}}Busy=false;StartBattle();}
         void StartBattle()
         {
             Config=Data.Validate(Config);if(Config.red.Count==0||Config.blue.Count==0)throw new FormatException("双方至少需要一名士兵");Config.commander.aiTeams=Config.commander.enabled?(Mode=="auto"?new List<string>{"red","blue"}:Mode=="ai"?new List<string>{"blue"}:new List<string>()):new List<string>();Battle?.Dispose();Battle=new Battle(Data,Config,Factory);ReplayFile=null;recorded.Clear();recorded.Add(Battle.Snapshot());live=Battle.Snapshot();Phase="battle";Paused=false;accumulator=0;Selected.Clear();if(Bo3&&Series==null)Series=new BattleSeries(Data,Config);Refresh();
@@ -125,5 +125,3 @@ namespace Frontline.UnityGame
         void OnDestroy(){Battle?.Dispose();}
     }
 }
-
-
