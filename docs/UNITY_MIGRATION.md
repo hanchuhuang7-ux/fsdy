@@ -1,6 +1,6 @@
 # Unity 版迁移说明
 
-Unity 工程位于 `Unity/`，固定编辑器 **6000.6.9f1**，游戏版本 **0.8.0**。目标为 Windows x64 与 WebGL。正式游戏的规则、物理、渲染、音效、输入和界面均在 Unity C# 内执行。
+Unity 工程位于 `Unity/`，固定编辑器 **6000.6.9f1**，游戏版本 **0.9.0**。目标为 Windows x64 与 WebGL。正式游戏的规则、物理、渲染、音效、输入和界面均在 Unity C# 内执行。
 
 ## 环境与构建
 
@@ -45,7 +45,7 @@ Windows 成品为 `Builds/Windows/FrontlineLab.exe`，网页成品为 `dist/`。
 node Tools/convert-legacy-replay.mjs old-seed.json full-trajectory.json
 ```
 
-- Unity 新回放为 v3，`engineVersion: unity-0.8.0`。可导出完整轨迹或原生种子包。
+- Unity 新回放为 v3，`engineVersion: unity-0.9.0`。可导出完整轨迹或原生种子包。
 - 更换为 PhysX 后，战斗结果不会与 Rapier 逐帧相等。不能承诺不同平台、编辑器版本或 CPU 的 PhysX 种子包位级一致；跨平台分享使用完整轨迹。检查同一构建重复运行的完整战报，避免把此检查误述成跨平台确定性保证。
 - 根目录 `src/`、`test/` 与旧脚本是冻结的旧版转换与回归工具，不会打入 Unity WebGL 游戏，也不会在 Unity 内嵌网页。
 
@@ -110,3 +110,12 @@ v0.7 实测、不同测法及限制见 [Unity 0.7 验证记录](V0.7_VALIDATION.
 `Core/HistoricalBattle07.cs` 冻结0.6/0.7规则；`LegacyUnityPhysics.cs` 对应0.6，`Unity07Physics.cs` 对应0.7。旧种子展开与再次导出保留原 engineVersion；新增规则仅使用 unity-0.8.0。原0.6/0.7完整轨迹SHA在真实PhysX中逐字一致。跨平台仍交换完整轨迹。
 
 完整验收、所有性能测法、动态原图与限制见 [v0.8 验证记录](V0.8_VALIDATION.md)。`npm test` 为87项JS与84项C#；`checks` 额外执行实际碰撞、接触冲锋、三图8人纵队和历史完整轨迹黄金校验。`node Tools/unity.mjs benchmark --timings 1` 可额外查看物理/快照耗时分解与GC回收次数；默认验收不启用计时探针。
+
+
+## v0.9 精修与历史冻结
+
+0.8 的 Battle、CombatMotion 与完整物理适配器分别冻结到 HistoricalBattle08、HistoricalMotion08、Unity08Physics；当前规则使用 unity-0.9.0。旧种子身份与完整 JSON 的 SHA 均由真实 PhysX 检查。未改变60Hz、3米网格、碰撞轮廓和求解迭代数。
+
+格挡/重击使用粗亮条、盾牌回弹，长枪/大锤/冲锋有实例化闪影。强击退后60步内碰撞实际墙/岩/拒马可生成一次尘雾与震荡提示，地面与普通行走接触不触发。骑兵地面/友军接触在回调入口过滤；MoveRotation 接受规则角速度限制。窄口连续受阻后允许有限反向与切线试探。HUD 使用真实残余战力比例，军令关闭时底板紧凑，状态纳入底板。
+
+完整验收与原始测量见 [v0.9 验证记录](V0.9_VALIDATION.md)。

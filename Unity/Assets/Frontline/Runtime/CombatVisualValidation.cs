@@ -24,7 +24,7 @@ namespace Frontline.UnityGame
         {while(app.Battle!=null&&app.Battle.Tick<tick&&app.Battle.Result==null)yield return null;}
         IEnumerator Freeze(string name,string phase,bool controlled=false)
         {
-            app.Paused=true;app.Refresh();Record(name+"-"+phase,controlled);yield return Capture(name,phase);app.Paused=false;
+            app.Paused=true;app.Refresh();Record(name+"-"+phase,controlled);yield return new WaitForSecondsRealtime(.12f);yield return Capture(name,phase);app.Paused=false;
         }
         IEnumerator UntilEffect(string type,int deadline)
         {
@@ -47,11 +47,15 @@ namespace Frontline.UnityGame
             yield return UntilEffect("block",600);Record("shield-block");impact=app.Battle.Tick;
             for(int i=0;i<5;i++){yield return UntilTick(impact+i*2);yield return Freeze("block","sparks-"+i);}
 
+
+            Scenario("meadow");Unit("red","giant",-5,0);for(int i=0;i<3;i++)Unit("blue","militia",4,-1.7f+i*1.7f,"hold");Begin(new Vector3(0,.8f,0),14);yield return UntilEffect("sweep",600);yield return Freeze("hammer","sweep");
+            Scenario("meadow");Unit("red","spear",-3,0);Unit("blue","shield",3,0,"hold");Begin(new Vector3(0,.8f,0),14);yield return UntilEffect("thrust",600);yield return Freeze("spear","thrust");
+            app.Config.commander.enabled=true;app.Refresh();yield return Freeze("hud","commands");
             Scenario("ruins");Unit("red","catapult",-3.8f,5.5f);Unit("blue","shield",9,5.5f,"hold");Begin(new Vector3(-.7f,.9f,5.5f),15);
             yield return UntilTick(2);yield return Freeze("cart","before-wall");
-            // Explicit controlled collision test: one initial velocity impulse, real PhysX wall.
-            var cart=app.Battle.Units[0];cart.entity.body.Impulse(new V3(cart.definition.mass*24,0,0));
-            yield return UntilTick(70);Record("cart-wall",true);yield return Freeze("cart","wall-contact",true);
+            // Controlled high-knockback test: one impulse + one second of stun, then real PhysX wall.
+            var cart=app.Battle.Units[0];cart.stun=1;((IWallImpactBody)cart.entity.body).ArmWallImpact(120);cart.entity.body.Impulse(new V3(cart.definition.mass*24,0,0));
+            yield return UntilEffect("wall",120);yield return Freeze("wall","dust",true);yield return UntilTick(70);Record("cart-wall",true);yield return Freeze("cart","wall-contact",true);
 
             Scenario("bridge");for(int i=0;i<8;i++)Unit("red",i%3==0?"shield":"militia",-6-(i/2)*2,i%2==0?-.9f:.9f);Unit("blue","giant",14,0,"hold");Unit("blue","medic",16,2,"hold");Begin(new Vector3(0,0,0),23);
             yield return UntilTick(210);Record("bridge-column");yield return Freeze("bridge","column");yield return UntilTick(420);Record("bridge-exit");yield return Freeze("bridge","exit");

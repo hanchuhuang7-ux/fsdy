@@ -20,5 +20,5 @@ test('native acceptance executes actual collision, projectile and full historica
  const s=read('Unity/Assets/Frontline/Runtime/HeadlessRunner.cs');
  assert.match(s,/CombatPhysicsChecks.Run/);assert.match(s,/HistoricalChecks.Run/);
  const golden=JSON.parse(read('Unity/Assets/Frontline/Resources/history-goldens.json'));
- assert.deepEqual(golden.map(g=>[g.engine,g.tick,g.winner]),[['unity-0.6.0',1847,'red'],['unity-0.7.0',2279,'blue']]);
+ assert.deepEqual(golden.map(g=>[g.engine,g.tick,g.winner]),[['unity-0.6.0',1847,'red'],['unity-0.7.0',2279,'blue'],['unity-0.8.0',1468,'blue']]);
 });

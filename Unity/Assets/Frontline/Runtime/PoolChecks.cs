@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Frontline.Core;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Frontline.UnityGame
 {
@@ -28,12 +29,21 @@ namespace Frontline.UnityGame
                 var first=battle.PrepareSnapshot();var live=battle.PrepareSnapshot();
                 world.Corpse(1,"cavalry","red",data.Units["cavalry"],new V3(0,3,0),new V3(),new V3());battle.Snapshot(first);string saved=Json.Write(first);
                 for(int i=0;i<32;i++){world.Corpse(10+i,"militia","blue",data.Units["militia"],new V3(i%4,3,i%6),new V3(),new V3());world.Step(Catalog.Step);world.AgeCorpses(Catalog.Step);battle.Snapshot(live);}
+                VerifyPoseParity(world);
                 Require(saved==Json.Write(first),"Pooled corpse mutated an archived frame");Require(live.ragdolls.Count==24&&live.ragdolls[0].parts.Count==6,"Corpse pool bound or six-body contract changed");
                 Require(world.ProjectilePoolMisses==0&&world.CorpsePoolMisses==0,"A prewarmed physics pool was exhausted");
                 for(int i=0;i<8;i++)battle.Snapshot(live);long start=AllocationMeter.Read();for(int i=0;i<100;i++)battle.Snapshot(live);long bytes=AllocationMeter.Available?AllocationMeter.Read()-start:-1;
                 Require(!AllocationMeter.Available||bytes==0,"Prepared native corpse snapshots allocated "+bytes+" bytes");
                 Debug.Log("FRONTLINE_POOL_OK projectiles=256 corpseReuses=32 parts=6 snapshotAllocatedBytes="+bytes+" misses=0");
             }
+        }
+        static void VerifyPoseParity(UnityWorld world)
+        {
+            int count=0;foreach(var root in SceneManager.GetSceneByName(world.SceneName).GetRootGameObjects())foreach(var rb in root.GetComponentsInChildren<Rigidbody>()){
+                rb.transform.GetPositionAndRotation(out var position,out var rotation);
+                Require((position-rb.position).sqrMagnitude<.00000001f&&Mathf.Abs(Quaternion.Dot(rotation,rb.rotation))>.999999f,"Combined pose read lagged physics");count++;
+            }
+            Require(count>=6,"Pose parity check missed ragdolls");Debug.Log("FRONTLINE_POSE_OK combinedReads="+count);
         }
     }
 }
