@@ -1,0 +1,10 @@
+{
+  "license": "SIL OFL 1.1",
+  "original": "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf",
+  "sourceSha256": "2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b",
+  "subsetSha256": "ec32b326cc3be63888fea430f0db2ac86083409d1d3fabf225afd7fb15008883",
+  "sourceBytes": 16437364,
+  "subsetBytes": 1931800,
+  "requestedCharacters": 9618,
+  "coverage": "GB2312 byte grid decoded with GB18030, Latin, punctuation, symbols, fullwidth and all shipped C#/JSON text"
+}

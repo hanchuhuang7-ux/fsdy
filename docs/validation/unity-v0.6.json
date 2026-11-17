@@ -1,0 +1,148 @@
+{
+  "engine": "unity-0.6.0",
+  "unity": "6000.6.9f1",
+  "tests": {
+    "legacyJs": 77,
+    "portableCSharp": 62,
+    "total": 139
+  },
+  "fixedHz": 60,
+  "gridMeters": 3,
+  "smoke": [
+    {
+      "map": "meadow",
+      "ticks": 1467,
+      "winner": "red",
+      "frames": 246,
+      "orders": 6
+    },
+    {
+      "map": "bridge",
+      "ticks": 1395,
+      "winner": "red",
+      "frames": 234,
+      "orders": 6
+    },
+    {
+      "map": "island",
+      "ticks": 1787,
+      "winner": "blue",
+      "frames": 299,
+      "orders": 6
+    },
+    {
+      "map": "ruins",
+      "ticks": 1573,
+      "winner": "blue",
+      "frames": 264,
+      "orders": 6
+    },
+    {
+      "map": "marsh",
+      "ticks": 3147,
+      "winner": "blue",
+      "frames": 526,
+      "orders": 6
+    },
+    {
+      "map": "highland",
+      "ticks": 3560,
+      "winner": "blue",
+      "frames": 595,
+      "orders": 6
+    }
+  ],
+  "agents": {
+    "observations": 106,
+    "accepted": 12,
+    "rejected": 0,
+    "timeouts": 0,
+    "reasons": []
+  },
+  "series": {
+    "winner": "red",
+    "wins": {
+      "red": 2,
+      "blue": 0,
+      "draw": 0
+    },
+    "rounds": [
+      {
+        "seed": 42,
+        "time": 24.45,
+        "winner": "red"
+      },
+      {
+        "seed": 43,
+        "time": 27.833334,
+        "winner": "red"
+      }
+    ]
+  },
+  "timeout": {
+    "observations": 98,
+    "accepted": 6,
+    "rejected": 0,
+    "timeouts": 49,
+    "reasons": []
+  },
+  "oracleHashes": [
+    "167e8aef69f1e1a343023776e3fcd63b67d12888db97c08377a3b4d761d2dfb3",
+    "167e8aef69f1e1a343023776e3fcd63b67d12888db97c08377a3b4d761d2dfb3"
+  ],
+  "performance": {
+    "defaultMsPerStep": 0.17666138888888888,
+    "largeMsPerStep": 0.4365686111111111,
+    "legacyV04MsPerStep": 0.34082819444444445,
+    "relativeChange": 0.28090521332228713,
+    "fixedStepBudgetMs": 16.666666666666668,
+    "legacy10PercentGatePassed": false
+  },
+  "font": {
+    "license": "SIL OFL 1.1",
+    "original": "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansCJKsc-Regular.otf",
+    "sourceSha256": "2c76254f6fc379fddfce0a7e84fb5385bb135d3e399294f6eeb6680d0365b74b",
+    "subsetSha256": "ec32b326cc3be63888fea430f0db2ac86083409d1d3fabf225afd7fb15008883",
+    "sourceBytes": 16437364,
+    "subsetBytes": 1931800,
+    "requestedCharacters": 9618,
+    "coverage": "GB2312 byte grid decoded with GB18030, Latin, punctuation, symbols, fullwidth and all shipped C#/JSON text"
+  },
+  "compatibility": {
+    "formations": [
+      "0.1",
+      "0.2",
+      "0.3",
+      "0.4",
+      "0.5"
+    ],
+    "legacyTrajectories": true,
+    "legacySeedRequiresConverter": true,
+    "crossPlatformBitwisePhysicsGuaranteed": false
+  },
+  "browser": {
+    "desktop": {
+      "width": 1280,
+      "height": 800
+    },
+    "compact": {
+      "width": 390,
+      "height": 844
+    },
+    "realMobileHardwareTested": false,
+    "checks": [
+      "camera mode prevents placement",
+      "point placement",
+      "Ctrl+Z",
+      "battle",
+      "Space pause",
+      "oracle progress",
+      "12-match round robin and JSON download",
+      "native v3 replay import",
+      "timeline seek and pause state",
+      "first-kill marker seek",
+      "full formation import preserves both sides",
+      "no browser error-level logs"
+    ]
+  }
+}

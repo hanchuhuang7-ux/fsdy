@@ -1,0 +1,1 @@
+{"name":"Frontline.Editor","rootNamespace":"Frontline.Editor","references":["Frontline.Core","Frontline.Runtime"],"includePlatforms":["Editor"]}

@@ -5,3 +5,15 @@ dist/
 !.env.example
 *.log
 .DS_Store
+Unity/[Ll]ibrary/
+Unity/[Tt]emp/
+Unity/[Oo]bj/
+Unity/[Ll]ogs/
+Unity/UserSettings/
+Unity/.vs/
+Unity/*.csproj
+Unity/*.sln*
+Builds/
+Tools/**/bin/
+Tools/**/obj/
+Tools/*.local.json

@@ -1,0 +1,183 @@
+{
+  "version": "0.5.0",
+  "map": "meadow",
+  "seed": 20261116,
+  "budget": 2200,
+  "red": [
+    {
+      "type": "shield",
+      "x": -5,
+      "z": -2,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": -5,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": -5,
+      "z": 2,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": -7,
+      "z": -2.7,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": -7,
+      "z": -0.9,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": -7,
+      "z": 0.9,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": -7,
+      "z": 2.7,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": -10,
+      "z": -1.8,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": -10,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": -10,
+      "z": 1.8,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": -12,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "cavalry",
+      "x": -5,
+      "z": -4.5,
+      "stance": "advance"
+    },
+    {
+      "type": "cavalry",
+      "x": -5,
+      "z": 4.5,
+      "stance": "advance"
+    },
+    {
+      "type": "medic",
+      "x": -13.5,
+      "z": 0,
+      "stance": "advance"
+    }
+  ],
+  "blue": [
+    {
+      "type": "shield",
+      "x": 5,
+      "z": -2,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 5,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "shield",
+      "x": 5,
+      "z": 2,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 7,
+      "z": -2.7,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 7,
+      "z": -0.9,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 7,
+      "z": 0.9,
+      "stance": "advance"
+    },
+    {
+      "type": "spear",
+      "x": 7,
+      "z": 2.7,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": 10,
+      "z": -1.8,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": 10,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "archer",
+      "x": 10,
+      "z": 1.8,
+      "stance": "advance"
+    },
+    {
+      "type": "bomber",
+      "x": 12,
+      "z": 0,
+      "stance": "advance"
+    },
+    {
+      "type": "cavalry",
+      "x": 5,
+      "z": -4.5,
+      "stance": "advance"
+    },
+    {
+      "type": "cavalry",
+      "x": 5,
+      "z": 4.5,
+      "stance": "advance"
+    },
+    {
+      "type": "medic",
+      "x": 13.5,
+      "z": 0,
+      "stance": "advance"
+    }
+  ],
+  "props": [],
+  "commander": {
+    "enabled": false,
+    "aiTeams": []
+  }
+}
