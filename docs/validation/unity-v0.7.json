@@ -1,0 +1,533 @@
+{
+  "version": "0.7.0",
+  "date": "2026-11-17",
+  "timezone": "Asia/Shanghai",
+  "unity": "6000.6.9f1",
+  "tests": {
+    "js": 83,
+    "core": 68,
+    "total": 151
+  },
+  "cpu": {
+    "historicalUnity06": 0.4365686111111111,
+    "sameMachineBefore": 0.3987694444444445,
+    "rapier04": 0.34082819444444445,
+    "firstOptimization": 0.3786763888888889,
+    "gridOnly": 0.378035,
+    "optimizedPreRelease": 0.2975966666666667,
+    "finalPrepared": 0.2848863888888889,
+    "finalFresh": 0.3124041666666667,
+    "target": 0.37,
+    "rapierTenPercentLimit": 0.3749110138888889,
+    "targetPassed": true,
+    "rapierGatePassed": true,
+    "changeVsHistoricalUnity": -0.3474418873958338,
+    "changeVsSameMachineBefore": -0.2855862131418183,
+    "changeVsRapier": -0.16413491156957138,
+    "note": "720 fixed steps plus 10Hz snapshots; one warmup and five measured runs. Prepared storage is allocated before timing. Fresh mode reproduces the old allocation-in-timed-region method. AllocationMeter calibration fails on these Unity runtimes; -1 is unavailable."
+  },
+  "render": {
+    "windows": {
+      "developmentBuild": false,
+      "version": "0.7.0",
+      "unity": "6000.6.9f1",
+      "platform": "WindowsPlayer",
+      "graphics": "Intel(R) Arc(TM) B390 GPU",
+      "graphicsApi": "Direct3D12",
+      "width": 1280,
+      "height": 800,
+      "targetFps": 60,
+      "qualityAudit": [
+        {
+          "quality": 0,
+          "instances": 535,
+          "submissions": 28,
+          "shadowDistance": 22,
+          "staticRebuilds": 4
+        },
+        {
+          "quality": 1,
+          "instances": 748,
+          "submissions": 28,
+          "shadowDistance": 42,
+          "staticRebuilds": 5
+        },
+        {
+          "quality": 2,
+          "instances": 1050,
+          "submissions": 29,
+          "shadowDistance": 65,
+          "staticRebuilds": 6
+        }
+      ],
+      "rows": [
+        {
+          "unitsPerTeam": 45,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 16.66709966957569,
+          "p95FrameMilliseconds": 16.693295910954475,
+          "medianFps": 59.998441230024625,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 89,
+          "medianRenderSubmissions": 29,
+          "gcCounterAvailable": false,
+          "gcMeasurement": "Unavailable in this player; -1 is not zero allocation",
+          "medianGcBytes": -1,
+          "meanGcBytes": -1,
+          "maxGcBytes": -1,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        },
+        {
+          "unitsPerTeam": 60,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 16.667502000927925,
+          "p95FrameMilliseconds": 16.71050116419792,
+          "medianFps": 59.996992947373116,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 129,
+          "medianRenderSubmissions": 43,
+          "gcCounterAvailable": false,
+          "gcMeasurement": "Unavailable in this player; -1 is not zero allocation",
+          "medianGcBytes": -1,
+          "meanGcBytes": -1,
+          "maxGcBytes": -1,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        }
+      ]
+    },
+    "windowsProfiler": {
+      "developmentBuild": true,
+      "version": "0.7.0",
+      "unity": "6000.6.9f1",
+      "platform": "WindowsPlayer",
+      "graphics": "Intel(R) Arc(TM) B390 GPU",
+      "graphicsApi": "Direct3D12",
+      "width": 1280,
+      "height": 800,
+      "targetFps": 60,
+      "qualityAudit": [
+        {
+          "quality": 0,
+          "instances": 535,
+          "submissions": 28,
+          "shadowDistance": 22,
+          "staticRebuilds": 4
+        },
+        {
+          "quality": 1,
+          "instances": 748,
+          "submissions": 28,
+          "shadowDistance": 42,
+          "staticRebuilds": 5
+        },
+        {
+          "quality": 2,
+          "instances": 1050,
+          "submissions": 29,
+          "shadowDistance": 65,
+          "staticRebuilds": 6
+        }
+      ],
+      "rows": [
+        {
+          "unitsPerTeam": 45,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 16.66709966957569,
+          "p95FrameMilliseconds": 16.704102978110313,
+          "medianFps": 59.998441230024625,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 90,
+          "medianRenderSubmissions": 29,
+          "gcCounterAvailable": true,
+          "gcMeasurement": "Unity GC Allocated In Frame",
+          "medianGcBytes": 784,
+          "meanGcBytes": 882.8388888888888,
+          "maxGcBytes": 65606,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        },
+        {
+          "unitsPerTeam": 60,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 16.66709966957569,
+          "p95FrameMilliseconds": 16.709303483366966,
+          "medianFps": 59.998441230024625,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 130,
+          "medianRenderSubmissions": 43,
+          "gcCounterAvailable": true,
+          "gcMeasurement": "Unity GC Allocated In Frame",
+          "medianGcBytes": 432,
+          "meanGcBytes": 695.3527777777778,
+          "maxGcBytes": 22148,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        }
+      ]
+    },
+    "web": {
+      "developmentBuild": false,
+      "version": "0.7.0",
+      "unity": "6000.6.9f1",
+      "platform": "WebGLPlayer",
+      "graphics": "ANGLE (Intel, Intel(R) Arc(TM) B390 GPU (0x0000B080) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "graphicsApi": "OpenGLES3",
+      "width": 1280,
+      "height": 800,
+      "targetFps": 60,
+      "qualityAudit": [
+        {
+          "quality": 0,
+          "instances": 535,
+          "submissions": 28,
+          "shadowDistance": 22,
+          "staticRebuilds": 4
+        },
+        {
+          "quality": 1,
+          "instances": 748,
+          "submissions": 28,
+          "shadowDistance": 42,
+          "staticRebuilds": 5
+        },
+        {
+          "quality": 2,
+          "instances": 1050,
+          "submissions": 29,
+          "shadowDistance": 65,
+          "staticRebuilds": 6
+        }
+      ],
+      "rows": [
+        {
+          "unitsPerTeam": 45,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 8,
+          "p95FrameMilliseconds": 9,
+          "medianFps": 125,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 84,
+          "medianRenderSubmissions": 29,
+          "gcCounterAvailable": false,
+          "gcMeasurement": "Unavailable in this player; -1 is not zero allocation",
+          "medianGcBytes": -1,
+          "meanGcBytes": -1,
+          "maxGcBytes": -1,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        },
+        {
+          "unitsPerTeam": 60,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 8,
+          "p95FrameMilliseconds": 9,
+          "medianFps": 125,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 124,
+          "medianRenderSubmissions": 42,
+          "gcCounterAvailable": false,
+          "gcMeasurement": "Unavailable in this player; -1 is not zero allocation",
+          "medianGcBytes": -1,
+          "meanGcBytes": -1,
+          "maxGcBytes": -1,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        }
+      ]
+    },
+    "web390": {
+      "developmentBuild": false,
+      "version": "0.7.0",
+      "unity": "6000.6.9f1",
+      "platform": "WebGLPlayer",
+      "graphics": "ANGLE (Intel, Intel(R) Arc(TM) B390 GPU (0x0000B080) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "graphicsApi": "OpenGLES3",
+      "width": 390,
+      "height": 844,
+      "targetFps": 60,
+      "qualityAudit": [
+        {
+          "quality": 0,
+          "instances": 535,
+          "submissions": 28,
+          "shadowDistance": 22,
+          "staticRebuilds": 4
+        },
+        {
+          "quality": 1,
+          "instances": 748,
+          "submissions": 28,
+          "shadowDistance": 42,
+          "staticRebuilds": 5
+        },
+        {
+          "quality": 2,
+          "instances": 1050,
+          "submissions": 29,
+          "shadowDistance": 65,
+          "staticRebuilds": 6
+        }
+      ],
+      "rows": [
+        {
+          "unitsPerTeam": 45,
+          "width": 390,
+          "height": 844,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 8,
+          "p95FrameMilliseconds": 9,
+          "medianFps": 125,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 61,
+          "medianRenderSubmissions": 29,
+          "gcCounterAvailable": false,
+          "gcMeasurement": "Unavailable in this player; -1 is not zero allocation",
+          "medianGcBytes": -1,
+          "meanGcBytes": -1,
+          "maxGcBytes": -1,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        },
+        {
+          "unitsPerTeam": 60,
+          "width": 390,
+          "height": 844,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 8.000006675720215,
+          "p95FrameMilliseconds": 10.000007629394531,
+          "medianFps": 124.99989569195868,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 87,
+          "medianRenderSubmissions": 42,
+          "gcCounterAvailable": false,
+          "gcMeasurement": "Unavailable in this player; -1 is not zero allocation",
+          "medianGcBytes": -1,
+          "meanGcBytes": -1,
+          "maxGcBytes": -1,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        }
+      ]
+    },
+    "webProfiler": {
+      "developmentBuild": true,
+      "version": "0.7.0",
+      "unity": "6000.6.9f1",
+      "platform": "WebGLPlayer",
+      "graphics": "ANGLE (Intel, Intel(R) Arc(TM) B390 GPU (0x0000B080) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "graphicsApi": "OpenGLES3",
+      "width": 1280,
+      "height": 800,
+      "targetFps": 60,
+      "qualityAudit": [
+        {
+          "quality": 0,
+          "instances": 535,
+          "submissions": 28,
+          "shadowDistance": 22,
+          "staticRebuilds": 4
+        },
+        {
+          "quality": 1,
+          "instances": 748,
+          "submissions": 28,
+          "shadowDistance": 42,
+          "staticRebuilds": 5
+        },
+        {
+          "quality": 2,
+          "instances": 1050,
+          "submissions": 29,
+          "shadowDistance": 65,
+          "staticRebuilds": 6
+        }
+      ],
+      "rows": [
+        {
+          "unitsPerTeam": 45,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 8,
+          "p95FrameMilliseconds": 9,
+          "medianFps": 125,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 85,
+          "medianRenderSubmissions": 29,
+          "gcCounterAvailable": true,
+          "gcMeasurement": "Unity GC Allocated In Frame",
+          "medianGcBytes": 0,
+          "meanGcBytes": 324.27777777777777,
+          "maxGcBytes": 65032,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        },
+        {
+          "unitsPerTeam": 60,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 8,
+          "p95FrameMilliseconds": 9,
+          "medianFps": 125,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 125,
+          "medianRenderSubmissions": 42,
+          "gcCounterAvailable": true,
+          "gcMeasurement": "Unity GC Allocated In Frame",
+          "medianGcBytes": 0,
+          "meanGcBytes": 97.11111111111111,
+          "maxGcBytes": 22200,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        }
+      ]
+    }
+  },
+  "uiChecks": {
+    "desktopStanceFooterVisible": true,
+    "web390PlaceBudgetBefore": 1620,
+    "web390PlaceBudgetAfter": 1660,
+    "web390UndoBudget": 1620,
+    "browserErrors": 0
+  },
+  "crossPlatform": [
+    {
+      "engine": "unity-0.6.0",
+      "frames": 309,
+      "completeJsonEqual": true,
+      "canonicalSha256": "3176437ae4200d056be0b901a547daa831f4046b91e44ff67c9576946033d152"
+    },
+    {
+      "engine": "unity-0.7.0",
+      "frames": 381,
+      "completeJsonEqual": true,
+      "canonicalSha256": "e8929e1e4f81509b839587bd33469ddaf400f7fc72181ed9cc9ff8f1cfcb3f68"
+    }
+  ],
+  "legacySeed": {
+    "exactResultJsonEqual": true,
+    "ticks": 1847,
+    "winner": "red"
+  },
+  "smoke": [
+    {
+      "map": "meadow",
+      "ticks": 2365,
+      "winner": "blue",
+      "frames": 396,
+      "orders": 6
+    },
+    {
+      "map": "bridge",
+      "ticks": 3061,
+      "winner": "red",
+      "frames": 512,
+      "orders": 6
+    },
+    {
+      "map": "island",
+      "ticks": 2227,
+      "winner": "blue",
+      "frames": 373,
+      "orders": 6
+    },
+    {
+      "map": "ruins",
+      "ticks": 2836,
+      "winner": "red",
+      "frames": 474,
+      "orders": 6
+    },
+    {
+      "map": "marsh",
+      "ticks": 5400,
+      "winner": "draw",
+      "frames": 901,
+      "orders": 6
+    },
+    {
+      "map": "highland",
+      "ticks": 5400,
+      "winner": "blue",
+      "frames": 901,
+      "orders": 6
+    }
+  ],
+  "agent": {
+    "observations": 160,
+    "accepted": 12,
+    "rejected": 0,
+    "timeouts": 0,
+    "reasons": []
+  },
+  "builds": [
+    {
+      "target": "StandaloneWindows64",
+      "bytes": 81170386,
+      "time": "00:00:12.9049326"
+    },
+    {
+      "target": "WebGL",
+      "bytes": 17720864,
+      "time": "00:01:44.5233815"
+    }
+  ],
+  "webDirectoryBytes": 9297468,
+  "bakedMeshes": 128,
+  "knownLimitations": [
+    "PhysX is not promised bit-identical across platforms or editor versions; exchange complete trajectories.",
+    "Old Rapier seeds still require the frozen converter.",
+    "Windows process Bots are unavailable in WebGL; full Bot trajectories import on WebGL.",
+    "WebGL frame time has millisecond quantization: 8ms converts to 125 FPS and is not an exact monitor-refresh measurement.",
+    "Native and browser Release builds do not expose the GC counter; separate Development builds supply GC measurements.",
+    "Game startup preallocates up to 902 independent replay frames. The CPU benchmark excludes this setup cost.",
+    "Unity Editor SearchDatabase indexing threw once during Play Mode checks; command exited 0 and standalone checks succeeded.",
+    "390px browser pointer testing is not a physical phone multi-touch test.",
+    "Existing Noto CJK subset may lack rare user-name characters."
+  ]
+}

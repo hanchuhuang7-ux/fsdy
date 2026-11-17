@@ -19,8 +19,10 @@ namespace Frontline.Core
         void PushCorpses(V3 origin,float radius);
         void Step(float dt);
         void AgeCorpses(float dt);
-        List<CorpseFrame> Corpses();
+        List<CorpseFrame> Corpses(List<CorpseFrame> reuse=null);
         List<Contact> Contacts();
     }
+    // Retains v0.6 floating-point evaluation order when rebuilding its native seeds.
+    public interface ILegacyCompatibilityWorld {}
     public interface IWorldFactory {IPhysicsWorld Create(Catalog catalog,Deployment config);}
 }
