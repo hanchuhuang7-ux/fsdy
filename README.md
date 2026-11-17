@@ -2,11 +2,11 @@
 
 原生 Unity 3D 物理对战沙盘，支持 **Windows x64 + WebGL 网页版**。10 个兵种、6 张地图、5 种道具，以及人机、双 AI、热座、Bo3、统帅军令、算策推演、演武擂台与高光回放。
 
-游戏版本 **0.7.0**，Unity **6000.6.9f1**。运行时使用 C# + Unity PhysX，60Hz 固定步长、3 米空间网格和 GPU 实例合批。Three.js / Rapier 仅保留为旧回放转换与回归工具，不在 Unity 成品中运行。
+游戏版本 **0.8.0**，Unity **6000.6.9f1**。运行时使用 C# + Unity PhysX，60Hz 固定步长、3 米空间网格和 GPU 实例合批。Three.js / Rapier 仅保留为旧回放转换与回归工具，不在 Unity 成品中运行。
 
 ![Unity 网页版](docs/screenshots/unity-desktop.jpg)
 
-v0.7 使用128个预烘焙低多边形网格、顶点色实例染色、六图纯视觉生态和三档画质。151项检查、双平台构建、实际性能与限制见 [v0.7 验证记录](docs/V0.7_VALIDATION.md)；[v0.6历史报告](docs/V0.6_VALIDATION.md)保留原始性能对照。
+v0.8 加入完整受击闪白/方向后仰、分级硬直和盾牌减击退，按速度驱动步态与骑兵惯性，修正马身、车架、岩石和发射起手碰撞。沿用128个低多边形网格、顶点色实例合批、六图纯视觉生态与三档画质。171项测试、逐帧历史兼容校验、双端实测和未达标的中间基准见 [v0.8 验证记录](docs/V0.8_VALIDATION.md)；[v0.7记录](docs/V0.7_VALIDATION.md)与[v0.6记录](docs/V0.6_VALIDATION.md)保留原始对照。
 
 ## 构建与运行
 
@@ -35,7 +35,7 @@ npm run agent-battle -- --red-bot red-bot.json --blue-bot blue-bot.json
 
 ## 历史兼容
 
-0.1–0.6 布阵可导入，完整轨迹回放可直接播放。旧种子包先展开为完整轨迹：
+0.1–0.7 产品生成的布阵可导入（布阵存档 schema 仍为0.6.0），完整轨迹回放可直接播放。旧种子包先展开为完整轨迹：
 
 ```powershell
 node Tools/convert-legacy-replay.mjs old-seed.json full-trajectory.json
@@ -52,3 +52,5 @@ node Tools/convert-legacy-replay.mjs old-seed.json full-trajectory.json
 - `src` / `test` / `scripts`：冻结的旧版工具与 77 项回归测试；[旧版说明](docs/LEGACY_README.md)。
 
 源码 MIT。中文字体为 Noto Sans CJK，附 OFL。原创游戏实现，玩法灵感来自物理混战沙盘，没有复用其他游戏的源码、素材或选手提交。
+
+0.6 与 0.7 Unity 种子使用冻结规则及对应的历史物理适配器；0.8 新种子标识为 `unity-0.8.0`。完整轨迹仍为 v3，旧帧新增视觉字段缺省为零，重新导出保持历史完整 JSON 一致。

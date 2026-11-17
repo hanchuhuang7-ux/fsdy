@@ -17,12 +17,12 @@ namespace Frontline.Core
             output.Clear();if(output.Capacity<count)output.Capacity=count;
             for(int i=0;i<count;i++)output.Add(slots[i]);
         }
-        internal void Prepare(Frame f,int units,int shots,int propCount)
+        internal void Prepare(Frame f,int units,int shots,int propCount,int effectCount=41)
         {
             while(f.units.Count<units)f.units.Add(new UnitFrame{t=new float[7]});
             Size(f.projectiles,projectiles,shots);foreach(var p in projectiles)if(p.t==null)p.t=new float[7];
             Size(f.ragdolls,corpses,24);foreach(var c in corpses){c.wreckStorage=new float[4];c.wreck=c.wreckStorage;while(c.parts.Count<6)c.parts.Add(new CorpsePart{t=new float[7]});}
-            Size(f.cues,cues,24);Size(f.effects,effects,41);Size(f.props,props,propCount);
+            Size(f.cues,cues,24);Size(f.effects,effects,effectCount);Size(f.props,props,propCount);
             Size(f.commander.log,log,6);Size(f.commander.active,active,6);
         }
     }

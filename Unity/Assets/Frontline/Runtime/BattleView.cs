@@ -12,20 +12,21 @@ namespace Frontline.UnityGame
         public List<int> Selection=new List<int>();[NonSerialized] public Vector3? Marker;public float MarkerRadius=1;public bool Deploying=true;public int CameraMode;
         public int QualityLevel {get;private set;}=1;public int RenderSubmissions {get;private set;}public int RenderInstances {get;private set;}public int StaticRebuilds {get;private set;}
         const int Capacity=256;
-        static readonly int TeamId=Shader.PropertyToID("_TeamColor"),WindId=Shader.PropertyToID("_Wind"),SoftnessId=Shader.PropertyToID("_Softness");
+        static readonly int HitId=Shader.PropertyToID("_HitFlash"),TeamId=Shader.PropertyToID("_TeamColor"),WindId=Shader.PropertyToID("_Wind"),SoftnessId=Shader.PropertyToID("_Softness");
         static readonly Color Red=new Color(.82f,.22f,.17f),Blue=new Color(.17f,.43f,.79f),Gold=new Color(1,.75f,.27f),White=Color.white;
         sealed class MeshSet {public Mesh high,low;public Batch moving,still,grid;public bool atmosphere;}
         sealed class Batch
         {
-            public MeshSet mesh;public readonly Matrix4x4[] matrices=new Matrix4x4[Capacity];public readonly Vector4[] colors=new Vector4[Capacity];public readonly float[] winds=new float[Capacity];public readonly MaterialPropertyBlock properties=new MaterialPropertyBlock();public int count;public bool low;public Batch next;
+            public MeshSet mesh;public readonly Matrix4x4[] matrices=new Matrix4x4[Capacity];public readonly Vector4[] colors=new Vector4[Capacity];public readonly float[] flashes=new float[Capacity];public readonly float[] winds=new float[Capacity];public readonly MaterialPropertyBlock properties=new MaterialPropertyBlock();public int count;public bool low;public Batch next;
             public void Clear(){count=0;if(next!=null)next.Clear();}
-            public void Add(Matrix4x4 matrix,Color color,float wind)
-            {if(count==Capacity){if(next==null)next=new Batch{mesh=mesh,low=low};next.Add(matrix,color,wind);return;}matrices[count]=matrix;colors[count]=color;winds[count]=wind;count++;}
+            public void Add(Matrix4x4 matrix,Color color,float wind,float flash=0)
+            {if(count==Capacity){if(next==null)next=new Batch{mesh=mesh,low=low};next.Add(matrix,color,wind,flash);return;}matrices[count]=matrix;colors[count]=color;winds[count]=wind;flashes[count]=flash;count++;}
         }
         sealed class UnitVisual {public MeshSet body,right;}
         readonly Dictionary<string,MeshSet> meshes=new Dictionary<string,MeshSet>();readonly Dictionary<string,MeshSet> fxMeshes=new Dictionary<string,MeshSet>();readonly Dictionary<string,UnitVisual> units=new Dictionary<string,UnitVisual>();readonly Dictionary<string,MeshSet> props=new Dictionary<string,MeshSet>();
         readonly List<Batch> moving=new List<Batch>(),still=new List<Batch>(),grid=new List<Batch>();
         Material material,atmosphere,sky;Light sun,fill;MeshSet armLeft,leg,horse,horseLeg,catapult,catapultArm,shield,ring,dot,torso,head,limb,wreckHorse,wreckCart,arrow,bolt,bomb,stone;MapEcology.Mote[] motes;
+        MeshSet dust;float activeFlash;struct MotionSample {public Vector3 p;public float time,speed,phase,direction;public bool valid;}readonly MotionSample[] oldMotion=new MotionSample[122];
         Vector3 target=Vector3.zero;float yaw,distance=40,pitch=51;int cameraWidth,cameraHeight,cachedQuality=-1;string cachedMap;Vector3 cameraPosition;
         void Awake()
         {
@@ -36,7 +37,7 @@ namespace Frontline.UnityGame
             material.SetColor("_FillColor",fill.color*fill.intensity);material.SetVector("_FillDirection",-fill.transform.forward);RenderSettings.ambientLight=new Color(.46f,.53f,.59f);
             foreach(string type in new[]{"militia","shield","spear","archer","crossbow","bomber","medic","giant","cavalry","catapult"})units.Add(type,new UnitVisual{body=Load("body_"+type),right=Load("arm_right_"+type)});
             foreach(string type in new[]{"barrel","barricade","banner","spikes","spring"})props.Add(type,Load("prop_"+type));
-            armLeft=Load("arm_left");leg=Load("leg");horse=Load("horse");horseLeg=Load("horse_leg");catapult=Load("catapult");catapultArm=Load("catapult_arm");shield=Load("shield");ring=Load("ring");dot=Load("dot");torso=Load("torso");head=Load("head");limb=Load("limb");wreckHorse=Load("wreck_horse");wreckCart=Load("wreck_catapult");arrow=Load("arrow");bolt=Load("bolt");bomb=Load("bomb");stone=Load("stone");
+            dust=Load("mist",true);armLeft=Load("arm_left");leg=Load("leg");horse=Load("horse");horseLeg=Load("horse_leg");catapult=Load("catapult");catapultArm=Load("catapult_arm");shield=Load("shield");ring=Load("ring");dot=Load("dot");torso=Load("torso");head=Load("head");limb=Load("limb");wreckHorse=Load("wreck_horse");wreckCart=Load("wreck_catapult");arrow=Load("arrow");bolt=Load("bolt");bomb=Load("bomb");stone=Load("stone");
             SetQuality(Mathf.Clamp(PlayerPrefs.GetInt("frontline.visual.quality",1),0,2));
         }
         MeshSet Load(string name,bool transparent=false)
@@ -50,13 +51,13 @@ namespace Frontline.UnityGame
             var b=category==0?mesh.moving:category==1?mesh.still:mesh.grid;
             if(b==null){b=new Batch{mesh=mesh};if(category==0)mesh.moving=b;else if(category==1)mesh.still=b;else mesh.grid=b;list.Add(b);}return b;
         }
-        void Add(MeshSet mesh,Matrix4x4 matrix,Color color,float wind=0){Buffer(mesh,moving,0).Add(matrix,color,wind);}
+        void Add(MeshSet mesh,Matrix4x4 matrix,Color color,float wind=0){Buffer(mesh,moving,0).Add(matrix,color,wind,activeFlash);}
         void Draw(Batch b,bool isStatic)
         {
             bool low=QualityLevel==0||distance>(QualityLevel==2?58:42);var mesh=low?b.mesh.low:b.mesh.high;
             for(var page=b;page!=null;page=page.next)if(page.count>0)
             {
-                page.properties.SetVectorArray(TeamId,page.colors);page.properties.SetFloatArray(b.mesh.atmosphere?SoftnessId:WindId,page.winds);
+                page.properties.SetVectorArray(TeamId,page.colors);if(!b.mesh.atmosphere)page.properties.SetFloatArray(HitId,page.flashes);page.properties.SetFloatArray(b.mesh.atmosphere?SoftnessId:WindId,page.winds);
                 Graphics.DrawMeshInstanced(mesh,0,b.mesh.atmosphere?atmosphere:material,page.matrices,page.count,page.properties,b.mesh.atmosphere?ShadowCastingMode.Off:ShadowCastingMode.On,!b.mesh.atmosphere,0,ViewCamera);
                 RenderSubmissions++;RenderInstances+=page.count;
             }
@@ -80,9 +81,11 @@ namespace Frontline.UnityGame
         static Color Team(string team){return team=="red"?Red:team=="blue"?Blue:Gold;}
         static Matrix4x4 Pose(Vector3 p,Quaternion rotation,Vector3 scale){return Matrix4x4.TRS(p,rotation,scale);}
         void Ring(Vector3 p,float radius,Color color){Add(ring,Pose(p,Quaternion.identity,new Vector3(radius,1,radius)),color);}
-        void Soldier(string type,string team,Vector3 p,float angle,float attack,float scale,int id,float hp=1,bool inspired=false,bool fortified=false,string stance="advance")
+        void Soldier(string type,string team,Vector3 p,float angle,float attack,float scale,int id,float hp=1,bool inspired=false,bool fortified=false,string stance="advance",float speed=0,float direction=0,float gait=0,float hitFlash=0,float hitTiltX=0,float hitTiltZ=0,float charge=0)
         {
-            if(type=="cavalry")p.y+=.55f*scale;var color=Team(team);float tilt=0;if(type=="cavalry"){float dx=Mathf.Sin(angle)*.6f*scale,dz=Mathf.Cos(angle)*.6f*scale;float front=Data.Height(Config.map,p.x+dx,p.z+dz),back=Data.Height(Config.map,p.x-dx,p.z-dz);if(Catalog.Finite(front)&&Catalog.Finite(back))tilt=-Mathf.Atan2(front-back,1.2f*scale)*Mathf.Rad2Deg;}var root=Pose(p,Quaternion.Euler(0,angle*Mathf.Rad2Deg,0)*Quaternion.Euler(tilt,0,0),Vector3.one*scale);var model=units[type];float walk=Deploying?0:Mathf.Sin((Current?.time??Time.time)*8+id)*24;float swing=Mathf.Sin(Mathf.Clamp01(attack)*Mathf.PI)*65;
+            activeFlash=hitFlash;float time=Current?.time??Time.time;
+            if(!Deploying&&gait==0&&id<oldMotion.Length){var m=oldMotion[id];if(time<m.time)m=default;if(m.valid&&time>m.time){var delta=p-m.p;float dt=time-m.time;m.speed=new Vector2(delta.x,delta.z).magnitude/dt;m.phase+=new Vector2(delta.x,delta.z).magnitude/scale;m.direction=(delta.x*Mathf.Sin(angle)+delta.z*Mathf.Cos(angle))/Mathf.Max(.001f,new Vector2(delta.x,delta.z).magnitude);}m.p=p;m.time=time;m.valid=true;oldMotion[id]=m;speed=m.speed;gait=m.phase;direction=m.direction;}
+            p.y+=Mathf.Sin(time*2.2f+id)*.008f*scale;if(type=="cavalry")p.y+=.55f*scale;var color=Team(team);float tilt=type=="cavalry"?Mathf.Clamp01(charge/1.1f)*7:0;if(type=="cavalry"){float dx=Mathf.Sin(angle)*.6f*scale,dz=Mathf.Cos(angle)*.6f*scale;float front=Data.Height(Config.map,p.x+dx,p.z+dz),back=Data.Height(Config.map,p.x-dx,p.z-dz);if(Catalog.Finite(front)&&Catalog.Finite(back))tilt-=Mathf.Atan2(front-back,1.2f*scale)*Mathf.Rad2Deg;}var root=Pose(p,Quaternion.Euler(hitTiltZ*Mathf.Rad2Deg,0,-hitTiltX*Mathf.Rad2Deg)*Quaternion.Euler(0,angle*Mathf.Rad2Deg,0)*Quaternion.Euler(tilt,0,0),Vector3.one*scale);var model=units[type];float amplitude=speed<.12f?0:Mathf.Clamp01(speed/Data.Units[type].speed);float walk=Deploying?0:Mathf.Sin(gait*4.4f*(direction<-.15f?-1:1)+id)*28*amplitude*(direction<-.15f?.65f:1);float swing=Mathf.Sin(Mathf.Clamp01(attack)*Mathf.PI)*65;
             Add(model.body,root,color);
             if(type=="catapult")
             {Add(catapult,root,White);Add(catapultArm,root*Pose(new Vector3(0,.59f,0),Quaternion.Euler(-35-swing*.8f,0,0),Vector3.one),White);}
@@ -99,9 +102,21 @@ namespace Frontline.UnityGame
                 }
             }
             float ground=Data.Height(Config.map,p.x,p.z);if(!Catalog.Finite(ground))ground=p.y-.8f*scale;var foot=new Vector3(p.x,ground+.045f,p.z);
+            activeFlash=0;
+            if(!Deploying&&type=="cavalry"&&charge>.55f&&speed>3.8f){for(int i=0;i<2;i++){float age=Mathf.Repeat(gait*.65f+i*.5f,1);var dp=foot-new Vector3(Mathf.Sin(angle),0,Mathf.Cos(angle))*(.5f+age*.9f);dp.y+=.12f+age*.22f;Add(dust,Pose(dp,Quaternion.Euler(0,id*37,0),Vector3.one*(.25f+age*.45f)),new Color(.66f,.57f,.39f,.24f*(1-age)));}}
             if(Selection.Contains(id))Ring(foot,.7f*scale,Gold);else if(Deploying&&stance!="advance")Ring(foot,.48f*scale,stance=="hold"?new Color(.64f,.72f,.75f):White);
             if(inspired||fortified)Ring(foot,.65f*scale,fortified?new Color(.47f,.76f,1):Gold);
             if(hp<.99f){Add(dot,Pose(p+Vector3.up*(1.1f*scale),Quaternion.identity,new Vector3(.7f*scale,.055f,.1f)),new Color(.12f,.15f,.18f));Add(dot,Pose(p+new Vector3(-.35f*scale*(1-hp),1.12f*scale,0),Quaternion.identity,new Vector3(.7f*scale*Mathf.Clamp01(hp),.06f,.11f)),color);}
+        }
+        public void Focus(Vector3 point,float zoom=19,float viewPitch=43,float viewYaw=0){target=point;distance=zoom;pitch=viewPitch;yaw=viewYaw;}
+        void Impact(EffectFrame e)
+        {
+            float f=1-e.life/e.maxLife;var p=new Vector3(e.x,e.y,e.z);bool block=e.type=="block",heavy=e.type=="heavy";
+            if(block||heavy||e.type=="hit"){
+                int count=block?7:heavy?8:3;for(int i=0;i<count;i++){float a=i*2.39996f+e.id*1.13f;var d=new Vector3(Mathf.Cos(a),.35f+Mathf.Abs(Mathf.Sin(a*2)),Mathf.Sin(a));var q=p+d*f*(heavy?1.6f:.95f)+Vector3.down*f*f*.65f;float length=(1-f)*(block?.22f:.13f);Add(dot,Pose(q,Quaternion.FromToRotation(Vector3.up,d),new Vector3(.025f,length,.025f)),block?new Color(1,.88f,.46f):heavy?new Color(1,.54f,.18f):new Color(1,.94f,.85f));}
+                if(!heavy)return;
+            }
+            Ring(p+Vector3.up*.12f,.3f+f*(e.type=="heal"?1:2.5f),e.type=="heal"?new Color(.37f,.89f,.55f):new Color(1,.49f,.13f));
         }
         void Prop(string type,string team,float x,float z,float ground,bool active)
         {if(!Catalog.Finite(ground))return;Add(props[type],Pose(new Vector3(x,ground,z),Quaternion.identity,Vector3.one),active&&type=="barrel"?new Color(1,.45f,.12f):Team(team),type=="banner"?.025f:0);}
@@ -122,7 +137,7 @@ namespace Frontline.UnityGame
             }
             else
             {
-                foreach(var u in Current.units)if(u.alive&&u.t!=null)Soldier(u.type,u.team,new Vector3(u.t[0],u.t[1],u.t[2]),u.angle,u.attack,Data.Units[u.type].scale,u.id,u.hp/Data.Units[u.type].hp,u.inspired,u.fortified,u.stance);
+                foreach(var u in Current.units)if(u.alive&&u.t!=null)Soldier(u.type,u.team,new Vector3(u.t[0],u.t[1],u.t[2]),u.angle,u.attack,Data.Units[u.type].scale,u.id,u.hp/Data.Units[u.type].hp,u.inspired,u.fortified,u.stance,u.moveSpeed,u.moveForward,u.gait,u.hitFlash,u.hitTiltX,u.hitTiltZ,u.charge);
                 foreach(var p in Current.props)if(p.alive)Prop(p.type,p.team,p.x,p.z,p.floor,p.active);
                 foreach(var s in Current.projectiles){var t=s.t;var mesh=s.type=="stone"?stone:s.type=="bomb"?bomb:s.type=="bolt"?bolt:arrow;var velocity=UnityWorld.Vector(s.v);Add(mesh,Pose(new Vector3(t[0],t[1],t[2]),velocity.sqrMagnitude>.0001f?Quaternion.LookRotation(velocity):Quaternion.identity,Vector3.one),White);}
                 foreach(var r in Current.ragdolls)
@@ -131,7 +146,7 @@ namespace Frontline.UnityGame
                     if(r.wreck!=null&&r.wreck.Length==4&&Catalog.Finite(r.wreck[1])){var w=r.wreck;Add(r.type=="cavalry"?wreckHorse:wreckCart,Pose(new Vector3(w[0],w[1],w[2]),Quaternion.Euler(0,w[3]*Mathf.Rad2Deg,0),Vector3.one*scale),Team(r.team));}
                     foreach(var part in r.parts){var t=part.t;Add(part.name=="torso"?torso:part.name=="head"?head:limb,Pose(new Vector3(t[0],t[1],t[2]),new Quaternion(t[3],t[4],t[5],t[6]),Vector3.one*scale),part.name=="head"?White:Team(r.team));}
                 }
-                foreach(var e in Current.effects){float f=1-e.life/e.maxLife;Ring(new Vector3(e.x,e.y+.12f,e.z),.3f+f*(e.type=="heal"?1:2.5f),e.type=="heal"?new Color(.37f,.89f,.55f):new Color(1,.49f,.13f));}
+                foreach(var e in Current.effects)Impact(e);
                 foreach(var o in Current.commander.active)if(o.endTick>Current.tick)Ring(new Vector3(o.x,Data.Height(Config.map,o.x,o.z)+.08f,o.z),o.type=="focus"?4:6,Team(o.team));
             }
             float time=Time.time;

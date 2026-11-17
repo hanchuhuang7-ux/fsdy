@@ -44,7 +44,7 @@ namespace Frontline.UnityGame
                     Put(rows,"cliff",new Vector3(p.x,p.y-p.hy-.45f,p.z),new Vector3(p.hx*2.01f,.85f,p.hz*2.01f),tint:rock*.85f);
                 }
             }
-            foreach(var r in map.rocks)Put(rows,"rock",new Vector3(r.x,r.r*.2f,r.z),Vector3.one*r.r*2,Range(rng,0,360),rock);
+            foreach(var r in map.rocks)Put(rows,"rock",new Vector3(r.x,r.r*.2f,r.z),Vector3.one*r.r*2,CombatMotion.RockYaw(r.x,r.z),rock);
             foreach(var w in map.walls){bool alongZ=w.hz>w.hx;Put(rows,"wall",new Vector3(w.x,w.hy,w.z),alongZ?new Vector3(w.hz*2,w.hy*2,w.hx*2):new Vector3(w.hx*2,w.hy*2,w.hz*2),alongZ?90:0,tint:rock);}
             foreach(var z in map.zones)
             {float h=data.Height(id,z.x,z.z);if(Catalog.Finite(h))Put(rows,"platform",new Vector3(z.x,h+.008f,z.z),new Vector3(z.hx*2,.012f,z.hz*2),tint:z.type=="mud"?new Color(.31f,.34f,.24f):new Color(.61f,.8f,.85f));}

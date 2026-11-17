@@ -106,7 +106,7 @@ namespace Frontline.UnityGame
         public void Seek(float time){if(ReplayFile?.kind!="trajectory")return;Phase="replay";ReplayTime=Mathf.Clamp(time,0,ReplayFile.result.time);live=ReplayFile.frames[Replay.AtTime(ReplayFile.frames,ReplayTime)];View.Current=live;Paused=true;}
         public void SeekHighlight(Highlight h){if(ReplayFile==null)return;int index=Replay.AfterTick(ReplayFile.frames,h.tick);Seek(ReplayFile.frames[index].time);Refresh();}
         public void ExportConfig(){Try(()=>FileBridge.Export("frontline-formation.json",Json.Write(Mode=="hotseat"?PublicConfig:Config)));}
-        public void ExportReplay(bool seed=false){if(ReplayFile==null)return;Try(()=>FileBridge.Export(seed?"frontline-seed.json":"frontline-replay.json",Json.Write(seed?Replay.Create(Data,ReplayFile.config,ReplayFile.frames,ReplayFile.result,true):ReplayFile)));}
+        public void ExportReplay(bool seed=false){if(ReplayFile==null)return;Try(()=>FileBridge.Export(seed?"frontline-seed.json":"frontline-replay.json",Json.Write(seed?Replay.Create(Data,ReplayFile.config,ReplayFile.frames,ReplayFile.result,true,ReplayFile.engineVersion):ReplayFile)));}
         public void ExportSeries(){if(Series!=null)Try(()=>FileBridge.Export("frontline-bo3.json",Json.Write(Series.Archive)));}
         public void ImportFile(){Try(()=>FileBridge.Import(text=>Try(()=>ImportText(text))));}
         public void ImportText(string text)
@@ -117,7 +117,7 @@ namespace Frontline.UnityGame
         }
         IEnumerator ExpandSeed(ReplayPackage replay)
         {
-            var frames=new List<Frame>();using(var b=new Battle(Data,replay.config,replay.engineVersion=="unity-0.6.0"?(IWorldFactory)new LegacyUnityWorldFactory():Factory)){b.UseOrderLog(replay.orderLog);frames.Add(b.Snapshot());while(b.Result==null){for(int i=0;i<60&&b.Result==null;i++){b.Step();if(b.Tick%6==0)frames.Add(b.Snapshot());}Progress="重建 Unity 种子回放 · "+b.Tick+" / 5400";yield return null;}if(frames[frames.Count-1].tick!=b.Tick)frames.Add(b.Snapshot());ReplayFile=Replay.Create(Data,replay.config,frames,b.Result);}Busy=false;Watch();
+            var frames=new List<Frame>();using(IRecordedBattle b=replay.engineVersion=="unity-0.6.0"||replay.engineVersion=="unity-0.7.0"?(IRecordedBattle)new Frontline.Core.History07.Battle(Data,replay.config,replay.engineVersion=="unity-0.6.0"?(IWorldFactory)new LegacyUnityWorldFactory():new Unity07WorldFactory()):new Battle(Data,replay.config,Factory)){b.UseOrderLog(replay.orderLog);frames.Add(b.Snapshot());while(b.Result==null){for(int i=0;i<60&&b.Result==null;i++){b.Step();if(b.Tick%6==0)frames.Add(b.Snapshot());}Progress="重建 Unity 种子回放 · "+b.Tick+" / 5400";yield return null;}if(frames[frames.Count-1].tick!=b.Tick)frames.Add(b.Snapshot());ReplayFile=Replay.Create(Data,replay.config,frames,b.Result,false,replay.engineVersion);}Busy=false;Watch();
         }
         public void AddArenaFormation(string json){var c=Data.Import(json);string team=c.red.Count>0?"red":"blue";if(c.Army(team).Count==0)throw new FormatException("导入阵型为空");ImportedEntrants.Add(new Entrant{id="import-"+ImportedEntrants.Count,name="导入阵型 "+(ImportedEntrants.Count+1),map=c.map,team=team,units=c.Army(team),props=c.props.Where(p=>p.team==team).ToList()});Tell("已加入擂台参赛列表");}
         public void Arena(List<Entrant> entrants,List<string> maps,List<uint> seeds){if(Busy)return;var tournament=new Tournament(Data,Factory,entrants,maps,seeds,Config.budget,Config.commander.enabled);StartJob(ArenaRoutine(tournament));}

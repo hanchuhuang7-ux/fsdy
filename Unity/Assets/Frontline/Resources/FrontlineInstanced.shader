@@ -6,6 +6,7 @@ Shader "Frontline/Instanced" {
  UNITY_INSTANCING_BUFFER_START(Props)
  UNITY_DEFINE_INSTANCED_PROP(float4,_TeamColor)
  UNITY_DEFINE_INSTANCED_PROP(float,_Wind)
+ UNITY_DEFINE_INSTANCED_PROP(float,_HitFlash)
  UNITY_INSTANCING_BUFFER_END(Props)
  float4 _Color,_SkyLight,_GroundLight,_FillColor,_FillDirection;
  struct appdata {float4 vertex:POSITION;float3 normal:NORMAL;fixed4 color:COLOR;UNITY_VERTEX_INPUT_INSTANCE_ID};
@@ -31,7 +32,7 @@ Shader "Frontline/Instanced" {
  #include "AutoLight.cginc"
  struct v2f {float4 pos:SV_POSITION;half3 normal:TEXCOORD0;fixed4 color:COLOR;SHADOW_COORDS(1) UNITY_FOG_COORDS(2) UNITY_VERTEX_INPUT_INSTANCE_ID};
  v2f vert(appdata v){v2f o;UNITY_SETUP_INSTANCE_ID(v);UNITY_TRANSFER_INSTANCE_ID(v,o);v.vertex=WindVertex(v);o.pos=UnityObjectToClipPos(v.vertex);o.normal=UnityObjectToWorldNormal(v.normal);o.color=v.color;TRANSFER_SHADOW(o);UNITY_TRANSFER_FOG(o,o.pos);return o;}
- fixed4 frag(v2f i):SV_Target {UNITY_SETUP_INSTANCE_ID(i);half3 n=normalize(i.normal);half hemi=n.y*.5+.5;half3 ambient=lerp(_GroundLight.rgb,_SkyLight.rgb,hemi);half sun=max(0,dot(n,_WorldSpaceLightPos0.xyz))*SHADOW_ATTENUATION(i);half fill=max(0,dot(n,normalize(_FillDirection.xyz)));fixed4 team=UNITY_ACCESS_INSTANCED_PROP(Props,_TeamColor);half3 albedo=i.color.rgb*lerp(half3(1,1,1),team.rgb,i.color.a)*_Color.rgb;fixed4 c=fixed4(albedo*(ambient+sun*_LightColor0.rgb*.62+fill*_FillColor.rgb),1);UNITY_APPLY_FOG(i.fogCoord,c);return c;}
+ fixed4 frag(v2f i):SV_Target {UNITY_SETUP_INSTANCE_ID(i);half3 n=normalize(i.normal);half hemi=n.y*.5+.5;half3 ambient=lerp(_GroundLight.rgb,_SkyLight.rgb,hemi);half sun=max(0,dot(n,_WorldSpaceLightPos0.xyz))*SHADOW_ATTENUATION(i);half fill=max(0,dot(n,normalize(_FillDirection.xyz)));fixed4 team=UNITY_ACCESS_INSTANCED_PROP(Props,_TeamColor);half3 albedo=i.color.rgb*lerp(half3(1,1,1),team.rgb,i.color.a)*_Color.rgb;fixed4 c=fixed4(albedo*(ambient+sun*_LightColor0.rgb*.62+fill*_FillColor.rgb),1);c.rgb=lerp(c.rgb,half3(1.35,1.38,1.4),saturate(UNITY_ACCESS_INSTANCED_PROP(Props,_HitFlash))*.88);UNITY_APPLY_FOG(i.fogCoord,c);return c;}
  ENDCG
  }
  Pass {Tags {"LightMode"="ShadowCaster"} ZWrite On ZTest LEqual

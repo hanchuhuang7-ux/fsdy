@@ -1,6 +1,6 @@
 {
   "name": "frontline-lab",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "description": "Native Unity 3D physics battle sandbox for Windows and WebGL",
@@ -13,7 +13,7 @@
     "build": "node Tools/unity.mjs build",
     "build:windows": "node Tools/unity.mjs windows",
     "build:web": "node Tools/unity.mjs web",
-    "test": "node --test test/*.test.js Tools/v07.test.mjs && node Tools/check-core.mjs",
+    "test": "node --test test/*.test.js Tools/v07.test.mjs Tools/v08.test.mjs && node Tools/check-core.mjs",
     "test:core": "node Tools/check-core.mjs",
     "test:physics": "node Tools/unity.mjs physics",
     "benchmark": "node Tools/unity.mjs benchmark",

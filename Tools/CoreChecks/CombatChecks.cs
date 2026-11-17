@@ -1,0 +1,28 @@
+using System;
+using System.Collections.Generic;
+using Frontline.Core;
+
+static class CombatChecks
+{
+    static void Require(bool b,string m="v0.8 assertion failed"){if(!b)throw new Exception(m);}
+    static Deployment Duel(string red="militia",string blue="militia",float distance=6){return new Deployment{red=new List<UnitPlacement>{new UnitPlacement(red,-distance,0)},blue=new List<UnitPlacement>{new UnitPlacement(blue,distance,0)}};}
+    public static void Run(Catalog data,Action<string,Action> check)
+    {
+        check("turn follows shortest arc across PI without snapping",()=>{float a=3.13f,b=-3.10f;float t=CombatMotion.Turn(a,b,"catapult",0,Catalog.Step);Require(t>a&&Math.Abs(CombatMotion.AngleDelta(a,t))<=CombatMotion.TurnRate("catapult",0)*Catalog.Step+.00001f);});
+        check("infantry turns faster than hammer, charging horse and cart",()=>{Require(CombatMotion.TurnRate("militia",0)>CombatMotion.TurnRate("giant",0));Require(CombatMotion.TurnRate("cavalry",5)<CombatMotion.TurnRate("cavalry",0));Require(CombatMotion.TurnRate("catapult",0)<CombatMotion.TurnRate("giant",0));});
+        check("battle command obeys angular velocity limit",()=>{using(var b=new Battle(data,Duel(),new ReferenceFactory())){var u=b.Units[0];u.angle=0;b.Step();Require(u.angle>0&&u.angle<=CombatMotion.TurnRate("militia",0)*Catalog.Step+.00001f);}});
+        check("frontal shield reduces both damage and recoil by over half",()=>{float front,rear,frontDamage,rearDamage;using(var b=new Battle(data,Duel("militia","shield"),new ReferenceFactory())){var t=b.Units[1];b.Hit(t,20,b.Units[0].entity,10);front=t.entity.body.Velocity.Planar;frontDamage=t.entity.maxHp-t.entity.hp;Require(b.Effects.Count==1&&b.Effects[0].type=="block");}using(var b=new Battle(data,Duel("militia","shield"),new ReferenceFactory())){var t=b.Units[1];t.angle=(float)Math.PI/2;b.Hit(t,20,b.Units[0].entity,10);rear=t.entity.body.Velocity.Planar;rearDamage=t.entity.maxHp-t.entity.hp;}Require(front<rear*.5f&&frontDamage<rearDamage*.5f);});
+        check("light hit always flashes; repeat target throttles only small sparks",()=>{using(var b=new Battle(data,Duel(),new ReferenceFactory())){var t=b.Units[1];b.Hit(t,1,b.Units[0].entity,3);Require(b.Effects.Count==1&&t.hitFlash==1&&t.hitTiltX>0);b.Hit(t,1,b.Units[0].entity,3);Require(b.Effects.Count==1&&t.hitFlash==1);}});
+        check("heavy hit launches, stuns longer and delays attack preparation",()=>{using(var b=new Battle(data,Duel(),new ReferenceFactory())){var t=b.Units[1];t.preparing=true;t.windup=.1f;b.Hit(t,1,b.Units[0].entity,22);Require(t.stun>.3f&&t.windup>.2f&&t.entity.body.Velocity.y>2);Require(b.Effects[0].type=="heavy");}});
+        check("critical feedback bypasses target throttle and remains pooled/bounded",()=>{using(var b=new Battle(data,Duel(),new ReferenceFactory())){var t=b.Units[1];for(int i=0;i<160;i++)b.Hit(t,0,b.Units[0].entity,16);Require(b.Effects.Count==CombatMotion.EffectCapacity&&b.Effects[b.Effects.Count-1].id==160);}});
+        check("hit and gait snapshots are independent and round trip",()=>{using(var b=new Battle(data,Duel(),new ReferenceFactory())){b.Hit(b.Units[1],1,b.Units[0].entity,3);var f=b.Snapshot();string before=Json.Write(f);b.Step();var live=b.Snapshot();Require(Json.Write(f)==before&&live.units[1].hitFlash<f.units[1].hitFlash);Require(Json.Read<Frame>(before).units[1].hitTiltX==f.units[1].hitTiltX);}});
+        check("old unit frames omit all new zero channels on re-export",()=>{var u=new UnitFrame();string s=Json.Write(u);Require(!s.Contains("hitFlash")&&!s.Contains("gait")&&!s.Contains("moveSpeed"));});
+        check("ranged retreat faces enemy while gait reports reverse motion",()=>{using(var b=new Battle(data,Duel("archer","archer",2.5f),new ReferenceFactory())){b.Units[1].entity.body.Impulse(new V3(-80,0,0));bool reverse=false;for(int i=0;i<90;i++){b.Step();var u=b.Units[0];if(u.moveSpeed>.1f&&u.moveForward<-.5f&&Math.Abs(u.angle-(float)Math.PI/2)<.1f)reverse=true;}Require(reverse);}});
+        check("waiting soldiers have zero gait speed",()=>{var c=Duel();c.red[0].stance="hold";c.blue[0].stance="hold";using(var b=new Battle(data,c,new ReferenceFactory())){for(int i=0;i<20;i++)b.Step();Require(b.Units[0].moveSpeed==0&&b.Units[0].gait==0);}});
+        check("narrow passage separation yields along axis and reduces side deadlock",()=>{var delta=new V3(-.3f,0,.4f);var open=CombatMotion.Separation(delta,1.3f,false,1);var narrow=CombatMotion.Separation(delta,1.3f,true,1);Require(Math.Abs(narrow.z)<Math.Abs(open.z)*.2f&&narrow.x<=0);Require(CombatMotion.Narrow("bridge",0,0)&&CombatMotion.Narrow("ruins",0,0)&&!CombatMotion.Narrow("meadow",0,0));});
+        check("ramp velocity follows downhill and uphill surface tangent",()=>{var v=CombatMotion.SlopeVelocity(new V3(3,0,2),.25f);Require(v.x==3&&v.z==2&&v.y==.75f);Require(CombatMotion.SlopeVelocity(new V3(-3,0,0),.25f).y<0);});
+        check("shoulder launch clears ordinary shield and cart launch is raised",()=>{var p=new V3(0,.8f,0);var a=CombatMotion.Launch("archer",p,new V3(1,0,0),1);var c=CombatMotion.Launch("catapult",p,new V3(1,0,0),1.3f);Require(a.y-.09f>(.8f+.62f)*1.12f&&a.x>.4f&&c.y>a.y&&c.x>1);});
+        check("horse and cart shape contracts match longitudinal meshes",()=>{Require(CombatMotion.CartSize.z>1.7f&&CombatMotion.CartSize.x>1.2f);Require(CombatMotion.RockYaw(3,4)==CombatMotion.RockYaw(3,4));});
+        check("native seed identities accept 0.6, 0.7 and 0.8 without relabelling",()=>{foreach(string engine in new[]{"unity-0.6.0","unity-0.7.0",Replay.Engine}){var r=new ReplayPackage{engineVersion=engine,kind="seed",config=Duel()};Require(Replay.Import(data,Json.Write(r)).engineVersion==engine);}});
+    }
+}

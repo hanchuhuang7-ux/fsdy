@@ -45,6 +45,7 @@ class Program
   Check("projectile snapshot slots survive count shrink and regrowth",()=>{using(var b=new Battle(db,Duel(),factory)){var f=b.PrepareSnapshot();var shot=new Shot{id=100,type="arrow",body=b.World.Projectile(100,"arrow",new V3(0,2,0),new V3(),1,1)};b.Shots.Add(shot);b.Snapshot(f);var row=f.projectiles[0];var t=row.t;b.Shots.Clear();b.Snapshot(f);Assert(f.projectiles.Count==0);b.Shots.Add(shot);b.Snapshot(f);Assert(ReferenceEquals(row,f.projectiles[0])&&ReferenceEquals(t,row.t));}});
   Check("cached ground samples preserve catalog height on all six maps",()=>{foreach(string map in db.Maps.Keys){using(var b=new Battle(db,db.Default(map),factory)){for(int i=0;i<30;i++){b.Step();foreach(var u in b.Units)if(u.entity.alive){float h=db.Height(map,u.entity.position.x,u.entity.position.z);Assert(h==u.floor||Math.Abs(h-u.floor)<.000001f,"Cached ground changed gameplay height");}}}}});
   Check("dead unit snapshots preserve the legacy null transform schema",()=>{using(var b=new Battle(db,Duel(),factory)){var f=b.PrepareSnapshot();b.Snapshot(f);b.Hit(b.Units[1],10000,b.Units[0].entity,0);b.Snapshot(f);Assert(!f.units[1].alive&&f.units[1].t==null);}});
+  CombatChecks.Run(db,Check);
   Check("all test worlds disposed",()=>Assert(factory.live==0));Console.WriteLine($"Core rule checks: {passed} passed, {failed} failed. Reference physics is a test double; run Unity smoke for real PhysX.");return failed==0?0:1;
  }
 }
