@@ -24,5 +24,11 @@ namespace Frontline.Core
     }
     // Retains v0.6 floating-point evaluation order when rebuilding its native seeds.
     public interface ILegacyCompatibilityWorld {}
+    public interface ICombatBody {void Facing(float angle,bool fast);}
+    public interface IRecordedBattle:IDisposable
+    {
+        int Tick {get;} Result Result {get;}
+        void Step(); Frame Snapshot(Frame reuse=null); void UseOrderLog(List<OrderEntry> orders);
+    }
     public interface IWorldFactory {IPhysicsWorld Create(Catalog catalog,Deployment config);}
 }

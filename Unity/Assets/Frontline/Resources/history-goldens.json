@@ -1,0 +1,14 @@
+[
+  {
+    "engine": "unity-0.6.0",
+    "tick": 1847,
+    "winner": "red",
+    "sha256": "195ba6c8be9e0eb0dad461e58fab4cb978b5f1266462c6b80c16dee0011bcc16"
+  },
+  {
+    "engine": "unity-0.7.0",
+    "tick": 2279,
+    "winner": "blue",
+    "sha256": "bdef881f7548d614c6633f635ad1472d92f5bcaebac4c44b59b4241535197249"
+  }
+]

@@ -1,6 +1,6 @@
 # Unity 版迁移说明
 
-Unity 工程位于 `Unity/`，固定编辑器 **6000.6.9f1**，游戏版本 **0.7.0**。目标为 Windows x64 与 WebGL。正式游戏的规则、物理、渲染、音效、输入和界面均在 Unity C# 内执行。
+Unity 工程位于 `Unity/`，固定编辑器 **6000.6.9f1**，游戏版本 **0.8.0**。目标为 Windows x64 与 WebGL。正式游戏的规则、物理、渲染、音效、输入和界面均在 Unity C# 内执行。
 
 ## 环境与构建
 
@@ -45,7 +45,7 @@ Windows 成品为 `Builds/Windows/FrontlineLab.exe`，网页成品为 `dist/`。
 node Tools/convert-legacy-replay.mjs old-seed.json full-trajectory.json
 ```
 
-- Unity 新回放为 v3，`engineVersion: unity-0.7.0`。可导出完整轨迹或原生种子包。
+- Unity 新回放为 v3，`engineVersion: unity-0.8.0`。可导出完整轨迹或原生种子包。
 - 更换为 PhysX 后，战斗结果不会与 Rapier 逐帧相等。不能承诺不同平台、编辑器版本或 CPU 的 PhysX 种子包位级一致；跨平台分享使用完整轨迹。检查同一构建重复运行的完整战报，避免把此检查误述成跨平台确定性保证。
 - 根目录 `src/`、`test/` 与旧脚本是冻结的旧版转换与回归工具，不会打入 Unity WebGL 游戏，也不会在 Unity 内嵌网页。
 
@@ -98,3 +98,15 @@ v0.7 实测、不同测法及限制见 [Unity 0.7 验证记录](V0.7_VALIDATION.
 0.6 Unity完整轨迹继续直接校验；0.6种子通过`LegacyUnityPhysics.cs`冻结适配器重建，保留旧浮点距离求值。0.7优化使用新的engineVersion；不要把新结果标成0.6。跨平台继续交换完整轨迹，不保证PhysX位级一致。
 
 验收专用：`node Tools/unity.mjs profile`生成独立Development构建；`node Tools/serve-qa.mjs`配合`?frontlineQA=1`运行本地截图/遥测。`QA_PROFILE=1`选Development网页。遥测上传只允许loopback。GC计数器不可用时写-1，不把不可用值当成零分配。
+
+## v0.8 受击、移动与碰撞
+
+`Core/CombatMotion.cs` 只含引擎无关规则；`Battle.cs` 处理速度约束转向、前摇、分级硬直、受击瞬态与通道避让。`BattleView.cs` 使用六个可省略的轻量浮点通道驱动矩阵步态、来向后仰与实例闪白；命中特效和音效提示均使用有界池。
+
+`UnityPhysics.cs` 对战马使用随 Y 轴旋转的双胶囊，对投石车使用底座盒体；地图岩石使用与视觉同朝向、最多64三角面的低模凸包。高速度启用 ContinuousSpeculative，普通速度回到 Discrete。骑兵/车轮滚动接触与高台冰面有独立轻量物理材质；60Hz、地形高度与地图结构不变。
+
+发射从肩部或抬高的投石车抛臂前方开始。仅对发射点1.15米内的友方/中立旗杆暂免0.10秒碰撞；普通友军盾卫和远处旗杆仍真实阻挡。对象池启用后重新写入发射姿态和速度，避免禁用刚体写入丢失。
+
+`Core/HistoricalBattle07.cs` 冻结0.6/0.7规则；`LegacyUnityPhysics.cs` 对应0.6，`Unity07Physics.cs` 对应0.7。旧种子展开与再次导出保留原 engineVersion；新增规则仅使用 unity-0.8.0。原0.6/0.7完整轨迹SHA在真实PhysX中逐字一致。跨平台仍交换完整轨迹。
+
+完整验收、所有性能测法、动态原图与限制见 [v0.8 验证记录](V0.8_VALIDATION.md)。`npm test` 为87项JS与84项C#；`checks` 额外执行实际碰撞、接触冲锋、三图8人纵队和历史完整轨迹黄金校验。`node Tools/unity.mjs benchmark --timings 1` 可额外查看物理/快照耗时分解与GC回收次数；默认验收不启用计时探针。

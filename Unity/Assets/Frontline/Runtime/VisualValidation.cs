@@ -11,7 +11,7 @@ using UnityEngine.Networking;
 namespace Frontline.UnityGame
 {
     // Opt-in acceptance runner. Never active in a normal game session.
-    public sealed class VisualValidation:MonoBehaviour
+    public sealed partial class VisualValidation:MonoBehaviour
     {
 #if UNITY_WEBGL && !UNITY_EDITOR
         [DllImport("__Internal")]static extern void FrontlineQAInit();
@@ -22,7 +22,22 @@ namespace Frontline.UnityGame
 #endif
         FrontlineApp app;string output;readonly List<object> rows=new List<object>();
         public static bool Requested {get {return Array.IndexOf(Environment.GetCommandLineArgs(),"--visual-qa")>=0||Application.absoluteURL.Contains("frontlineQA=1");}}
-        public void Initialize(FrontlineApp value){app=value;StartCoroutine(Run());}
+        public void Initialize(FrontlineApp value){app=value;StartCoroutine(GuardValidation(Run()));}
+        IEnumerator GuardValidation(IEnumerator routine)
+        {
+            var stack=new Stack<IEnumerator>();stack.Push(routine);
+            while(stack.Count>0){
+                bool more=false;object current=null;Exception failure=null;
+                try{more=stack.Peek().MoveNext();if(more)current=stack.Peek().Current;}catch(Exception e){failure=e;}
+                if(failure!=null){Debug.LogException(failure);app.Tell("验收失败："+failure.Message);
+#if !UNITY_WEBGL && !UNITY_EDITOR
+                    Application.Quit(1);
+#endif
+                    yield break;}
+                if(!more){(stack.Pop() as IDisposable)?.Dispose();continue;}
+                if(current is IEnumerator nested){stack.Push(nested);continue;}yield return current;
+            }
+        }
         string Option(string name,string fallback){var args=Environment.GetCommandLineArgs();int i=Array.IndexOf(args,name);return i>=0&&i+1<args.Length?args[i+1]:fallback;}
         IEnumerator Save(string name,byte[] bytes,string type)
         {
@@ -35,12 +50,12 @@ namespace Frontline.UnityGame
         }
         IEnumerator Capture(string map,string phase)
         {
-            yield return new WaitForEndOfFrame();var texture=new Texture2D(Screen.width,Screen.height,TextureFormat.RGB24,false);texture.ReadPixels(new Rect(0,0,Screen.width,Screen.height),0,0,false);texture.Apply();var bytes=texture.EncodeToPNG();Destroy(texture);yield return Save("v07-"+Application.platform+"-"+Screen.width+"-"+map+"-"+phase+".png",bytes,"image/png");
+            yield return new WaitForEndOfFrame();var texture=new Texture2D(Screen.width,Screen.height,TextureFormat.RGB24,false);texture.ReadPixels(new Rect(0,0,Screen.width,Screen.height),0,0,false);texture.Apply();var bytes=texture.EncodeToPNG();Destroy(texture);yield return Save("v08-"+Application.platform+"-"+Screen.width+"-"+map+"-"+phase+".png",bytes,"image/png");
         }
         static double Median(double[] values){Array.Sort(values);return values[values.Length/2];}
         IEnumerator Run()
         {
-            output=Option("--qa-out",Path.Combine(Application.persistentDataPath,"Visual07"));yield return null;app.SetMode("sandbox");app.View.SetQuality(1);app.Muted=true;
+            output=Option("--qa-out",Path.Combine(Application.persistentDataPath,"Visual08"));yield return null;app.SetMode("sandbox");app.View.SetQuality(1);app.Muted=true;
 #if UNITY_WEBGL && !UNITY_EDITOR
             FrontlineQAInit();
 #endif
@@ -48,6 +63,7 @@ namespace Frontline.UnityGame
             {
                 app.SetMap(map);yield return new WaitForSecondsRealtime(1);yield return Capture(map,"deploy");app.RequestStart();yield return new WaitForSecondsRealtime(3);app.Paused=true;yield return Capture(map,"battle");app.ReturnToDeploy();yield return null;
             }
+            yield return CombatScenes();
             app.SetMap("meadow");var qualityRows=new List<object>();for(int q=0;q<3;q++){app.View.SetQuality(q);yield return null;yield return new WaitForEndOfFrame();qualityRows.Add(new {quality=q,instances=app.View.RenderInstances,submissions=app.View.RenderSubmissions,shadowDistance=QualitySettings.shadowDistance,staticRebuilds=app.View.StaticRebuilds});}app.View.SetQuality(1);
             foreach(int count in new[]{45,60})
             {

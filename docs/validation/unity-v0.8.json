@@ -1,0 +1,4523 @@
+{
+  "version": "0.8.0",
+  "date": "2026-11-17T16:16:50.619Z",
+  "timezone": "Asia/Shanghai",
+  "unity": "6000.6.9f1",
+  "tests": {
+    "javascript": 87,
+    "csharp": 84,
+    "total": 171
+  },
+  "cpu": {
+    "thresholdMilliseconds": 0.34,
+    "prepared": 0.3374375,
+    "fresh": 0.34907055555555555,
+    "old07Prepared": 0.2848863888888889,
+    "sameMachine07": 0.29017708333333336,
+    "old06": 0.4365686111111111,
+    "oldRapier": 0.34082819444444445,
+    "stages": [
+      {
+        "name": "Benchmark08Baseline",
+        "median": 0.29017708333333336,
+        "data": {
+          "engine": "unity-0.7.0",
+          "unity": "6000.6.9f1",
+          "platform": "WindowsPlayer",
+          "warmupRuns": 1,
+          "measuredRuns": 5,
+          "snapshotMode": "prepared",
+          "snapshotStorage": "Prepared mode excludes setup; fresh mode allocates immutable frames in timed region, as v0.6 did",
+          "rows": [
+            {
+              "fixture": "default-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 104.57000000000001,
+              "millisecondsPerStep": 0.14523611111111112,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 88.57730000000001,
+              "millisecondsPerStep": 0.1230240277777778,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 88.2431,
+              "millisecondsPerStep": 0.12255986111111111,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 89.21010000000001,
+              "millisecondsPerStep": 0.12390291666666668,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 87.62530000000001,
+              "millisecondsPerStep": 0.12170180555555557,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 83.01010000000001,
+              "millisecondsPerStep": 0.11529180555555557,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 208.36450000000002,
+              "millisecondsPerStep": 0.2893951388888889,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 208.9275,
+              "millisecondsPerStep": 0.29017708333333336,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 206.3262,
+              "millisecondsPerStep": 0.2865641666666667,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 205.3228,
+              "millisecondsPerStep": 0.28517055555555554,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 211.0267,
+              "millisecondsPerStep": 0.2930926388888889,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 213.0755,
+              "millisecondsPerStep": 0.29593819444444447,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Benchmark08First",
+        "median": 0.37069791666666674,
+        "data": {
+          "engine": "unity-0.8.0",
+          "unity": "6000.6.9f1",
+          "platform": "WindowsPlayer",
+          "warmupRuns": 1,
+          "measuredRuns": 5,
+          "snapshotMode": "prepared",
+          "snapshotStorage": "Prepared mode excludes setup; fresh mode allocates immutable frames in timed region, as v0.6 did",
+          "rows": [
+            {
+              "fixture": "default-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 164.9422,
+              "millisecondsPerStep": 0.2290863888888889,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 150.3551,
+              "millisecondsPerStep": 0.20882652777777777,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 139.6711,
+              "millisecondsPerStep": 0.19398763888888887,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 125.0064,
+              "millisecondsPerStep": 0.17362,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 116.37740000000001,
+              "millisecondsPerStep": 0.16163527777777778,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 126.8939,
+              "millisecondsPerStep": 0.17624152777777777,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 306.4656,
+              "millisecondsPerStep": 0.4256466666666667,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 254.5886,
+              "millisecondsPerStep": 0.35359527777777777,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 266.5418,
+              "millisecondsPerStep": 0.37019694444444445,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 317.5778,
+              "millisecondsPerStep": 0.4410802777777778,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 314.1542,
+              "millisecondsPerStep": 0.4363252777777778,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 266.90250000000003,
+              "millisecondsPerStep": 0.37069791666666674,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Benchmark08IsolatedInitial",
+        "median": 0.3450390277777778,
+        "data": {
+          "engine": "unity-0.8.0",
+          "unity": "6000.6.9f1",
+          "platform": "WindowsPlayer",
+          "warmupRuns": 1,
+          "measuredRuns": 5,
+          "snapshotMode": "prepared",
+          "snapshotStorage": "Prepared mode excludes setup; fresh mode allocates immutable frames in timed region, as v0.6 did",
+          "rows": [
+            {
+              "fixture": "default-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 133.3466,
+              "millisecondsPerStep": 0.1852036111111111,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 117.5472,
+              "millisecondsPerStep": 0.16326000000000002,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 116.2776,
+              "millisecondsPerStep": 0.16149666666666668,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 118.23610000000001,
+              "millisecondsPerStep": 0.16421680555555557,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 116.3109,
+              "millisecondsPerStep": 0.16154291666666667,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 117.1115,
+              "millisecondsPerStep": 0.16265486111111113,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 251.5371,
+              "millisecondsPerStep": 0.3493570833333334,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 248.46910000000003,
+              "millisecondsPerStep": 0.34509597222222227,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 247.93210000000002,
+              "millisecondsPerStep": 0.34435013888888893,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 246.6028,
+              "millisecondsPerStep": 0.3425038888888889,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 250.5429,
+              "millisecondsPerStep": 0.34797625,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 248.4281,
+              "millisecondsPerStep": 0.3450390277777778,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Benchmark08Hot",
+        "median": 0.38670333333333334,
+        "data": {
+          "engine": "unity-0.8.0",
+          "unity": "6000.6.9f1",
+          "platform": "WindowsPlayer",
+          "warmupRuns": 1,
+          "measuredRuns": 5,
+          "snapshotMode": "prepared",
+          "snapshotStorage": "Prepared mode excludes setup; fresh mode allocates immutable frames in timed region, as v0.6 did",
+          "rows": [
+            {
+              "fixture": "default-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 124.4585,
+              "millisecondsPerStep": 0.17285902777777779,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 106.7869,
+              "millisecondsPerStep": 0.1483151388888889,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 104.94720000000001,
+              "millisecondsPerStep": 0.14576,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 126.65780000000001,
+              "millisecondsPerStep": 0.17591361111111112,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 139.547,
+              "millisecondsPerStep": 0.19381527777777777,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 137.47,
+              "millisecondsPerStep": 0.19093055555555555,
+              "units": 28,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 285.1708,
+              "millisecondsPerStep": 0.39607055555555554,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 278.4264,
+              "millisecondsPerStep": 0.38670333333333334,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 237.13430000000002,
+              "millisecondsPerStep": 0.3293531944444445,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 280.8929,
+              "millisecondsPerStep": 0.39012902777777775,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 285.5498,
+              "millisecondsPerStep": 0.39659694444444443,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 235.8461,
+              "millisecondsPerStep": 0.32756402777777777,
+              "units": 90,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Benchmark08Diagnostic2",
+        "median": 0.3392375,
+        "data": {
+          "engine": "unity-0.8.0",
+          "unity": "6000.6.9f1",
+          "platform": "WindowsPlayer",
+          "warmupRuns": 1,
+          "measuredRuns": 5,
+          "snapshotMode": "prepared",
+          "snapshotStorage": "Prepared mode excludes setup; fresh mode allocates immutable frames in timed region, as v0.6 did",
+          "rows": [
+            {
+              "fixture": "default-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 129.33440000000002,
+              "millisecondsPerStep": 0.17963111111111113,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": 88.8762,
+              "snapshotMilliseconds": 2.4326,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 108.6935,
+              "millisecondsPerStep": 0.15096319444444445,
+              "units": 28,
+              "collections0": 1,
+              "collections1": 1,
+              "collections2": 1,
+              "physicsMilliseconds": 83.8376,
+              "snapshotMilliseconds": 1.115,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 109.9728,
+              "millisecondsPerStep": 0.15274000000000001,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": 85.1844,
+              "snapshotMilliseconds": 1.1485,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 108.2003,
+              "millisecondsPerStep": 0.15027819444444443,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": 83.9083,
+              "snapshotMilliseconds": 1.1561,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 109.7681,
+              "millisecondsPerStep": 0.15245569444444446,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": 85.0451,
+              "snapshotMilliseconds": 1.1917,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 108.4411,
+              "millisecondsPerStep": 0.1506126388888889,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": 83.9099,
+              "snapshotMilliseconds": 1.1382,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 242.6473,
+              "millisecondsPerStep": 0.33701013888888887,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": 167.1735,
+              "snapshotMilliseconds": 2.7432,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 258.48650000000004,
+              "millisecondsPerStep": 0.3590090277777778,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": 182.2553,
+              "snapshotMilliseconds": 3.0254,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 256.70660000000004,
+              "millisecondsPerStep": 0.3565369444444445,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": 182.438,
+              "snapshotMilliseconds": 2.6986,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 238.2475,
+              "millisecondsPerStep": 0.3308993055555556,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": 164.6558,
+              "snapshotMilliseconds": 2.831,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 239.5946,
+              "millisecondsPerStep": 0.3327702777777778,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": 165.9602,
+              "snapshotMilliseconds": 2.79,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 244.251,
+              "millisecondsPerStep": 0.3392375,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": 168.6492,
+              "snapshotMilliseconds": 2.7856,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Benchmark08Candidate",
+        "median": 0.32482958333333334,
+        "data": {
+          "engine": "unity-0.8.0",
+          "unity": "6000.6.9f1",
+          "platform": "WindowsPlayer",
+          "warmupRuns": 1,
+          "measuredRuns": 5,
+          "snapshotMode": "prepared",
+          "snapshotStorage": "Prepared mode excludes setup; fresh mode allocates immutable frames in timed region, as v0.6 did",
+          "rows": [
+            {
+              "fixture": "default-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 123.501,
+              "millisecondsPerStep": 0.17152916666666668,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 100.6395,
+              "millisecondsPerStep": 0.13977708333333333,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 99.0023,
+              "millisecondsPerStep": 0.13750319444444445,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 102.1144,
+              "millisecondsPerStep": 0.14182555555555557,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 102.4272,
+              "millisecondsPerStep": 0.14226,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 103.4456,
+              "millisecondsPerStep": 0.14367444444444444,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 233.95270000000002,
+              "millisecondsPerStep": 0.3249343055555556,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 231.4395,
+              "millisecondsPerStep": 0.32144375000000003,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 234.47400000000002,
+              "millisecondsPerStep": 0.3256583333333334,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 233.87730000000002,
+              "millisecondsPerStep": 0.32482958333333334,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 238.24220000000003,
+              "millisecondsPerStep": 0.3308919444444445,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 233.0053,
+              "millisecondsPerStep": 0.32361847222222223,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Benchmark08Release",
+        "median": 0.3374375,
+        "data": {
+          "engine": "unity-0.8.0",
+          "unity": "6000.6.9f1",
+          "platform": "WindowsPlayer",
+          "warmupRuns": 1,
+          "measuredRuns": 5,
+          "snapshotMode": "prepared",
+          "snapshotStorage": "Prepared mode excludes setup; fresh mode allocates immutable frames in timed region, as v0.6 did",
+          "rows": [
+            {
+              "fixture": "default-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 126.9539,
+              "millisecondsPerStep": 0.17632486111111112,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 105.30850000000001,
+              "millisecondsPerStep": 0.14626180555555557,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 109.13820000000001,
+              "millisecondsPerStep": 0.15158083333333336,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 104.438,
+              "millisecondsPerStep": 0.14505277777777778,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 105.63730000000001,
+              "millisecondsPerStep": 0.14671847222222223,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 105.9437,
+              "millisecondsPerStep": 0.1471440277777778,
+              "units": 28,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 269.2916,
+              "millisecondsPerStep": 0.37401611111111116,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 242.955,
+              "millisecondsPerStep": 0.3374375,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 245.5208,
+              "millisecondsPerStep": 0.34100111111111114,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 236.36710000000002,
+              "millisecondsPerStep": 0.3282876388888889,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 244.35860000000002,
+              "millisecondsPerStep": 0.3393869444444445,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 239.25820000000002,
+              "millisecondsPerStep": 0.33230305555555556,
+              "units": 90,
+              "collections0": 0,
+              "collections1": 0,
+              "collections2": 0,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            }
+          ]
+        }
+      },
+      {
+        "name": "Benchmark08ReleaseFresh",
+        "median": 0.34907055555555555,
+        "data": {
+          "engine": "unity-0.8.0",
+          "unity": "6000.6.9f1",
+          "platform": "WindowsPlayer",
+          "warmupRuns": 1,
+          "measuredRuns": 5,
+          "snapshotMode": "fresh",
+          "snapshotStorage": "Prepared mode excludes setup; fresh mode allocates immutable frames in timed region, as v0.6 did",
+          "rows": [
+            {
+              "fixture": "default-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 134.2193,
+              "millisecondsPerStep": 0.18641569444444445,
+              "units": 28,
+              "collections0": 10,
+              "collections1": 10,
+              "collections2": 10,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 112.607,
+              "millisecondsPerStep": 0.1563986111111111,
+              "units": 28,
+              "collections0": 10,
+              "collections1": 10,
+              "collections2": 10,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 111.02090000000001,
+              "millisecondsPerStep": 0.15419569444444445,
+              "units": 28,
+              "collections0": 9,
+              "collections1": 9,
+              "collections2": 9,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 111.24950000000001,
+              "millisecondsPerStep": 0.15451319444444447,
+              "units": 28,
+              "collections0": 10,
+              "collections1": 10,
+              "collections2": 10,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 123.06800000000001,
+              "millisecondsPerStep": 0.1709277777777778,
+              "units": 28,
+              "collections0": 9,
+              "collections1": 9,
+              "collections2": 9,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "default-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 125.7694,
+              "millisecondsPerStep": 0.17467972222222222,
+              "units": 28,
+              "collections0": 10,
+              "collections1": 10,
+              "collections2": 10,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 0,
+              "steps": 720,
+              "milliseconds": 256.71000000000004,
+              "millisecondsPerStep": 0.3565416666666667,
+              "units": 90,
+              "collections0": 17,
+              "collections1": 17,
+              "collections2": 17,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 1,
+              "steps": 720,
+              "milliseconds": 251.8187,
+              "millisecondsPerStep": 0.34974819444444444,
+              "units": 90,
+              "collections0": 17,
+              "collections1": 17,
+              "collections2": 17,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 2,
+              "steps": 720,
+              "milliseconds": 247.54410000000001,
+              "millisecondsPerStep": 0.34381125,
+              "units": 90,
+              "collections0": 17,
+              "collections1": 17,
+              "collections2": 17,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 3,
+              "steps": 720,
+              "milliseconds": 249.92680000000001,
+              "millisecondsPerStep": 0.3471205555555556,
+              "units": 90,
+              "collections0": 17,
+              "collections1": 17,
+              "collections2": 17,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 4,
+              "steps": 720,
+              "milliseconds": 251.3308,
+              "millisecondsPerStep": 0.34907055555555555,
+              "units": 90,
+              "collections0": 17,
+              "collections1": 17,
+              "collections2": 17,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            },
+            {
+              "fixture": "large-battle",
+              "run": 5,
+              "steps": 720,
+              "milliseconds": 251.3382,
+              "millisecondsPerStep": 0.34908083333333334,
+              "units": 90,
+              "collections0": 17,
+              "collections1": 17,
+              "collections2": 17,
+              "physicsMilliseconds": -1,
+              "snapshotMilliseconds": -1,
+              "allocationCounterAvailable": false,
+              "allocatedBytes": -1,
+              "projectilePoolMisses": 0,
+              "corpsePoolMisses": 0
+            }
+          ]
+        }
+      }
+    ],
+    "notes": [
+      "720 fixed steps, snapshot every six steps; warmup 1 + measured 5. Independent prepared frames and physics pools are allocated before timing. Product preallocates up to 902 frames.",
+      "Benchmark08First ran alongside checks and is retained as a contaminated diagnostic, not an acceptance result.",
+      "Benchmark08Hot retained its 0.3867 median and its 0.3276–0.3966 spread; no best-run substitution. Diagnostic2 uses extra timing probes.",
+      "Rules, projectile initialization and collision workload changed in 0.8. Prepared passes .34; fresh exceeds .34 and is reported separately."
+    ]
+  },
+  "render": {
+    "windows": {
+      "developmentBuild": false,
+      "version": "0.8.0",
+      "unity": "6000.6.9f1",
+      "platform": "WindowsPlayer",
+      "graphics": "Intel(R) Arc(TM) B390 GPU",
+      "graphicsApi": "Direct3D12",
+      "width": 1280,
+      "height": 800,
+      "targetFps": 60,
+      "qualityAudit": [
+        {
+          "quality": 0,
+          "instances": 536,
+          "submissions": 28,
+          "shadowDistance": 22,
+          "staticRebuilds": 8
+        },
+        {
+          "quality": 1,
+          "instances": 749,
+          "submissions": 28,
+          "shadowDistance": 42,
+          "staticRebuilds": 9
+        },
+        {
+          "quality": 2,
+          "instances": 1051,
+          "submissions": 29,
+          "shadowDistance": 65,
+          "staticRebuilds": 10
+        }
+      ],
+      "rows": [
+        {
+          "unitsPerTeam": 45,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 16.667602583765984,
+          "p95FrameMilliseconds": 16.749702394008636,
+          "medianFps": 59.99663088763505,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 92,
+          "medianRenderSubmissions": 29,
+          "gcCounterAvailable": false,
+          "gcMeasurement": "Unavailable in this player; -1 is not zero allocation",
+          "medianGcBytes": -1,
+          "meanGcBytes": -1,
+          "maxGcBytes": -1,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        },
+        {
+          "unitsPerTeam": 60,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 16.666999086737633,
+          "p95FrameMilliseconds": 16.696300357580185,
+          "medianFps": 59.99880331161272,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 135,
+          "medianRenderSubmissions": 45,
+          "gcCounterAvailable": false,
+          "gcMeasurement": "Unavailable in this player; -1 is not zero allocation",
+          "medianGcBytes": -1,
+          "meanGcBytes": -1,
+          "maxGcBytes": -1,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        }
+      ]
+    },
+    "web": {
+      "developmentBuild": false,
+      "version": "0.8.0",
+      "unity": "6000.6.9f1",
+      "platform": "WebGLPlayer",
+      "graphics": "ANGLE (Intel, Intel(R) Arc(TM) B390 GPU (0x0000B080) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "graphicsApi": "OpenGLES3",
+      "width": 1280,
+      "height": 800,
+      "targetFps": 60,
+      "qualityAudit": [
+        {
+          "quality": 0,
+          "instances": 536,
+          "submissions": 28,
+          "shadowDistance": 22,
+          "staticRebuilds": 8
+        },
+        {
+          "quality": 1,
+          "instances": 749,
+          "submissions": 28,
+          "shadowDistance": 42,
+          "staticRebuilds": 9
+        },
+        {
+          "quality": 2,
+          "instances": 1051,
+          "submissions": 29,
+          "shadowDistance": 65,
+          "staticRebuilds": 10
+        }
+      ],
+      "rows": [
+        {
+          "unitsPerTeam": 45,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 8,
+          "p95FrameMilliseconds": 9,
+          "medianFps": 125,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 90,
+          "medianRenderSubmissions": 29,
+          "gcCounterAvailable": false,
+          "gcMeasurement": "Unavailable in this player; -1 is not zero allocation",
+          "medianGcBytes": -1,
+          "meanGcBytes": -1,
+          "maxGcBytes": -1,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        },
+        {
+          "unitsPerTeam": 60,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 8,
+          "p95FrameMilliseconds": 9,
+          "medianFps": 125,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 133,
+          "medianRenderSubmissions": 45,
+          "gcCounterAvailable": false,
+          "gcMeasurement": "Unavailable in this player; -1 is not zero allocation",
+          "medianGcBytes": -1,
+          "meanGcBytes": -1,
+          "maxGcBytes": -1,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        }
+      ]
+    },
+    "mobile": {
+      "developmentBuild": false,
+      "version": "0.8.0",
+      "unity": "6000.6.9f1",
+      "platform": "WebGLPlayer",
+      "graphics": "ANGLE (Intel, Intel(R) Arc(TM) B390 GPU (0x0000B080) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "graphicsApi": "OpenGLES3",
+      "width": 390,
+      "height": 844,
+      "targetFps": 60,
+      "qualityAudit": [
+        {
+          "quality": 0,
+          "instances": 536,
+          "submissions": 28,
+          "shadowDistance": 22,
+          "staticRebuilds": 8
+        },
+        {
+          "quality": 1,
+          "instances": 749,
+          "submissions": 28,
+          "shadowDistance": 42,
+          "staticRebuilds": 9
+        },
+        {
+          "quality": 2,
+          "instances": 1051,
+          "submissions": 29,
+          "shadowDistance": 65,
+          "staticRebuilds": 10
+        }
+      ],
+      "rows": [
+        {
+          "unitsPerTeam": 45,
+          "width": 390,
+          "height": 844,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 8,
+          "p95FrameMilliseconds": 9,
+          "medianFps": 125,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 61,
+          "medianRenderSubmissions": 29,
+          "gcCounterAvailable": false,
+          "gcMeasurement": "Unavailable in this player; -1 is not zero allocation",
+          "medianGcBytes": -1,
+          "meanGcBytes": -1,
+          "maxGcBytes": -1,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        },
+        {
+          "unitsPerTeam": 60,
+          "width": 390,
+          "height": 844,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 8,
+          "p95FrameMilliseconds": 9,
+          "medianFps": 125,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 93,
+          "medianRenderSubmissions": 45,
+          "gcCounterAvailable": false,
+          "gcMeasurement": "Unavailable in this player; -1 is not zero allocation",
+          "medianGcBytes": -1,
+          "meanGcBytes": -1,
+          "maxGcBytes": -1,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        }
+      ]
+    },
+    "windowsDevelopment": {
+      "developmentBuild": true,
+      "version": "0.8.0",
+      "unity": "6000.6.9f1",
+      "platform": "WindowsPlayer",
+      "graphics": "Intel(R) Arc(TM) B390 GPU",
+      "graphicsApi": "Direct3D12",
+      "width": 1280,
+      "height": 800,
+      "targetFps": 60,
+      "qualityAudit": [
+        {
+          "quality": 0,
+          "instances": 536,
+          "submissions": 28,
+          "shadowDistance": 22,
+          "staticRebuilds": 8
+        },
+        {
+          "quality": 1,
+          "instances": 749,
+          "submissions": 28,
+          "shadowDistance": 42,
+          "staticRebuilds": 9
+        },
+        {
+          "quality": 2,
+          "instances": 1051,
+          "submissions": 29,
+          "shadowDistance": 65,
+          "staticRebuilds": 10
+        }
+      ],
+      "rows": [
+        {
+          "unitsPerTeam": 45,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 16.666999086737633,
+          "p95FrameMilliseconds": 16.693204641342163,
+          "medianFps": 59.99880331161272,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 93,
+          "medianRenderSubmissions": 29,
+          "gcCounterAvailable": true,
+          "gcMeasurement": "Unity GC Allocated In Frame",
+          "medianGcBytes": 0,
+          "meanGcBytes": 83.98333333333333,
+          "maxGcBytes": 704,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        },
+        {
+          "unitsPerTeam": 60,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 16.667502000927925,
+          "p95FrameMilliseconds": 16.719799488782883,
+          "medianFps": 59.996992947373116,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 136,
+          "medianRenderSubmissions": 45,
+          "gcCounterAvailable": true,
+          "gcMeasurement": "Unity GC Allocated In Frame",
+          "medianGcBytes": 0,
+          "meanGcBytes": 88.6,
+          "maxGcBytes": 568,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        }
+      ]
+    },
+    "webDevelopment": {
+      "developmentBuild": true,
+      "version": "0.8.0",
+      "unity": "6000.6.9f1",
+      "platform": "WebGLPlayer",
+      "graphics": "ANGLE (Intel, Intel(R) Arc(TM) B390 GPU (0x0000B080) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+      "graphicsApi": "OpenGLES3",
+      "width": 1280,
+      "height": 800,
+      "targetFps": 60,
+      "qualityAudit": [
+        {
+          "quality": 0,
+          "instances": 536,
+          "submissions": 28,
+          "shadowDistance": 22,
+          "staticRebuilds": 8
+        },
+        {
+          "quality": 1,
+          "instances": 749,
+          "submissions": 28,
+          "shadowDistance": 42,
+          "staticRebuilds": 9
+        },
+        {
+          "quality": 2,
+          "instances": 1051,
+          "submissions": 29,
+          "shadowDistance": 65,
+          "staticRebuilds": 10
+        }
+      ],
+      "rows": [
+        {
+          "unitsPerTeam": 45,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 8,
+          "p95FrameMilliseconds": 9,
+          "medianFps": 125,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 91,
+          "medianRenderSubmissions": 29,
+          "gcCounterAvailable": true,
+          "gcMeasurement": "Unity GC Allocated In Frame",
+          "medianGcBytes": 0,
+          "meanGcBytes": 28.788888888888888,
+          "maxGcBytes": 432,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        },
+        {
+          "unitsPerTeam": 60,
+          "width": 1280,
+          "height": 800,
+          "quality": 1,
+          "samples": 360,
+          "medianFrameMilliseconds": 8,
+          "p95FrameMilliseconds": 9,
+          "medianFps": 125,
+          "batchesCounterAvailable": true,
+          "batchMeasurement": "Unity Draw Calls Count (current Unity 6.6 rendering counter)",
+          "medianBatches": 134,
+          "medianRenderSubmissions": 45,
+          "gcCounterAvailable": true,
+          "gcMeasurement": "Unity GC Allocated In Frame",
+          "medianGcBytes": 0,
+          "meanGcBytes": 30.42222222222222,
+          "maxGcBytes": 344,
+          "staticRebuildsDuringSample": 0,
+          "projectilePoolMisses": 0,
+          "corpsePoolMisses": 0
+        }
+      ]
+    }
+  },
+  "motion": [
+    {
+      "scenario": "contact-charge",
+      "maxSpeed": 4.66843653,
+      "contactTick": 217,
+      "targetHp": 193,
+      "attackCooldownDisabled": true
+    },
+    {
+      "scenario": "bridge",
+      "steps": 720,
+      "crossed": 8,
+      "downhillSamples": 0,
+      "maxDownhillClearance": 0
+    },
+    {
+      "scenario": "ruins",
+      "steps": 720,
+      "crossed": 8,
+      "downhillSamples": 0,
+      "maxDownhillClearance": 0
+    },
+    {
+      "scenario": "highland",
+      "steps": 720,
+      "crossed": 8,
+      "downhillSamples": 766,
+      "maxDownhillClearance": 0.03211558
+    }
+  ],
+  "uiChecks": {
+    "method": "actual browser pointer and keyboard at 390x844 DPR1",
+    "before": {
+      "cost": 1620,
+      "units": 14
+    },
+    "afterClick": {
+      "cost": 1660,
+      "units": 15
+    },
+    "afterUndo": {
+      "cost": 1620,
+      "units": 14
+    },
+    "physicalPhoneMultitouch": false
+  },
+  "history": [
+    {
+      "engine": "unity-0.6.0",
+      "tick": 1847,
+      "winner": "red",
+      "sha256": "195ba6c8be9e0eb0dad461e58fab4cb978b5f1266462c6b80c16dee0011bcc16"
+    },
+    {
+      "engine": "unity-0.7.0",
+      "tick": 2279,
+      "winner": "blue",
+      "sha256": "bdef881f7548d614c6633f635ad1472d92f5bcaebac4c44b59b4241535197249"
+    }
+  ],
+  "currentRepeat": {
+    "byteIdentical": true,
+    "sha256": "076718f93f0f15e2991ce24fb0a8497d3945a58dbaea576180ad7704d961364d",
+    "ticks": 1468
+  },
+  "crossPlatform": [
+    {
+      "engine": "unity-0.6.0",
+      "frames": 309,
+      "completeParsedJsonEqual": true,
+      "canonicalSha256": "3176437ae4200d056be0b901a547daa831f4046b91e44ff67c9576946033d152",
+      "source": "Builds/Baseline08/unity-0.6.0.replay.json",
+      "exported": "Builds/CrossPlatform08/v06-web-roundtrip.json"
+    },
+    {
+      "engine": "unity-0.7.0",
+      "frames": 381,
+      "completeParsedJsonEqual": true,
+      "canonicalSha256": "e8929e1e4f81509b839587bd33469ddaf400f7fc72181ed9cc9ff8f1cfcb3f68",
+      "source": "Builds/Baseline08/unity-0.7.0.replay.json",
+      "exported": "Builds/CrossPlatform08/v07-web-roundtrip.json"
+    },
+    {
+      "engine": "unity-0.8.0",
+      "frames": 246,
+      "completeParsedJsonEqual": true,
+      "canonicalSha256": "69fc8bca2d769a553f585ff16d5568b5d1682d5ac4115def2e9a883707c093e8",
+      "source": "Builds/Checks08Final/repeat-0.replay.json",
+      "exported": "Builds/CrossPlatform08/v08-web-roundtrip.json"
+    }
+  ],
+  "smoke": [
+    {
+      "map": "meadow",
+      "ticks": 1840,
+      "winner": "red",
+      "frames": 308,
+      "orders": 6
+    },
+    {
+      "map": "bridge",
+      "ticks": 1575,
+      "winner": "blue",
+      "frames": 264,
+      "orders": 6
+    },
+    {
+      "map": "island",
+      "ticks": 2008,
+      "winner": "red",
+      "frames": 336,
+      "orders": 6
+    },
+    {
+      "map": "ruins",
+      "ticks": 1916,
+      "winner": "red",
+      "frames": 321,
+      "orders": 6
+    },
+    {
+      "map": "marsh",
+      "ticks": 2964,
+      "winner": "blue",
+      "frames": 495,
+      "orders": 6
+    },
+    {
+      "map": "highland",
+      "ticks": 2324,
+      "winner": "blue",
+      "frames": 389,
+      "orders": 6
+    }
+  ],
+  "agent": {
+    "stats": {
+      "observations": 122,
+      "accepted": 12,
+      "rejected": 0,
+      "timeouts": 0,
+      "reasons": []
+    },
+    "series": {
+      "format": "frontline-bo3",
+      "version": 2,
+      "initial": {
+        "version": "0.6.0",
+        "map": "meadow",
+        "seed": 42,
+        "budget": 2200,
+        "red": [
+          {
+            "type": "shield",
+            "stance": "advance",
+            "x": -5,
+            "z": -2
+          },
+          {
+            "type": "shield",
+            "stance": "advance",
+            "x": -5,
+            "z": 0
+          },
+          {
+            "type": "shield",
+            "stance": "advance",
+            "x": -5,
+            "z": 2
+          },
+          {
+            "type": "spear",
+            "stance": "advance",
+            "x": -7,
+            "z": -2.7
+          },
+          {
+            "type": "spear",
+            "stance": "advance",
+            "x": -7,
+            "z": -0.9
+          },
+          {
+            "type": "spear",
+            "stance": "advance",
+            "x": -7,
+            "z": 0.9
+          },
+          {
+            "type": "spear",
+            "stance": "advance",
+            "x": -7,
+            "z": 2.7
+          },
+          {
+            "type": "archer",
+            "stance": "advance",
+            "x": -10,
+            "z": -1.8
+          },
+          {
+            "type": "archer",
+            "stance": "advance",
+            "x": -10,
+            "z": 0
+          },
+          {
+            "type": "archer",
+            "stance": "advance",
+            "x": -10,
+            "z": 1.8
+          },
+          {
+            "type": "bomber",
+            "stance": "advance",
+            "x": -12,
+            "z": 0
+          },
+          {
+            "type": "cavalry",
+            "stance": "advance",
+            "x": -5,
+            "z": -4.5
+          },
+          {
+            "type": "cavalry",
+            "stance": "advance",
+            "x": -5,
+            "z": 4.5
+          },
+          {
+            "type": "medic",
+            "stance": "advance",
+            "x": -13.5,
+            "z": 0
+          }
+        ],
+        "blue": [
+          {
+            "type": "shield",
+            "stance": "advance",
+            "x": 5,
+            "z": -2
+          },
+          {
+            "type": "shield",
+            "stance": "advance",
+            "x": 5,
+            "z": 0
+          },
+          {
+            "type": "shield",
+            "stance": "advance",
+            "x": 5,
+            "z": 2
+          },
+          {
+            "type": "spear",
+            "stance": "advance",
+            "x": 7,
+            "z": -2.7
+          },
+          {
+            "type": "spear",
+            "stance": "advance",
+            "x": 7,
+            "z": -0.9
+          },
+          {
+            "type": "spear",
+            "stance": "advance",
+            "x": 7,
+            "z": 0.9
+          },
+          {
+            "type": "spear",
+            "stance": "advance",
+            "x": 7,
+            "z": 2.7
+          },
+          {
+            "type": "archer",
+            "stance": "advance",
+            "x": 10,
+            "z": -1.8
+          },
+          {
+            "type": "archer",
+            "stance": "advance",
+            "x": 10,
+            "z": 0
+          },
+          {
+            "type": "archer",
+            "stance": "advance",
+            "x": 10,
+            "z": 1.8
+          },
+          {
+            "type": "bomber",
+            "stance": "advance",
+            "x": 12,
+            "z": 0
+          },
+          {
+            "type": "cavalry",
+            "stance": "advance",
+            "x": 5,
+            "z": -4.5
+          },
+          {
+            "type": "cavalry",
+            "stance": "advance",
+            "x": 5,
+            "z": 4.5
+          },
+          {
+            "type": "medic",
+            "stance": "advance",
+            "x": 13.5,
+            "z": 0
+          }
+        ],
+        "props": [],
+        "commander": {
+          "enabled": true,
+          "aiTeams": []
+        }
+      },
+      "rounds": [
+        {
+          "config": {
+            "version": "0.6.0",
+            "map": "meadow",
+            "seed": 42,
+            "budget": 2200,
+            "red": [
+              {
+                "type": "shield",
+                "stance": "advance",
+                "x": -5,
+                "z": -2
+              },
+              {
+                "type": "shield",
+                "stance": "advance",
+                "x": -5,
+                "z": 0
+              },
+              {
+                "type": "shield",
+                "stance": "advance",
+                "x": -5,
+                "z": 2
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": -7,
+                "z": -2.7
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": -7,
+                "z": -0.9
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": -7,
+                "z": 0.9
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": -7,
+                "z": 2.7
+              },
+              {
+                "type": "archer",
+                "stance": "advance",
+                "x": -10,
+                "z": -1.8
+              },
+              {
+                "type": "archer",
+                "stance": "advance",
+                "x": -10,
+                "z": 0
+              },
+              {
+                "type": "archer",
+                "stance": "advance",
+                "x": -10,
+                "z": 1.8
+              },
+              {
+                "type": "bomber",
+                "stance": "advance",
+                "x": -12,
+                "z": 0
+              },
+              {
+                "type": "cavalry",
+                "stance": "advance",
+                "x": -5,
+                "z": -4.5
+              },
+              {
+                "type": "cavalry",
+                "stance": "advance",
+                "x": -5,
+                "z": 4.5
+              },
+              {
+                "type": "medic",
+                "stance": "advance",
+                "x": -13.5,
+                "z": 0
+              }
+            ],
+            "blue": [
+              {
+                "type": "shield",
+                "stance": "advance",
+                "x": 5,
+                "z": -2
+              },
+              {
+                "type": "shield",
+                "stance": "advance",
+                "x": 5,
+                "z": 0
+              },
+              {
+                "type": "shield",
+                "stance": "advance",
+                "x": 5,
+                "z": 2
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": 7,
+                "z": -2.7
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": 7,
+                "z": -0.9
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": 7,
+                "z": 0.9
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": 7,
+                "z": 2.7
+              },
+              {
+                "type": "archer",
+                "stance": "advance",
+                "x": 10,
+                "z": -1.8
+              },
+              {
+                "type": "archer",
+                "stance": "advance",
+                "x": 10,
+                "z": 0
+              },
+              {
+                "type": "archer",
+                "stance": "advance",
+                "x": 10,
+                "z": 1.8
+              },
+              {
+                "type": "bomber",
+                "stance": "advance",
+                "x": 12,
+                "z": 0
+              },
+              {
+                "type": "cavalry",
+                "stance": "advance",
+                "x": 5,
+                "z": -4.5
+              },
+              {
+                "type": "cavalry",
+                "stance": "advance",
+                "x": 5,
+                "z": 4.5
+              },
+              {
+                "type": "medic",
+                "stance": "advance",
+                "x": 13.5,
+                "z": 0
+              }
+            ],
+            "props": [],
+            "commander": {
+              "enabled": true,
+              "aiTeams": []
+            }
+          },
+          "result": {
+            "winner": "red",
+            "reason": "elimination",
+            "time": 30.6666679,
+            "red": 3,
+            "blue": 0,
+            "remainingValue": {
+              "red": 282.6154,
+              "blue": 0
+            },
+            "report": {
+              "teams": {
+                "red": {
+                  "remainingValue": 282.6154,
+                  "byType": {
+                    "shield": {
+                      "initial": 3,
+                      "survived": 0,
+                      "lost": 3,
+                      "damageDealt": 96.6000061,
+                      "damageTaken": 660,
+                      "healing": 0,
+                      "friendlyFire": 0,
+                      "kills": 0,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    },
+                    "spear": {
+                      "initial": 4,
+                      "survived": 0,
+                      "lost": 4,
+                      "damageDealt": 506.268921,
+                      "damageTaken": 420.8,
+                      "healing": 0,
+                      "friendlyFire": 0,
+                      "kills": 6,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    },
+                    "archer": {
+                      "initial": 3,
+                      "survived": 3,
+                      "lost": 0,
+                      "damageDealt": 729.20105,
+                      "damageTaken": 28,
+                      "healing": 0,
+                      "friendlyFire": 209.799988,
+                      "kills": 4,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 1
+                    },
+                    "bomber": {
+                      "initial": 1,
+                      "survived": 0,
+                      "lost": 1,
+                      "damageDealt": 642.602966,
+                      "damageTaken": 86.6000061,
+                      "healing": 0,
+                      "friendlyFire": 218.217926,
+                      "kills": 2,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 1
+                    },
+                    "cavalry": {
+                      "initial": 2,
+                      "survived": 0,
+                      "lost": 2,
+                      "damageDealt": 216,
+                      "damageTaken": 490,
+                      "healing": 0,
+                      "friendlyFire": 0,
+                      "kills": 0,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    },
+                    "medic": {
+                      "initial": 1,
+                      "survived": 0,
+                      "lost": 1,
+                      "damageDealt": 0,
+                      "damageTaken": 189.451691,
+                      "healing": 111.8517,
+                      "friendlyFire": 0,
+                      "kills": 0,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    }
+                  },
+                  "initial": 14,
+                  "survived": 3,
+                  "lost": 11,
+                  "damageDealt": 2190.67285,
+                  "damageTaken": 1874.85168,
+                  "healing": 111.8517,
+                  "friendlyFire": 428.0179,
+                  "kills": 12,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 2
+                },
+                "blue": {
+                  "remainingValue": 0,
+                  "byType": {
+                    "shield": {
+                      "initial": 3,
+                      "survived": 0,
+                      "lost": 3,
+                      "damageDealt": 84,
+                      "damageTaken": 660,
+                      "healing": 0,
+                      "friendlyFire": 0,
+                      "kills": 0,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    },
+                    "spear": {
+                      "initial": 4,
+                      "survived": 0,
+                      "lost": 4,
+                      "damageDealt": 470.9206,
+                      "damageTaken": 400,
+                      "healing": 0,
+                      "friendlyFire": 0,
+                      "kills": 1,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    },
+                    "archer": {
+                      "initial": 3,
+                      "survived": 0,
+                      "lost": 3,
+                      "damageDealt": 615.373169,
+                      "damageTaken": 195,
+                      "healing": 0,
+                      "friendlyFire": 173.6,
+                      "kills": 8,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    },
+                    "bomber": {
+                      "initial": 1,
+                      "survived": 0,
+                      "lost": 1,
+                      "damageDealt": 352.685,
+                      "damageTaken": 85,
+                      "healing": 0,
+                      "friendlyFire": 75.34499,
+                      "kills": 0,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 2
+                    },
+                    "cavalry": {
+                      "initial": 2,
+                      "survived": 0,
+                      "lost": 2,
+                      "damageDealt": 172.8,
+                      "damageTaken": 490,
+                      "healing": 0,
+                      "friendlyFire": 0,
+                      "kills": 0,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    },
+                    "medic": {
+                      "initial": 1,
+                      "survived": 0,
+                      "lost": 1,
+                      "damageDealt": 0,
+                      "damageTaken": 181.599976,
+                      "healing": 81.59996,
+                      "friendlyFire": 0,
+                      "kills": 0,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    }
+                  },
+                  "initial": 14,
+                  "survived": 0,
+                  "lost": 14,
+                  "damageDealt": 1695.77881,
+                  "damageTaken": 2011.6,
+                  "healing": 81.59996,
+                  "friendlyFire": 248.945,
+                  "kills": 9,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 2
+                }
+              },
+              "units": [
+                {
+                  "id": 1,
+                  "type": "shield",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 35,
+                  "spawn": {
+                    "x": -5,
+                    "y": 0,
+                    "z": -2
+                  },
+                  "damageDealt": 35,
+                  "damageTaken": 220,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 2,
+                  "type": "shield",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 33.6000023,
+                  "spawn": {
+                    "x": -5,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 33.6000023,
+                  "damageTaken": 219.999969,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 3,
+                  "type": "shield",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 28,
+                  "spawn": {
+                    "x": -5,
+                    "y": 0,
+                    "z": 2
+                  },
+                  "damageDealt": 28,
+                  "damageTaken": 220.000015,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 4,
+                  "type": "spear",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 80,
+                  "spawn": {
+                    "x": -7,
+                    "y": 0,
+                    "z": -2.7
+                  },
+                  "damageDealt": 80,
+                  "damageTaken": 100,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 5,
+                  "type": "spear",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 141.568909,
+                  "spawn": {
+                    "x": -7,
+                    "y": 0,
+                    "z": -0.9
+                  },
+                  "damageDealt": 81.5689,
+                  "damageTaken": 100,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 2,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 6,
+                  "type": "spear",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 205,
+                  "spawn": {
+                    "x": -7,
+                    "y": 0,
+                    "z": 0.9
+                  },
+                  "damageDealt": 175,
+                  "damageTaken": 100,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 1,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 7,
+                  "type": "spear",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 259.7,
+                  "spawn": {
+                    "x": -7,
+                    "y": 0,
+                    "z": 2.7
+                  },
+                  "damageDealt": 169.7,
+                  "damageTaken": 120.8,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 3,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 8,
+                  "type": "archer",
+                  "team": "red",
+                  "alive": true,
+                  "hp": 65,
+                  "score": 128.313019,
+                  "spawn": {
+                    "x": -10,
+                    "y": 0,
+                    "z": -1.8
+                  },
+                  "damageDealt": 247.113,
+                  "damageTaken": 0,
+                  "healing": 0,
+                  "friendlyFire": 89.3999939,
+                  "kills": 2,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 1
+                },
+                {
+                  "id": 9,
+                  "type": "archer",
+                  "team": "red",
+                  "alive": true,
+                  "hp": 65,
+                  "score": 142.347565,
+                  "spawn": {
+                    "x": -10,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 257.947571,
+                  "damageTaken": 0,
+                  "healing": 0,
+                  "friendlyFire": 72.8,
+                  "kills": 1,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 10,
+                  "type": "archer",
+                  "team": "red",
+                  "alive": true,
+                  "hp": 37,
+                  "score": 158.940445,
+                  "spawn": {
+                    "x": -10,
+                    "y": 0,
+                    "z": 1.8
+                  },
+                  "damageDealt": 224.140442,
+                  "damageTaken": 28,
+                  "healing": 0,
+                  "friendlyFire": 47.6,
+                  "kills": 1,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 11,
+                  "type": "bomber",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 266.1671,
+                  "spawn": {
+                    "x": -12,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 642.602966,
+                  "damageTaken": 86.6000061,
+                  "healing": 0,
+                  "friendlyFire": 218.217926,
+                  "kills": 2,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 1
+                },
+                {
+                  "id": 12,
+                  "type": "cavalry",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 94.5,
+                  "spawn": {
+                    "x": -5,
+                    "y": 0,
+                    "z": -4.5
+                  },
+                  "damageDealt": 94.5,
+                  "damageTaken": 245,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 13,
+                  "type": "cavalry",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 121.5,
+                  "spawn": {
+                    "x": -5,
+                    "y": 0,
+                    "z": 4.5
+                  },
+                  "damageDealt": 121.5,
+                  "damageTaken": 245,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 14,
+                  "type": "medic",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 83.88878,
+                  "spawn": {
+                    "x": -13.5,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 0,
+                  "damageTaken": 189.451691,
+                  "healing": 111.8517,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 15,
+                  "type": "shield",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 22.4,
+                  "spawn": {
+                    "x": 5,
+                    "y": 0,
+                    "z": -2
+                  },
+                  "damageDealt": 22.4,
+                  "damageTaken": 220.000031,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 16,
+                  "type": "shield",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 33.6000023,
+                  "spawn": {
+                    "x": 5,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 33.6000023,
+                  "damageTaken": 219.999969,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 17,
+                  "type": "shield",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 28,
+                  "spawn": {
+                    "x": 5,
+                    "y": 0,
+                    "z": 2
+                  },
+                  "damageDealt": 28,
+                  "damageTaken": 219.999969,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 18,
+                  "type": "spear",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 105.7206,
+                  "spawn": {
+                    "x": 7,
+                    "y": 0,
+                    "z": -2.7
+                  },
+                  "damageDealt": 75.7206,
+                  "damageTaken": 100,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 1,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 19,
+                  "type": "spear",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 70.4,
+                  "spawn": {
+                    "x": 7,
+                    "y": 0,
+                    "z": -0.9
+                  },
+                  "damageDealt": 70.4,
+                  "damageTaken": 100,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 20,
+                  "type": "spear",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 164.799988,
+                  "spawn": {
+                    "x": 7,
+                    "y": 0,
+                    "z": 0.9
+                  },
+                  "damageDealt": 164.799988,
+                  "damageTaken": 100,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 21,
+                  "type": "spear",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 160,
+                  "spawn": {
+                    "x": 7,
+                    "y": 0,
+                    "z": 2.7
+                  },
+                  "damageDealt": 160,
+                  "damageTaken": 100,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 22,
+                  "type": "archer",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 165.863113,
+                  "spawn": {
+                    "x": 10,
+                    "y": 0,
+                    "z": -1.8
+                  },
+                  "damageDealt": 199.863113,
+                  "damageTaken": 65,
+                  "healing": 0,
+                  "friendlyFire": 77,
+                  "kills": 4,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 23,
+                  "type": "archer",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 162.210052,
+                  "spawn": {
+                    "x": 10,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 180.610062,
+                  "damageTaken": 65,
+                  "healing": 0,
+                  "friendlyFire": 39.2,
+                  "kills": 2,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 24,
+                  "type": "archer",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 180.099991,
+                  "spawn": {
+                    "x": 10,
+                    "y": 0,
+                    "z": 1.8
+                  },
+                  "damageDealt": 234.9,
+                  "damageTaken": 65,
+                  "healing": 0,
+                  "friendlyFire": 57.4,
+                  "kills": 2,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 25,
+                  "type": "bomber",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 201.99501,
+                  "spawn": {
+                    "x": 12,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 352.685,
+                  "damageTaken": 85,
+                  "healing": 0,
+                  "friendlyFire": 75.34499,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 2
+                },
+                {
+                  "id": 26,
+                  "type": "cavalry",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 94.5,
+                  "spawn": {
+                    "x": 5,
+                    "y": 0,
+                    "z": -4.5
+                  },
+                  "damageDealt": 94.5,
+                  "damageTaken": 245,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 27,
+                  "type": "cavalry",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 78.3,
+                  "spawn": {
+                    "x": 5,
+                    "y": 0,
+                    "z": 4.5
+                  },
+                  "damageDealt": 78.3,
+                  "damageTaken": 245,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 28,
+                  "type": "medic",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 61.19997,
+                  "spawn": {
+                    "x": 13.5,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 0,
+                  "damageTaken": 181.599976,
+                  "healing": 81.59996,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                }
+              ],
+              "props": [],
+              "mvp": {
+                "id": 11,
+                "type": "bomber",
+                "team": "red",
+                "alive": false,
+                "hp": 0,
+                "score": 266.1671,
+                "spawn": {
+                  "x": -12,
+                  "y": 0,
+                  "z": 0
+                },
+                "damageDealt": 642.602966,
+                "damageTaken": 86.6000061,
+                "healing": 0,
+                "friendlyFire": 218.217926,
+                "kills": 2,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyKills": 1
+              }
+            },
+            "orders": [
+              {
+                "id": 1,
+                "tick": 0,
+                "endTick": 300,
+                "team": "red",
+                "type": "inspire",
+                "x": -5,
+                "z": -2
+              },
+              {
+                "id": 2,
+                "tick": 0,
+                "endTick": 300,
+                "team": "blue",
+                "type": "inspire",
+                "x": 5,
+                "z": -2
+              },
+              {
+                "id": 3,
+                "tick": 480,
+                "endTick": 780,
+                "team": "red",
+                "type": "fortify",
+                "x": -0.63663733,
+                "z": 2.783221
+              },
+              {
+                "id": 4,
+                "tick": 480,
+                "endTick": 780,
+                "team": "blue",
+                "type": "fortify",
+                "x": 0.703093767,
+                "z": -3.06921768
+              },
+              {
+                "id": 5,
+                "tick": 960,
+                "endTick": 1260,
+                "team": "red",
+                "type": "fortify",
+                "x": 0.222647861,
+                "z": 0.691023469
+              },
+              {
+                "id": 6,
+                "tick": 960,
+                "endTick": 1260,
+                "team": "blue",
+                "type": "fortify",
+                "x": 1.92754686,
+                "z": 3.39305258
+              }
+            ],
+            "highlights": [
+              {
+                "id": 1,
+                "tick": 0,
+                "type": "order",
+                "team": "red",
+                "value": 0
+              },
+              {
+                "id": 2,
+                "tick": 0,
+                "type": "order",
+                "team": "blue",
+                "value": 0
+              },
+              {
+                "id": 3,
+                "tick": 203,
+                "type": "firstKill",
+                "team": "red",
+                "value": 0
+              },
+              {
+                "id": 4,
+                "tick": 480,
+                "type": "order",
+                "team": "red",
+                "value": 0
+              },
+              {
+                "id": 5,
+                "tick": 480,
+                "type": "order",
+                "team": "blue",
+                "value": 0
+              },
+              {
+                "id": 6,
+                "tick": 960,
+                "type": "order",
+                "team": "red",
+                "value": 0
+              },
+              {
+                "id": 7,
+                "tick": 960,
+                "type": "order",
+                "team": "blue",
+                "value": 0
+              }
+            ]
+          }
+        },
+        {
+          "config": {
+            "version": "0.6.0",
+            "map": "meadow",
+            "seed": 43,
+            "budget": 2200,
+            "red": [
+              {
+                "type": "shield",
+                "stance": "advance",
+                "x": -5,
+                "z": -2
+              },
+              {
+                "type": "shield",
+                "stance": "advance",
+                "x": -5,
+                "z": 0
+              },
+              {
+                "type": "shield",
+                "stance": "advance",
+                "x": -5,
+                "z": 2
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": -7,
+                "z": -2.7
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": -7,
+                "z": -0.9
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": -7,
+                "z": 0.9
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": -7,
+                "z": 2.7
+              },
+              {
+                "type": "archer",
+                "stance": "advance",
+                "x": -10,
+                "z": -1.8
+              },
+              {
+                "type": "archer",
+                "stance": "advance",
+                "x": -10,
+                "z": 0
+              },
+              {
+                "type": "archer",
+                "stance": "advance",
+                "x": -10,
+                "z": 1.8
+              },
+              {
+                "type": "bomber",
+                "stance": "advance",
+                "x": -12,
+                "z": 0
+              },
+              {
+                "type": "cavalry",
+                "stance": "advance",
+                "x": -5,
+                "z": -4.5
+              },
+              {
+                "type": "cavalry",
+                "stance": "advance",
+                "x": -5,
+                "z": 4.5
+              },
+              {
+                "type": "medic",
+                "stance": "advance",
+                "x": -13.5,
+                "z": 0
+              }
+            ],
+            "blue": [
+              {
+                "type": "shield",
+                "stance": "advance",
+                "x": 5,
+                "z": -2
+              },
+              {
+                "type": "shield",
+                "stance": "advance",
+                "x": 5,
+                "z": 0
+              },
+              {
+                "type": "shield",
+                "stance": "advance",
+                "x": 5,
+                "z": 2
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": 7,
+                "z": -2.7
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": 7,
+                "z": -0.9
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": 7,
+                "z": 0.9
+              },
+              {
+                "type": "spear",
+                "stance": "advance",
+                "x": 7,
+                "z": 2.7
+              },
+              {
+                "type": "archer",
+                "stance": "advance",
+                "x": 10,
+                "z": -1.8
+              },
+              {
+                "type": "archer",
+                "stance": "advance",
+                "x": 10,
+                "z": 0
+              },
+              {
+                "type": "archer",
+                "stance": "advance",
+                "x": 10,
+                "z": 1.8
+              },
+              {
+                "type": "bomber",
+                "stance": "advance",
+                "x": 12,
+                "z": 0
+              },
+              {
+                "type": "cavalry",
+                "stance": "advance",
+                "x": 5,
+                "z": -4.5
+              },
+              {
+                "type": "cavalry",
+                "stance": "advance",
+                "x": 5,
+                "z": 4.5
+              },
+              {
+                "type": "medic",
+                "stance": "advance",
+                "x": 13.5,
+                "z": 0
+              }
+            ],
+            "props": [],
+            "commander": {
+              "enabled": true,
+              "aiTeams": []
+            }
+          },
+          "result": {
+            "winner": "red",
+            "reason": "elimination",
+            "time": 29.6666679,
+            "red": 4,
+            "blue": 0,
+            "remainingValue": {
+              "red": 450.705872,
+              "blue": 0
+            },
+            "report": {
+              "teams": {
+                "red": {
+                  "remainingValue": 450.705872,
+                  "byType": {
+                    "shield": {
+                      "initial": 3,
+                      "survived": 0,
+                      "lost": 3,
+                      "damageDealt": 135.8,
+                      "damageTaken": 659.999939,
+                      "healing": 0,
+                      "friendlyFire": 0,
+                      "kills": 0,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    },
+                    "spear": {
+                      "initial": 4,
+                      "survived": 0,
+                      "lost": 4,
+                      "damageDealt": 556.931152,
+                      "damageTaken": 400,
+                      "healing": 0,
+                      "friendlyFire": 0,
+                      "kills": 5,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    },
+                    "archer": {
+                      "initial": 3,
+                      "survived": 3,
+                      "lost": 0,
+                      "damageDealt": 664.6993,
+                      "damageTaken": 0,
+                      "healing": 0,
+                      "friendlyFire": 100.099335,
+                      "kills": 3,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 1
+                    },
+                    "bomber": {
+                      "initial": 1,
+                      "survived": 1,
+                      "lost": 0,
+                      "damageDealt": 541.5287,
+                      "damageTaken": 28,
+                      "healing": 0,
+                      "friendlyFire": 214.673767,
+                      "kills": 5,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 1
+                    },
+                    "cavalry": {
+                      "initial": 2,
+                      "survived": 0,
+                      "lost": 2,
+                      "damageDealt": 216,
+                      "damageTaken": 490,
+                      "healing": 0,
+                      "friendlyFire": 0,
+                      "kills": 0,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    },
+                    "medic": {
+                      "initial": 1,
+                      "survived": 0,
+                      "lost": 1,
+                      "damageDealt": 0,
+                      "damageTaken": 181.599976,
+                      "healing": 81.59996,
+                      "friendlyFire": 0,
+                      "kills": 0,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    }
+                  },
+                  "initial": 14,
+                  "survived": 4,
+                  "lost": 10,
+                  "damageDealt": 2114.959,
+                  "damageTaken": 1759.6,
+                  "healing": 81.59996,
+                  "friendlyFire": 314.7731,
+                  "kills": 13,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 2
+                },
+                "blue": {
+                  "remainingValue": 0,
+                  "byType": {
+                    "shield": {
+                      "initial": 3,
+                      "survived": 0,
+                      "lost": 3,
+                      "damageDealt": 98,
+                      "damageTaken": 659.999939,
+                      "healing": 0,
+                      "friendlyFire": 0,
+                      "kills": 0,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    },
+                    "spear": {
+                      "initial": 4,
+                      "survived": 0,
+                      "lost": 4,
+                      "damageDealt": 398.983215,
+                      "damageTaken": 400,
+                      "healing": 0,
+                      "friendlyFire": 0,
+                      "kills": 3,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    },
+                    "archer": {
+                      "initial": 3,
+                      "survived": 0,
+                      "lost": 3,
+                      "damageDealt": 712.2256,
+                      "damageTaken": 195,
+                      "healing": 0,
+                      "friendlyFire": 100.599976,
+                      "kills": 5,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 1
+                    },
+                    "bomber": {
+                      "initial": 1,
+                      "survived": 0,
+                      "lost": 1,
+                      "damageDealt": 221.831772,
+                      "damageTaken": 85,
+                      "healing": 0,
+                      "friendlyFire": 69.21382,
+                      "kills": 0,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    },
+                    "cavalry": {
+                      "initial": 2,
+                      "survived": 0,
+                      "lost": 2,
+                      "damageDealt": 183.6,
+                      "damageTaken": 490,
+                      "healing": 0,
+                      "friendlyFire": 0,
+                      "kills": 0,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    },
+                    "medic": {
+                      "initial": 1,
+                      "survived": 0,
+                      "lost": 1,
+                      "damageDealt": 0,
+                      "damageTaken": 139.999969,
+                      "healing": 39.9999962,
+                      "friendlyFire": 0,
+                      "kills": 0,
+                      "falls": 0,
+                      "fallKills": 0,
+                      "friendlyKills": 0
+                    }
+                  },
+                  "initial": 14,
+                  "survived": 0,
+                  "lost": 14,
+                  "damageDealt": 1614.64063,
+                  "damageTaken": 1970,
+                  "healing": 39.9999962,
+                  "friendlyFire": 169.8138,
+                  "kills": 8,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 1
+                }
+              },
+              "units": [
+                {
+                  "id": 1,
+                  "type": "shield",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 43.4,
+                  "spawn": {
+                    "x": -5,
+                    "y": 0,
+                    "z": -2
+                  },
+                  "damageDealt": 43.4,
+                  "damageTaken": 220,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 2,
+                  "type": "shield",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 43.4,
+                  "spawn": {
+                    "x": -5,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 43.4,
+                  "damageTaken": 219.999985,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 3,
+                  "type": "shield",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 49,
+                  "spawn": {
+                    "x": -5,
+                    "y": 0,
+                    "z": 2
+                  },
+                  "damageDealt": 49,
+                  "damageTaken": 219.999954,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 4,
+                  "type": "spear",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 77.3,
+                  "spawn": {
+                    "x": -7,
+                    "y": 0,
+                    "z": -2.7
+                  },
+                  "damageDealt": 47.3,
+                  "damageTaken": 100,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 1,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 5,
+                  "type": "spear",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 112,
+                  "spawn": {
+                    "x": -7,
+                    "y": 0,
+                    "z": -0.9
+                  },
+                  "damageDealt": 112,
+                  "damageTaken": 100,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 6,
+                  "type": "spear",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 244.831161,
+                  "spawn": {
+                    "x": -7,
+                    "y": 0,
+                    "z": 0.9
+                  },
+                  "damageDealt": 154.831161,
+                  "damageTaken": 100,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 3,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 7,
+                  "type": "spear",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 272.8,
+                  "spawn": {
+                    "x": -7,
+                    "y": 0,
+                    "z": 2.7
+                  },
+                  "damageDealt": 242.8,
+                  "damageTaken": 100,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 1,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 8,
+                  "type": "archer",
+                  "team": "red",
+                  "alive": true,
+                  "hp": 65,
+                  "score": 235.2,
+                  "spawn": {
+                    "x": -10,
+                    "y": 0,
+                    "z": -1.8
+                  },
+                  "damageDealt": 235.2,
+                  "damageTaken": 0,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 9,
+                  "type": "archer",
+                  "team": "red",
+                  "alive": true,
+                  "hp": 65,
+                  "score": 205.199966,
+                  "spawn": {
+                    "x": -10,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 255.199966,
+                  "damageTaken": 0,
+                  "healing": 0,
+                  "friendlyFire": 70,
+                  "kills": 3,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 10,
+                  "type": "archer",
+                  "team": "red",
+                  "alive": true,
+                  "hp": 65,
+                  "score": 114.10067,
+                  "spawn": {
+                    "x": -10,
+                    "y": 0,
+                    "z": 1.8
+                  },
+                  "damageDealt": 174.299332,
+                  "damageTaken": 0,
+                  "healing": 0,
+                  "friendlyFire": 30.09933,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 1
+                },
+                {
+                  "id": 11,
+                  "type": "bomber",
+                  "team": "red",
+                  "alive": true,
+                  "hp": 57,
+                  "score": 262.181152,
+                  "spawn": {
+                    "x": -12,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 541.5287,
+                  "damageTaken": 28,
+                  "healing": 0,
+                  "friendlyFire": 214.673767,
+                  "kills": 5,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 1
+                },
+                {
+                  "id": 12,
+                  "type": "cavalry",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 94.5,
+                  "spawn": {
+                    "x": -5,
+                    "y": 0,
+                    "z": -4.5
+                  },
+                  "damageDealt": 94.5,
+                  "damageTaken": 245,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 13,
+                  "type": "cavalry",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 121.5,
+                  "spawn": {
+                    "x": -5,
+                    "y": 0,
+                    "z": 4.5
+                  },
+                  "damageDealt": 121.5,
+                  "damageTaken": 245,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 14,
+                  "type": "medic",
+                  "team": "red",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 61.19997,
+                  "spawn": {
+                    "x": -13.5,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 0,
+                  "damageTaken": 181.599976,
+                  "healing": 81.59996,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 15,
+                  "type": "shield",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 29.4000015,
+                  "spawn": {
+                    "x": 5,
+                    "y": 0,
+                    "z": -2
+                  },
+                  "damageDealt": 29.4000015,
+                  "damageTaken": 220,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 16,
+                  "type": "shield",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 47.6000023,
+                  "spawn": {
+                    "x": 5,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 47.6000023,
+                  "damageTaken": 219.999954,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 17,
+                  "type": "shield",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 21,
+                  "spawn": {
+                    "x": 5,
+                    "y": 0,
+                    "z": 2
+                  },
+                  "damageDealt": 21,
+                  "damageTaken": 220,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 18,
+                  "type": "spear",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 170.283234,
+                  "spawn": {
+                    "x": 7,
+                    "y": 0,
+                    "z": -2.7
+                  },
+                  "damageDealt": 110.283226,
+                  "damageTaken": 100.000008,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 2,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 19,
+                  "type": "spear",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 86.3999939,
+                  "spawn": {
+                    "x": 7,
+                    "y": 0,
+                    "z": -0.9
+                  },
+                  "damageDealt": 86.3999939,
+                  "damageTaken": 100,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 20,
+                  "type": "spear",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 86.3999939,
+                  "spawn": {
+                    "x": 7,
+                    "y": 0,
+                    "z": 0.9
+                  },
+                  "damageDealt": 86.3999939,
+                  "damageTaken": 100,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 21,
+                  "type": "spear",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 145.9,
+                  "spawn": {
+                    "x": 7,
+                    "y": 0,
+                    "z": 2.7
+                  },
+                  "damageDealt": 115.9,
+                  "damageTaken": 100,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 1,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 22,
+                  "type": "archer",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 223.072128,
+                  "spawn": {
+                    "x": 10,
+                    "y": 0,
+                    "z": -1.8
+                  },
+                  "damageDealt": 185.472122,
+                  "damageTaken": 65,
+                  "healing": 0,
+                  "friendlyFire": 11.2,
+                  "kills": 2,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 23,
+                  "type": "archer",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 255.75354,
+                  "spawn": {
+                    "x": 10,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 262.5535,
+                  "damageTaken": 65,
+                  "healing": 0,
+                  "friendlyFire": 33.39998,
+                  "kills": 2,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 1
+                },
+                {
+                  "id": 24,
+                  "type": "archer",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 182.199982,
+                  "spawn": {
+                    "x": 10,
+                    "y": 0,
+                    "z": 1.8
+                  },
+                  "damageDealt": 264.199982,
+                  "damageTaken": 65,
+                  "healing": 0,
+                  "friendlyFire": 56,
+                  "kills": 1,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 25,
+                  "type": "bomber",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 83.40413,
+                  "spawn": {
+                    "x": 12,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 221.831772,
+                  "damageTaken": 85,
+                  "healing": 0,
+                  "friendlyFire": 69.21382,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 26,
+                  "type": "cavalry",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 105.3,
+                  "spawn": {
+                    "x": 5,
+                    "y": 0,
+                    "z": -4.5
+                  },
+                  "damageDealt": 105.3,
+                  "damageTaken": 245,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 27,
+                  "type": "cavalry",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 78.3,
+                  "spawn": {
+                    "x": 5,
+                    "y": 0,
+                    "z": 4.5
+                  },
+                  "damageDealt": 78.3,
+                  "damageTaken": 245,
+                  "healing": 0,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                },
+                {
+                  "id": 28,
+                  "type": "medic",
+                  "team": "blue",
+                  "alive": false,
+                  "hp": 0,
+                  "score": 29.9999962,
+                  "spawn": {
+                    "x": 13.5,
+                    "y": 0,
+                    "z": 0
+                  },
+                  "damageDealt": 0,
+                  "damageTaken": 139.999969,
+                  "healing": 39.9999962,
+                  "friendlyFire": 0,
+                  "kills": 0,
+                  "falls": 0,
+                  "fallKills": 0,
+                  "friendlyKills": 0
+                }
+              ],
+              "props": [],
+              "mvp": {
+                "id": 7,
+                "type": "spear",
+                "team": "red",
+                "alive": false,
+                "hp": 0,
+                "score": 272.8,
+                "spawn": {
+                  "x": -7,
+                  "y": 0,
+                  "z": 2.7
+                },
+                "damageDealt": 242.8,
+                "damageTaken": 100,
+                "healing": 0,
+                "friendlyFire": 0,
+                "kills": 1,
+                "falls": 0,
+                "fallKills": 0,
+                "friendlyKills": 0
+              }
+            },
+            "orders": [
+              {
+                "id": 1,
+                "tick": 0,
+                "endTick": 300,
+                "team": "red",
+                "type": "inspire",
+                "x": -5,
+                "z": -2
+              },
+              {
+                "id": 2,
+                "tick": 0,
+                "endTick": 300,
+                "team": "blue",
+                "type": "inspire",
+                "x": 5,
+                "z": -2
+              },
+              {
+                "id": 3,
+                "tick": 480,
+                "endTick": 780,
+                "team": "red",
+                "type": "fortify",
+                "x": -0.801723361,
+                "z": 2.81454849
+              },
+              {
+                "id": 4,
+                "tick": 480,
+                "endTick": 780,
+                "team": "blue",
+                "type": "fortify",
+                "x": 0.274732918,
+                "z": -3.03025961
+              },
+              {
+                "id": 5,
+                "tick": 960,
+                "endTick": 1260,
+                "team": "red",
+                "type": "fortify",
+                "x": 1.39221764,
+                "z": 1.6810112
+              },
+              {
+                "id": 6,
+                "tick": 960,
+                "endTick": 1260,
+                "team": "blue",
+                "type": "inspire",
+                "x": 7.862847,
+                "z": 0.633802056
+              }
+            ],
+            "highlights": [
+              {
+                "id": 1,
+                "tick": 0,
+                "type": "order",
+                "team": "red",
+                "value": 0
+              },
+              {
+                "id": 2,
+                "tick": 0,
+                "type": "order",
+                "team": "blue",
+                "value": 0
+              },
+              {
+                "id": 3,
+                "tick": 258,
+                "type": "firstKill",
+                "team": "red",
+                "value": 0
+              },
+              {
+                "id": 4,
+                "tick": 480,
+                "type": "order",
+                "team": "red",
+                "value": 0
+              },
+              {
+                "id": 5,
+                "tick": 480,
+                "type": "order",
+                "team": "blue",
+                "value": 0
+              },
+              {
+                "id": 6,
+                "tick": 960,
+                "type": "order",
+                "team": "red",
+                "value": 0
+              },
+              {
+                "id": 7,
+                "tick": 960,
+                "type": "order",
+                "team": "blue",
+                "value": 0
+              }
+            ]
+          }
+        }
+      ],
+      "wins": {
+        "red": 2,
+        "blue": 0,
+        "draw": 0
+      },
+      "winner": "red"
+    }
+  },
+  "builds": [
+    {
+      "target": "StandaloneWindows64",
+      "bytes": 81242738,
+      "time": "00:00:13.2063510"
+    },
+    {
+      "target": "WebGL",
+      "bytes": 17896794,
+      "time": "00:01:32.2990378"
+    }
+  ],
+  "webDirectoryBytes": 9363721,
+  "bakedMeshes": 128,
+  "frozenTrees": {
+    "src": "7f09629cfca1ebe5c4c27fcb034857c8940759ef",
+    "test": "7e1293310f2d3d79c2d4cb2498d9d85df598e25a",
+    "scripts": "192e32422c014cacd2384f298736aaf2dedea9df"
+  },
+  "limitations": [
+    "PhysX seeds require the same engine/platform/editor; portable replay uses complete trajectories.",
+    "Mono/WebGL thread-allocation APIs fail calibration. Release GC=-1 is unavailable; genuine frame GC comes from Development ProfilerRecorder, including UI/QA overhead.",
+    "Web millisecond timing is quantized; reciprocal FPS is approximate, not display refresh. QA uses DPR=1; ordinary site rendering allows DPR up to 2.",
+    "Fresh snapshot CPU exceeds .34 ms/step. Prepared CPU also rises versus 0.7; the new physics workload is documented rather than called unchanged.",
+    "Unity Editor SearchDatabase indexing exception persisted with exit 0; independent player checks passed. One temporary ILPP pipe build failure was retried successfully.",
+    "390px uses a real browser pointer; a physical phone multitouch session was not performed. Existing rare CJK font subset and Windows-only external process Bot limitations remain.",
+    "The production site retains its existing owner-only audience and normal ChatGPT sign-in gate. A successful deployment is not a claim that a gated production battle was opened."
+  ]
+}
