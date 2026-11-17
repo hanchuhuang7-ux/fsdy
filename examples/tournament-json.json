@@ -1,0 +1,9 @@
+{
+  "entrants": [
+    {"name":"自定义枪医","file":"arena-roster.json","team":"red"},
+    {"name":"磐石","ai":"guardian"}
+  ],
+  "maps":["meadow"],
+  "seeds":[42],
+  "budget":500
+}

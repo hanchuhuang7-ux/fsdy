@@ -24,7 +24,7 @@ npm run battle -- --config examples/ai-duel.json --out report.json --replay-out 
 npm run battle -- --red-ai counter --blue-ai maneuver --map ruins --bo3 --commander --out bo3.json
 ```
 
-三种内置策略名为 guardian / maneuver / counter。双方文件可以是单位数组、`{units,props}` 或完整对局；完整对局按 red / blue 提取对应一方。阵营坐标必须正确，不会自动镜像。`--config` 默认保留原双方，显式单方参数才覆盖。`--rounds` 固定编队，逐局递增物理种子，不是在每一局重新规划 AI。
+四种内置策略名为 guardian / maneuver / counter / oracle。oracle 在固定预算内试跑候选，选残余战力最高者，不能据单次推演声称总体必胜。双方文件可以是单位数组、`{units,props}` 或完整对局；完整对局按 red / blue 提取对应一方。阵营坐标必须正确，不会自动镜像。`--config` 默认保留原双方，显式单方参数才覆盖。`--rounds` 固定编队，逐局递增物理种子，不是在每一局重新规划 AI。
 
 输出 schema 为 `frontline-evaluation@1`。每局在 `results` 中包含 `seed`、`winner`、`reason`、`time`、`remainingValue.red/blue` 和 `report`。读取 `report.teams[team].byType` 研究兵种伤亡，读取 `report.units` 研究单兵贡献：damageDealt、damageTaken、healing、kills、falls、fallKills、friendlyFire、friendlyKills。伤害按实际扣血计，不含过量；damageDealt 包含友伤，friendlyFire 是其子集。桶的爆炸贡献归桶，见 V0.3.md。
 
@@ -35,3 +35,7 @@ npm run battle -- --red-ai counter --blue-ai maneuver --map ruins --bo3 --comman
 v0.4 的 `counter` 不只检查骑兵，也读取公开的重甲、突进、远程/军医集群和空间展开。Bo3 中可使用 `series.rounds[n].config` 和 `.result.report` 复盘；下一局地图、军费和军令开关固定，种子递增。最多三局，先两胜提前结束，含平局时按最终胜局数判断。
 
 可选 `commander: {enabled:true,aiTeams:["red","blue"]}` 让 CLI 双方自动使用统帅军令。人类与 AI 统一调用 `Battle.issueOrder()`，各 3 点、统一 8 秒冷却；军令日志是可复现输入的一部分。`--commander` 是该配置的快捷开关，`--bo3` 启用公开战报调阵。单局批量 `--rounds` 仍保持固定阵型。
+
+## v0.5 擂台与实时智能体
+
+多 AI / JSON / 收藏循环赛见 `docs/V0.5.md` 与 `examples/tournament*.json`；实时 Python / Node / 模型适配器使用 `docs/AGENT_PROTOCOL.md`。静态布阵 JSON 与实时军令协议是不同的数据边界。不要把战报当回放或把 JSON 当可执行脚本。

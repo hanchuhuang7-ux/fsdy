@@ -1,3 +1,4 @@
+import { HIGHLIGHT_LIMIT } from "./highlights.js";
 import RAPIER from "@dimforge/rapier3d-compat";
 import {
   UNITS,
@@ -72,6 +73,10 @@ export class Battle {
     this.ragdolls = [];
     this.effects = [];
     this.events = [];
+    this.highlights = [];
+    this.highlightTimes = new Map();
+    this.firstCasualty = false;
+    this.highlightLeader = 0;
     this.props = [];
     this.colliderUnits = new Map();
     this.colliderProjectiles = new Map();
@@ -137,6 +142,22 @@ export class Battle {
       strength,
     });
   }
+  highlight(type, team = "neutral", value = 0) {
+    if (
+      this.highlights.length >= HIGHLIGHT_LIMIT ||
+      this.tick - (this.highlightTimes.get(type) ?? -10000) <
+        (type === "blast" ? 180 : type === "reversal" ? 600 : 0)
+    )
+      return;
+    this.highlightTimes.set(type, this.tick);
+    this.highlights.push({
+      id: this.highlights.length + 1,
+      type,
+      team,
+      tick: this.tick,
+      value: Math.round(Math.max(0, value) * 1000) / 1000,
+    });
+  }
   issueOrder(team, order) {
     const reject = (reason) => ({ ok: false, reason });
     if (!this.config.commander.enabled) return reject("军令模式未开启");
@@ -189,6 +210,7 @@ export class Battle {
       y: heightAt(this.config.map, order.x, order.z) + 0.2,
       z: order.z,
     });
+    this.highlight("order", team);
     return { ok: true, entry: { ...entry } };
   }
   useOrderLog(log) {
@@ -873,6 +895,7 @@ export class Battle {
     this.colliderProjectiles.set(collider.handle, shot);
   }
   blast(origin, radius, damage, knock, owner = null) {
+    const beforeDamage = owner?.contribution.damageDealt || 0;
     const p = { ...origin };
     this.effect("explosion", p, 0.65);
     // Explosions use current rigid-body transforms, including airborne targets.
@@ -903,6 +926,9 @@ export class Battle {
         if (Math.hypot(dx, dz) < radius)
           part.body.applyImpulse(vec(dx, 4, dz), true);
       }
+    const dealt = (owner?.contribution.damageDealt || 0) - beforeDamage;
+    if (dealt >= 150 && ["barrel", "catapult"].includes(owner?.type))
+      this.highlight("blast", owner.team, dealt);
   }
   explode(projectile) {
     if (projectile.removed) return;
@@ -1014,6 +1040,10 @@ export class Battle {
         source.contribution.kills++;
         if (reason === "fall") source.contribution.fallKills++;
       }
+    }
+    if (!this.firstCasualty) {
+      this.firstCasualty = true;
+      this.highlight("firstKill", source?.team || "neutral");
     }
     u.alive = false;
     u.hp = 0;
@@ -1167,6 +1197,16 @@ export class Battle {
           blueScore += unitPower(u);
         }
       }
+    if (this.tick % 60 === 0 && Math.abs(redScore - blueScore) >= 80) {
+      const leader = redScore > blueScore ? 1 : -1;
+      if (this.highlightLeader && leader !== this.highlightLeader)
+        this.highlight(
+          "reversal",
+          leader === 1 ? "red" : "blue",
+          Math.abs(redScore - blueScore),
+        );
+      this.highlightLeader = leader;
+    }
     if (!red || !blue || this.time >= MAX_TIME)
       this.result = {
         winner:
@@ -1193,6 +1233,7 @@ export class Battle {
       };
       this.result.report = this.report();
       this.result.orders = structuredClone(this.orderState.log);
+      this.result.highlights = structuredClone(this.highlights);
     }
   }
   report() {

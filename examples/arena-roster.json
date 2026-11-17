@@ -1,0 +1,11 @@
+{
+  "name": "枪医小队",
+  "team": "red",
+  "map": "meadow",
+  "units": [
+    {"type":"spear","x":-5,"z":-2,"stance":"advance"},
+    {"type":"spear","x":-5,"z":2,"stance":"advance"},
+    {"type":"medic","x":-8,"z":0,"stance":"advance"}
+  ],
+  "props": []
+}

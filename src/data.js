@@ -1,4 +1,4 @@
-export const VERSION = "0.4.0";
+export const VERSION = "0.5.0";
 export const ORDERS = {
   inspire: { name: "全军鼓舞", duration: 300, radius: 6, cost: 1 },
   focus: { name: "集火令", duration: 360, radius: 8, cost: 1 },
@@ -545,7 +545,7 @@ export function terrainAt(map, x, z) {
 }
 export function validateConfig(input) {
   assertSafeData(input);
-  if (!input || !["0.1.0", "0.2.0", "0.3.0", VERSION].includes(input.version))
+  if (!input || !["0.1.0", "0.2.0", "0.3.0", "0.4.0", VERSION].includes(input.version))
     throw Error("不支持的文件版本，需要 " + VERSION);
   const config = {
     version: VERSION,

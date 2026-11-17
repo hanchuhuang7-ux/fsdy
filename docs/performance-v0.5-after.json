@@ -1,0 +1,42 @@
+{
+  "version": "0.5.0",
+  "node": "v26.13.0",
+  "platform": "win32",
+  "seed": 42,
+  "warmupRuns": 1,
+  "measuredRuns": 5,
+  "fixture": "45v45 mixed, 720 fixed steps + 10 Hz snapshots",
+  "samples": [
+    {
+      "ms": 493.3824000000001,
+      "steps": 720,
+      "msPerStep": 0.6852533333333335
+    },
+    {
+      "ms": 286.1872000000001,
+      "steps": 720,
+      "msPerStep": 0.39748222222222235
+    },
+    {
+      "ms": 275.58820000000014,
+      "steps": 720,
+      "msPerStep": 0.3827613888888891
+    },
+    {
+      "ms": 274.27330000000006,
+      "steps": 720,
+      "msPerStep": 0.38093513888888897
+    },
+    {
+      "ms": 269.2539999999999,
+      "steps": 720,
+      "msPerStep": 0.37396388888888876
+    },
+    {
+      "ms": 265.2517,
+      "steps": 720,
+      "msPerStep": 0.36840513888888893
+    }
+  ],
+  "medianMsPerStep": 0.38093513888888897
+}

@@ -106,6 +106,7 @@ try {
   if (options["replay-out"] && (options.rounds !== 1 || options.bo3))
     throw Error("回放导出要求 rounds=1");
   if (!Object.hasOwn(MAPS, options.map)) throw Error("未知地图");
+  await initPhysics();
   const raw = options.config
     ? await read(options.config)
     : {

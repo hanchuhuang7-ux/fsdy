@@ -1,0 +1,2643 @@
+{
+  "schema": "frontline-tournament@1",
+  "engine": "0.5.0",
+  "matches": [
+    {
+      "red": 0,
+      "blue": 1,
+      "map": "meadow",
+      "seed": 42,
+      "result": {
+        "winner": "red",
+        "time": 90,
+        "remainingValue": {
+          "red": 472.513,
+          "blue": 285.44
+        },
+        "mvp": {
+          "id": 12,
+          "team": "blue",
+          "type": "crossbow",
+          "alive": true,
+          "hp": 90,
+          "spawn": {
+            "x": 8.1,
+            "z": 0
+          },
+          "damageDealt": 1187.88,
+          "damageTaken": 0,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 53.4,
+          "friendlyKills": 1,
+          "score": 1111.08
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 404,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "reversal",
+            "team": "red",
+            "tick": 720,
+            "value": 134.372
+          }
+        ]
+      }
+    },
+    {
+      "red": 1,
+      "blue": 0,
+      "map": "meadow",
+      "seed": 42,
+      "result": {
+        "winner": "blue",
+        "time": 23.75,
+        "remainingValue": {
+          "red": 0,
+          "blue": 544.942
+        },
+        "mvp": {
+          "id": 4,
+          "team": "red",
+          "type": "crossbow",
+          "alive": false,
+          "hp": 0,
+          "spawn": {
+            "x": -8.1,
+            "z": 0
+          },
+          "damageDealt": 371.92,
+          "damageTaken": 118,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 5.4,
+          "friendlyKills": 1,
+          "score": 391.12
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "reversal",
+            "team": "blue",
+            "tick": 180,
+            "value": 104.968
+          },
+          {
+            "id": 2,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 411,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 0,
+      "blue": 1,
+      "map": "meadow",
+      "seed": 43,
+      "result": {
+        "winner": "red",
+        "time": 90,
+        "remainingValue": {
+          "red": 521.756,
+          "blue": 288
+        },
+        "mvp": {
+          "id": 12,
+          "team": "blue",
+          "type": "crossbow",
+          "alive": true,
+          "hp": 90,
+          "spawn": {
+            "x": 8.1,
+            "z": 0
+          },
+          "damageDealt": 1512.76,
+          "damageTaken": 0,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 1542.76
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 255,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "reversal",
+            "team": "red",
+            "tick": 540,
+            "value": 125.387
+          }
+        ]
+      }
+    },
+    {
+      "red": 1,
+      "blue": 0,
+      "map": "meadow",
+      "seed": 43,
+      "result": {
+        "winner": "blue",
+        "time": 34.46666666666667,
+        "remainingValue": {
+          "red": 0,
+          "blue": 705.473
+        },
+        "mvp": {
+          "id": 11,
+          "team": "blue",
+          "type": "medic",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": 8.1,
+            "z": -2.4
+          },
+          "damageDealt": 0,
+          "damageTaken": 0,
+          "healing": 520,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 390
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 255,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 0,
+      "blue": 1,
+      "map": "ruins",
+      "seed": 42,
+      "result": {
+        "winner": "red",
+        "time": 90,
+        "remainingValue": {
+          "red": 725,
+          "blue": 160
+        },
+        "mvp": {
+          "id": 4,
+          "team": "red",
+          "type": "crossbow",
+          "alive": true,
+          "hp": 90,
+          "spawn": {
+            "x": -8.1,
+            "z": -2.4
+          },
+          "damageDealt": 336,
+          "damageTaken": 0,
+          "healing": 0,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 336
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 302,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 384,
+            "value": 197.202
+          }
+        ]
+      }
+    },
+    {
+      "red": 1,
+      "blue": 0,
+      "map": "ruins",
+      "seed": 42,
+      "result": {
+        "winner": "blue",
+        "time": 90,
+        "remainingValue": {
+          "red": 160,
+          "blue": 725
+        },
+        "mvp": {
+          "id": 10,
+          "team": "blue",
+          "type": "crossbow",
+          "alive": true,
+          "hp": 90,
+          "spawn": {
+            "x": 8.1,
+            "z": -2.4
+          },
+          "damageDealt": 301.2,
+          "damageTaken": 162,
+          "healing": 0,
+          "kills": 2,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 361.2
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 222,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 384,
+            "value": 381.236
+          }
+        ]
+      }
+    },
+    {
+      "red": 0,
+      "blue": 1,
+      "map": "ruins",
+      "seed": 43,
+      "result": {
+        "winner": "red",
+        "time": 90,
+        "remainingValue": {
+          "red": 685,
+          "blue": 160
+        },
+        "mvp": {
+          "id": 2,
+          "team": "red",
+          "type": "spear",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": -4.5,
+            "z": -2.4
+          },
+          "damageDealt": 267.419,
+          "damageTaken": 135,
+          "healing": 0,
+          "kills": 2,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 327.419
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 166,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 396,
+            "value": 372.662
+          }
+        ]
+      }
+    },
+    {
+      "red": 1,
+      "blue": 0,
+      "map": "ruins",
+      "seed": 43,
+      "result": {
+        "winner": "blue",
+        "time": 90,
+        "remainingValue": {
+          "red": 160,
+          "blue": 685
+        },
+        "mvp": {
+          "id": 11,
+          "team": "blue",
+          "type": "medic",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": 8.1,
+            "z": -2.4
+          },
+          "damageDealt": 0,
+          "damageTaken": 0,
+          "healing": 481.2,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 360.9
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 182,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 384,
+            "value": 197.202
+          }
+        ]
+      }
+    },
+    {
+      "red": 0,
+      "blue": 2,
+      "map": "meadow",
+      "seed": 42,
+      "result": {
+        "winner": "red",
+        "time": 32.266666666666666,
+        "remainingValue": {
+          "red": 280.916,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 3,
+          "team": "red",
+          "type": "archer",
+          "alive": true,
+          "hp": 65,
+          "spawn": {
+            "x": -8.1,
+            "z": 0
+          },
+          "damageDealt": 326.8,
+          "damageTaken": 96,
+          "healing": 0,
+          "kills": 2,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 386.8
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 354,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 2,
+      "blue": 0,
+      "map": "meadow",
+      "seed": 42,
+      "result": {
+        "winner": "blue",
+        "time": 46.18333333333333,
+        "remainingValue": {
+          "red": 0,
+          "blue": 459.387
+        },
+        "mvp": {
+          "id": 12,
+          "team": "blue",
+          "type": "medic",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": 8.1,
+            "z": 2.4
+          },
+          "damageDealt": 0,
+          "damageTaken": 0,
+          "healing": 726.4,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 544.8
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 252,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 0,
+      "blue": 2,
+      "map": "meadow",
+      "seed": 43,
+      "result": {
+        "winner": "red",
+        "time": 45.85,
+        "remainingValue": {
+          "red": 545.839,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 4,
+          "team": "red",
+          "type": "crossbow",
+          "alive": true,
+          "hp": 90,
+          "spawn": {
+            "x": -8.1,
+            "z": -2.4
+          },
+          "damageDealt": 683.96,
+          "damageTaken": 0,
+          "healing": 0,
+          "kills": 3,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 773.96
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 354,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 2,
+      "blue": 0,
+      "map": "meadow",
+      "seed": 43,
+      "result": {
+        "winner": "blue",
+        "time": 37.35,
+        "remainingValue": {
+          "red": 0,
+          "blue": 403.12
+        },
+        "mvp": {
+          "id": 4,
+          "team": "red",
+          "type": "archer",
+          "alive": false,
+          "hp": 0,
+          "spawn": {
+            "x": -8.1,
+            "z": -2.244047808041796
+          },
+          "damageDealt": 438.4,
+          "damageTaken": 145,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 11.2,
+          "friendlyKills": 0,
+          "score": 446
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 317,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 0,
+      "blue": 2,
+      "map": "ruins",
+      "seed": 42,
+      "result": {
+        "winner": "red",
+        "time": 31.716666666666665,
+        "remainingValue": {
+          "red": 643.6,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 5,
+          "team": "red",
+          "type": "medic",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": -8.1,
+            "z": 2.4
+          },
+          "damageDealt": 0,
+          "damageTaken": 0,
+          "healing": 424,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 318
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "neutral",
+            "tick": 210,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 210,
+            "value": 263.97
+          }
+        ]
+      }
+    },
+    {
+      "red": 2,
+      "blue": 0,
+      "map": "ruins",
+      "seed": 42,
+      "result": {
+        "winner": "blue",
+        "time": 90,
+        "remainingValue": {
+          "red": 260.115,
+          "blue": 560
+        },
+        "mvp": {
+          "id": 12,
+          "team": "blue",
+          "type": "medic",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": 8.1,
+            "z": 2.4
+          },
+          "damageDealt": 0,
+          "damageTaken": 0,
+          "healing": 1412.396,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 1059.297
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "blast",
+            "team": "red",
+            "tick": 300,
+            "value": 154.919
+          },
+          {
+            "id": 2,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 570,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 0,
+      "blue": 2,
+      "map": "ruins",
+      "seed": 43,
+      "result": {
+        "winner": "red",
+        "time": 79.65,
+        "remainingValue": {
+          "red": 447.618,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 3,
+          "team": "red",
+          "type": "archer",
+          "alive": true,
+          "hp": 65,
+          "spawn": {
+            "x": -8.1,
+            "z": 0
+          },
+          "damageDealt": 947.4,
+          "damageTaken": 0,
+          "healing": 0,
+          "kills": 2,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 39.2,
+          "friendlyKills": 0,
+          "score": 929
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "neutral",
+            "tick": 438,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 438,
+            "value": 165.485
+          }
+        ]
+      }
+    },
+    {
+      "red": 2,
+      "blue": 0,
+      "map": "ruins",
+      "seed": 43,
+      "result": {
+        "winner": "blue",
+        "time": 41,
+        "remainingValue": {
+          "red": 0,
+          "blue": 738.564
+        },
+        "mvp": {
+          "id": 13,
+          "team": "blue",
+          "type": "medic",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": 8.1,
+            "z": -2.4
+          },
+          "damageDealt": 0,
+          "damageTaken": 0,
+          "healing": 604.8,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 453.6
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "neutral",
+            "tick": 228,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 228,
+            "value": 225.985
+          }
+        ]
+      }
+    },
+    {
+      "red": 0,
+      "blue": 3,
+      "map": "meadow",
+      "seed": 42,
+      "result": {
+        "winner": "blue",
+        "time": 90,
+        "remainingValue": {
+          "red": 484.465,
+          "blue": 496.578
+        },
+        "mvp": {
+          "id": 13,
+          "team": "blue",
+          "type": "medic",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": 8.1,
+            "z": 2.4
+          },
+          "damageDealt": 0,
+          "damageTaken": 0,
+          "healing": 1249.6,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 937.2
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 690,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 3,
+      "blue": 0,
+      "map": "meadow",
+      "seed": 42,
+      "result": {
+        "winner": "blue",
+        "time": 45.95,
+        "remainingValue": {
+          "red": 0,
+          "blue": 442.8
+        },
+        "mvp": {
+          "id": 13,
+          "team": "blue",
+          "type": "medic",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": 8.1,
+            "z": 2.4
+          },
+          "damageDealt": 0,
+          "damageTaken": 0,
+          "healing": 591.2,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 443.4
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 300,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 0,
+      "blue": 3,
+      "map": "meadow",
+      "seed": 43,
+      "result": {
+        "winner": "red",
+        "time": 45.8,
+        "remainingValue": {
+          "red": 648.996,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 5,
+          "team": "red",
+          "type": "medic",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": -8.1,
+            "z": 2.4
+          },
+          "damageDealt": 90,
+          "damageTaken": 256.5,
+          "healing": 604.542,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 543.407
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 84,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "reversal",
+            "team": "red",
+            "tick": 1260,
+            "value": 91.918
+          }
+        ]
+      }
+    },
+    {
+      "red": 3,
+      "blue": 0,
+      "map": "meadow",
+      "seed": 43,
+      "result": {
+        "winner": "red",
+        "time": 90,
+        "remainingValue": {
+          "red": 666.222,
+          "blue": 569.229
+        },
+        "mvp": {
+          "id": 13,
+          "team": "blue",
+          "type": "medic",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": 8.1,
+            "z": -2.4
+          },
+          "damageDealt": 0,
+          "damageTaken": 0,
+          "healing": 1256,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 942
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 316,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 0,
+      "blue": 3,
+      "map": "ruins",
+      "seed": 42,
+      "result": {
+        "winner": "red",
+        "time": 90,
+        "remainingValue": {
+          "red": 706.073,
+          "blue": 562.215
+        },
+        "mvp": {
+          "id": 3,
+          "team": "red",
+          "type": "archer",
+          "alive": true,
+          "hp": 65,
+          "spawn": {
+            "x": -8.1,
+            "z": 0
+          },
+          "damageDealt": 660.8,
+          "damageTaken": 0,
+          "healing": 0,
+          "kills": 2,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 720.8
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 690,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 3,
+      "blue": 0,
+      "map": "ruins",
+      "seed": 42,
+      "result": {
+        "winner": "blue",
+        "time": 90,
+        "remainingValue": {
+          "red": 706.073,
+          "blue": 708.036
+        },
+        "mvp": {
+          "id": 3,
+          "team": "red",
+          "type": "archer",
+          "alive": true,
+          "hp": 65,
+          "spawn": {
+            "x": -8.1,
+            "z": 0
+          },
+          "damageDealt": 476,
+          "damageTaken": 0,
+          "healing": 0,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 476
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 690,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 0,
+      "blue": 3,
+      "map": "ruins",
+      "seed": 43,
+      "result": {
+        "winner": "red",
+        "time": 90,
+        "remainingValue": {
+          "red": 723.036,
+          "blue": 668.447
+        },
+        "mvp": {
+          "id": 4,
+          "team": "red",
+          "type": "crossbow",
+          "alive": true,
+          "hp": 90,
+          "spawn": {
+            "x": -8.1,
+            "z": -2.4
+          },
+          "damageDealt": 1175.04,
+          "damageTaken": 0,
+          "healing": 0,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 96,
+          "friendlyKills": 0,
+          "score": 983.04
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 316,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 3,
+      "blue": 0,
+      "map": "ruins",
+      "seed": 43,
+      "result": {
+        "winner": "red",
+        "time": 90,
+        "remainingValue": {
+          "red": 723.036,
+          "blue": 709.345
+        },
+        "mvp": {
+          "id": 11,
+          "team": "blue",
+          "type": "archer",
+          "alive": true,
+          "hp": 65,
+          "spawn": {
+            "x": 8.1,
+            "z": 0
+          },
+          "damageDealt": 452,
+          "damageTaken": 0,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 482
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 316,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 1,
+      "blue": 2,
+      "map": "meadow",
+      "seed": 42,
+      "result": {
+        "winner": "blue",
+        "time": 15.549999999999999,
+        "remainingValue": {
+          "red": 0,
+          "blue": 658.218
+        },
+        "mvp": {
+          "id": 15,
+          "team": "blue",
+          "type": "spear",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": 7.1,
+            "z": -2.281798845808953
+          },
+          "damageDealt": 235.2,
+          "damageTaken": 0,
+          "healing": 0,
+          "kills": 2,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 295.2
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 205,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 2,
+      "blue": 1,
+      "map": "meadow",
+      "seed": 42,
+      "result": {
+        "winner": "red",
+        "time": 15.95,
+        "remainingValue": {
+          "red": 517.309,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 15,
+          "team": "blue",
+          "type": "crossbow",
+          "alive": false,
+          "hp": 0,
+          "spawn": {
+            "x": 8.1,
+            "z": 0
+          },
+          "damageDealt": 253,
+          "damageTaken": 106,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 283
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 164,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 1,
+      "blue": 2,
+      "map": "meadow",
+      "seed": 43,
+      "result": {
+        "winner": "blue",
+        "time": 12.666666666666666,
+        "remainingValue": {
+          "red": 0,
+          "blue": 656.953
+        },
+        "mvp": {
+          "id": 8,
+          "team": "blue",
+          "type": "spear",
+          "alive": true,
+          "hp": 90.1,
+          "spawn": {
+            "x": 4.5,
+            "z": 4.7309521328425035
+          },
+          "damageDealt": 193.983,
+          "damageTaken": 67.5,
+          "healing": 0,
+          "kills": 2,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 253.983
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 174,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 2,
+      "blue": 1,
+      "map": "meadow",
+      "seed": 43,
+      "result": {
+        "winner": "red",
+        "time": 23.766666666666666,
+        "remainingValue": {
+          "red": 600.832,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 5,
+          "team": "red",
+          "type": "spear",
+          "alive": true,
+          "hp": 27.777,
+          "spawn": {
+            "x": -4.5,
+            "z": -7.044047808041796
+          },
+          "damageDealt": 384,
+          "damageTaken": 73.823,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 1,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 434
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 186,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 1,
+      "blue": 2,
+      "map": "ruins",
+      "seed": 42,
+      "result": {
+        "winner": "blue",
+        "time": 25.833333333333332,
+        "remainingValue": {
+          "red": 0,
+          "blue": 697.429
+        },
+        "mvp": {
+          "id": 11,
+          "team": "blue",
+          "type": "spear",
+          "alive": true,
+          "hp": 83.981,
+          "spawn": {
+            "x": 4.5,
+            "z": 7.081798845808954
+          },
+          "damageDealt": 250,
+          "damageTaken": 44.819,
+          "healing": 0,
+          "kills": 3,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 340
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "neutral",
+            "tick": 384,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 384,
+            "value": 202.652
+          }
+        ]
+      }
+    },
+    {
+      "red": 2,
+      "blue": 1,
+      "map": "ruins",
+      "seed": 42,
+      "result": {
+        "winner": "red",
+        "time": 17.483333333333334,
+        "remainingValue": {
+          "red": 565.62,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 2,
+          "team": "red",
+          "type": "spear",
+          "alive": true,
+          "hp": 75.32,
+          "spawn": {
+            "x": -4.5,
+            "z": -4.456798786693253
+          },
+          "damageDealt": 239.074,
+          "damageTaken": 24.68,
+          "healing": 0,
+          "kills": 2,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 299.074
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 235,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 384,
+            "value": 357.155
+          }
+        ]
+      }
+    },
+    {
+      "red": 1,
+      "blue": 2,
+      "map": "ruins",
+      "seed": 43,
+      "result": {
+        "winner": "blue",
+        "time": 18.466666666666665,
+        "remainingValue": {
+          "red": 0,
+          "blue": 461.401
+        },
+        "mvp": {
+          "id": 7,
+          "team": "blue",
+          "type": "spear",
+          "alive": true,
+          "hp": 75.274,
+          "spawn": {
+            "x": 4.5,
+            "z": 0.0690478671574965
+          },
+          "damageDealt": 274.441,
+          "damageTaken": 27.926,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 304.441
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 233,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 384,
+            "value": 269.791
+          }
+        ]
+      }
+    },
+    {
+      "red": 2,
+      "blue": 1,
+      "map": "ruins",
+      "seed": 43,
+      "result": {
+        "winner": "red",
+        "time": 17.433333333333334,
+        "remainingValue": {
+          "red": 505.717,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 1,
+          "team": "red",
+          "type": "spear",
+          "alive": true,
+          "hp": 72.412,
+          "spawn": {
+            "x": -4.5,
+            "z": 0.1559521919582039
+          },
+          "damageDealt": 290.419,
+          "damageTaken": 27.588,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 320.419
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "neutral",
+            "tick": 396,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 396,
+            "value": 213.288
+          }
+        ]
+      }
+    },
+    {
+      "red": 1,
+      "blue": 3,
+      "map": "meadow",
+      "seed": 42,
+      "result": {
+        "winner": "blue",
+        "time": 15.549999999999999,
+        "remainingValue": {
+          "red": 0,
+          "blue": 658.218
+        },
+        "mvp": {
+          "id": 15,
+          "team": "blue",
+          "type": "spear",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": 7.1,
+            "z": -2.281798845808953
+          },
+          "damageDealt": 235.2,
+          "damageTaken": 0,
+          "healing": 0,
+          "kills": 2,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 295.2
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 205,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 3,
+      "blue": 1,
+      "map": "meadow",
+      "seed": 42,
+      "result": {
+        "winner": "red",
+        "time": 15.95,
+        "remainingValue": {
+          "red": 517.309,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 15,
+          "team": "blue",
+          "type": "crossbow",
+          "alive": false,
+          "hp": 0,
+          "spawn": {
+            "x": 8.1,
+            "z": 0
+          },
+          "damageDealt": 253,
+          "damageTaken": 106,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 283
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 164,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 1,
+      "blue": 3,
+      "map": "meadow",
+      "seed": 43,
+      "result": {
+        "winner": "blue",
+        "time": 31.666666666666668,
+        "remainingValue": {
+          "red": 0,
+          "blue": 546.373
+        },
+        "mvp": {
+          "id": 4,
+          "team": "red",
+          "type": "crossbow",
+          "alive": false,
+          "hp": 0,
+          "spawn": {
+            "x": -8.1,
+            "z": 0
+          },
+          "damageDealt": 528,
+          "damageTaken": 130,
+          "healing": 0,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 528
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 334,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "reversal",
+            "team": "blue",
+            "tick": 360,
+            "value": 153.817
+          }
+        ]
+      }
+    },
+    {
+      "red": 3,
+      "blue": 1,
+      "map": "meadow",
+      "seed": 43,
+      "result": {
+        "winner": "red",
+        "time": 23.766666666666666,
+        "remainingValue": {
+          "red": 600.832,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 5,
+          "team": "red",
+          "type": "spear",
+          "alive": true,
+          "hp": 27.777,
+          "spawn": {
+            "x": -4.5,
+            "z": -7.044047808041796
+          },
+          "damageDealt": 384,
+          "damageTaken": 73.823,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 1,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 434
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 186,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 1,
+      "blue": 3,
+      "map": "ruins",
+      "seed": 42,
+      "result": {
+        "winner": "blue",
+        "time": 25.833333333333332,
+        "remainingValue": {
+          "red": 0,
+          "blue": 697.429
+        },
+        "mvp": {
+          "id": 11,
+          "team": "blue",
+          "type": "spear",
+          "alive": true,
+          "hp": 83.981,
+          "spawn": {
+            "x": 4.5,
+            "z": 7.081798845808954
+          },
+          "damageDealt": 250,
+          "damageTaken": 44.819,
+          "healing": 0,
+          "kills": 3,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 340
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "neutral",
+            "tick": 384,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 384,
+            "value": 202.652
+          }
+        ]
+      }
+    },
+    {
+      "red": 3,
+      "blue": 1,
+      "map": "ruins",
+      "seed": 42,
+      "result": {
+        "winner": "red",
+        "time": 90,
+        "remainingValue": {
+          "red": 760,
+          "blue": 160
+        },
+        "mvp": {
+          "id": 2,
+          "team": "red",
+          "type": "spear",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": -4.5,
+            "z": -2.4
+          },
+          "damageDealt": 375,
+          "damageTaken": 189,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 405
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 176,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 384,
+            "value": 275.202
+          }
+        ]
+      }
+    },
+    {
+      "red": 1,
+      "blue": 3,
+      "map": "ruins",
+      "seed": 43,
+      "result": {
+        "winner": "blue",
+        "time": 18.466666666666665,
+        "remainingValue": {
+          "red": 0,
+          "blue": 461.401
+        },
+        "mvp": {
+          "id": 7,
+          "team": "blue",
+          "type": "spear",
+          "alive": true,
+          "hp": 75.274,
+          "spawn": {
+            "x": 4.5,
+            "z": 0.0690478671574965
+          },
+          "damageDealt": 274.441,
+          "damageTaken": 27.926,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 304.441
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 233,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 384,
+            "value": 269.791
+          }
+        ]
+      }
+    },
+    {
+      "red": 3,
+      "blue": 1,
+      "map": "ruins",
+      "seed": 43,
+      "result": {
+        "winner": "red",
+        "time": 22.333333333333332,
+        "remainingValue": {
+          "red": 452.409,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 12,
+          "team": "blue",
+          "type": "cavalry",
+          "alive": false,
+          "hp": 0,
+          "spawn": {
+            "x": 4.5,
+            "z": -7.1
+          },
+          "damageDealt": 263.4,
+          "damageTaken": 245,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 293.4
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 215,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 384,
+            "value": 240.23
+          }
+        ]
+      }
+    },
+    {
+      "red": 2,
+      "blue": 3,
+      "map": "meadow",
+      "seed": 42,
+      "result": {
+        "winner": "blue",
+        "time": 46.18333333333333,
+        "remainingValue": {
+          "red": 0,
+          "blue": 455.578
+        },
+        "mvp": {
+          "id": 12,
+          "team": "blue",
+          "type": "medic",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": 8.1,
+            "z": 2.4
+          },
+          "damageDealt": 0,
+          "damageTaken": 0,
+          "healing": 726.4,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 544.8
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 252,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 3,
+      "blue": 2,
+      "map": "meadow",
+      "seed": 42,
+      "result": {
+        "winner": "red",
+        "time": 43,
+        "remainingValue": {
+          "red": 505.13,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 5,
+          "team": "red",
+          "type": "medic",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": -8.1,
+            "z": -2.4
+          },
+          "damageDealt": 0,
+          "damageTaken": 0,
+          "healing": 601.4,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 451.05
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 296,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 2,
+      "blue": 3,
+      "map": "meadow",
+      "seed": 43,
+      "result": {
+        "winner": "red",
+        "time": 25.3,
+        "remainingValue": {
+          "red": 124.194,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 4,
+          "team": "red",
+          "type": "archer",
+          "alive": true,
+          "hp": 34,
+          "spawn": {
+            "x": -8.1,
+            "z": -2.244047808041796
+          },
+          "damageDealt": 182.6,
+          "damageTaken": 35,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 212.6
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 148,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "reversal",
+            "team": "red",
+            "tick": 1020,
+            "value": 105.429
+          }
+        ]
+      }
+    },
+    {
+      "red": 3,
+      "blue": 2,
+      "map": "meadow",
+      "seed": 43,
+      "result": {
+        "winner": "red",
+        "time": 45.86666666666667,
+        "remainingValue": {
+          "red": 404.4,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 4,
+          "team": "red",
+          "type": "crossbow",
+          "alive": true,
+          "hp": 75.6,
+          "spawn": {
+            "x": -8.1,
+            "z": -2.4
+          },
+          "damageDealt": 689.96,
+          "damageTaken": 144,
+          "healing": 0,
+          "kills": 3,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 112,
+          "friendlyKills": 1,
+          "score": 555.96
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "red",
+            "tick": 174,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 2,
+      "blue": 3,
+      "map": "ruins",
+      "seed": 42,
+      "result": {
+        "winner": "blue",
+        "time": 90,
+        "remainingValue": {
+          "red": 206.462,
+          "blue": 615.036
+        },
+        "mvp": {
+          "id": 12,
+          "team": "blue",
+          "type": "medic",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": 8.1,
+            "z": 2.4
+          },
+          "damageDealt": 0,
+          "damageTaken": 0,
+          "healing": 1197.73,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 898.298
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 360,
+            "value": 252.416
+          },
+          {
+            "id": 2,
+            "type": "firstKill",
+            "team": "blue",
+            "tick": 409,
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "red": 3,
+      "blue": 2,
+      "map": "ruins",
+      "seed": 42,
+      "result": {
+        "winner": "red",
+        "time": 43,
+        "remainingValue": {
+          "red": 557.773,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 3,
+          "team": "red",
+          "type": "archer",
+          "alive": true,
+          "hp": 65,
+          "spawn": {
+            "x": -8.1,
+            "z": 0
+          },
+          "damageDealt": 486.4,
+          "damageTaken": 0,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 11.2,
+          "friendlyKills": 0,
+          "score": 494
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "neutral",
+            "tick": 210,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 210,
+            "value": 208.025
+          }
+        ]
+      }
+    },
+    {
+      "red": 2,
+      "blue": 3,
+      "map": "ruins",
+      "seed": 43,
+      "result": {
+        "winner": "blue",
+        "time": 90,
+        "remainingValue": {
+          "red": 220,
+          "blue": 679.109
+        },
+        "mvp": {
+          "id": 11,
+          "team": "blue",
+          "type": "archer",
+          "alive": true,
+          "hp": 65,
+          "spawn": {
+            "x": 8.1,
+            "z": 0
+          },
+          "damageDealt": 972.2,
+          "damageTaken": 0,
+          "healing": 0,
+          "kills": 1,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 112,
+          "friendlyKills": 0,
+          "score": 778.2
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "neutral",
+            "tick": 228,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 228,
+            "value": 291.823
+          }
+        ]
+      }
+    },
+    {
+      "red": 3,
+      "blue": 2,
+      "map": "ruins",
+      "seed": 43,
+      "result": {
+        "winner": "red",
+        "time": 52.03333333333333,
+        "remainingValue": {
+          "red": 725,
+          "blue": 0
+        },
+        "mvp": {
+          "id": 5,
+          "team": "red",
+          "type": "medic",
+          "alive": true,
+          "hp": 100,
+          "spawn": {
+            "x": -8.1,
+            "z": 2.4
+          },
+          "damageDealt": 0,
+          "damageTaken": 0,
+          "healing": 635.84,
+          "kills": 0,
+          "falls": 0,
+          "fallKills": 0,
+          "friendlyFire": 0,
+          "friendlyKills": 0,
+          "score": 476.88
+        },
+        "highlights": [
+          {
+            "id": 1,
+            "type": "firstKill",
+            "team": "neutral",
+            "tick": 168,
+            "value": 0
+          },
+          {
+            "id": 2,
+            "type": "blast",
+            "team": "neutral",
+            "tick": 168,
+            "value": 171.205
+          }
+        ]
+      }
+    }
+  ],
+  "entrants": [
+    {
+      "id": "0",
+      "name": "磐石",
+      "ai": "guardian"
+    },
+    {
+      "id": "1",
+      "name": "疾风",
+      "ai": "maneuver"
+    },
+    {
+      "id": "2",
+      "name": "观势",
+      "ai": "counter"
+    },
+    {
+      "id": "3",
+      "name": "算策",
+      "ai": "oracle"
+    }
+  ],
+  "matrix": [
+    [
+      {
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "games": 0,
+        "remaining": 0,
+        "time": 0,
+        "mvps": {},
+        "winRate": 0,
+        "scoreRate": 0,
+        "averageRemaining": 0,
+        "averageTime": 0,
+        "stableMvp": null
+      },
+      {
+        "wins": 8,
+        "draws": 0,
+        "losses": 0,
+        "games": 8,
+        "remaining": 5064.683999999999,
+        "time": 598.2166666666667,
+        "mvps": {
+          "medic": 4,
+          "spear": 3,
+          "crossbow": 1
+        },
+        "winRate": 1,
+        "scoreRate": 1,
+        "averageRemaining": 633.0854999999999,
+        "averageTime": 74.77708333333334,
+        "stableMvp": "medic"
+      },
+      {
+        "wins": 8,
+        "draws": 0,
+        "losses": 0,
+        "games": 8,
+        "remaining": 4079.044,
+        "time": 404.01666666666665,
+        "mvps": {
+          "medic": 7,
+          "crossbow": 1
+        },
+        "winRate": 1,
+        "scoreRate": 1,
+        "averageRemaining": 509.8805,
+        "averageTime": 50.50208333333333,
+        "stableMvp": "medic"
+      },
+      {
+        "wins": 5,
+        "draws": 0,
+        "losses": 3,
+        "games": 8,
+        "remaining": 4991.98,
+        "time": 631.75,
+        "mvps": {
+          "medic": 4,
+          "archer": 3,
+          "crossbow": 1
+        },
+        "winRate": 0.625,
+        "scoreRate": 0.625,
+        "averageRemaining": 623.9975,
+        "averageTime": 78.96875,
+        "stableMvp": "medic"
+      }
+    ],
+    [
+      {
+        "wins": 0,
+        "draws": 0,
+        "losses": 8,
+        "games": 8,
+        "remaining": 1213.44,
+        "time": 598.2166666666667,
+        "mvps": {
+          "crossbow": 3,
+          "cavalry": 5
+        },
+        "winRate": 0,
+        "scoreRate": 0,
+        "averageRemaining": 151.68,
+        "averageTime": 74.77708333333334,
+        "stableMvp": "cavalry"
+      },
+      {
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "games": 0,
+        "remaining": 0,
+        "time": 0,
+        "mvps": {},
+        "winRate": 0,
+        "scoreRate": 0,
+        "averageRemaining": 0,
+        "averageTime": 0,
+        "stableMvp": null
+      },
+      {
+        "wins": 0,
+        "draws": 0,
+        "losses": 8,
+        "games": 8,
+        "remaining": 0,
+        "time": 147.15,
+        "mvps": {
+          "cavalry": 7,
+          "crossbow": 1
+        },
+        "winRate": 0,
+        "scoreRate": 0,
+        "averageRemaining": 0,
+        "averageTime": 18.39375,
+        "stableMvp": "cavalry"
+      },
+      {
+        "wins": 0,
+        "draws": 0,
+        "losses": 8,
+        "games": 8,
+        "remaining": 160,
+        "time": 243.56666666666666,
+        "mvps": {
+          "cavalry": 6,
+          "crossbow": 2
+        },
+        "winRate": 0,
+        "scoreRate": 0,
+        "averageRemaining": 20,
+        "averageTime": 30.445833333333333,
+        "stableMvp": "cavalry"
+      }
+    ],
+    [
+      {
+        "wins": 0,
+        "draws": 0,
+        "losses": 8,
+        "games": 8,
+        "remaining": 260.115,
+        "time": 404.01666666666665,
+        "mvps": {
+          "crossbow": 2,
+          "catapult": 3,
+          "archer": 2,
+          "cavalry": 1
+        },
+        "winRate": 0,
+        "scoreRate": 0,
+        "averageRemaining": 32.514375,
+        "averageTime": 50.50208333333333,
+        "stableMvp": "catapult"
+      },
+      {
+        "wins": 8,
+        "draws": 0,
+        "losses": 0,
+        "games": 8,
+        "remaining": 4663.478999999999,
+        "time": 147.15,
+        "mvps": {
+          "spear": 8
+        },
+        "winRate": 1,
+        "scoreRate": 1,
+        "averageRemaining": 582.9348749999999,
+        "averageTime": 18.39375,
+        "stableMvp": "spear"
+      },
+      {
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "games": 0,
+        "remaining": 0,
+        "time": 0,
+        "mvps": {},
+        "winRate": 0,
+        "scoreRate": 0,
+        "averageRemaining": 0,
+        "averageTime": 0,
+        "stableMvp": null
+      },
+      {
+        "wins": 1,
+        "draws": 0,
+        "losses": 7,
+        "games": 8,
+        "remaining": 550.656,
+        "time": 435.3833333333333,
+        "mvps": {
+          "archer": 4,
+          "crossbow": 3,
+          "catapult": 1
+        },
+        "winRate": 0.125,
+        "scoreRate": 0.125,
+        "averageRemaining": 68.832,
+        "averageTime": 54.422916666666666,
+        "stableMvp": "archer"
+      }
+    ],
+    [
+      {
+        "wins": 3,
+        "draws": 0,
+        "losses": 5,
+        "games": 8,
+        "remaining": 3822.571,
+        "time": 631.75,
+        "mvps": {
+          "medic": 4,
+          "shield": 1,
+          "catapult": 1,
+          "archer": 2
+        },
+        "winRate": 0.375,
+        "scoreRate": 0.375,
+        "averageRemaining": 477.821375,
+        "averageTime": 78.96875,
+        "stableMvp": "medic"
+      },
+      {
+        "wins": 8,
+        "draws": 0,
+        "losses": 0,
+        "games": 8,
+        "remaining": 4693.971,
+        "time": 243.56666666666666,
+        "mvps": {
+          "spear": 7,
+          "medic": 1
+        },
+        "winRate": 1,
+        "scoreRate": 1,
+        "averageRemaining": 586.746375,
+        "averageTime": 30.445833333333333,
+        "stableMvp": "spear"
+      },
+      {
+        "wins": 7,
+        "draws": 0,
+        "losses": 1,
+        "games": 8,
+        "remaining": 3942.026,
+        "time": 435.3833333333333,
+        "mvps": {
+          "medic": 5,
+          "crossbow": 1,
+          "archer": 2
+        },
+        "winRate": 0.875,
+        "scoreRate": 0.875,
+        "averageRemaining": 492.75325,
+        "averageTime": 54.422916666666666,
+        "stableMvp": "medic"
+      },
+      {
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "games": 0,
+        "remaining": 0,
+        "time": 0,
+        "mvps": {},
+        "winRate": 0,
+        "scoreRate": 0,
+        "averageRemaining": 0,
+        "averageTime": 0,
+        "stableMvp": null
+      }
+    ]
+  ],
+  "ranking": [
+    {
+      "id": "0",
+      "name": "磐石",
+      "ai": "guardian",
+      "wins": 21,
+      "draws": 0,
+      "losses": 3,
+      "games": 24,
+      "remaining": 14135.707999999997,
+      "time": 1633.9833333333333,
+      "mvps": {
+        "medic": 15,
+        "spear": 3,
+        "crossbow": 3,
+        "archer": 3
+      },
+      "winRate": 0.875,
+      "scoreRate": 0.875,
+      "averageRemaining": 588.9878333333332,
+      "averageTime": 68.0826388888889,
+      "stableMvp": "medic"
+    },
+    {
+      "id": "3",
+      "name": "算策",
+      "ai": "oracle",
+      "wins": 18,
+      "draws": 0,
+      "losses": 6,
+      "games": 24,
+      "remaining": 12458.567999999997,
+      "time": 1310.6999999999998,
+      "mvps": {
+        "medic": 10,
+        "shield": 1,
+        "catapult": 1,
+        "archer": 4,
+        "spear": 7,
+        "crossbow": 1
+      },
+      "winRate": 0.75,
+      "scoreRate": 0.75,
+      "averageRemaining": 519.1069999999999,
+      "averageTime": 54.61249999999999,
+      "stableMvp": "medic"
+    },
+    {
+      "id": "2",
+      "name": "观势",
+      "ai": "counter",
+      "wins": 9,
+      "draws": 0,
+      "losses": 15,
+      "games": 24,
+      "remaining": 5474.25,
+      "time": 986.5499999999998,
+      "mvps": {
+        "crossbow": 5,
+        "catapult": 4,
+        "archer": 6,
+        "cavalry": 1,
+        "spear": 8
+      },
+      "winRate": 0.375,
+      "scoreRate": 0.375,
+      "averageRemaining": 228.09375,
+      "averageTime": 41.106249999999996,
+      "stableMvp": "spear"
+    },
+    {
+      "id": "1",
+      "name": "疾风",
+      "ai": "maneuver",
+      "wins": 0,
+      "draws": 0,
+      "losses": 24,
+      "games": 24,
+      "remaining": 1373.44,
+      "time": 988.9333333333334,
+      "mvps": {
+        "crossbow": 6,
+        "cavalry": 18
+      },
+      "winRate": 0,
+      "scoreRate": 0,
+      "averageRemaining": 57.22666666666667,
+      "averageTime": 41.205555555555556,
+      "stableMvp": "cavalry"
+    }
+  ],
+  "fullReport": "v0.5-tournament-full.json.gz"
+}
