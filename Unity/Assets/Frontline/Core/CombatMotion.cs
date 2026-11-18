@@ -16,10 +16,14 @@ namespace Frontline.Core
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)] public static float TurnRate(string type,float speed)
         {
-            switch(type){case "catapult":return 1.05f;case "cavalry":return 2.8f/(1+speed*.16f);case "giant":return 2.2f;case "shield":return 4.5f;case "crossbow":return 4.8f;default:return 6.8f;}
+            switch(type){case "catapult":return 1.05f;case "cavalry":return CavalryTurnRate(2.8f,speed);case "giant":return 2.2f;case "shield":return 4.5f;case "crossbow":return 4.8f;default:return 6.8f;}
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] internal static float CavalryTurnRate(float baseRate,float speed)
+        {return baseRate/(1+speed*.16f);}
         [MethodImpl(MethodImplOptions.AggressiveInlining)] public static float Turn(float angle,float desired,string type,float speed,float dt)
-        {float step=TurnRate(type,speed)*dt;float delta=AngleDelta(angle,desired);return Math.Abs(delta)<=step?desired:angle+Math.Max(-step,Math.Min(step,delta));}
+        {return Turn(angle,desired,TurnRate(type,speed),dt);}
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] internal static float Turn(float angle,float desired,float rate,float dt)
+        {float step=rate*dt;float delta=AngleDelta(angle,desired);return Math.Abs(delta)<=step?desired:angle+Math.Max(-step,Math.Min(step,delta));}
         [MethodImpl(MethodImplOptions.AggressiveInlining)] public static V3 Forward(float angle){return new V3((float)Math.Sin(angle),0,(float)Math.Cos(angle));}
         [MethodImpl(MethodImplOptions.AggressiveInlining)] public static float BlockImpulse(float pierce){return .22f+.18f*pierce;}
         [MethodImpl(MethodImplOptions.AggressiveInlining)] public static int HitTier(float knock,string source)
