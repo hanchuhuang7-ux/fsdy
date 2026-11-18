@@ -38,7 +38,7 @@ test('0.9.5 static pages upload only when dirty and spear streaks use the weapon
 });
 
 test('0.9.5 preserves the replay identity, formation schema and physics turn threshold',()=>{
-  assert.equal(JSON.parse(read('package.json')).version,'0.9.5');
+  assert.equal(JSON.parse(read('package.json')).version,'1.0.0');
   assert.match(read('Unity/Assets/Frontline/Core/Replay.cs'),/Engine="unity-0\.9\.0"/);
   assert.match(read('Unity/Assets/Frontline/Core/Models.cs'),/version="0\.6\.0"/);
   assert.match(read(runtime+'UnityPhysics.cs'),/Math\.Abs\(angle\s*-\s*facing\)\s*>\s*\.015f/);

@@ -1,12 +1,16 @@
 # 阵线实验室 · Unity Edition
 
-原生 Unity 3D 物理对战沙盘，支持 **Windows x64 + WebGL 网页版**。10 个兵种、6 张地图、5 种道具，以及人机、双 AI、热座、Bo3、统帅军令、算策推演、演武擂台与高光回放。
+同一个 Unity 场景中有两种玩法，支持 **Windows x64 和 WebGL**。从顶栏随时切换。
 
-游戏版本 **0.9.5**，Unity **6000.6.9f1**。运行时使用 C# + Unity PhysX，60Hz 固定步长、3 米空间网格和 GPU 实例合批。Three.js / Rapier 仅保留为旧回放转换与回归工具，不在 Unity 成品中运行。
+- **演武斗蛐蛐**提供沙盘、人机、双 AI、热座、Bo3、统帅军令、演武擂台、六个战术关卡与工坊回放。
+- **领地庄园**从一座宅邸开始。点击九块建地之一，建设农舍、农庄、采集营、铁匠铺、靶场和马厩，用加减按钮分配领民。每四秒推进一天，一季十二天。可暂停、加速或手动推进。
+- 在远征名册挑选常备军和道具，调整布阵，在同一物理战场下达军令。战后选择「返回庄园结算」领取战利品。存活者与约三分之一伤员返乡，携带的道具消耗。工坊可交换独立的 `frontline-manor.json` 存档。
 
-![Unity 0.9 格挡与战斗 HUD](docs/screenshots/v09/block.png)
+游戏版本 **1.0.0**，Unity **6000.6.9f1**。运行时使用 C# + Unity PhysX，60Hz 固定步长、3 米空间网格和 GPU 实例合批。Three.js / Rapier 仅保留为旧回放转换与回归工具，不在 Unity 成品中运行。
 
-v0.9 放大金属格挡火花、加入举盾回弹和近战闪影，新增强击退撞墙尘雾/音效，修正物理转向与窄口脱困，收紧战斗 HUD 并恢复实时战力条。保留128个顶点色网格、六图纯视觉生态、三档画质与历史适配器。完整测试、双测法性能和真实截图见 [v0.9 验证记录](docs/V0.9_VALIDATION.md)；[v0.8记录](docs/V0.8_VALIDATION.md)保留原始对照。
+![领地庄园 Windows Release 实机画面](docs/screenshots/v10/manor-1280.png)
+
+1.0 共用 146 个顶点色网格，延续双 LOD、六图生态和三档画质。可查阅 [1.0 成品验证](docs/V1.0_VALIDATION.md)、[0.9 验证](docs/V0.9_VALIDATION.md) 和 [0.8 验证](docs/V0.8_VALIDATION.md)。
 
 ## 构建与运行
 
@@ -35,13 +39,13 @@ npm run agent-battle -- --red-bot red-bot.json --blue-bot blue-bot.json
 
 ## 历史兼容
 
-0.1–0.7 产品生成的布阵可导入（布阵存档 schema 仍为0.6.0），完整轨迹回放可直接播放。旧种子包先展开为完整轨迹：
+0.1–0.8 产品生成的布阵可导入（布阵存档 schema 仍为 0.6.0），完整轨迹回放可直接播放。旧种子包先展开为完整轨迹：
 
 ```powershell
 node Tools/convert-legacy-replay.mjs old-seed.json full-trajectory.json
 ```
 
-更换物理引擎后，旧 Rapier 的种子不会在 PhysX 中得到相同结果。跨平台复盘应交换完整轨迹；0.6 Unity 种子由冻结的适配器重建；0.7 新种子使用 unity-0.7.0。原生种子仅用于同引擎和同平台复现。
+更换物理引擎后，旧 Rapier 的种子不会在 PhysX 中得到相同结果。跨平台复盘应交换完整轨迹；0.6、0.7、0.8 Unity 种子各自使用冻结的规则。现行演武与远征使用 unity-0.9.0 和 v3 完整轨迹。原生种子仅用于同引擎和同平台复现。
 
 ## 目录
 

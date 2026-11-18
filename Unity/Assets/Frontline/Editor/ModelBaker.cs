@@ -13,6 +13,7 @@ namespace Frontline.Editor
         const string Folder="Assets/Frontline/Models/Resources/Models";
         static readonly Color Cloth=new Color(.93f,.94f,.9f,1),Skin=new Color(.86f,.64f,.43f,0),Steel=new Color(.49f,.59f,.64f,0),LightSteel=new Color(.73f,.8f,.8f,0),Dark=new Color(.10f,.14f,.17f,0),Wood=new Color(.37f,.22f,.12f,0),WoodLight=new Color(.57f,.36f,.18f,0),Gold=new Color(.91f,.64f,.20f,0),Rock=new Color(.47f,.51f,.49f,0),Leaf=new Color(.27f,.43f,.23f,0),Snow=new Color(.88f,.95f,.96f,0),Red=new Color(.8f,.16f,.1f,0);
         static readonly string[] Types={"militia","shield","spear","archer","crossbow","bomber","giant","cavalry","medic","catapult"};
+        static readonly string[] ManorBuildings={"manor_hall","cottage","farm","timber_camp","smithy","barracks","stables"};
         static readonly List<string> Written=new List<string>();
         [MenuItem("Frontline/Bake low polygon models")]
         public static void Bake()
@@ -26,7 +27,13 @@ namespace Frontline.Editor
                 foreach(string name in new[]{"barrel","barricade","banner","spikes","spring"})Save("prop_"+name,lod,Prop(name,lod));
                 foreach(string name in new[]{"rock","wall","platform","grass","flowers","shrub","tree","pine","dead_tree","reeds","column","arch","brazier","icicle","water_ripple","ring","dot","arrow","bolt","bomb","stone","torso","head","limb","cliff","base","flame","snow","island_root","mist"})Save(name,lod,EnvironmentMesh(name,lod));
             }
-            AssetDatabase.SaveAssets();File.WriteAllText("Assets/Frontline/Models/model-manifest.json",JsonUtility.ToJson(new Manifest{generator="Frontline.Editor.ModelBaker",version="0.7.0",vertexColor="rgb=albedo; alpha=faction multiply weight",resources=Written.ToArray()},true));AssetDatabase.Refresh();Debug.Log("FRONTLINE_MODELS_OK "+Written.Count+" prebaked meshes, two LODs, vertex colours and flat normals");
+            for(int lod=0;lod<2;lod++)
+            {
+                foreach(string kind in ManorBuildings)Save(kind,lod,ManorBuilding(kind,lod));
+                Save("civilian_hat",lod,CivilianHat(lod));
+                Save("civilian_pack",lod,CivilianPack(lod));
+            }
+            AssetDatabase.SaveAssets();File.WriteAllText("Assets/Frontline/Models/model-manifest.json",JsonUtility.ToJson(new Manifest{generator="Frontline.Editor.ModelBaker",version="1.0.0",vertexColor="rgb=albedo; alpha=faction multiply weight",resources=Written.ToArray()},true));AssetDatabase.Refresh();Debug.Log("FRONTLINE_MODELS_OK "+Written.Count+" prebaked meshes, two LODs, vertex colours and flat normals");
         }
         [Serializable] sealed class Manifest{public string generator,version,vertexColor;public string[] resources;}
         static void Save(string name,int lod,Geometry g)
@@ -113,11 +120,301 @@ namespace Frontline.Editor
             else if(name=="limb")g.Bevel(Vector3.zero,V(.21f,.6f,.23f),.04f,Cloth);
             return g;
         }
+        // Manor pieces are rooted at grade. The public-facing side of each plot is local -Z.
+        static readonly Color Plaster=new Color(.89f,.81f,.63f,0), Straw=new Color(.85f,.67f,.34f,0),
+            StrawLight=new Color(.97f,.83f,.48f,0), Tile=new Color(.67f,.28f,.18f,0),
+            Slate=new Color(.27f,.39f,.44f,0), Green=new Color(.23f,.43f,.34f,0),
+            Ochre=new Color(.80f,.49f,.18f,0), Glass=new Color(.24f,.43f,.44f,0),
+            Stonework=new Color(.60f,.60f,.53f,0), Earth=new Color(.42f,.31f,.20f,0);
+
+        static Geometry ManorBuilding(string kind,int lod)
+        {
+            var g=new Geometry();
+            switch(kind)
+            {
+                case "manor_hall": ManorHall(g,lod); break;
+                case "cottage": Cottages(g,lod); break;
+                case "farm": Farm(g,lod); break;
+                case "timber_camp": TimberCamp(g,lod); break;
+                case "smithy": Smithy(g,lod); break;
+                case "barracks": Barracks(g,lod); break;
+                case "stables": Stables(g,lod); break;
+                default: throw new ArgumentException("Unknown manor building "+kind);
+            }
+            return g;
+        }
+
+        // A five-sided roof prism with its ridge along X. Each slope and gable has its own normal.
+        static void Gable(Geometry g,Vector3 eave,float width,float depth,float rise,Color roof,Color end,int lod)
+        {
+            float half=width*.5f,side=depth*.5f;
+            Vector3 a=eave+V(-half,0,-side),b=eave+V(half,0,-side),
+                c=eave+V(half,0,side),d=eave+V(-half,0,side);
+            Vector3 left=eave+V(-half,rise,0),right=eave+V(half,rise,0);
+            g.Quad(a,left,right,b,roof);g.Quad(left,d,c,right,roof);
+            g.Triangle(a,d,left,end);g.Triangle(b,right,c,end);g.Quad(a,b,c,d,Wood);
+            if(lod!=0)return;
+            g.Box(eave+V(0,.015f,-side),V(width,.07f,.07f),WoodLight);
+            g.Box(eave+V(0,.015f,side),V(width,.07f,.07f),WoodLight);
+            g.Box(eave+V(0,rise,0),V(width+.04f,.07f,.09f),roof*1.13f);
+        }
+
+        static void House(Geometry g,float x,float z,float width,float depth,float eave,float rise,Color roof,int lod)
+        {
+            g.Bevel(V(x,.11f,z),V(width+.14f,.22f,depth+.14f),.07f,Stonework);
+            g.Box(V(x,eave*.5f,z),V(width,eave,depth),Plaster);
+            Gable(g,V(x,eave,z),width+.24f,depth+.28f,rise,roof,Plaster,lod);
+            float face=z-depth*.5f-.025f;
+            g.Box(V(x,eave-.06f,face),V(width,.12f,.08f),Wood);
+            foreach(int side in new[]{-1,1})
+                g.Box(V(x+side*(width*.5f-.05f),eave*.5f,face),V(.13f,eave,.09f),Wood);
+            if(lod==0)
+            {
+                g.Box(V(x,.29f,face),V(width,.09f,.07f),WoodLight);
+                g.Box(V(x,eave*.49f,z+depth*.5f),V(width,.10f,.09f),Wood);
+                g.Box(V(x-width*.5f,eave*.49f,z),V(.10f,.10f,depth),Wood);
+                g.Box(V(x+width*.5f,eave*.49f,z),V(.10f,.10f,depth),Wood);
+            }
+        }
+
+        static void Door(Geometry g,float x,float face,float height,float width)
+        {
+            g.Box(V(x,height*.5f,face-.03f),V(width+.13f,height+.13f,.11f),Wood);
+            g.Box(V(x,height*.5f,face-.095f),V(width,height,.06f),Green);
+            g.Box(V(x,.06f,face-.20f),V(width+.26f,.12f,.37f),Stonework);
+        }
+
+        static void Window(Geometry g,float x,float y,float face,int lod)
+        {
+            g.Box(V(x,y,face-.05f),V(.36f,.39f,.13f),Wood);
+            g.Box(V(x,y,face-.125f),V(.26f,.27f,.04f),Glass);
+            if(lod==0)
+            {
+                g.Box(V(x,y,face-.15f),V(.035f,.29f,.03f),Plaster);
+                g.Box(V(x,y,face-.15f),V(.29f,.035f,.03f),Plaster);
+            }
+        }
+
+        static void Chimney(Geometry g,float x,float z,float top,float width)
+        {
+            g.Box(V(x,top*.5f,z),V(width,top,width),Stonework);
+            g.Box(V(x,top-.07f,z),V(width+.14f,.16f,width+.14f),Rock);
+            g.Box(V(x,top+.02f,z),V(width*.71f,.025f,width*.71f),Dark);
+        }
+
+        static void Pennant(Geometry g,Vector3 foot,float height,float span,Color field,int lod)
+        {
+            var top=foot+Vector3.up*height;
+            g.Cylinder(foot,top,.045f,WoodLight,lod==0?7:5);
+            Vector3 upper=top-Vector3.up*.09f,lower=upper-Vector3.up*(span*.55f);
+            g.Quad(upper,upper+V(span*.70f,-.045f,.10f),lower+V(span*.70f,.05f,.10f),lower,field,true);
+            g.Triangle(upper+V(span*.70f,-.045f,.10f),upper+V(span,-.11f,.04f),lower+V(span*.70f,.05f,.10f),field);
+            g.Triangle(lower+V(span*.70f,.05f,.10f),upper+V(span,-.11f,.04f),upper+V(span*.70f,-.045f,.10f),field);
+            if(lod==0)g.Cone(top,.07f,.14f,Gold,6);
+        }
+
+        static void ManorHall(Geometry g,int lod)
+        {
+            House(g,-.28f,0,2.87f,2f,1.51f,.88f,Tile,lod);
+            Door(g,-.27f,-1f,1.02f,.55f);
+            Window(g,-1.28f,.88f,-1f,lod);Window(g,.66f,.88f,-1f,lod);
+            // Projecting front porch and the square watchtower distinguish the hall at both distances.
+            foreach(float x in new[]{-.83f,.29f})
+                g.Box(V(x,.61f,-1.43f),V(.13f,1.22f,.13f),Wood);
+            Gable(g,V(-.27f,1.22f,-1.23f),1.38f,.78f,.30f,Slate,Plaster,lod);
+            Vector3 tower=V(1.22f,0,.24f);
+            g.Bevel(tower+Vector3.up*1.13f,V(1.19f,2.26f,1.22f),.06f,Stonework);
+            g.Box(tower+Vector3.up*2.16f,V(1.26f,.16f,1.29f),Plaster);
+            g.Box(tower+V(0,1.72f,-.62f),V(.21f,.39f,.04f),Dark);
+            var cap=new Geometry();
+            cap.Cone(Vector3.zero,1.06f,.77f,Slate,4);
+            g.Append(cap,Matrix4x4.TRS(tower+Vector3.up*2.23f,Quaternion.Euler(0,45,0),Vector3.one));
+            Pennant(g,tower+Vector3.up*2.95f,.80f,.68f,Ochre,lod);
+            if(lod==0)
+            {
+                Chimney(g,-1.31f,.31f,2.57f,.28f);
+                g.Cylinder(V(-1.62f,.40f,-1.065f),V(-.83f,1.38f,-1.065f),.044f,Wood,4);
+                g.Box(tower+V(.61f,1.73f,.03f),V(.04f,.41f,.20f),Dark);
+            }
+        }
+
+        static void Cottages(Geometry g,int lod)
+        {
+            House(g,-.55f,.05f,1.70f,1.60f,1.00f,.71f,Straw,lod);
+            Door(g,-.81f,-.75f,.77f,.37f);
+            Window(g,-.08f,.59f,-.75f,lod);
+            House(g,.91f,.29f,1.17f,1.18f,.83f,.50f,StrawLight,lod);
+            Door(g,.92f,-.30f,.62f,.32f);
+            Chimney(g,-.03f,.27f,1.83f,.24f);
+            // A short front garden fence leaves a gap in front of the door.
+            foreach(float x in new[]{.27f,1.53f})
+                g.Box(V(x,.27f,-.99f),V(.11f,.54f,.12f),Wood);
+            g.Box(V(.90f,.30f,-.99f),V(1.35f,.10f,.08f),WoodLight);
+            if(lod==0)
+            {
+                g.Box(V(.90f,.14f,-.99f),V(1.35f,.07f,.08f),WoodLight);
+                for(int i=0;i<3;i++)g.Rock(V(.52f+i*.33f,.17f,-.63f),.23f,Leaf,6,2);
+            }
+        }
+
+        static void Farm(Geometry g,int lod)
+        {
+            // A tapered mill, broad linen sails and planted rows remain legible from the overview.
+            var tower=V(-.90f,0,.24f);
+            g.Frustum(tower,V(1.20f,0,1.20f),tower+Vector3.up*1.58f,V(.78f,0,.78f),Plaster,lod==0?8:6);
+            g.Cone(tower+Vector3.up*1.56f,.63f,.61f,Tile,lod==0?8:6);
+            var hub=V(-.90f,1.39f,-.40f);
+            for(int i=0;i<4;i++)
+            {
+                var turn=Quaternion.AngleAxis(21+i*90,Vector3.forward);
+                Vector3 tip=hub+turn*V(0,.94f,0);
+                g.Cylinder(hub,tip,.032f,Wood,4);
+                g.Quad(hub+turn*V(0,.32f,0),hub+turn*V(-.17f,.35f,0),hub+turn*V(-.22f,.96f,0),tip,Plaster,true);
+            }
+            g.Cylinder(hub-Vector3.forward*.08f,hub+Vector3.forward*.12f,.11f,Dark,6);
+            g.Box(V(.89f,.055f,0),V(1.74f,.11f,2.42f),Earth);
+            for(int row=0;row<4;row++)
+            {
+                float x=.24f+row*.43f;
+                var ridge=new Geometry();
+                Gable(ridge,Vector3.zero,2.22f,.31f,.21f, row%2==0?StrawLight:Straw,Straw,1);
+                g.Append(ridge,Matrix4x4.TRS(V(x,.13f,0),Quaternion.Euler(0,90,0),Vector3.one));
+                if(lod==0)for(int j=0;j<5;j++)
+                {
+                    float z=-.91f+j*.43f+(row%2)*.08f;
+                    g.Cylinder(V(x,.18f,z),V(x+.07f,.43f,z+.05f),.027f,StrawLight,4);
+                    g.Cone(V(x+.07f,.37f,z+.05f),.052f,.14f,Ochre,5);
+                }
+            }
+        }
+
+        static void TimberCamp(Geometry g,int lod)
+        {
+            g.Bevel(V(-.75f,.10f,-.05f),V(1.70f,.20f,2.26f),.08f,Earth);
+            int sides=lod==0?9:6;
+            for(int layer=0;layer<3;layer++)for(int log=0;log<3-layer;log++)
+            {
+                float x=-1.25f+layer*.22f+log*.44f,y=.37f+layer*.36f,z=-1.09f+log*.06f;
+                g.Cylinder(V(x,y,z),V(x,y,.95f),.225f,Wood,sides);
+                g.Cylinder(V(x,y,z-.025f),V(x,y,z),.19f,Straw,sides);
+            }
+            foreach(float z in new[]{-.77f,.81f})g.Box(V(.78f,.09f,z),V(1.54f,.18f,.25f),Wood);
+            g.Box(V(.62f,1.06f,.54f),V(.20f,2.12f,.20f),Wood);
+            g.Box(V(.86f,1.98f,.54f),V(1.68f,.17f,.17f),WoodLight);
+            g.Cylinder(V(.63f,1.19f,.54f),V(1.45f,1.94f,.54f),.085f,Wood,5);
+            g.Cylinder(V(1.46f,.95f,.54f),V(1.46f,1.99f,.54f),.035f,Straw,5);
+            g.Bevel(V(1.45f,.82f,.54f),V(.51f,.28f,.47f),.11f,Stonework);
+            g.Rock(V(.62f,.32f,-.48f),.46f,Stonework,sides,3);
+            if(lod==0)
+            {
+                g.Rock(V(1.18f,.20f,-.65f),.29f,Rock,7,2);
+                g.Cylinder(V(.63f,.13f,-.29f),V(.63f,1.09f,.54f),.075f,WoodLight,5);
+            }
+        }
+
+        static void Smithy(Geometry g,int lod)
+        {
+            House(g,-.45f,.22f,1.98f,1.54f,1.12f,.52f,Slate,lod);
+            Door(g,-.56f,-.55f,.82f,.45f);
+            Chimney(g,.77f,.31f,2.45f,.55f);
+            g.Bevel(V(.88f,.43f,-.30f),V(1.14f,.86f,.96f),.12f,Stonework);
+            g.Box(V(.88f,.50f,-.80f),V(.70f,.48f,.08f),Dark);
+            g.Box(V(.88f,.33f,-.86f),V(.56f,.16f,.11f),new Color(.95f,.40f,.10f,0));
+            g.Box(V(.86f,.32f,-.93f),V(.40f,.07f,.08f),Gold);
+            // Anvil on a stump in front of the workshop.
+            var stump=V(-.03f,0,-1.08f);
+            g.Cylinder(stump,stump+Vector3.up*.34f,.24f,Wood,lod==0?8:5);
+            g.Box(stump+Vector3.up*.44f,V(.40f,.25f,.25f),Dark);
+            g.Bevel(stump+Vector3.up*.60f,V(.57f,.13f,.28f),.05f,Steel);
+            g.Spear(stump+V(.22f,.60f,0),stump+V(.52f,.62f,0),.13f,Steel);
+            if(lod==0)Window(g,-1.02f,.67f,-.55f,lod);
+        }
+
+        static void Barracks(Geometry g,int lod)
+        {
+            // A fabric drill tent and a two-colour straw roundel share one baked mesh.
+            Gable(g,V(-.57f,.16f,.18f),2.16f,1.90f,1.39f,Tile,Plaster,lod);
+            var entrance=V(-1.665f,.18f,.18f);
+            g.Quad(entrance+V(0,0,-.38f),entrance+V(0,.75f,-.10f),entrance+V(0,.75f,.10f),entrance+V(0,0,.38f),Wood,true);
+            Pennant(g,V(1.26f,0,.68f),1.97f,.49f,Tile,lod);
+            foreach(float x in new[]{.78f,1.30f})
+                g.Cylinder(V(x,.03f,-.81f),V(1.04f,1.01f,-.52f),.065f,WoodLight,5);
+            const float targetY=.94f;
+            g.Cylinder(V(1.04f,targetY,-.63f),V(1.04f,targetY,-.48f),.45f,Straw,lod==0?12:8);
+            g.Cylinder(V(1.04f,targetY,-.65f),V(1.04f,targetY,-.63f),.31f,Tile,lod==0?12:8);
+            g.Cylinder(V(1.04f,targetY,-.67f),V(1.04f,targetY,-.65f),.15f,Plaster,lod==0?10:6);
+            if(lod==0)
+            {
+                for(int i=0;i<2;i++)
+                {
+                    float x=-1.25f+i*1.32f;
+                    g.Quad(V(x,.168f,-.78f),V(x,1.563f,.18f),V(x+.16f,1.563f,.18f),V(x+.16f,.168f,-.78f),Plaster,true);
+                    g.Cylinder(V(x,1.54f,.18f),V(x,.035f,-1.22f),.021f,Straw,4);
+                }
+            }
+        }
+
+        static void Stables(Geometry g,int lod)
+        {
+            g.Box(V(0,.07f,.08f),V(3.05f,.14f,1.98f),Earth);
+            foreach(float x in new[]{-1.35f,0,1.35f})foreach(float z in new[]{-.72f,.84f})
+                g.Box(V(x,.69f,z),V(.15f,1.38f,.15f),Wood);
+            Gable(g,V(0,1.40f,.06f),3.26f,1.95f,.52f,Green,Straw,lod);
+            g.Box(V(0,.63f,.85f),V(2.84f,1.15f,.10f),Wood);
+            foreach(float x in new[]{-.69f,.69f})
+            {
+                g.Box(V(x,.46f,-.73f),V(1.21f,.11f,.10f),WoodLight);
+                g.Box(V(x,.19f,-.73f),V(1.21f,.12f,.10f),WoodLight);
+            }
+            Vector3 nose=V(-.64f,.96f,-.83f);
+            g.Cylinder(nose+V(0,-.49f,.39f),nose+V(0,.07f,.11f),.145f,WoodLight,lod==0?7:5);
+            g.Ellipsoid(nose,V(.175f,.206f,.30f),WoodLight,lod==0?8:6,3);
+            g.Bevel(nose+V(0,-.06f,-.21f),V(.24f,.19f,.23f),.05f,Wood);
+            foreach(float x in new[]{-.095f,.095f})g.Cone(nose+V(x,.12f,.12f),.06f,.17f,Wood,5);
+            g.Bevel(V(.72f,.24f,-.99f),V(.73f,.45f,.51f),.08f,Straw);
+            if(lod==0)
+            {
+                g.Box(V(.72f,.34f,-1.245f),V(.12f,.21f,.035f),WoodLight);
+                g.Cylinder(V(-1.28f,.18f,.81f),V(-1.28f,1.31f,-.68f),.05f,WoodLight,5);
+            }
+        }
+
+        static Geometry CivilianHat(int lod)
+        {
+            var g=new Geometry();int n=lod==0?12:7;
+            g.Frustum(V(0,-.02f,0),V(.66f,0,.61f),V(0,.045f,0),V(.38f,0,.36f),Straw,n);
+            g.Frustum(V(0,.036f,0),V(.37f,0,.36f),V(0,.177f,0),V(.24f,0,.23f),StrawLight,n);
+            if(lod==0)g.Cylinder(V(0,.047f,0),V(0,.073f,0),.183f,Wood,10);
+            return g;
+        }
+
+        static Geometry CivilianPack(int lod)
+        {
+            var g=new Geometry();
+            g.Bevel(Vector3.zero,V(.35f,.41f,.22f),.065f,Straw);
+            g.Box(V(0,.055f,0),V(.356f,.048f,.23f),Wood);
+            if(lod==0)
+            {
+                g.Box(V(0,0,-.117f),V(.048f,.34f,.03f),Wood);
+                g.Cylinder(V(-.18f,.22f,0),V(.18f,.22f,0),.076f,Green,7);
+            }
+            return g;
+        }
+
         sealed class Geometry
         {
             readonly List<Vector3> vertices=new List<Vector3>(),normals=new List<Vector3>();readonly List<Color> colors=new List<Color>();readonly List<int> indices=new List<int>();
             public void Triangle(Vector3 a,Vector3 b,Vector3 c,Color color){Vector3 cross=Vector3.Cross(b-a,c-a);if(cross.sqrMagnitude<1e-14f)return;Vector3 normal=cross.normalized;int i=vertices.Count;vertices.Add(a);vertices.Add(b);vertices.Add(c);normals.Add(normal);normals.Add(normal);normals.Add(normal);colors.Add(color);colors.Add(color);colors.Add(color);indices.Add(i);indices.Add(i+1);indices.Add(i+2);}
             public void Quad(Vector3 a,Vector3 b,Vector3 c,Vector3 d,Color color,bool doubleSided=false){Triangle(a,b,c,color);Triangle(a,c,d,color);if(doubleSided){Triangle(c,b,a,color);Triangle(d,c,a,color);}}
+            public void Box(Vector3 center,Vector3 size,Color color)
+            {
+                float x=size.x*.5f,y=size.y*.5f,z=size.z*.5f;
+                var a=center+V(-x,-y,-z);var b=center+V(x,-y,-z);var c=center+V(x,-y,z);var d=center+V(-x,-y,z);
+                var up=V(0,size.y,0);
+                Quad(a,b,c,d,color);Quad(d+up,c+up,b+up,a+up,color);
+                Quad(a,a+up,b+up,b,color);Quad(b,b+up,c+up,c,color);
+                Quad(c,c+up,d+up,d,color);Quad(d,d+up,a+up,a,color);
+            }
             void ConvexTriangle(Vector3 a,Vector3 b,Vector3 c,Color color){if(Vector3.Dot(Vector3.Cross(b-a,c-a),a+b+c)<0)Triangle(c,b,a,color);else Triangle(a,b,c,color);}
             void ConvexQuad(Vector3 a,Vector3 b,Vector3 c,Vector3 d,Color color){ConvexTriangle(a,b,c,color);ConvexTriangle(a,c,d,color);}
             public void Append(Geometry other,Matrix4x4 matrix){int offset=vertices.Count;for(int i=0;i<other.vertices.Count;i++){vertices.Add(matrix.MultiplyPoint3x4(other.vertices[i]));normals.Add(matrix.MultiplyVector(other.normals[i]).normalized);colors.Add(other.colors[i]);}foreach(int i in other.indices)indices.Add(offset+i);}

@@ -38,7 +38,7 @@ namespace Frontline.UnityGame
 #if UNITY_WEBGL && !UNITY_EDITOR
             FrontlineUpload(receiver.gameObject.name);
 #elif UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN
-            var dialog=Dialog("导入阵型或回放",null,0x00080000|0x00001000|0x00000800|0x00000008);try{if(GetOpenFileName(ref dialog)){var f=new FileInfo(Marshal.PtrToStringUni(dialog.file));if(f.Length>64*1024*1024)throw new IOException("文件超过 64MB");receiver.OnFileLoaded(File.ReadAllText(f.FullName));}else pending=null;}finally{Marshal.FreeHGlobal(dialog.file);}
+            var dialog=Dialog("导入阵型、回放或庄园",null,0x00080000|0x00001000|0x00000800|0x00000008);try{if(GetOpenFileName(ref dialog)){var f=new FileInfo(Marshal.PtrToStringUni(dialog.file));if(f.Length>64*1024*1024)throw new IOException("文件超过 64MB");receiver.OnFileLoaded(File.ReadAllText(f.FullName));}else pending=null;}finally{Marshal.FreeHGlobal(dialog.file);}
 #else
             throw new PlatformNotSupportedException("请使用 JSON 文本导入");
 #endif
