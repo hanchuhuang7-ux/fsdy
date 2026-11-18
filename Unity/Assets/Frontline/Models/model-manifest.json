@@ -1,6 +1,6 @@
 {
     "generator": "Frontline.Editor.ModelBaker",
-    "version": "0.7.0",
+    "version": "1.0.0",
     "vertexColor": "rgb=albedo; alpha=faction multiply weight",
     "resources": [
         "Models/body_militia",
@@ -130,6 +130,24 @@
         "Models/flame_lod1",
         "Models/snow_lod1",
         "Models/island_root_lod1",
-        "Models/mist_lod1"
+        "Models/mist_lod1",
+        "Models/manor_hall",
+        "Models/cottage",
+        "Models/farm",
+        "Models/timber_camp",
+        "Models/smithy",
+        "Models/barracks",
+        "Models/stables",
+        "Models/civilian_hat",
+        "Models/civilian_pack",
+        "Models/manor_hall_lod1",
+        "Models/cottage_lod1",
+        "Models/farm_lod1",
+        "Models/timber_camp_lod1",
+        "Models/smithy_lod1",
+        "Models/barracks_lod1",
+        "Models/stables_lod1",
+        "Models/civilian_hat_lod1",
+        "Models/civilian_pack_lod1"
     ]
 }

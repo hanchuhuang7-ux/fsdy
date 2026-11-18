@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 namespace Frontline.UnityGame
 {
-    public sealed class BattleView:MonoBehaviour
+    public sealed partial class BattleView:MonoBehaviour
     {
         public Camera ViewCamera {get;private set;}[NonSerialized] public Catalog Data;public Deployment Config;public Frame Current;public string HiddenTeam;
         public readonly HashSet<int> Selection=new HashSet<int>();[NonSerialized] public Vector3? Marker;public float MarkerRadius=1;public bool Deploying=true;public int CameraMode;
@@ -27,6 +27,25 @@ namespace Frontline.UnityGame
         readonly List<Batch> moving=new List<Batch>(),still=new List<Batch>(),grid=new List<Batch>();
         Material material,atmosphere,sky;Light sun,fill;MeshSet armLeft,leg,horse,horseLeg,catapult,catapultArm,shield,ring,dot,torso,head,limb,wreckHorse,wreckCart,arrow,bolt,bomb,stone;MapEcology.Mote[] motes;
         MeshSet dust;float activeFlash;struct MotionSample {public Vector3 p;public float time,speed,phase,direction;public bool valid;}readonly MotionSample[] oldMotion=new MotionSample[122];
+        struct GroundSample {public string map;public float x,z,height;}
+        readonly GroundSample[] unitFloors=new GroundSample[2*Catalog.MaxUnits+1];
+        GroundSample[] propFloors=Array.Empty<GroundSample>();
+        bool variedTerrain;
+        public int RenderHeightSamples {get;private set;}
+        float FloorAt(ref GroundSample sample,float x,float z)
+        {
+            if(sample.map!=Config.map||sample.x!=x||sample.z!=z)
+            {
+                sample.map=Config.map;sample.x=x;sample.z=z;sample.height=Data.Height(Config.map,x,z);
+                RenderHeightSamples++;
+            }
+            return sample.height;
+        }
+        float UnitFloor(int id,float x,float z)
+        {
+            if((uint)id<unitFloors.Length)return FloorAt(ref unitFloors[id],x,z);
+            RenderHeightSamples++;return Data.Height(Config.map,x,z);
+        }
         Vector3 target=Vector3.zero;float yaw,distance=40,pitch=51;int cameraWidth,cameraHeight,cachedQuality=-1;string cachedMap;Vector3 cameraPosition;
         void Awake()
         {
@@ -80,11 +99,17 @@ namespace Frontline.UnityGame
         }
         public void SetQuality(int quality)
         {
-            QualityLevel=Mathf.Clamp(quality,0,2);PlayerPrefs.SetInt("frontline.visual.quality",QualityLevel);QualitySettings.shadowDistance=QualityLevel==0?22:QualityLevel==1?42:65;QualitySettings.shadows=QualityLevel==0?ShadowQuality.HardOnly:ShadowQuality.All;QualitySettings.shadowResolution=QualityLevel==2?ShadowResolution.High:ShadowResolution.Medium;cachedQuality=-1;
+            QualityLevel=Mathf.Clamp(quality,0,2);PlayerPrefs.SetInt("frontline.visual.quality",QualityLevel);UpdateShadowDistance();QualitySettings.shadowResolution=QualityLevel==2?ShadowResolution.High:ShadowResolution.Medium;cachedQuality=-1;
         }
         void RebuildMap()
         {
             foreach(var b in still)b.Clear();foreach(var b in grid)b.Clear();
+            var map=Data.Maps[Config.map];
+            int propCapacity=map.props.Count+2*Catalog.MaxProps;
+            if(propFloors.Length<propCapacity)propFloors=new GroundSample[propCapacity];
+            variedTerrain=false;
+            foreach(var platform in map.platforms)
+                if(platform.angle!=0||platform.y+platform.hy!=map.platforms[0].y+map.platforms[0].hy){variedTerrain=true;break;}
             foreach(var d in MapEcology.Build(Data,Config.map,QualityLevel))Buffer(Load(d.mesh,d.atmosphere),still,1).Add(d.matrix,d.tint,d.wind);
             for(int i=-16;i<=16;i+=2)for(int j=-10;j<=10;j+=2){float h=Data.Height(Config.map,i,j);if(Catalog.Finite(h))Buffer(dot,grid,2).Add(Matrix4x4.TRS(new Vector3(i,h+.027f,j),Quaternion.identity,new Vector3(.095f,.025f,.095f)),i<0?new Color(.91f,.53f,.37f):new Color(.4f,.71f,.94f),0);}
             for(int j=-11;j<=11;j++){float h=Data.Height(Config.map,0,j);if(Catalog.Finite(h))Buffer(dot,grid,2).Add(Matrix4x4.TRS(new Vector3(0,h+.03f,j),Quaternion.identity,new Vector3(.065f,.025f,.35f)),new Color(.91f,.91f,.76f),0);}
@@ -97,11 +122,18 @@ namespace Frontline.UnityGame
         static Color Team(string team){return team=="red"?Red:team=="blue"?Blue:Gold;}
         static Matrix4x4 Pose(Vector3 p,Quaternion rotation,Vector3 scale){return Matrix4x4.TRS(p,rotation,scale);}
         void Ring(Vector3 p,float radius,Color color){Add(ring,Pose(p,Quaternion.identity,new Vector3(radius,1,radius)),color);}
-        void Soldier(UnitVisual model,string type,string team,Vector3 p,float angle,float attack,int id,float hp=1,bool inspired=false,bool fortified=false,string stance="advance",float speed=0,float direction=0,float gait=0,float hitFlash=0,float hitTiltX=0,float hitTiltZ=0,float charge=0,float guard=0)
+        void Soldier(UnitVisual model,string type,string team,Vector3 p,float angle,float attack,int id,float hp=1,bool inspired=false,bool fortified=false,string stance="advance",float speed=0,float direction=0,float gait=0,float hitFlash=0,float hitTiltX=0,float hitTiltZ=0,float charge=0,float guard=0,float floor=float.NaN)
         {
             activeFlash=hitFlash;float time=Current?.time??Time.time,scale=model.definition.scale;
             if(!Deploying&&gait==0&&id<oldMotion.Length){var m=oldMotion[id];if(time<m.time)m=default;if(m.valid&&time>m.time){var delta=p-m.p;float dt=time-m.time;float travel=new Vector2(delta.x,delta.z).magnitude;m.speed=travel/dt;m.phase+=travel/scale;m.direction=(delta.x*Mathf.Sin(angle)+delta.z*Mathf.Cos(angle))/Mathf.Max(.001f,travel);}m.p=p;m.time=time;m.valid=true;oldMotion[id]=m;speed=m.speed;gait=m.phase;direction=m.direction;}
-            p.y+=Mathf.Sin(time*2.2f+id)*.008f*scale;if(type=="cavalry")p.y+=.55f*scale;var color=Team(team);float tilt=type=="cavalry"?Mathf.Clamp01(charge/1.1f)*7:0;if(type=="cavalry"){float dx=Mathf.Sin(angle)*.6f*scale,dz=Mathf.Cos(angle)*.6f*scale;float front=Data.Height(Config.map,p.x+dx,p.z+dz),back=Data.Height(Config.map,p.x-dx,p.z-dz);if(Catalog.Finite(front)&&Catalog.Finite(back))tilt-=Mathf.Atan2(front-back,1.2f*scale)*Mathf.Rad2Deg;}var root=Pose(p,Quaternion.Euler(hitTiltZ*Mathf.Rad2Deg,0,-hitTiltX*Mathf.Rad2Deg)*Quaternion.Euler(0,angle*Mathf.Rad2Deg,0)*Quaternion.Euler(tilt,0,0),Vector3.one*scale);float amplitude=speed<.12f?0:Mathf.Clamp01(speed/model.definition.speed);float walk=Deploying?0:Mathf.Sin(gait*4.4f*(direction<-.15f?-1:1)+id)*28*amplitude*(direction<-.15f?.65f:1);float swing=Mathf.Sin(Mathf.Clamp01(attack)*Mathf.PI)*65;
+            p.y+=Mathf.Sin(time*2.2f+id)*.008f*scale;if(type=="cavalry")p.y+=.55f*scale;var color=Team(team);float tilt=type=="cavalry"?Mathf.Clamp01(charge/1.1f)*7:0;
+            if(type=="cavalry"&&variedTerrain)
+            {
+                float dx=Mathf.Sin(angle)*.6f*scale,dz=Mathf.Cos(angle)*.6f*scale;
+                float front=Data.Height(Config.map,p.x+dx,p.z+dz),back=Data.Height(Config.map,p.x-dx,p.z-dz);RenderHeightSamples+=2;
+                if(Catalog.Finite(front)&&Catalog.Finite(back))tilt-=Mathf.Atan2(front-back,1.2f*scale)*Mathf.Rad2Deg;
+            }
+            var root=Pose(p,Quaternion.Euler(hitTiltZ*Mathf.Rad2Deg,0,-hitTiltX*Mathf.Rad2Deg)*Quaternion.Euler(0,angle*Mathf.Rad2Deg,0)*Quaternion.Euler(tilt,0,0),Vector3.one*scale);float amplitude=speed<.12f?0:Mathf.Clamp01(speed/model.definition.speed);float walk=Deploying?0:Mathf.Sin(gait*4.4f*(direction<-.15f?-1:1)+id)*28*amplitude*(direction<-.15f?.65f:1);float swing=Mathf.Sin(Mathf.Clamp01(attack)*Mathf.PI)*65;
             Add(model.body,root,color);
             if(type=="catapult")
             {Add(catapult,root,White);Add(catapultArm,root*Pose(new Vector3(0,.59f,0),Quaternion.Euler(-35-swing*.8f,0,0),Vector3.one),White);}
@@ -117,11 +149,18 @@ namespace Frontline.UnityGame
                     Add(horse,root,White);for(int i=0;i<4;i++){float x=i%2==0?-.24f:.24f,z=i<2?-.4f:.4f;Add(horseLeg,root*Pose(new Vector3(x,-.65f,z),Quaternion.Euler(i%2==0?walk:-walk,0,0),Vector3.one),White);}
                 }
             }
-            float ground=Data.Height(Config.map,p.x,p.z);if(!Catalog.Finite(ground))ground=p.y-.8f*scale;var foot=new Vector3(p.x,ground+.045f,p.z);
             activeFlash=0;
-            if(!Deploying&&type=="cavalry"&&charge>.55f&&speed>3.8f){for(int i=0;i<2;i++){float age=Mathf.Repeat(gait*.65f+i*.5f,1);var dp=foot-new Vector3(Mathf.Sin(angle),0,Mathf.Cos(angle))*(.5f+age*.9f);dp.y+=.12f+age*.22f;Add(dust,Pose(dp,Quaternion.Euler(0,id*37,0),Vector3.one*(.25f+age*.45f)),new Color(.66f,.57f,.39f,.24f*(1-age)));}}
-            if(Selection.Contains(id))Ring(foot,.7f*scale,Gold);else if(Deploying&&stance!="advance")Ring(foot,.48f*scale,stance=="hold"?new Color(.64f,.72f,.75f):White);
-            if(inspired||fortified)Ring(foot,.65f*scale,fortified?new Color(.47f,.76f,1):Gold);
+            bool tracks=!Deploying&&type=="cavalry"&&charge>.55f&&speed>3.8f;
+            bool selected=Selection.Contains(id),showStance=Deploying&&stance!="advance";
+            if(tracks||selected||showStance||inspired||fortified)
+            {
+                if(float.IsNaN(floor))floor=UnitFloor(id,p.x,p.z);
+                if(!Catalog.Finite(floor))floor=p.y-.8f*scale;
+                var foot=new Vector3(p.x,floor+.045f,p.z);
+                if(tracks){for(int i=0;i<2;i++){float age=Mathf.Repeat(gait*.65f+i*.5f,1);var dp=foot-new Vector3(Mathf.Sin(angle),0,Mathf.Cos(angle))*(.5f+age*.9f);dp.y+=.12f+age*.22f;Add(dust,Pose(dp,Quaternion.Euler(0,id*37,0),Vector3.one*(.25f+age*.45f)),new Color(.66f,.57f,.39f,.24f*(1-age)));}}
+                if(selected)Ring(foot,.7f*scale,Gold);else if(showStance)Ring(foot,.48f*scale,stance=="hold"?new Color(.64f,.72f,.75f):White);
+                if(inspired||fortified)Ring(foot,.65f*scale,fortified?new Color(.47f,.76f,1):Gold);
+            }
             if(hp<.99f){Add(dot,Pose(p+Vector3.up*(1.1f*scale),Quaternion.identity,new Vector3(.7f*scale,.055f,.1f)),new Color(.12f,.15f,.18f));Add(dot,Pose(p+new Vector3(-.35f*scale*(1-hp),1.12f*scale,0),Quaternion.identity,new Vector3(.7f*scale*Mathf.Clamp01(hp),.06f,.11f)),color);}
         }
         internal UnitDef Definition(string type){return Model(type).definition;}
@@ -152,16 +191,19 @@ namespace Frontline.UnityGame
             foreach(var u in roster)
             {
                 var model=Model(u.type);
-                float y=Data.Height(Config.map,u.x,u.z)+.8f*model.definition.scale;
-                Soldier(model,u.type,team,new Vector3(u.x,y,u.z),angle,0,id++,stance:u.stance);
+                float floor=UnitFloor(id,u.x,u.z);
+                Soldier(model,u.type,team,new Vector3(u.x,floor+.8f*model.definition.scale,u.z),angle,0,id++,stance:u.stance,floor:floor);
             }
         }
         void LateUpdate()
         {
-            if(Data==null||Config==null)return;foreach(var b in moving)b.Clear();RenderSubmissions=RenderInstances=0;
-            if(cameraWidth!=Screen.width||cameraHeight!=Screen.height){cameraWidth=Screen.width;cameraHeight=Screen.height;ViewCamera.fieldOfView=Viewport.Compact?65:42;distance=Viewport.Compact?70:40;}
-            if(CameraMode==2&&Current!=null){UnitFrame best=null;float bestCost=0;foreach(var u in Current.units)if(u.alive){float cost=Model(u.type).definition.cost;if(best==null||cost>bestCost){best=u;bestCost=cost;}}if(best?.t!=null)target=Vector3.Lerp(target,new Vector3(best.t[0],1,best.t[2]),.1f);}
-            var rotation=Quaternion.Euler(CameraMode==1?87:pitch,yaw,0);cameraPosition=target-rotation*Vector3.forward*distance;ViewCamera.transform.SetPositionAndRotation(cameraPosition,rotation);
+            if(Data==null||Config==null)return;foreach(var b in moving)b.Clear();RenderSubmissions=RenderInstances=RenderHeightSamples=0;
+            if(cameraWidth!=Screen.width||cameraHeight!=Screen.height){cameraWidth=Screen.width;cameraHeight=Screen.height;ViewCamera.fieldOfView=Viewport.Compact?65:42;if(manor==null)distance=Viewport.Compact?70:40;else FrameManor();}
+            if(manor==null&&CameraMode==2&&Current!=null){UnitFrame best=null;float bestCost=0;foreach(var u in Current.units)if(u.alive){float cost=Model(u.type).definition.cost;if(best==null||cost>bestCost){best=u;bestCost=cost;}}if(best?.t!=null)target=Vector3.Lerp(target,new Vector3(best.t[0],1,best.t[2]),.1f);}
+            var rotation=Quaternion.Euler(CameraMode==1?87:pitch,yaw,0);cameraPosition=target-rotation*Vector3.forward*distance;
+            if(manor!=null)cameraPosition+=rotation*Vector3.up*(manorScreenShift*distance);
+            ViewCamera.transform.SetPositionAndRotation(cameraPosition,rotation);
+            if(manor!=null){DrawManor();return;}
             if(cachedMap!=Config.map||cachedQuality!=QualityLevel)RebuildMap();
             foreach(var b in still)Draw(b,true);if(Deploying)foreach(var b in grid)Draw(b,true);
             var map=Data.Maps[Config.map];
@@ -169,7 +211,9 @@ namespace Frontline.UnityGame
             {
                 if(HiddenTeam!="red"&&HiddenTeam!="both")DrawDeployment(Config.red,"red",Mathf.PI/2,1);
                 if(HiddenTeam!="blue"&&HiddenTeam!="both")DrawDeployment(Config.blue,"blue",-Mathf.PI/2,Config.red.Count+1);
-                foreach(var p in map.props)Prop(p.type,p.team,p.x,p.z,Data.Height(Config.map,p.x,p.z),false);foreach(var p in Config.props)if(p.team!=HiddenTeam&&HiddenTeam!="both")Prop(p.type,p.team,p.x,p.z,Data.Height(Config.map,p.x,p.z),false);
+                int propIndex=0;
+                foreach(var p in map.props)Prop(p.type,p.team,p.x,p.z,FloorAt(ref propFloors[propIndex++],p.x,p.z),false);
+                foreach(var p in Config.props)if(p.team!=HiddenTeam&&HiddenTeam!="both")Prop(p.type,p.team,p.x,p.z,FloorAt(ref propFloors[propIndex++],p.x,p.z),false);
             }
             else
             {
@@ -201,11 +245,17 @@ namespace Frontline.UnityGame
             if(Marker.HasValue)Ring(Marker.Value+Vector3.up*.06f,MarkerRadius,Gold);foreach(var b in moving)Draw(b,false);
         }
         public void Orbit(Vector2 delta){CameraMode=0;yaw+=delta.x*.22f;pitch=Mathf.Clamp(pitch-delta.y*.15f,25,84);}
-        public void Zoom(float amount){distance=Mathf.Clamp(distance-amount*3,18,90);}
-        public void ResetCamera(){target=Vector3.zero;yaw=0;pitch=51;distance=Viewport.Compact?70:40;CameraMode=0;}
+        public void Zoom(float amount){distance=Mathf.Clamp(distance-amount*3,manor==null?18:12,90);if(manor!=null)UpdateShadowDistance();}
+        public void ResetCamera(){if(manor!=null){FrameManor();return;}target=Vector3.zero;yaw=0;pitch=51;distance=Viewport.Compact?70:40;CameraMode=0;}
         public bool Ground(Vector2 screen,out Vector3 p)
         {
-            var ray=ViewCamera.ScreenPointToRay(screen);p=Vector3.zero;float nearest=float.PositiveInfinity;foreach(var platform in Data.Maps[Config.map].platforms){var normal=Quaternion.Euler(0,0,platform.angle*Mathf.Rad2Deg)*Vector3.up;var plane=new Plane(normal,new Vector3(platform.x,platform.y,platform.z)+normal*platform.hy);if(plane.Raycast(ray,out float hitDistance)&&hitDistance<nearest){var hit=ray.GetPoint(hitDistance);float h=Data.Height(Config.map,hit.x,hit.z);if(Catalog.Finite(h)&&Mathf.Abs(h-hit.y)<.1f){nearest=hitDistance;p=hit;}}}return nearest<float.PositiveInfinity;
+            var ray=ViewCamera.ScreenPointToRay(screen);p=Vector3.zero;
+            if(manor!=null)
+            {
+                if(!ManorGround.Raycast(ray,out float t))return false;
+                p=ray.GetPoint(t);return Mathf.Abs(p.x)<=13f&&Mathf.Abs(p.z)<=9f;
+            }
+            float nearest=float.PositiveInfinity;foreach(var platform in Data.Maps[Config.map].platforms){var normal=Quaternion.Euler(0,0,platform.angle*Mathf.Rad2Deg)*Vector3.up;var plane=new Plane(normal,new Vector3(platform.x,platform.y,platform.z)+normal*platform.hy);if(plane.Raycast(ray,out float hitDistance)&&hitDistance<nearest){var hit=ray.GetPoint(hitDistance);float h=Data.Height(Config.map,hit.x,hit.z);if(Catalog.Finite(h)&&Mathf.Abs(h-hit.y)<.1f){nearest=hitDistance;p=hit;}}}return nearest<float.PositiveInfinity;
         }
         void OnDestroy(){if(RenderSettings.skybox==sky)RenderSettings.skybox=null;if(material)Destroy(material);if(atmosphere)Destroy(atmosphere);if(sky)Destroy(sky);}
     }

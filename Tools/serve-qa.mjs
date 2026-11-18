@@ -11,7 +11,7 @@ http.createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://localhost');
   if(req.method==='POST'&&url.pathname.startsWith('/__qa/')){
-   const name=url.pathname.slice(6);if(!/^(v09(?:5)?-|visual-|combat-)[a-zA-Z0-9-]+\.(png|json)$/.test(name))throw Error('Invalid result name');
+   const name=url.pathname.slice(6);if(!/^(v09(?:5)?-|v10-|visual-|combat-)[a-zA-Z0-9-]+\.(png|json)$/.test(name))throw Error('Invalid result name');
    let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>8*1024*1024)throw Error('Result too large');chunks.push(chunk);}
    await writeFile(resolve(output,name),Buffer.concat(chunks));res.writeHead(200);res.end('ok');console.log(`QA ${name} ${size} bytes`);return;
   }

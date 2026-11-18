@@ -22,8 +22,11 @@ namespace Frontline.UnityGame
         static long Allocated(){return AllocationMeter.Read();}
 #endif
         FrontlineApp app;string output;readonly List<object> rows=new List<object>();readonly List<object> uiRows=new List<object>();
-        public static bool Requested {get {return Array.IndexOf(Environment.GetCommandLineArgs(),"--visual-qa")>=0||Application.absoluteURL.Contains("frontlineQA=1");}}
-        public void Initialize(FrontlineApp value){app=value;StartCoroutine(GuardValidation(Run()));}
+        public static bool ManorRequested =>
+            Array.IndexOf(Environment.GetCommandLineArgs(),"--manor-qa") >= 0 ||
+            (Uri.TryCreate(Application.absoluteURL,UriKind.Absolute,out var uri) && uri.IsLoopback && uri.Query.Contains("frontlineQA=manor"));
+        public static bool Requested {get {return ManorRequested||Array.IndexOf(Environment.GetCommandLineArgs(),"--visual-qa")>=0||Application.absoluteURL.Contains("frontlineQA=1");}}
+        public void Initialize(FrontlineApp value){app=value;StartCoroutine(GuardValidation(ManorRequested ? RunManor() : Run()));}
         IEnumerator GuardValidation(IEnumerator routine)
         {
             var stack=new Stack<IEnumerator>();stack.Push(routine);
