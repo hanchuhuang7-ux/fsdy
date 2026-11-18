@@ -12,12 +12,28 @@ namespace Frontline.Core
     }
     public sealed class Soldier
     {
-        public Entity entity;public UnitDef definition;public string stance;public float angle,cooldown,attack,stun,charge,floor;public V3 anchor,progress,avoidance,avoidanceTarget;
+        public readonly Entity entity;
+        public readonly UnitDef definition;
+        public readonly string stance;
+        internal readonly bool isRed,isRanged,isCavalry,isMedic,isSpear,isGiant,isCrossbow,isCatapult,isHold,isFlank,isHunt,canFortify;
+        internal readonly float turnRateAtRest,windupDuration;
+        internal Soldier(Entity entity,UnitDef definition,string stance)
+        {
+            this.entity=entity;this.definition=definition;this.stance=stance;
+            string type=entity.type;
+            isRed=entity.team=="red";isRanged=definition.ranged;isCavalry=type=="cavalry";
+            isMedic=type=="medic";isSpear=type=="spear";isGiant=type=="giant";isCrossbow=type=="crossbow";isCatapult=type=="catapult";
+            isHold=stance=="hold";isFlank=stance=="flank";isHunt=stance=="hunt";
+            canFortify=type=="shield"||isSpear||isGiant||type=="militia";
+            turnRateAtRest=CombatMotion.TurnRate(type,0);windupDuration=CombatMotion.Windup(type);
+            collisionFast=isCavalry;combatBody=entity.body as ICombatBody;
+        }
+        public float angle,cooldown,attack,stun,charge,floor;public V3 anchor,progress,avoidance,avoidanceTarget;
         public int inspireUntil,fortifyUntil,lastHitTick=-99999,escapeUntil,blocked,escapes,routeStage;public float routeLane;public bool hasRoute;
         public Entity lastSource;public Soldier target;public OrderEntry focus;
         public ICombatBody combatBody;public float slope,hitFlash,hitTiltX,hitTiltZ,moveSpeed,moveForward,gait,windup;public float guard;public int lastWallTick=-999;public bool preparing,collisionFast;public int lastVisualTick=-9999;
     }
-    public sealed class PropState {public Entity entity;public float floor,fuse=-1,cooldown;}
+    public sealed class PropState {public Entity entity;internal PropDef definition;public float floor,fuse=-1,cooldown;}
     public sealed class Shot {public int id;public string type;public Entity owner;public IBody body;public float life,damage,knock,pierce;public bool removed;}
     public sealed class Seeded
     {
@@ -33,25 +49,55 @@ namespace Frontline.Core
         readonly List<Soldier>[] grid=new List<Soldier>[128*128];readonly List<List<Soldier>> gridBuckets=new List<List<Soldier>>();readonly List<Soldier> redTargets=new List<Soldier>(60),blueTargets=new List<Soldier>(60);readonly Dictionary<int,List<Soldier>> overflowGrid=new Dictionary<int,List<Soldier>>();readonly Dictionary<int,Entity> entities=new Dictionary<int,Entity>();readonly Dictionary<int,Soldier> soldiersById=new Dictionary<int,Soldier>();readonly Dictionary<int,PropState> propsById=new Dictionary<int,PropState>();readonly Dictionary<int,Shot> shotsById=new Dictionary<int,Shot>();
         readonly Dictionary<string,int> cueTimes=new Dictionary<string,int>(),highlightTimes=new Dictionary<string,int>();
         readonly Stack<Cue> cuePool=new Stack<Cue>(24);readonly Stack<EffectFrame> effectPool=new Stack<EffectFrame>(CombatMotion.EffectCapacity);readonly bool legacyMath;readonly MapDef map;readonly GroundSample[] groundSamples;
+        readonly ZoneSample[] zoneSamples;
+        readonly List<PropState> attackablePropsForRed=new List<PropState>(),attackablePropsForBlue=new List<PropState>();
+        readonly List<Soldier> orderTargets=new List<Soldier>(120);
         struct GroundSample {public float x,z,hz,extent,top,slope;}
+        enum Terrain { Ground, Mud, Ice }
+        struct ZoneSample {public float x,z,hx,hz;public Terrain terrain;}
         int nextId=1,nextCue=1,nextEffect=1,leader,replayIndex;bool firstDeath,disposed;List<OrderEntry> replayOrders;
         public Battle(Catalog catalog,Deployment input,IWorldFactory factory)
         {
             Data=catalog;Config=catalog.Validate(input);Random=new Seeded(Config.seed);World=factory.Create(catalog,Config);legacyMath=World is ILegacyCompatibilityWorld;map=Data.Maps[Config.map];var platforms=map.platforms;groundSamples=new GroundSample[platforms.Count];for(int i=0;i<platforms.Count;i++){var p=platforms[i];float cos=(float)Math.Cos(p.angle);groundSamples[i]=new GroundSample{x=p.x,z=p.z,hz=p.hz,extent=p.hx*cos+p.hy*Math.Abs((float)Math.Sin(p.angle)),top=p.y+p.hy/cos,slope=(float)Math.Tan(p.angle)};}
+            var zones=map.zones;
+            zoneSamples=zones.Count==0?Array.Empty<ZoneSample>():new ZoneSample[zones.Count];
+            for(int i=0;i<zones.Count;i++)
+            {
+                var zone=zones[i];
+                zoneSamples[i]=new ZoneSample{x=zone.x,z=zone.z,hx=zone.hx,hz=zone.hz,terrain=zone.type=="mud"?Terrain.Mud:zone.type=="ice"?Terrain.Ice:Terrain.Ground};
+            }
             for(int i=0;i<24;i++)cuePool.Push(new Cue());for(int i=0;i<CombatMotion.EffectCapacity;i++)effectPool.Push(new EffectFrame());
             try{
                 foreach(var team in new[]{"red","blue"})foreach(var p in Config.Army(team))
                 {
                     var d=catalog.Units[p.type];var e=new Entity{id=nextId++,type=p.type,team=team,hp=d.hp,maxHp=d.hp,spawn=new V3(p.x,0,p.z)};e.body=World.Unit(e.id,p,team,d);e.position=e.body.Position;entities.Add(e.id,e);
-                    Units.Add(new Soldier{entity=e,combatBody=e.body as ICombatBody,collisionFast=e.type=="cavalry",definition=d,stance=p.stance,cooldown=Random.Next()*.6f,angle=team=="red"?(float)Math.PI/2:-(float)Math.PI/2,anchor=e.spawn,progress=e.position});
+                    Units.Add(new Soldier(e,d,p.stance){cooldown=Random.Next()*.6f,angle=team=="red"?(float)Math.PI/2:-(float)Math.PI/2,anchor=e.spawn,progress=e.position});
                 }
                 foreach(var placement in catalog.Maps[Config.map].props.Concat(Config.props))
                 {
-                    var p=Json.Clone(placement);if(!Catalog.Team(p.team))p.team="neutral";var d=catalog.Props[p.type];var e=new Entity{id=nextId++,type=p.type,team=p.team,hp=d.hp,maxHp=d.hp,spawn=new V3(p.x,0,p.z)};e.body=World.Prop(e.id,p,d);e.position=e.body.Position;entities.Add(e.id,e);Props.Add(new PropState{entity=e,floor=catalog.Height(Config.map,p.x,p.z)});
+                    var p=Json.Clone(placement);if(!Catalog.Team(p.team))p.team="neutral";var d=catalog.Props[p.type];var e=new Entity{id=nextId++,type=p.type,team=p.team,hp=d.hp,maxHp=d.hp,spawn=new V3(p.x,0,p.z)};e.body=World.Prop(e.id,p,d);e.position=e.body.Position;entities.Add(e.id,e);var prop=new PropState{entity=e,definition=d,floor=catalog.Height(Config.map,p.x,p.z)};
+                    Props.Add(prop);
+                    if(IsAttackable(e))
+                    {
+                        // Preserve map then deployment order, including neutral barricades for both teams.
+                        if(e.team!="red")attackablePropsForRed.Add(prop);
+                        if(e.team!="blue")attackablePropsForBlue.Add(prop);
+                    }
                 }
                 foreach(var u in Units)soldiersById.Add(u.entity.id,u);foreach(var p in Props)propsById.Add(p.entity.id,p);
                 Cache();
             }catch{World.Dispose();throw;}
+        }
+        static bool IsAttackable(Entity e){return e.type=="barricade"||(e.type=="banner"&&e.team!="neutral");}
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] Terrain TerrainAt(float x,float z)
+        {
+            // The first matching zone wins, even if it provides no movement modifier.
+            for(int i=0;i<zoneSamples.Length;i++)
+            {
+                ref readonly var zone=ref zoneSamples[i];
+                if(Math.Abs(x-zone.x)<zone.hx&&Math.Abs(z-zone.z)<zone.hz)return zone.terrain;
+            }
+            return Terrain.Ground;
         }
         static readonly Passage MarshPassage=new Passage{approach=5.3f,lanes=new[]{-9.6f,9.6f}};
         static readonly float[] EscapeAngles={1.047f,1.571f,-1.047f,-1.571f,3.14159f};
@@ -66,7 +112,7 @@ namespace Frontline.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)] bool Within(V3 a,V3 b,float radius){if(legacyMath)return V3.DistanceXZ(a,b)<=radius;float x=a.x-b.x,z=a.z-b.z;return x*x+z*z<=radius*radius;}
         void Cache()
         {
-            foreach(var bucket in gridBuckets)bucket.Clear();gridBuckets.Clear();redTargets.Clear();blueTargets.Clear();foreach(var u in Units)if(u.entity.alive){u.entity.position=u.entity.body.Position;(u.entity.team=="red"?redTargets:blueTargets).Add(u);u.floor=GroundAt(u.entity.position.x,u.entity.position.z,out u.slope);int k=Key(u.entity.position.x,u.entity.position.z);var bucket=GridBucket(k);if(bucket==null){bucket=new List<Soldier>(8);if((uint)k<(uint)grid.Length)grid[k]=bucket;else overflowGrid.Add(k,bucket);}if(bucket.Count==0)gridBuckets.Add(bucket);bucket.Add(u);}
+            foreach(var bucket in gridBuckets)bucket.Clear();gridBuckets.Clear();redTargets.Clear();blueTargets.Clear();foreach(var u in Units)if(u.entity.alive){u.entity.position=u.entity.body.Position;(u.isRed?redTargets:blueTargets).Add(u);u.floor=GroundAt(u.entity.position.x,u.entity.position.z,out u.slope);int k=Key(u.entity.position.x,u.entity.position.z);var bucket=GridBucket(k);if(bucket==null){bucket=new List<Soldier>(8);if((uint)k<(uint)grid.Length)grid[k]=bucket;else overflowGrid.Add(k,bucket);}if(bucket.Count==0)gridBuckets.Add(bucket);bucket.Add(u);}
         }
         Neighborhood Nearby(V3 p,float radius){return new Neighborhood(this,p,radius);}
         // foreach in the per-soldier avoidance path stays on the stack. LINQ consumers
@@ -88,16 +134,18 @@ namespace Frontline.Core
         }
         Soldier Target(Soldier own)
         {
-            Soldier best=null;float score=float.PositiveInfinity;bool flank=own.stance=="flank",hunt=own.stance=="hunt",focused=own.focus!=null&&own.focus.endTick>Tick;var targets=own.entity.team=="red"?blueTargets:redTargets;for(int targetIndex=0;targetIndex<targets.Count;targetIndex++)
+            Soldier best=null;float score=float.PositiveInfinity;bool flank=own.isFlank,hunt=own.isHunt,focused=own.focus!=null&&own.focus.endTick>Tick;
+            var origin=own.entity.position;var targets=own.isRed?blueTargets:redTargets;for(int targetIndex=0;targetIndex<targets.Count;targetIndex++)
             {
                 var foe=targets[targetIndex];if(!foe.entity.alive)continue;
-                float s;if(legacyMath){s=V3.DistanceXZ(own.entity.position,foe.entity.position);s*=s;}else{float dx=own.entity.position.x-foe.entity.position.x,dz=own.entity.position.z-foe.entity.position.z;s=dx*dx+dz*dz;}var def=foe.definition;
-                if(focused&&Catalog.Distance(foe.entity.position.x,foe.entity.position.z,own.focus.x,own.focus.z)<4)s*=.08f;
-                if(flank&&def.ranged)s*=.42f;if(hunt)s*=def.ranged?.12f*(160/def.cost):foe.entity.type=="medic"?.2f:1.5f;
+                var position=foe.entity.position;
+                float s;if(legacyMath){s=V3.DistanceXZ(origin,position);s*=s;}else{float dx=origin.x-position.x,dz=origin.z-position.z;s=dx*dx+dz*dz;}
+                if(focused&&Catalog.Distance(position.x,position.z,own.focus.x,own.focus.z)<4)s*=.08f;
+                if(flank&&foe.isRanged)s*=.42f;if(hunt)s*=foe.isRanged?.12f*(160/foe.definition.cost):foe.isMedic?.2f:1.5f;
                 if(s<score){best=foe;score=s;}
             }return best;
         }
-        public float Power(string team){float value=0;foreach(var u in Units)if(u.entity.alive&&u.entity.team==team)value+=Math.Max(0,u.entity.hp)/u.entity.maxHp*Data.Units[u.entity.type].cost;return value;}
+        public float Power(string team){float value=0;foreach(var u in Units)if(u.entity.alive&&u.entity.team==team)value+=Math.Max(0,u.entity.hp)/u.entity.maxHp*u.definition.cost;return value;}
         public bool IssueOrder(string team,Order order,out string reason)
         {
             reason=null;if(!Config.commander.enabled)reason="军令模式未开启";else if(Result!=null)reason="本局已经结束";else if(!Catalog.Team(team)||order==null||!Catalog.Orders.Contains(order.type))reason="军令或阵营无效";
@@ -105,7 +153,13 @@ namespace Frontline.Core
             else if(Commander.points[team]<1)reason="军令点数不足";else if(Tick<Commander.readyAt[team])reason="军令正在冷却";
             if(reason!=null)return false;Cache();var entry=new OrderEntry{id=Commander.log.Count+1,team=team,type=order.type,x=order.x,z=order.z,tick=Tick,endTick=Tick+(order.type=="focus"?360:300)};
             Commander.points[team]--;Commander.readyAt[team]=Tick+480;Commander.log.Add(entry);Commander.active.Add(entry);
-            foreach(var u in Nearby(new V3(order.x,0,order.z),order.type=="focus"?8:6))if(u.entity.team==team){if(order.type=="inspire")u.inspireUntil=entry.endTick;else if(order.type=="fortify"&&new[]{"shield","spear","giant","militia"}.Contains(u.entity.type))u.fortifyUntil=entry.endTick;else if(order.type=="focus")u.focus=entry;}
+            bool inspire=order.type=="inspire",fortify=order.type=="fortify",focus=order.type=="focus";
+            foreach(var u in Nearby(new V3(order.x,0,order.z),focus?8:6))if(u.entity.team==team)
+            {
+                if(inspire)u.inspireUntil=entry.endTick;
+                else if(fortify&&u.canFortify)u.fortifyUntil=entry.endTick;
+                else if(focus)u.focus=entry;
+            }
             Cue("order",new V3(order.x,Data.Height(Config.map,order.x,order.z),order.z));Highlight("order",team);return true;
         }
         public void UseOrderLog(List<OrderEntry> log)
@@ -120,7 +174,13 @@ namespace Frontline.Core
             foreach(var team in Config.commander.aiTeams)
             {
                 if(Commander.points[team]<=0||Tick<Commander.readyAt[team])continue;Soldier front=null;foreach(var u in Units)if(u.entity.alive&&u.entity.team==team&&(front==null||(team=="red"?u.entity.position.x>front.entity.position.x:u.entity.position.x<front.entity.position.x)))front=u;if(front==null)continue;
-                var enemies=Nearby(front.entity.position,8).Where(u=>u.entity.team!=team).ToList();string type=front.entity.hp/front.entity.maxHp<.65f?"fortify":enemies.Count>=3?"focus":"inspire";var p=front.entity.position;if(type=="focus"){p=new V3();foreach(var e in enemies)p+=e.entity.position/enemies.Count;}IssueOrder(team,new Order(type,p.x,p.z),out _);
+                orderTargets.Clear();
+                foreach(var u in Nearby(front.entity.position,8))if(u.entity.team!=team)orderTargets.Add(u);
+                int count=orderTargets.Count;
+                string type=front.entity.hp/front.entity.maxHp<.65f?"fortify":count>=3?"focus":"inspire";
+                var p=front.entity.position;
+                if(type=="focus"){p=new V3();foreach(var e in orderTargets)p+=e.entity.position/count;}
+                IssueOrder(team,new Order(type,p.x,p.z),out _);
             }
         }
         bool EscapeClear(V3 q){foreach(var wall in map.walls)if(Math.Abs(q.x-wall.x)<wall.hx+.5f&&Math.Abs(q.z-wall.z)<wall.hz+.5f)return false;return true;}
@@ -133,21 +193,21 @@ namespace Frontline.Core
             var e=u.entity;var p=e.position;var d=u.definition;if(p.y< -4||Math.Abs(p.x)>23||Math.Abs(p.z)>19){Kill(u,new V3(),"fall",null);return;}
             bool inspired=u.inspireUntil>Tick;u.cooldown-=Catalog.Step*(inspired?1.15f:1);u.attack=Math.Max(0,u.attack-Catalog.Step*3);u.stun=Math.Max(0,u.stun-Catalog.Step);u.hitFlash=Math.Max(0,u.hitFlash-Catalog.Step*7.5f);u.guard=Math.Max(0,u.guard-Catalog.Step*5);u.hitTiltX*=.83f;u.hitTiltZ*=.83f;
             bool ai=(Tick+e.id)%6==0;if(ai||u.target==null||!u.target.entity.alive)u.target=Target(u);
-            if(e.type=="medic"&&ai){Soldier ally=null;float ratio=1;foreach(var a in Nearby(p,6))if(a.entity.team==e.team&&a.entity.hp/a.entity.maxHp<ratio){ally=a;ratio=a.entity.hp/a.entity.maxHp;}if(ally!=null)Heal(ally.entity,d.heal*.1f,e);}
-            var target=u.target;if(target==null)return;var tp=target.entity.position;var diff=tp-p;float dist=diff.Planar,range=d.range*(d.ranged&&u.floor>target.floor+1?1.18f:1),min=target.definition.scale*.25f;
-            V3 move=new V3(diff.x/(dist>.001f?dist:1),0,diff.z/(dist>.001f?dist:1));float speed=d.speed;bool firing=d.ranged&&dist<range;
-            if(e.type=="crossbow"&&p.x*tp.x<0&&Config.map=="ruins"){float crossing=p.z+(tp.z-p.z)*(-p.x/(tp.x-p.x));if(Math.Abs(crossing)>2.1f&&Math.Abs(crossing)<9.1f)firing=false;}
-            if((d.ranged||e.type=="medic")&&dist<4&&u.stance!="hold"){move*=-1;speed*=.7f;}else if(firing||(!d.ranged&&dist<range+min-.15f)||u.stance=="hold")speed=0;
-            if(e.type=="medic"&&dist>5&&dist<9)speed=0;
-            if(u.stance=="hold"&&!firing&&dist>range+min&&V3.DistanceXZ(p,u.anchor)>1.4f){move=(u.anchor-p);move.y=0;move=move.Normalized;speed=d.speed*.7f;}
-            bool narrow=CombatMotion.Narrow(Config.map,p.x,p.z);var passage=map.passage;if(passage==null&&u.stance=="flank"&&Config.map=="marsh")passage=MarshPassage;
-            if(passage!=null&&u.stance!="hold"&&!firing&&dist>range+min-.15f)
+            if(u.isMedic&&ai){Soldier ally=null;float ratio=1;foreach(var a in Nearby(p,6))if(a.entity.team==e.team&&a.entity.hp/a.entity.maxHp<ratio){ally=a;ratio=a.entity.hp/a.entity.maxHp;}if(ally!=null)Heal(ally.entity,d.heal*.1f,e);}
+            var target=u.target;if(target==null)return;var tp=target.entity.position;var diff=tp-p;float dist=diff.Planar,range=d.range*(u.isRanged&&u.floor>target.floor+1?1.18f:1),min=target.definition.scale*.25f;
+            V3 move=new V3(diff.x/(dist>.001f?dist:1),0,diff.z/(dist>.001f?dist:1));float speed=d.speed;bool firing=u.isRanged&&dist<range;
+            if(u.isCrossbow&&p.x*tp.x<0&&Config.map=="ruins"){float crossing=p.z+(tp.z-p.z)*(-p.x/(tp.x-p.x));if(Math.Abs(crossing)>2.1f&&Math.Abs(crossing)<9.1f)firing=false;}
+            if((u.isRanged||u.isMedic)&&dist<4&&!u.isHold){move*=-1;speed*=.7f;}else if(firing||(!u.isRanged&&dist<range+min-.15f)||u.isHold)speed=0;
+            if(u.isMedic&&dist>5&&dist<9)speed=0;
+            if(u.isHold&&!firing&&dist>range+min&&V3.DistanceXZ(p,u.anchor)>1.4f){move=(u.anchor-p);move.y=0;move=move.Normalized;speed=d.speed*.7f;}
+            bool narrow=CombatMotion.Narrow(Config.map,p.x,p.z);var passage=map.passage;if(passage==null&&u.isFlank&&Config.map=="marsh")passage=MarshPassage;
+            if(passage!=null&&!u.isHold&&!firing&&dist>range+min-.15f)
             {
-                if(!u.hasRoute&&p.x*tp.x<0){u.hasRoute=true;u.routeLane=u.stance=="flank"&&passage.lanes.Length>1?(e.spawn.z>=0?passage.lanes.Max():passage.lanes.Min()):passage.lanes[0];u.routeStage=Math.Abs(p.z-u.routeLane)>1?0:1;}
+                if(!u.hasRoute&&p.x*tp.x<0){u.hasRoute=true;u.routeLane=u.isFlank&&passage.lanes.Length>1?(e.spawn.z>=0?passage.lanes.Max():passage.lanes.Min()):passage.lanes[0];u.routeStage=Math.Abs(p.z-u.routeLane)>1?0:1;}
                 if(u.hasRoute){float sign=tp.x>=0?1:-1;var entry=new V3(-sign*passage.approach,0,u.routeLane);if(u.routeStage==0&&V3.DistanceXZ(p,entry)<.85f)u.routeStage=1;if(u.routeStage==1&&sign*p.x>passage.approach+.5f)u.hasRoute=false;else{move=new V3(u.routeStage==0?entry.x:sign*(passage.approach+.8f),0,u.routeLane)-p;move.y=0;move=move.Normalized;speed=d.speed;}}
-            }else if(u.stance=="flank"&&!d.ranged&&dist>6&&passage==null){move.z=(tp.z+Math.Sign(e.spawn.z==0?1:e.spawn.z)*5-p.z)/(dist+3);move=move.Normalized;}
-            string terrain="ground";foreach(var zone in map.zones)if(Math.Abs(p.x-zone.x)<zone.hx&&Math.Abs(p.z-zone.z)<zone.hz){terrain=zone.type;break;}if(inspired)speed*=1.12f;if(terrain=="mud")speed*=.45f;
-            if(speed>0&&u.stance!="hold")
+            }else if(u.isFlank&&!u.isRanged&&dist>6&&passage==null){move.z=(tp.z+Math.Sign(e.spawn.z==0?1:e.spawn.z)*5-p.z)/(dist+3);move=move.Normalized;}
+            Terrain terrain=TerrainAt(p.x,p.z);if(inspired)speed*=1.12f;if(terrain==Terrain.Mud)speed*=.45f;
+            if(speed>0&&!u.isHold)
             {
                 if((Tick+e.id)%30==0){if(V3.DistanceXZ(p,u.progress)<.18f&&u.stun<=0)u.blocked++;else u.blocked=0;u.progress=p;if(u.blocked>=3){u.blocked=0;u.escapes++;u.escapeUntil=Tick+90;}}
                 if(u.escapeUntil>Tick)
@@ -156,33 +216,40 @@ namespace Frontline.Core
                     else {float side=(e.id%2==0?-1:1)*(u.escapes%2==0?-1:1);foreach(float baseAngle in EscapeAngles){float angle=baseAngle==3.14159f?baseAngle:baseAngle*side;var direction=new V3(move.x*(float)Math.Cos(angle)-move.z*(float)Math.Sin(angle),0,move.x*(float)Math.Sin(angle)+move.z*(float)Math.Cos(angle));var q=p+direction*1.2f;if(Catalog.Finite(Data.Height(Config.map,q.x,q.z))&&EscapeClear(q)){move=direction;break;}}}
                 }
                 // Stagger local perception at 10Hz; steering, forces and collision solving remain 60Hz.
-                if((Tick+e.id)%6==0){u.avoidanceTarget=new V3();foreach(var a in Nearby(p,3))if(a!=u&&a.entity.team==e.team){var delta=p-a.entity.position;float squared=delta.x*delta.x+delta.z*delta.z,radius=.65f*(d.scale+a.definition.scale);if(squared<radius*radius&&squared>.0001f){float dd=(float)Math.Sqrt(squared);u.avoidanceTarget+=CombatMotion.Separation(delta,radius,narrow,tp.x>=p.x?1:-1,dd);}}}u.avoidance+=(u.avoidanceTarget-u.avoidance)*.35f;move+=u.avoidance;
+                if(ai){u.avoidanceTarget=new V3();foreach(var a in Nearby(p,3))if(a!=u&&a.entity.team==e.team){var delta=p-a.entity.position;float squared=delta.x*delta.x+delta.z*delta.z,radius=.65f*(d.scale+a.definition.scale);if(squared<radius*radius&&squared>.0001f){float dd=(float)Math.Sqrt(squared);u.avoidanceTarget+=CombatMotion.Separation(delta,radius,narrow,tp.x>=p.x?1:-1,dd);}}}u.avoidance+=(u.avoidanceTarget-u.avoidance)*.35f;move+=u.avoidance;
             }
-            var velocity=e.body.Velocity;u.moveSpeed=velocity.Planar;float moveLength=move.Planar;bool faceMotion=!d.ranged&&speed>0&&moveLength>.001f;var facing=faceMotion?move:diff;float facingLength=faceMotion?moveLength:Math.Max(.001f,dist);float desiredAngle=(float)Math.Atan2(facing.x,facing.z);
-            u.angle=CombatMotion.Turn(u.angle,desiredAngle,e.type,u.moveSpeed,Catalog.Step);var forward=u.angle==desiredAngle?new V3(facing.x/facingLength,0,facing.z/facingLength):CombatMotion.Forward(u.angle);
+            var velocity=e.body.Velocity;u.moveSpeed=velocity.Planar;float moveLength=move.Planar;bool faceMotion=!u.isRanged&&speed>0&&moveLength>.001f;var facing=faceMotion?move:diff;float facingLength=faceMotion?moveLength:Math.Max(.001f,dist);float desiredAngle=(float)Math.Atan2(facing.x,facing.z);
+            float turnRate=u.isCavalry?CombatMotion.CavalryTurnRate(u.turnRateAtRest,u.moveSpeed):u.turnRateAtRest;
+            u.angle=CombatMotion.Turn(u.angle,desiredAngle,turnRate,Catalog.Step);var forward=u.angle==desiredAngle?new V3(facing.x/facingLength,0,facing.z/facingLength):CombatMotion.Forward(u.angle);
             u.moveForward=u.moveSpeed>.05f?(velocity.x*forward.x+velocity.z*forward.z)/u.moveSpeed:0;u.gait+=u.moveSpeed*Catalog.Step/Math.Max(.7f,d.scale);
-            bool fast=(e.type=="cavalry"&&u.moveSpeed>3.6f)||u.moveSpeed>8||Math.Abs(velocity.y)>6;if(e.type=="cavalry"||e.type=="catapult"||fast!=u.collisionFast){u.combatBody?.Facing(u.angle,fast);u.collisionFast=fast;}
+            bool fast=(u.isCavalry&&u.moveSpeed>3.6f)||u.moveSpeed>8||Math.Abs(velocity.y)>6;if(u.isCavalry||u.isCatapult||fast!=u.collisionFast){u.combatBody?.Facing(u.angle,fast);u.collisionFast=fast;}
             bool grounded=Catalog.Finite(u.floor)&&p.y<u.floor+d.scale*1.12f+Math.Abs(u.slope)*.22f;
             if(grounded){
                 var desired=move/Math.Max(1,moveLength)*speed;
-                if(e.type=="cavalry"){float alignment=Math.Max(0,move.x*forward.x+move.z*forward.z);desired=forward*(speed*(.22f+.78f*alignment));}
-                desired=CombatMotion.SlopeVelocity(desired,u.slope);float response=u.stun>0?.008f:terrain=="ice"?.035f:e.type=="cavalry"?.10f:.16f;
+                if(u.isCavalry){float alignment=Math.Max(0,move.x*forward.x+move.z*forward.z);desired=forward*(speed*(.22f+.78f*alignment));}
+                desired=CombatMotion.SlopeVelocity(desired,u.slope);float response=u.stun>0?.008f:terrain==Terrain.Ice?.035f:u.isCavalry?.10f:.16f;
                 float vertical=u.stun<=0&&Math.Abs(u.slope)>.001f&&velocity.y<1.5f?(desired.y-velocity.y)*d.mass*.18f:0;
                 if(speed>0||Math.Abs(velocity.x)>.12f||Math.Abs(velocity.z)>.12f||Math.Abs(vertical)>.0001f)e.body.Impulse(new V3((desired.x-velocity.x)*d.mass*response,vertical,(desired.z-velocity.z)*d.mass*response));
             }
-            if(e.type=="cavalry")u.charge=Math.Min(1.5f,Math.Max(0,u.charge+(u.moveSpeed>3.8f&&terrain!="mud"?Catalog.Step:-Catalog.Step*.5f)));
+            if(u.isCavalry)u.charge=Math.Min(1.5f,Math.Max(0,u.charge+(u.moveSpeed>3.8f&&terrain!=Terrain.Mud?Catalog.Step:-Catalog.Step*.5f)));
             if(u.cooldown>0||!grounded||u.stun>0)return;
-            if(!d.ranged)
+            if(!u.isRanged)
             {
-                foreach(var prop in Props)if(prop.entity.alive&&((prop.entity.type=="barricade"&&prop.entity.team!=e.team)||(prop.entity.type=="banner"&&prop.entity.team!="neutral"&&prop.entity.team!=e.team))&&Math.Abs(p.y-prop.floor)<2.8f&&V3.DistanceXZ(p,prop.entity.position)<range+Data.Props[prop.entity.type].radius){DamageProp(prop,d.damage,e);u.cooldown=d.cooldown;u.attack=1;return;}
+                var attackableProps=u.isRed?attackablePropsForRed:attackablePropsForBlue;
+                for(int i=0;i<attackableProps.Count;i++)
+                {
+                    var prop=attackableProps[i];
+                    if(!(Math.Abs(p.y-prop.floor)<2.8f&&V3.DistanceXZ(p,prop.entity.position)<range+prop.definition.radius))continue;
+                    DamageProp(prop,d.damage,e);u.cooldown=d.cooldown;u.attack=1;return;
+                }
             }
-            if(dist>=range+min||Math.Abs(p.y-tp.y)>=(d.ranged?20:2.2f)){u.preparing=false;return;}
+            if(dist>=range+min||Math.Abs(p.y-tp.y)>=(u.isRanged?20:2.2f)){u.preparing=false;return;}
             if((forward.x*diff.x+forward.z*diff.z)/Math.Max(.01f,dist)<.6f)return;
-            if(!u.preparing){u.preparing=true;u.windup=CombatMotion.Windup(e.type);u.attack=.85f;return;}
+            if(!u.preparing){u.preparing=true;u.windup=u.windupDuration;u.attack=.85f;return;}
             u.windup-=Catalog.Step;u.attack=.7f;if(u.windup>0)return;u.preparing=false;u.cooldown=d.cooldown;u.attack=1;
-            if(d.ranged)Shoot(u,target);
-            else if(e.type=="giant"){foreach(var a in Nearby(p,range+min))if(a.entity.team!=e.team)Hit(a,d.damage,e,d.knock);Effect("sweep",p,.26f,u.angle);Effect("slam",p,.6f);Cue("heavy",p);}
-            else{bool charge=e.type=="cavalry"&&u.charge>.55f,brace=e.type=="spear"&&target.entity.type=="cavalry"&&target.entity.body.Velocity.Planar>3;Hit(target,d.damage*(charge?2.5f:brace?1.8f:1),e,d.knock*(charge?3.5f:brace?1.4f:1));if(e.type=="spear")Effect("thrust",p,.20f,u.angle);if(charge){u.charge=0;Effect("charge",p,.45f,u.angle);Cue("charge",p);}}
+            if(u.isRanged)Shoot(u,target);
+            else if(u.isGiant){foreach(var a in Nearby(p,range+min))if(a.entity.team!=e.team)Hit(a,d.damage,e,d.knock);Effect("sweep",p,.26f,u.angle);Effect("slam",p,.6f);Cue("heavy",p);}
+            else{bool charge=u.isCavalry&&u.charge>.55f,brace=u.isSpear&&target.isCavalry&&target.entity.body.Velocity.Planar>3;Hit(target,d.damage*(charge?2.5f:brace?1.8f:1),e,d.knock*(charge?3.5f:brace?1.4f:1));if(u.isSpear)Effect("thrust",p,.20f,u.angle);if(charge){u.charge=0;Effect("charge",p,.45f,u.angle);Cue("charge",p);}}
         }
         void Shoot(Soldier u,Soldier target)
         {
@@ -210,12 +277,12 @@ namespace Frontline.Core
             var e=u.entity;if(!e.alive)return;if(reason=="fall"){e.stats.falls++;if(Tick-u.lastHitTick<=180)source=u.lastSource;}
             if(source!=null){if(source.team==e.team)source.stats.friendlyKills++;else{source.stats.kills++;if(reason=="fall")source.stats.fallKills++;}}
             if(!firstDeath){firstDeath=true;Highlight("firstKill",source==null?"neutral":source.team);}
-            var p=e.body.Position;var v=e.body.Velocity;e.position=p;e.alive=false;e.hp=0;World.Remove(e.body);World.Corpse(e.id,e.type,e.team,Data.Units[e.type],p,v,impulse);
+            var p=e.body.Position;var v=e.body.Velocity;e.position=p;e.alive=false;e.hp=0;World.Remove(e.body);World.Corpse(e.id,e.type,e.team,u.definition,p,v,impulse);
         }
         public void WallFeedback(WallImpact impact){if(impact.speed<5||!soldiersById.TryGetValue(impact.id,out var u)||!u.entity.alive||Tick-u.lastWallTick<12)return;u.lastWallTick=Tick;u.stun=Math.Max(u.stun,.10f);u.hitFlash=Math.Max(u.hitFlash,.4f);Effect("wall",impact.point,.38f,(float)Math.Atan2(impact.normal.x,impact.normal.z));Cue("wall",impact.point);}
         void ChargeContact(int attacker,int defender)
         {
-            if(!soldiersById.TryGetValue(attacker,out var u)||u.entity.type!="cavalry"||!u.entity.alive||u.charge<=.55f||u.moveSpeed<3.8f)return;
+            if(!soldiersById.TryGetValue(attacker,out var u)||!u.isCavalry||!u.entity.alive||u.charge<=.55f||u.moveSpeed<3.8f)return;
             if(!soldiersById.TryGetValue(defender,out var target)||!target.entity.alive||target.entity.team==u.entity.team)return;
             var delta=target.entity.position-u.entity.position;var forward=CombatMotion.Forward(u.angle);if((delta.x*forward.x+delta.z*forward.z)/Math.Max(.01f,delta.Planar)<.45f)return;
             Hit(target,u.definition.damage*2.5f,u.entity,Math.Max(u.definition.knock*2.8f,u.definition.mass*u.moveSpeed*.35f));u.charge=0;u.cooldown=u.definition.cooldown;u.preparing=false;u.attack=1;
@@ -231,7 +298,13 @@ namespace Frontline.Core
         }
         void DamageProp(PropState prop,float damage,Entity source)
         {
-            var e=prop.entity;if(!e.alive)return;float actual=Math.Min(e.hp,Math.Max(0,damage));e.stats.damageTaken+=actual;if(source!=null){source.stats.damageDealt+=actual;if(source.team==e.team)source.stats.friendlyFire+=actual;}e.hp=Math.Max(0,e.hp-damage);if(e.hp>0)return;e.alive=false;World.Remove(e.body);if(e.type=="barrel")Blast(new V3(e.spawn.x,prop.floor+.45f,e.spawn.z),4.2f,95,28,e);else Effect("slam",e.position,.6f);
+            var e=prop.entity;if(!e.alive)return;float actual=Math.Min(e.hp,Math.Max(0,damage));e.stats.damageTaken+=actual;if(source!=null){source.stats.damageDealt+=actual;if(source.team==e.team)source.stats.friendlyFire+=actual;}e.hp=Math.Max(0,e.hp-damage);if(e.hp>0)return;e.alive=false;World.Remove(e.body);
+            if(IsAttackable(e))
+            {
+                if(e.team!="red")attackablePropsForRed.Remove(prop);
+                if(e.team!="blue")attackablePropsForBlue.Remove(prop);
+            }
+            if(e.type=="barrel")Blast(new V3(e.spawn.x,prop.floor+.45f,e.spawn.z),4.2f,95,28,e);else Effect("slam",e.position,.6f);
         }
         void TickProps()
         {
@@ -241,7 +314,7 @@ namespace Frontline.Core
                 if(e.type=="barrel"){if(prop.fuse<0){foreach(var u in Nearby(p,1.5f))if((e.team=="neutral"||u.entity.team!=e.team)&&Math.Abs(u.entity.position.y-prop.floor)<2.3f){prop.fuse=.7f;break;}}if(prop.fuse>=0){prop.fuse-=.1f;if(prop.fuse<=0)DamageProp(prop,9999,null);}}
                 else if(e.type=="banner"){foreach(var u in Nearby(p,3.2f))if((e.team=="neutral"||u.entity.team==e.team)&&Math.Abs(u.entity.position.y-prop.floor)<3)Heal(u.entity,1,e);}
                 else if(e.type=="spikes"&&prop.cooldown<=0){bool fired=false;foreach(var u in Nearby(p,1.15f))if((e.team=="neutral"||u.entity.team!=e.team)&&u.entity.position.y<prop.floor+1.7f){Hit(u,14,e,.2f,new V3(e.spawn.x,prop.floor,e.spawn.z));fired=true;}if(fired){prop.cooldown=.6f;Effect("spikes",p,.4f);}}
-                else if(e.type=="spring"&&prop.cooldown<=0){foreach(var u in Nearby(p,.95f))if(u.entity.position.y<=prop.floor+1.5f){float sign=(e.team=="neutral"?u.entity.team:e.team)=="red"?1:-1,mass=Data.Units[u.entity.type].mass;u.entity.body.Impulse(new V3(sign*mass*7,mass*8,0));u.stun=.7f;prop.cooldown=1.5f;Effect("spring",p,.5f);break;}}
+                else if(e.type=="spring"&&prop.cooldown<=0){foreach(var u in Nearby(p,.95f))if(u.entity.position.y<=prop.floor+1.5f){float sign=(e.team=="neutral"?u.entity.team:e.team)=="red"?1:-1,mass=u.definition.mass;u.entity.body.Impulse(new V3(sign*mass*7,mass*8,0));u.stun=.7f;prop.cooldown=1.5f;Effect("spring",p,.5f);break;}}
             }
         }
         void Highlight(string type,string team,float value=0)
@@ -260,18 +333,29 @@ namespace Frontline.Core
             {
                 shotsById.TryGetValue(contact.a,out var shot);if(shot==null)shotsById.TryGetValue(contact.b,out shot);if(shot==null){ChargeContact(contact.a,contact.b);ChargeContact(contact.b,contact.a);continue;}if(shot.type=="bomb")continue;int other=contact.a==shot.id?contact.b:contact.a;if(other==shot.owner.id)continue;if(shot.type=="stone"){Explode(shot);continue;}if(entities.TryGetValue(other,out var entity)&&entity.alive){soldiersById.TryGetValue(entity.id,out var u);if(u!=null)Hit(u,shot.damage,shot.owner,shot.knock,shot.body.Position,shot.pierce);else{propsById.TryGetValue(entity.id,out var prop);if(prop!=null)DamageProp(prop,shot.damage,shot.owner);}}RemoveShot(shot);
             }
-            foreach(var shot in Shots)if(!shot.removed){shot.life-=Catalog.Step;if(shot.body.Position.y< -5)RemoveShot(shot);else if(shot.life<=0){if(shot.type=="bomb"||shot.type=="stone")Explode(shot);else RemoveShot(shot);}}Shots.RemoveAll(s=>s.removed);
+            foreach(var shot in Shots)if(!shot.removed){shot.life-=Catalog.Step;if(shot.body.Position.y< -5)RemoveShot(shot);else if(shot.life<=0){if(shot.type=="bomb"||shot.type=="stone")Explode(shot);else RemoveShot(shot);}}
+            for(int i=Shots.Count-1;i>=0;i--)if(Shots[i].removed)Shots.RemoveAt(i);
             for(int i=Effects.Count-1;i>=0;i--){var effect=Effects[i];effect.life-=Catalog.Step;if(effect.life<=0){effectPool.Push(effect);Effects.RemoveAt(i);}}World.AgeCorpses(Catalog.Step);Tick++;
-            int red=0,blue=0;float rp=0,bp=0;foreach(var u in Units)if(u.entity.alive){float power=Math.Max(0,u.entity.hp)/u.entity.maxHp*u.definition.cost;if(u.entity.team=="red"){red++;rp+=power;}else{blue++;bp+=power;}}
-            if(Tick%60==0&&Math.Abs(rp-bp)>=80){int next=rp>bp?1:-1;if(leader!=0&&next!=leader)Highlight("reversal",next==1?"red":"blue",Math.Abs(rp-bp));leader=next;}
-            if(red==0||blue==0||Tick>=5400)Result=new Result{winner=red==0&&blue==0?"draw":red==0?"blue":blue==0?"red":Math.Abs(rp-bp)<1?"draw":rp>bp?"red":"blue",reason=Tick>=5400?"timeout":"elimination",time=Time,red=red,blue=blue,remainingValue=new Dictionary<string,float>{{"red",rp},{"blue",bp}},report=Report(),orders=Json.Clone(Commander.log),highlights=Json.Clone(Highlights)};
+            int red=0,blue=0;
+            for(int i=0;i<Units.Count;i++)if(Units[i].entity.alive){if(Units[i].isRed)red++;else blue++;}
+            bool powerCheck=Tick%60==0,finished=red==0||blue==0||Tick>=5400;
+            if(!powerCheck&&!finished)return;
+            // Power only affects reversal highlights and the result. Keep the original sum order.
+            float rp=0,bp=0;
+            foreach(var u in Units)if(u.entity.alive)
+            {
+                float power=Math.Max(0,u.entity.hp)/u.entity.maxHp*u.definition.cost;
+                if(u.isRed)rp+=power;else bp+=power;
+            }
+            if(powerCheck&&Math.Abs(rp-bp)>=80){int next=rp>bp?1:-1;if(leader!=0&&next!=leader)Highlight("reversal",next==1?"red":"blue",Math.Abs(rp-bp));leader=next;}
+            if(finished)Result=new Result{winner=red==0&&blue==0?"draw":red==0?"blue":blue==0?"red":Math.Abs(rp-bp)<1?"draw":rp>bp?"red":"blue",reason=Tick>=5400?"timeout":"elimination",time=Time,red=red,blue=blue,remainingValue=new Dictionary<string,float>{{"red",rp},{"blue",bp}},report=Report(),orders=Json.Clone(Commander.log),highlights=Json.Clone(Highlights)};
         }
         public BattleReport Report()
         {
             var report=new BattleReport();foreach(var u in Units){var e=u.entity;var r=new UnitReport{id=e.id,type=e.type,team=e.team,alive=e.alive,hp=e.hp,spawn=e.spawn};r.Add(e.stats);r.score=r.Score;report.units.Add(r);}foreach(var p in Props){var e=p.entity;var r=new UnitReport{id=e.id,type=e.type,team=e.team,alive=e.alive,hp=e.hp};r.Add(e.stats);report.props.Add(r);}
             foreach(var team in new[]{"red","blue"}){var sum=new TeamReport();foreach(var u in report.units.Where(u=>u.team==team)){sum.Add(u);sum.initial++;if(u.alive)sum.survived++;else sum.lost++;if(!sum.byType.TryGetValue(u.type,out var row)){row=new TypeReport();sum.byType.Add(u.type,row);}row.Add(u);row.initial++;if(u.alive)row.survived++;else row.lost++;sum.remainingValue+=Math.Max(0,u.hp)/Data.Units[u.type].hp*Data.Units[u.type].cost;}foreach(var p in report.props.Where(p=>p.team==team))sum.Add(p);report.teams.Add(team,sum);}report.mvp=report.units.OrderByDescending(u=>u.score).ThenBy(u=>u.id).FirstOrDefault();return report;
         }
-        public int SnapshotShotCapacity {get {int total=0;foreach(var u in Units)if(u.definition.ranged)total+=(int)Math.Ceiling(6f*1.15f/u.definition.cooldown)+2;return Math.Min(1024,total);}}
+        public int SnapshotShotCapacity {get {int total=0;foreach(var u in Units)if(u.isRanged)total+=(int)Math.Ceiling(6f*1.15f/u.definition.cooldown)+2;return Math.Min(1024,total);}}
         public Frame PrepareSnapshot()
         {
             var f=new Frame();f.storage=new SnapshotStorage();f.storage.Prepare(f,Units.Count,SnapshotShotCapacity,Props.Count,CombatMotion.EffectCapacity);for(int i=0;i<Units.Count;i++){var u=Units[i];var row=f.units[i];row.id=u.entity.id;row.type=u.entity.type;row.team=u.entity.team;}return f;

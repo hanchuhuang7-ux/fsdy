@@ -16,6 +16,7 @@ namespace Frontline.UnityGame
         public string Phase="deploy",Mode="ai",Team="red",Hotseat="red",Style="counter",UnitType="militia",PropType,Stance="advance",Tool="place",OrderType="inspire",Message="欢迎来到阵线实验室",Progress;
         public bool Paused,Bo3,TouchCamera=true,Modal,Busy,Muted,BriefOpen,Mirror;public float Speed=1,ReplayTime;public int PlayerLimit=2200,FavoriteSlot;public List<Favorite> Favorites=new List<Favorite>();
         public event Action Changed;public event Action<string> Notice;readonly Stack<Deployment> undo=new Stack<Deployment>();readonly List<Frame> recorded=new List<Frame>();Frame live;Frame[] archive;int archiveIndex;float accumulator;Coroutine job;IEnumerator activeJob;bool loaded;
+        bool HasJob => Busy || job != null || activeJob != null;
         public string EditingTeam {get{return Mode=="hotseat"?Hotseat=="blue"?"blue":"red":Team;}}
         public bool CanEdit {get{return Phase=="deploy"&&!Busy&&(Mode!="hotseat"||Hotseat=="red"||Hotseat=="blue");}}
         public Deployment PublicConfig {get{return Mode=="hotseat"&&Hotseat!="revealed"?Catalog.Visible(Config,Hotseat):Json.Clone(Config);}}
@@ -34,8 +35,12 @@ namespace Frontline.UnityGame
         void Remember(){undo.Push(Json.Clone(Config));while(undo.Count>40){var list=undo.Reverse().Skip(1).ToArray();undo.Clear();foreach(var c in list)undo.Push(c);}}
         void Change(Deployment config){Config=Data.Validate(config);Selected.Clear();Refresh();}
         public void Undo(){if(!CanEdit||undo.Count==0)return;Change(undo.Pop());Tell("已撤销布阵");}
-        public void SetMode(string mode){if(Busy)return;ReturnToDeploy();Mode=mode;Team="red";Hotseat="red";if(mode=="hotseat"){Config.red.Clear();Config.blue.Clear();Config.props.Clear();}Series=null;undo.Clear();Refresh();}
-        public void SetMap(string map){if(!CanEdit)return;if(Series!=null&&!Series.Complete&&Series.Archive.rounds.Count>0){Tell("Bo3 小局间保留地图；切换模式可开始新系列");return;}Remember();var seed=Config.seed;Config=Data.Default(map,Config.budget);Config.seed=seed;Series=null;if(Mode=="hotseat"){Hotseat="red";Config.red.Clear();Config.blue.Clear();Config.props.Clear();}Refresh();}
+        public void SetMode(string mode){if(Busy)return;ReturnToDeploy();Mode=mode;Team="red";Hotseat="red";if(mode=="hotseat"){Config.red.Clear();Config.blue.Clear();Config.props.Clear();}Series=null;undo.Clear();Tell("已切换模式："+ModeName(mode));Refresh();}
+        internal static string ModeName(string mode)
+        {
+            switch(mode){case "ai":return "人机";case "sandbox":return "沙盘";case "hotseat":return "热座";case "auto":return "AI 观战";default:return mode;}
+        }
+        public void SetMap(string map){if(!CanEdit)return;if(Series!=null&&!Series.Complete&&Series.Archive.rounds.Count>0){Tell("Bo3 小局间保留地图；切换模式可开始新系列");return;}Remember();var seed=Config.seed;Config=Data.Default(map,Config.budget);Config.seed=seed;Series=null;if(Mode=="hotseat"){Hotseat="red";Config.red.Clear();Config.blue.Clear();Config.props.Clear();}Tell("已切换地图："+Data.Maps[Config.map].name);Refresh();}
         public void SetBudget(int budget){if(!CanEdit||Series!=null&&Series.Archive.rounds.Count>0)return;budget=Mathf.Clamp(budget,100,10000);Remember();Config=Data.Default(Config.map,budget);PlayerLimit=budget;Refresh();}
         public void SetSeed(string value){if(CanEdit&&uint.TryParse(value,out uint seed))Config.seed=seed;}
         public void SetTeam(string team){if(!CanEdit||Mode=="hotseat"||Mode=="ai")return;Team=team;Selected.Clear();Refresh();}
@@ -81,12 +86,18 @@ namespace Frontline.UnityGame
             while(true){bool next;object current;try{next=routine.MoveNext();current=next?routine.Current:null;}catch(Exception e){Tell(e.Message);Debug.LogException(e);break;}if(!next)break;yield return current;}
             (routine as IDisposable)?.Dispose();activeJob=null;job=null;Busy=false;Progress=null;Refresh();
         }
-        public void CancelJob(){if(job!=null)StopCoroutine(job);(activeJob as IDisposable)?.Dispose();activeJob=null;job=null;Busy=false;Progress=null;Tell("已停止计算");Refresh();}
+        public void CancelJob()
+        {
+            bool wasRunning=HasJob;
+            if(job!=null)StopCoroutine(job);
+            (activeJob as IDisposable)?.Dispose();activeJob=null;job=null;Busy=false;Progress=null;
+            if(wasRunning){Tell("已停止计算");Refresh();}
+        }
         public void RequestStart(){if(Busy||Phase!="deploy")return;if(Mode=="hotseat"&&Hotseat!="revealed"){SealHotseat();return;}if(Mode=="ai")PlanArmy("blue",true);else if(Mode=="auto")StartJob(AutoPlan());else Try(StartBattle);}
         IEnumerator AutoPlan(){foreach(string team in new[]{"red","blue"}){Busy=true;Refresh();var r=PlanRoutine(team,false);try{while(r.MoveNext()){Busy=true;yield return r.Current;}}finally{(r as IDisposable)?.Dispose();}}Busy=false;StartBattle();}
         void StartBattle()
         {
-            Config=Data.Validate(Config);if(Config.red.Count==0||Config.blue.Count==0)throw new FormatException("双方至少需要一名士兵");Config.commander.aiTeams=Config.commander.enabled?(Mode=="auto"?new List<string>{"red","blue"}:Mode=="ai"?new List<string>{"blue"}:new List<string>()):new List<string>();Battle?.Dispose();Battle=new Battle(Data,Config,Factory);ReplayFile=null;recorded.Clear();archive=new Frame[902];for(int i=0;i<archive.Length;i++)archive[i]=Battle.PrepareSnapshot();archiveIndex=0;recorded.Add(RecordFrame());live=Battle.Snapshot(Battle.PrepareSnapshot());Phase="battle";Paused=false;accumulator=0;Selected.Clear();if(Bo3&&Series==null)Series=new BattleSeries(Data,Config);Refresh();
+            Config=Data.Validate(Config);if(Config.red.Count==0||Config.blue.Count==0)throw new FormatException("双方至少需要一名士兵");Config.commander.aiTeams=Config.commander.enabled?(Mode=="auto"?new List<string>{"red","blue"}:Mode=="ai"?new List<string>{"blue"}:new List<string>()):new List<string>();Battle?.Dispose();Battle=new Battle(Data,Config,Factory);ReplayFile=null;recorded.Clear();archive=new Frame[902];for(int i=0;i<archive.Length;i++)archive[i]=Battle.PrepareSnapshot();archiveIndex=0;recorded.Add(RecordFrame());live=Battle.Snapshot(Battle.PrepareSnapshot());Phase="battle";Paused=false;accumulator=0;Selected.Clear();if(Bo3&&Series==null)Series=new BattleSeries(Data,Config);Tell("战斗进行中");Refresh();
         }
         void Update()
         {
@@ -97,12 +108,12 @@ namespace Frontline.UnityGame
         }
         Frame RecordFrame(){if(archiveIndex>=archive.Length)throw new InvalidOperationException("Replay frame limit exceeded");return Battle.Snapshot(archive[archiveIndex++]);}
         public Frame CurrentFrame {get{return live;}}
-        public List<Highlight> Highlights {get{return ReplayFile?.highlights??Battle?.Highlights??new List<Highlight>();}}
+        public IReadOnlyList<Highlight> Highlights => (IReadOnlyList<Highlight>)(ReplayFile?.highlights??Battle?.Highlights)??Array.Empty<Highlight>();
         public void TogglePause(){if(Phase=="battle"||Phase=="replay"){Paused=!Paused;Refresh();}}
         public void CommandAt(Vector3 p){if(Phase!="battle"||Battle==null)return;string team=Team;if(Mode=="ai")team="red";if(!Battle.IssueOrder(team,new Order(OrderType,p.x,p.z),out string reason))Tell(reason);else Tell((team=="red"?"红方":"蓝方")+"军令已下达");Refresh();}
-        public void ReturnToDeploy(){CancelJob();Battle?.Dispose();Battle=null;archive=null;Phase="deploy";live=null;ReplayTime=0;Paused=false;Selected.Clear();if(Mode=="hotseat")Hotseat="revealed";Refresh();}
+        public void ReturnToDeploy(){bool returned=Phase!="deploy"&&!HasJob;CancelJob();Battle?.Dispose();Battle=null;archive=null;Phase="deploy";live=null;ReplayTime=0;Paused=false;Selected.Clear();if(Mode=="hotseat")Hotseat="revealed";if(returned)Tell("已返回布阵");Refresh();}
         public void NextRound(){if(Series==null||Series.Complete)return;var next=Series.Next();ReturnToDeploy();Config=next;Hotseat=Mode=="hotseat"?"red":"revealed";if(Mode=="hotseat"){Config.red.Clear();Config.blue.Clear();Config.props.Clear();}undo.Clear();Tell("下一局可调整布阵，地图与总军费已锁定");Refresh();}
-        public void Watch(){if(ReplayFile?.kind!="trajectory")return;Battle?.Dispose();Battle=null;Phase="replay";ReplayTime=0;Paused=false;live=ReplayFile.frames[0];Refresh();}
+        public void Watch(){if(ReplayFile?.kind!="trajectory")return;Battle?.Dispose();Battle=null;Phase="replay";ReplayTime=0;Paused=false;live=ReplayFile.frames[0];Tell("回放播放中");Refresh();}
         public void Seek(float time){if(ReplayFile?.kind!="trajectory")return;Phase="replay";ReplayTime=Mathf.Clamp(time,0,ReplayFile.result.time);live=ReplayFile.frames[Replay.AtTime(ReplayFile.frames,ReplayTime)];View.Current=live;Paused=true;}
         public void SeekHighlight(Highlight h){if(ReplayFile==null)return;int index=Replay.AfterTick(ReplayFile.frames,h.tick);Seek(ReplayFile.frames[index].time);Refresh();}
         public void ExportConfig(){Try(()=>FileBridge.Export("frontline-formation.json",Json.Write(Mode=="hotseat"?PublicConfig:Config)));}

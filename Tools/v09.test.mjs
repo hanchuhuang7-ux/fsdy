@@ -7,3 +7,39 @@ test('0.8 battle, movement and physics remain frozen byte for byte',()=>{for(con
 test('0.8 seed selects frozen battle and factory without upgrading identity',()=>{const s=read('Unity/Assets/Frontline/Runtime/FrontlineApp.cs');assert.match(s,/History08.Battle/);assert.match(s,/new Unity08WorldFactory/);assert.match(read('Unity/Assets/Frontline/Runtime/Unity08Physics.cs'),/using CombatMotion=Frontline.Core.History08.CombatMotion/);});
 test('cavalry entrance filters layers and teams; walls own secondary feedback listeners',()=>{const s=read('Unity/Assets/Frontline/Runtime/UnityPhysics.cs');const entrance=s.slice(s.indexOf('public void UnitContact'),s.indexOf('public void ObstacleContact'));assert.match(entrance,/layer!=UnitLayer/);assert.match(entrance,/other.team==body.team/);assert.match(entrance,/if\(!body.fast\)return/);assert.match(s,/class ObstacleContacts/);assert.match(s,/collision.GetContact\(0\)/);assert.match(s,/if\(d.id=="cavalry"\)/);assert.match(s,/rigidbody.MoveRotation/);});
 test('wall feedback and visible batched strokes require no new physics or texture',()=>{const s=read('Unity/Assets/Frontline/Runtime/BattleView.cs');assert.match(s,/e.type=="wall"/);assert.match(s,/e.type=="sweep"/);assert.match(s,/guard\*\.15f/);assert.match(read('Unity/Assets/Frontline/Runtime/BattleAudio.cs'),/"wall"/);});
+
+const runtime='Unity/Assets/Frontline/Runtime/';
+test('0.9.5 only reports cancellation for a running job',()=>{
+  const app=read(runtime+'FrontlineApp.cs');
+  const cancel=app.slice(app.indexOf('public void CancelJob()'),app.indexOf('public void RequestStart()'));
+  assert.match(app,/HasJob\s*=>\s*Busy\s*\|\|\s*job != null\s*\|\|\s*activeJob != null/);
+  assert.match(cancel,/bool wasRunning=HasJob;[\s\S]*if\(wasRunning\)\{Tell\("已停止计算"\)/);
+  assert.equal(cancel.split('Tell("已停止计算")').length,2);
+  assert.match(app,/if\(returned\)Tell\("已返回布阵"\)/);
+});
+
+test('0.9.5 HUD updates only dirty readouts and shades the desktop map title without blocking input',()=>{
+  const hud=read(runtime+'NativeHud.cs');
+  const updates=hud.slice(hud.indexOf('void ShowNotice('));
+  assert.doesNotMatch(updates,/\.Count\(|\.Skip\(|\.Select\(|string\.Join\(/);
+  assert.match(updates,/shownTick!=tick/);
+  assert.match(updates,/shownHighlightCount!=highlights.Count/);
+  assert.match(updates,/shownReplayTime!=app.ReplayTime/);
+  assert.match(hud,/Panel\(baseRoot,"Map title",[^\n]+new Color\(\.035f,\.065f,\.09f,\.76f\)\);\s*mapTitle.GetComponent<Image>\(\).raycastTarget=false/);
+});
+
+test('0.9.5 static pages upload only when dirty and spear streaks use the weapon height',()=>{
+  const view=read(runtime+'BattleView.cs');
+  assert.match(view,/q\.y\s*\+=\s*thrust\s*\?\s*\.05f\s*:\s*\.25f/);
+  assert.match(view,/void Clear\(\)\{count=0;dirty=true/);
+  assert.match(view,/if\(!isStatic\|\|page.dirty\)\s*\{\s*page\.properties\.SetVectorArray[\s\S]*page\.dirty=false;\s*\}\s*Graphics\.DrawMeshInstanced/);
+  assert.match(view,/foreach\(var b in still\)Draw\(b,true\);if\(Deploying\)foreach\(var b in grid\)Draw\(b,true\)/);
+  assert.match(view,/mesh\.moving\?\?Buffer\(mesh,moving,0\)/);
+});
+
+test('0.9.5 preserves the replay identity, formation schema and physics turn threshold',()=>{
+  assert.equal(JSON.parse(read('package.json')).version,'0.9.5');
+  assert.match(read('Unity/Assets/Frontline/Core/Replay.cs'),/Engine="unity-0\.9\.0"/);
+  assert.match(read('Unity/Assets/Frontline/Core/Models.cs'),/version="0\.6\.0"/);
+  assert.match(read(runtime+'UnityPhysics.cs'),/Math\.Abs\(angle\s*-\s*facing\)\s*>\s*\.015f/);
+});

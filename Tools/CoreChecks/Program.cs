@@ -45,6 +45,65 @@ class Program
   Check("projectile snapshot slots survive count shrink and regrowth",()=>{using(var b=new Battle(db,Duel(),factory)){var f=b.PrepareSnapshot();var shot=new Shot{id=100,type="arrow",body=b.World.Projectile(100,"arrow",new V3(0,2,0),new V3(),1,1)};b.Shots.Add(shot);b.Snapshot(f);var row=f.projectiles[0];var t=row.t;b.Shots.Clear();b.Snapshot(f);Assert(f.projectiles.Count==0);b.Shots.Add(shot);b.Snapshot(f);Assert(ReferenceEquals(row,f.projectiles[0])&&ReferenceEquals(t,row.t));}});
   Check("cached ground samples preserve catalog height on all six maps",()=>{foreach(string map in db.Maps.Keys){using(var b=new Battle(db,db.Default(map),factory)){for(int i=0;i<30;i++){b.Step();foreach(var u in b.Units)if(u.entity.alive){float h=db.Height(map,u.entity.position.x,u.entity.position.z);Assert(h==u.floor||Math.Abs(h-u.floor)<.000001f,"Cached ground changed gameplay height");}}}}});
   Check("dead unit snapshots preserve the legacy null transform schema",()=>{using(var b=new Battle(db,Duel(),factory)){var f=b.PrepareSnapshot();b.Snapshot(f);b.Hit(b.Units[1],10000,b.Units[0].entity,0);b.Snapshot(f);Assert(!f.units[1].alive&&f.units[1].t==null);}});
+  Check("0.9.5 cached terrain preserves first match and strict boundaries",()=>{
+   var data=new Catalog(File.ReadAllText("Unity/Assets/Frontline/Resources/catalog.json"));
+   var zones=data.Maps["meadow"].zones;
+   var mud=new Zone{type="mud",x=-6,z=0,hx=1,hz=1};
+   var ice=new Zone{type="ice",x=-6,z=0,hx=1,hz=1};
+   var ground=new Zone{type="ground",x=-6,z=0,hx=1,hz=1};
+   float Impulse(params Zone[] ordered)
+   {
+    zones.Clear();zones.AddRange(ordered);
+    var c=Duel();c.blue[0].stance="hold";
+    var probe=new ReferenceFactory{freezeUnits=true};
+    using(var b=new Battle(data,c,probe)){b.Step();return probe.lastUnitImpulse.x;}
+   }
+   var unit=data.Units["militia"];
+   Assert(Impulse()==unit.speed*unit.mass*.16f,"no-zone movement changed");
+   Assert(Impulse(mud,ice)==unit.speed*.45f*unit.mass*.16f,"first mud zone lost precedence");
+   Assert(Impulse(ice,mud)==unit.speed*unit.mass*.035f,"first ice zone lost precedence");
+   Assert(Impulse(ground,mud)==Impulse(),"a ground zone must still stop the search");
+   mud.x=-5;Assert(Impulse(mud)==Impulse(),"zone edges must stay outside");
+  });
+  Check("0.9.5 cached melee structures preserve allegiance, order and removal",()=>{
+   var data=new Catalog(File.ReadAllText("Unity/Assets/Frontline/Resources/catalog.json"));
+   foreach(string team in new[]{"red","blue"})
+   {
+    string enemy=Catalog.Other(team);float x=team=="red"?-5.2f:5.2f;
+    var map=data.Maps["meadow"];
+    map.props=new List<PropPlacement>{
+     new PropPlacement{type="banner",team="neutral",x=x},
+     new PropPlacement{type="barricade",team=team,x=x},
+     new PropPlacement{type="barricade",team="neutral",x=x},
+     new PropPlacement{type="banner",team=enemy,x=x},
+     new PropPlacement{type="barricade",team=enemy,x=x},
+    };
+    var c=Duel();c.Army(enemy)[0].stance="hold";
+    using(var b=new Battle(data,c,new ReferenceFactory{freezeUnits=true}))
+    {
+     var attacker=b.Units[team=="red"?0:1];
+     for(int i=2;i<=4;i++)b.Props[i].entity.hp=1;
+     for(int i=2;i<=4;i++)
+     {
+      attacker.cooldown=0;b.Step();
+      Assert(!b.Props[i].entity.alive,"first living hostile structure must take the hit");
+      for(int later=i+1;later<=4;later++)Assert(b.Props[later].entity.alive,"later structures must wait");
+     }
+     attacker.cooldown=0;b.Step();
+     Assert(b.Props.Take(2).All(p=>p.entity.hp==p.entity.maxHp),"friendly structure or neutral banner was attacked");
+    }
+   }
+  });
+  Check("0.9.5 fortify eligibility matches the four original melee types",()=>{
+   var c=Duel();c.budget=10000;c.red.Clear();int i=0;
+   foreach(var unit in db.Units.Keys)c.red.Add(new UnitPlacement(unit,-6+i%2*2,-4+i++/2*2));
+   using(var b=new Battle(db,c,factory))
+   {
+    Assert(b.IssueOrder("red",new Order("fortify",-5,0),out _));
+    var units=b.Snapshot().units;
+    Assert(units.Where(u=>u.fortified).Select(u=>u.type).OrderBy(type=>type).SequenceEqual(new[]{"giant","militia","shield","spear"}));
+   }
+  });
   CombatChecks.Run(db,Check);
   Check("all test worlds disposed",()=>Assert(factory.live==0));Console.WriteLine($"Core rule checks: {passed} passed, {failed} failed. Reference physics is a test double; run Unity smoke for real PhysX.");return failed==0?0:1;
  }

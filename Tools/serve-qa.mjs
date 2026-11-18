@@ -4,14 +4,14 @@ import {readFile,writeFile,mkdir,stat} from 'node:fs/promises';
 import {resolve,extname,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 const root=process.env.QA_PROFILE==='1'?fileURLToPath(new URL('../Builds/WebProfile/',import.meta.url)):fileURLToPath(new URL('../dist/',import.meta.url));
-const output=fileURLToPath(new URL(process.env.QA_PROFILE==='1'?'../Builds/Visual09/WebProfile/':'../Builds/Visual09/Web/',import.meta.url));
+const output=process.env.QA_OUTPUT?resolve(process.env.QA_OUTPUT):fileURLToPath(new URL(process.env.QA_PROFILE==='1'?'../Builds/Visual095/WebProfile/':'../Builds/Visual095/Web/',import.meta.url));
 await stat(resolve(root,'index.html'));await mkdir(output,{recursive:true});
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.wasm':'application/wasm','.json':'application/json','.png':'image/png'};
 http.createServer(async(req,res)=>{
  try{
   const url=new URL(req.url,'http://localhost');
   if(req.method==='POST'&&url.pathname.startsWith('/__qa/')){
-   const name=url.pathname.slice(6);if(!/^(v09-|visual-|combat-)[a-zA-Z0-9-]+\.(png|json)$/.test(name))throw Error('Invalid result name');
+   const name=url.pathname.slice(6);if(!/^(v09(?:5)?-|visual-|combat-)[a-zA-Z0-9-]+\.(png|json)$/.test(name))throw Error('Invalid result name');
    let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>8*1024*1024)throw Error('Result too large');chunks.push(chunk);}
    await writeFile(resolve(output,name),Buffer.concat(chunks));res.writeHead(200);res.end('ok');console.log(`QA ${name} ${size} bytes`);return;
   }
