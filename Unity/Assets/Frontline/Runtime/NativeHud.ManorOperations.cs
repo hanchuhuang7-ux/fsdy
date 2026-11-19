@@ -55,10 +55,18 @@ namespace Frontline.UnityGame
         void BuildGovernance(RectTransform p,float w)
         {
             float actionWidth=portrait?80:100;
-            var title=Label(p,"",0,0,w-actionWidth*2-14,27,portrait?14:18,gold);
-            var status=Label(p,"",0,28,w-105,24,portrait?11:13,pale);
-            ManorButton(p,"Manor.Specialists","领地专才",w-actionWidth,0,actionWidth,25,SpecialistsDialog);
-            var milestones=ManorButton(p,"Manor.Milestones","领主宏愿",w-actionWidth*2-5,0,actionWidth,25,MilestonesDialog);
+            var title=Label(p,"",0,0,w-actionWidth-8,28,portrait?14:18,gold);
+            var status=Label(p,"",0,27,w*.59f,24,portrait?10:13,pale);
+            var marketStatus=Label(p,"",w*.59f,27,w*.41f-1,24,portrait?10:13,thriving,TextAnchor.MiddleRight);
+            marketStatus.name="Manor.MarketNeeds.Summary";
+            EventEntry(p,"Manor.Governance.Event",w-actionWidth,1,actionWidth,26,manorDialogValues,fromGovernance:true);
+            float nav=w/4;
+            ManorButton(p,"Manor.Specialists","领地专才",0,52,nav-5,28,SpecialistsDialog);
+            var milestones=ManorButton(p,"Manor.Milestones","领主宏愿",nav,52,nav-5,28,MilestonesDialog);
+            var development=ManorButton(p,"Manor.Development","领地发展",2*nav,52,nav-5,28,DevelopmentDialog);
+            var developmentImage=development.GetComponent<Image>();
+            var developmentTitle=development.GetComponentInChildren<Text>();
+            ManorButton(p,"Manor.Chronicle","编年史",3*nav,52,nav-1,28,ChronicleDialog);
             var milestoneImage=milestones.GetComponent<Image>();
             var milestoneTitle=milestones.GetComponentInChildren<Text>();
             var milestoneColor=milestoneTitle.color;
@@ -66,18 +74,23 @@ namespace Frontline.UnityGame
                 bool ready=app.Estate.ReadyMilestones!=0;
                 milestoneImage.color=ready?gold:manorButton;
                 milestoneTitle.color=ready?ink:milestoneColor;
+                bool hasPoint=app.Estate.DevelopmentPointsAvailable>0;
+                developmentImage.color=hasPoint?gold:manorButton;
+                developmentTitle.color=hasPoint?ink:white;
             });
-            EventEntry(p,"Manor.Governance.Event",w-actionWidth,26,actionWidth,26,manorDialogValues,fromGovernance:true);
+            var rations=MarketNeed(p,w,0,"Rations");
+            var fuel=MarketNeed(p,w,1,"Fuel");
+            var spirit=MarketNeed(p,w,2,"Spirit");
             string[] factorNames={"税率","食谱","酒馆","冬柴","政令"};
             var notes=new Text[factorNames.Length];
             int columns=portrait?3:factorNames.Length;
             float span=w/columns;
             for(int i=0;i<notes.Length;i++)
             {
-                var cell=Panel(p,factorNames[i],i%columns*span,57+i/columns*38,span-5,34,manorInset);
+                var cell=Panel(p,factorNames[i],i%columns*span,122+i/columns*38,span-5,34,manorInset);
                 notes[i]=Label(cell,"",3,0,span-11,34,portrait?11:13,pale,TextAnchor.MiddleCenter);
             }
-            var support=Label(p,"",0,portrait?132:92,w,portrait?42:38,portrait?10:12,pale,TextAnchor.UpperLeft);
+            var support=Label(p,"",0,portrait?197:157,w,portrait?42:38,portrait?10:12,pale,TextAnchor.UpperLeft);
             manorDialogValues.Add(()=>{
                 var m=app.Estate;
                 var forecast=PreviewForecast();
@@ -86,7 +99,13 @@ namespace Frontline.UnityGame
                 title.text=m.ProsperityTitle+"  ·  民心 "+m.approval+" / 100";
                 title.color=ApprovalColor(m.approval);
                 status.text=ApprovalStatus(m.approval)+"  ·  日变化 "+Change(today)+" → "+forecast.approvalAfter;
-                if(today!=factors.Total)status.text+="（触及限值）";
+                if(today!=factors.Total&&!portrait)status.text+="（触及限值）";
+                var needs=forecast.marketNeeds;
+                SetMarketNeed(rations,needs.rations,needs.variedDiet?"口粮 · 食谱丰富":needs.rations?"口粮 · 足粮":"口粮 · 缺粮");
+                SetMarketNeed(fuel,needs.fuel,m.Season!=3?"薪柴 · 非冬":needs.fuel?"薪柴 · 足额":"薪柴 · 不足");
+                SetMarketNeed(spirit,needs.spirit,needs.spirit?"精神 · 有供给":"精神 · 待派工");
+                marketStatus.text=needs.Prosperous?"市集兴旺 · 民心 +1":"";
+
                 Factor(notes[0],"税率",factors.tax);
                 Factor(notes[1],factors.food<0?"缺粮":factors.food>0?"食谱丰富":"食谱",factors.food);
                 Factor(notes[2],factors.tavern>0?"酒馆运转":"酒馆",factors.tavern);
@@ -98,7 +117,7 @@ namespace Frontline.UnityGame
                     (forecast.reserveFood>0?" · 储备 "+Manor.FormatHundredths(forecast.reserveFood)+" 粮":"");
             });
 
-            float y=portrait?179:134;
+            float y=portrait?244:199;
             Label(p,"税率政策",0,y,w,20,14,gold);
             PolicyChoices(p,w,y+23,"Manor.Tax.",TaxPolicies,TaxLabels,()=>app.Estate.tax,app.SetManorTax);
             Value(manorDialogValues,Label(p,"",1,y+59,w-2,21,12,pale),
@@ -126,6 +145,23 @@ namespace Frontline.UnityGame
             MarketRow(p,w,y+60,"timber","建材");
             MarketRow(p,w,y+120,"arms","军械");
             p.sizeDelta=new Vector2(w,y+176);
+        }
+
+        Text MarketNeed(Transform parent,float width,int index,string key)
+        {
+            float cell=width/3;
+            var panel=Panel(parent,key,index*cell,87,cell-5,30,manorInset);
+            var label=Label(panel,"",4,0,cell-13,30,portrait?10:13,pale,TextAnchor.MiddleCenter);
+            label.name="Manor.MarketNeeds."+key;
+            return label;
+        }
+
+        void SetMarketNeed(Text label,bool fulfilled,string text)
+        {
+            label.text=text;
+            label.color=fulfilled?thriving:danger;
+            label.transform.parent.GetComponent<Image>().color=fulfilled?
+                new Color(.14f,.28f,.19f):new Color(.32f,.18f,.15f);
         }
 
         void Factor(Text label,string title,int points)

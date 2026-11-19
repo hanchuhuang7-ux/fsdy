@@ -183,6 +183,10 @@ namespace Frontline.UnityGame
                 Refresh();
             });
         }
+        internal void SetManorBackyard(int plot,string id) => ManorAction(()=>Estate.SetBackyard(plot,id),
+            "后院已启用"+Manor.BackyardTitle(id),"build");
+        internal void UnlockManorDevelopment(ManorPerk perk) => ManorAction(()=>Estate.UnlockDevelopment(perk),
+            "领地专精已解锁","milestone");
         internal void ReclaimManorPlot() => ManorAction(() => Estate.ReclaimPlot(ManorSlot),
             "建地已开垦 · 收回 "+Manor.ReclaimTimber+" 建材","build");
         internal void ClaimManorMilestone(int index) => ManorAction(() => Estate.ClaimMilestone(index),"已领取宏愿奖励","milestone");

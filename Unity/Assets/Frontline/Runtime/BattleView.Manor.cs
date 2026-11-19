@@ -35,7 +35,7 @@ namespace Frontline.UnityGame
         internal int HoveredPlot {get;set;}=-1;
         bool manorDirty,winterHeating;
         float manorTime, manorScreenShift;
-        readonly string[] builtKinds = new string[Manor.PlotCount];
+        readonly string[] builtKinds = new string[Manor.PlotCount], builtBackyards=new string[Manor.PlotCount];
         readonly int[] builtLevels = new int[Manor.PlotCount], homes = new int[Manor.PlotCount];
         int builtReclaimedPlots;
         int homeCount,tavernSlot,builtSeason=-1;
@@ -128,7 +128,8 @@ namespace Frontline.UnityGame
             winterHeating=manor.Season==3 && manor.Forecast().winterTimber>0;
             manorDirty |= changingMode || builtSeason != manor.Season || builtReclaimedPlots != manor.reclaimedPlots;
             for (int i = 0; i < manor.slots.Length && !manorDirty; i++)
-                manorDirty = manor.slots[i].kind != builtKinds[i] || manor.slots[i].level != builtLevels[i];
+                manorDirty = manor.slots[i].kind != builtKinds[i] || manor.slots[i].level != builtLevels[i] ||
+                    manor.slots[i].backyard != builtBackyards[i];
         }
 
         void UpdateShadowDistance()
@@ -275,6 +276,7 @@ namespace Frontline.UnityGame
             var p = Plot(i);
             var plot = manor.slots[i];
             builtKinds[i] = plot.kind;
+            builtBackyards[i]=plot.backyard;
             builtLevels[i] = plot.level;
             float yaw = FacadeYaw(i);
             var facing = Quaternion.Euler(0, yaw, 0);

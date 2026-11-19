@@ -323,6 +323,11 @@ namespace Frontline.Core
             else if (victory) approvalChange = receipt.clearedAfter > receipt.clearedBefore ? 8 : 4;
             else approvalChange = !receipt.raid && result.winner == "blue" ? -4 : 0;
             receipt.approvalAfter = approval = ClampApproval(approval + approvalChange);
+            if(receipt.frontier&&receipt.frontierTier>=2&&receipt.defeated==FrontierMap.Guards.Count)
+                Remember("frontier",receipt.frontierTier);
+            else if(!receipt.frontier&&!receipt.raid&&victory)
+                Remember("expedition",receipt.stage);
+            TrackProsperity();
             sortie.resolved = true;
             return receipt;
         }

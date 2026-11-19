@@ -29,14 +29,12 @@ namespace Frontline.Core
     {
         // The date alone identifies a pending dispatch. Zero also represents an already settled dispatch.
         public int eventDay;
-        public ManorEvent ActiveEvent
+        public ManorEvent ActiveEvent => eventDay==0?null:SeasonalEvents[DispatchIndex(eventDay)];
+
+        static int DispatchIndex(int issuedDay)
         {
-            get
-            {
-                if (eventDay == 0) return null;
-                int season = SeasonNumber(eventDay);
-                return SeasonalEvents[2 * (season % 4) + (season / 4) % 2];
-            }
+            int season=SeasonNumber(issuedDay);
+            return 2*(season%4)+(season/4)%2;
         }
 
         // Each season alternates between its two reports in successive years.
@@ -70,7 +68,11 @@ namespace Frontline.Core
             {
                 var choice = ActiveEvent.second;
                 // A delayed gift does not spend the last ration. If the default cannot be applied, archive the report.
-                if (ChoiceBlock(choice) == null && (choice.food >= 0 || food > -choice.food)) ApplyChoice(choice);
+                if (ChoiceBlock(choice) == null && (choice.food >= 0 || food > -choice.food))
+                {
+                    ApplyChoice(choice);
+                    Remember("dispatch",DispatchIndex(eventDay),2);
+                }
                 eventDay = 0;
             }
             if (eventDay == 0 && day % SeasonDays == 6) eventDay = day;
@@ -112,7 +114,9 @@ namespace Frontline.Core
             string reason = EventChoiceBlock(issuedDay,option);
             if (reason != null) throw new InvalidOperationException(reason);
             ApplyChoice(option == 0 ? ActiveEvent.first : ActiveEvent.second);
+            Remember("dispatch",DispatchIndex(eventDay),option);
             eventDay = 0;
+            TrackProsperity();
         }
     }
 }

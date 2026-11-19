@@ -7,7 +7,7 @@ namespace Frontline.Core
     [Serializable]
     public sealed class ManorPlot
     {
-        public string kind;
+        public string kind, backyard;
         public int level, workers;
     }
 
@@ -22,6 +22,7 @@ namespace Frontline.Core
         public int coin, food, timber, arms, forgeTimber, winterTimber, winterTimberRequired, reserveFood;
         public ManorApprovalFactors approvalFactors;
         public ManorSynergy synergy;
+        public ManorMarketNeeds marketNeeds;
         public int approvalAfter;
         public bool newHousehold;
     }
@@ -122,18 +123,23 @@ namespace Frontline.Core
         }
         public int Season => (day - 1) / SeasonDays % 4;
         public int Housing => 2 + Capacity(b => b.housing);
-        public int ArmyLimit => Capacity(b => b.army);
-        public int FieldLimit => food == 0 ? 3 : Math.Min(Catalog.MaxUnits, Math.Min(ArmyLimit, Capacity(b => b.field)));
+        public int ArmyLimit => Capacity(b => b.army,2) + DevelopmentArmyBonus;
+        public int FieldLimit => food == 0 ? 3 : Math.Min(Catalog.MaxUnits, Math.Min(ArmyLimit, Capacity(b => b.field,1)));
         public int FrontierLimit => Math.Min(FrontierMap.MaxParty,FieldLimit);
         public int Budget => Logistics.Budget;
         public int ArmySize
         {
             get {int size=0;foreach(var item in stock)if(!recruits[item.Key].prop)size+=item.Value;return size;}
         }
-        int Capacity(Func<Building,int> read)
+        int Capacity(Func<Building,int> read,int militiaYardCapacity=0)
         {
             int total=0;
-            foreach(var plot in slots)if(plot.kind!=null)total+=WholeLevelValue(read(Def(plot.kind)),plot.level);
+            foreach(var plot in slots)
+            {
+                if(plot.kind==null)continue;
+                total+=WholeLevelValue(read(Def(plot.kind)),plot.level);
+                if(plot.backyard=="militia_yard")total+=militiaYardCapacity;
+            }
             return total;
         }
         static int Whole(double value) => (int)Math.Round(value,MidpointRounding.AwayFromZero);
@@ -196,6 +202,8 @@ namespace Frontline.Core
             if (i == 0 || p.kind != null || kind == "manor_hall") throw new InvalidOperationException("请选择空建地");
             if (!IsPlotCleared(i)) throw new InvalidOperationException("请先开垦这块建地");
             Pay(b.coin, b.timber); p.kind = kind; p.level = 1;
+            if(kind=="granary"||kind=="chapel")Remember(kind,i);
+            TrackProsperity();
         }
         public void Upgrade(int i)
         {
@@ -240,7 +248,9 @@ namespace Frontline.Core
                 .Select(p => WholeLevelValue(p.workers,p.level)).DefaultIfEmpty(0).Max();
             int baseCost = Math.Max(1,d.coin - discount);
             int amount = baseCost * (!d.prop && decree == "mobilize" ? 90 : 100);
-            return d.prop ? amount : (amount * (100 - WatchTrainingDiscount) + 50) / 100;
+            if(d.prop)return amount;
+            int developmentRate=d.kind=="barracks"&&HasDevelopment(ManorPerk.BurgageMilitia)?88:100;
+            return (amount * (100 - WatchTrainingDiscount) * developmentRate + 5000) / 10000;
         }
         public string RecruitPrice(string id) { var d = Offer(id); return FormatHundredths(RecruitCoins(d)) + " 金币 · " + d.arms + " 军械"; }
         public void Recruit(int i, string id)
@@ -255,8 +265,8 @@ namespace Frontline.Core
         }
 
         const int FileLimit = 32768;
-        const int SpecialistSaveVersion = 5, ExpansionSaveVersion = 6;
-        public const int SaveVersion = 7;
+        const int SpecialistSaveVersion = 5, ExpansionSaveVersion = 6, FrontierSaveVersion = 7;
+        public const int SaveVersion = 8;
         static readonly string[] LegacySaveFields = { "format","version","coin","food","timber","arms","workers","day","cleared","raidReady","slots","stock" };
         static readonly string[] ProgressSaveFields = LegacySaveFields.Concat(new[] { "remainder","training","heroes" }).ToArray();
         static readonly string[] OperationsSaveFields = ProgressSaveFields.Concat(new[] { "approval","tax","decree","market" }).ToArray();
@@ -264,10 +274,14 @@ namespace Frontline.Core
         static readonly string[] SpecialistSaveFields = EventSaveFields.Concat(new[] { "specialists" }).ToArray();
         static readonly string[] EstateSaveFields = SpecialistSaveFields.Concat(new[] { "reclaimedPlots","milestoneClaims","frontierSwept" }).ToArray();
         static readonly string[] FrontierSaveFields = EstateSaveFields.Concat(new[] { "frontierTier","guideStep","guideDismissed" }).ToArray();
+        static readonly string[] DevelopmentSaveFields = FrontierSaveFields.Concat(new[] { "prosperityPeak","developmentMask","chronicle" }).ToArray();
+        static readonly string[] LegacyPlotSaveFields = { "kind","level","workers" };
+        static readonly string[] PlotSaveFields = { "kind","level","workers","backyard" };
 
         public string Export()
         {
-            if (version != SaveVersion || slots?.Length != PlotCount || !ValidOperations() || !ValidEventDay(eventDay,day) || !ValidSpecialists() || !ValidExpansion() || !ValidProgression())
+            if (version != SaveVersion || slots?.Length != PlotCount || !ValidOperations() || !ValidEventDay(eventDay,day) || !ValidSpecialists() || !ValidExpansion() || !ValidProgression() ||
+                !ValidBackyards() || !ValidDevelopment() || !ValidChronicle())
                 throw new FormatException("庄园存档版本或运营数据无效");
             return Json.Write(this);
         }
@@ -291,7 +305,8 @@ namespace Frontline.Core
             bool legacy = schema == 1;
             var root = ObjectWith(raw,schema switch {
                 1 => LegacySaveFields, 2 => ProgressSaveFields, 3 => OperationsSaveFields, 4 => EventSaveFields,
-                SpecialistSaveVersion => SpecialistSaveFields, ExpansionSaveVersion => EstateSaveFields, _ => FrontierSaveFields
+                SpecialistSaveVersion => SpecialistSaveFields, ExpansionSaveVersion => EstateSaveFields,
+                FrontierSaveVersion => FrontierSaveFields, _ => DevelopmentSaveFields
             });
             if (!(root["format"] is string f) || f != "frontline-manor" || !(root["raidReady"] is bool raid))
                 throw new FormatException("无效的庄园存档标识");
@@ -307,7 +322,7 @@ namespace Frontline.Core
             };
             for (int i = 0; i < plots.Count; i++)
             {
-                var p = ObjectWith(plots[i],"kind","level","workers");
+                var p = ObjectWith(plots[i],schema==SaveVersion?PlotSaveFields:LegacyPlotSaveFields);
                 string kind = p["kind"] as string;
                 if (p["kind"] != null && (kind == null || !buildings.ContainsKey(kind) ||
                     legacy && (kind == "irrigated_field" || kind == "pasture" || kind == "tavern" || kind == "drill_yard") ||
@@ -316,17 +331,25 @@ namespace Frontline.Core
                     throw new FormatException("建筑种类或位置无效");
                 int level = Number(p["level"],kind == null ? 0 : 1, kind == null ? 0 : BuildingMaxLevel);
                 int staff = StaffLimit(kind);
-                m.slots[i] = new ManorPlot { kind = kind, level = level, workers = Number(p["workers"],0,legacy ? Math.Min(staff,level) : staff) };
+                string backyard=null;
+                if(schema==SaveVersion&&p["backyard"]!=null)
+                {
+                    backyard=p["backyard"] as string;
+                    if(backyard==null||kind!="cottage"||BackyardIndex(backyard)<0)throw new FormatException("后院副业无效");
+                }
+                m.slots[i] = new ManorPlot { kind=kind, level=level, backyard=backyard,
+                    workers=Number(p["workers"],0,legacy?Math.Min(staff,level):staff) };
             }
             int housing = legacy ? 2 + m.slots.Where(p => p.kind == "cottage").Sum(p => p.level) : m.Housing;
             if (m.workers > housing || m.FreeWorkers < 0 || m.slots[0].level > 1 && m.cleared < HallRequirement(m.slots[0].level - 1))
                 throw new FormatException("庄园人口、工位或宅邸进度不一致");
+            if(schema==SaveVersion)m.ReadDevelopment(root);
             var inventory = ObjectWith(root["stock"], recruits.Keys.ToArray());
             foreach (var id in recruits.Keys) m.stock[id] = Number(inventory[id],0,60);
             // Closing a farm can leave veterans above today's supply. The historical maximum still bounds a legal reserve.
             int maxArmy = legacy ? 8 + 5 * m.slots[0].level + 2 * 27 :
                 Math.Max(77,WholeLevelValue(13,m.slots[0].level) + WholeLevelValue(4,BuildingMaxLevel) * (plots.Count - 1));
-            if (m.ArmySize > maxArmy) throw new FormatException("常备军超出可达上限");
+            if (m.ArmySize > maxArmy + m.DevelopmentArmyBonus) throw new FormatException("常备军超出可达上限");
             if (!legacy)
             {
                 var parts = ObjectWith(root["remainder"],"coin","food","timber","arms");
@@ -336,7 +359,7 @@ namespace Frontline.Core
                 };
                 m.ReadProgress(root["training"],root["heroes"]);
             }
-            if (schema >= 3) m.ReadOperations(root,schema == 3 ? BaseMarketSeasonLimit : schema == 4 ? TitleMarketSeasonLimit : MaxMarketSeasonLimit);
+            if (schema >= 3) m.ReadOperations(root,schema == 3 ? BaseMarketSeasonLimit : schema == 4 ? TitleMarketSeasonLimit : MaxMarketSeasonLimit + m.DevelopmentMarketBonus);
             if (schema >= 4)
             {
                 m.eventDay = Number(root["eventDay"],0,m.day);
@@ -344,8 +367,14 @@ namespace Frontline.Core
             }
             if (schema >= SpecialistSaveVersion) m.ReadSpecialists(root["specialists"]);
             if (schema >= ExpansionSaveVersion) m.ReadExpansion(root);
-            if (schema == SaveVersion) m.ReadProgression(root);
+            if (schema >= FrontierSaveVersion) m.ReadProgression(root);
             else m.guideDismissed = true;
+            if(schema==SaveVersion)
+            {
+                if(!m.ValidDevelopment())throw new FormatException("发展点或专精前置条件无效");
+                m.ReadChronicle(root["chronicle"]);
+            }
+            else m.prosperityPeak=m.ProsperityTier;
             return m;
         }
     }

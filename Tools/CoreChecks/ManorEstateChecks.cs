@@ -185,7 +185,7 @@ static partial class ManorChecks
             }
             var paddedV1=LegacySchema(m,1);
             var current=(Dictionary<string,object>)Json.Parse(m.Export());
-            paddedV1["slots"]=((List<object>)current["slots"]).Take(14).ToArray();
+            paddedV1["slots"]=LegacyPlots(current["slots"],14);
             var padded=Manor.Import(Json.Write(paddedV1));
             Expect(padded.slots[13].kind=="farm"&&padded.slots[13].workers==1,"padded v1 lost plot 13");
             var badV4=LegacySchema(m,4);

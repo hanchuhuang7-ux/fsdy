@@ -207,7 +207,11 @@ namespace Frontline.UnityGame
             yield return CheckFrontierPreset(0);
             CheckButtonHit("Settings.Quality");CheckButtonHit("Frontier.View.1");CheckButtonHit("Frontier.View.2");CheckButtonHit("Manor.Patrol");
             yield return Press("Manor.Governance");
-            CheckButtonHit("Manor.Decree.mobilize");CheckButtonHit("Manor.Work.balanced");CheckButtonHit("Manor.Trade.Sell5.arms");
+            CheckButtonHit("Manor.Decree.mobilize");CheckButtonHit("Manor.Work.balanced");
+            var marketScroll=VisibleButton("Manor.Trade.Sell5.arms").GetComponentInParent<ScrollRect>();
+            marketScroll.verticalNormalizedPosition=0;
+            yield return null;
+            CheckButtonHit("Manor.Trade.Sell5.arms");
             yield return Press("Manor.Milestones");
             CheckButtonHit("Manor.Milestones.Back");
             yield return Press("Manor.Milestones.Back");
@@ -288,7 +292,7 @@ namespace Frontline.UnityGame
             yield return Press("Manor.Governance");
             yield return Press("Manor.Governance.Event");
             Require(app.Modal&&Displays("领地急报 · 寒潮来袭")&&Displays("建材 -4 · 民心 +6"),"Winter dispatch options did not describe the costs");
-            if(captures)yield return ManorShot("141-dispatch");
+            if(captures)yield return ManorShot("142-dispatch");
             int approval=estate.approval, timber=estate.timber;
             yield return Press("Manor.Event.Choose.0");
             Require(estate.eventDay==0&&estate.approval==approval+6&&estate.timber==timber-4&&
@@ -333,7 +337,7 @@ namespace Frontline.UnityGame
                 ManorReadout("Manor.Forecast.Synergy").text.Contains("谷仓产粮 +12%"),"Expanded estate links did not reach the ledger");
 
             yield return Press("Manor.Governance");
-            if(captures)yield return ManorShot("141-governance");
+            if(captures)yield return ManorShot("142-governance");
             int tax=estate.Forecast().coin;
             yield return Press("Manor.Specialists");
             foreach(string id in Manor.SpecialistIds)
@@ -344,19 +348,19 @@ namespace Frontline.UnityGame
             Require(estate.Forecast().coin>tax&&estate.MarketSeasonLimit==40&&estate.Logistics.recoveryRate==195&&
                 estate.ExpeditionLogistics(true).raidPercent==4&&PlayerPrefs.GetString(FrontierSaveKey)==estate.Export(),
                 "Specialist bonuses did not refresh or save");
-            if(captures)yield return ManorShot("141-specialists");
+            if(captures)yield return ManorShot("142-specialists");
             yield return Press("Manor.Specialists.Back");yield return Press("关闭");
             int seen=0;
             yield return WaitForState(()=>{seen|=app.View.VisibleSpecialistMask;return seen==15;},"One or more specialists never appeared on the estate paths");
             if(captures)
             {
-                yield return ManorShot("141-estate-overview");
+                yield return ManorShot("142-estate-overview");
                 app.View.Focus(new Vector3(FrontierMap.ManorX,.75f,-1.16f),15.5f,38,-12);
-                yield return ManorShot("141-market-square");
+                yield return ManorShot("142-market-square");
                 app.View.Focus(new Vector3(FrontierMap.ManorX-17.14f,.84f,2.22f),23,40,27);
-                yield return ManorShot("141-western-landmarks");
+                yield return ManorShot("142-western-landmarks");
                 app.View.Focus(app.View.SpecialistPoint(0)+Vector3.up*.75f,7.6f,26,-12);
-                yield return ManorShot("141-steward");
+                yield return ManorShot("142-steward");
             }
             yield return CheckFrontierPreset(1);
             yield return Press("Manor.Raid");
@@ -386,7 +390,7 @@ namespace Frontline.UnityGame
                 !app.View.LowSceneryLod,"Outer plot focus did not centre the high-detail plot or cull far geometry");
             Require(VisibleButton("Manor.Reclaim").IsInteractable()&&!estate.IsPlotCleared(north)&&
                 (estate.ReadyMilestones&1)==0,"Locked land is not presented as reclaimable");
-            if(captures)yield return ManorShot("141-outer-clearing");
+            if(captures)yield return ManorShot("142-outer-clearing");
 
             int coin=estate.coin, timber=estate.timber;
             yield return Press("Manor.Reclaim");
@@ -411,16 +415,16 @@ namespace Frontline.UnityGame
             Require(estate.MilestoneClaimed(0)&&estate.coin==coin+Manor.Milestones[0].coin&&estate.timber==timber+Manor.Milestones[0].timber&&
                 !VisibleButton("Manor.Milestone.0").IsInteractable()&&PlayerPrefs.GetString(FrontierSaveKey)==estate.Export(),
                 "Milestone reward was not applied, disabled and saved");
-            if(captures)yield return ManorShot("141-milestones");
+            if(captures)yield return ManorShot("142-milestones");
             Require(app.GetComponent<BattleInput>().Shortcut(KeyCode.Escape)&&!app.Modal,"Escape did not close the milestones");
             if(captures)
             {
                 app.View.Focus(new Vector3(FrontierMap.ManorX-6,.28f,-17.0f),26,48,-34);
-                yield return ManorShot("141-south-quay");
+                yield return ManorShot("142-south-quay");
                 yield return CheckFrontierPreset(1);
-                yield return ManorShot("141-expanded-peninsula");
+                yield return ManorShot("142-expanded-peninsula");
                 yield return CheckFrontierPreset(0);
-                yield return ManorShot("141-estate-and-frontier");
+                yield return ManorShot("142-estate-and-frontier");
             }
             Debug.Log("FRONTLINE_MILESTONE_SMOKE_OK plots="+Manor.PlotCount+" reclaimed="+estate.reclaimedPlots+
                 " claims="+estate.milestoneClaims+" closeupCulled="+outerCloseupCulled);
@@ -437,7 +441,7 @@ namespace Frontline.UnityGame
                 ManorReadout("Manor.March.Logistics").text.Contains("士气 +8%")&&ManorReadout("Manor.March.Logistics").text.Contains("伤员救回 65%"),
                 "Muster did not explain the counter or logistics");
             CheckButtonHit(frontier?"Manor.Patrol.Start":"Manor.March");
-            if(captures)yield return ManorShot(frontier?"141-patrol-roster":"141-expedition-roster");
+            if(captures)yield return ManorShot(frontier?"142-patrol-roster":"142-expedition-roster");
             Debug.Log("FRONTLINE_RECOMMEND_SMOKE_OK "+(frontier?"patrol":"expedition")+" units="+app.PartyUnits(frontier)+
                 " budget="+app.PartyCost(frontier)+"/"+app.Estate.Budget);
         }
@@ -449,11 +453,11 @@ namespace Frontline.UnityGame
             try
             {
                 app.SetMap("bridge");app.View.Focus(new Vector3(1,-.62f,0),37,45,-24);
-                yield return ManorShot("141-map-bridge");
+                yield return ManorShot("142-map-bridge");
                 app.SetMap("marsh");app.View.Focus(new Vector3(.85f,0,0),40,56,13);
-                yield return ManorShot("141-map-marsh");
+                yield return ManorShot("142-map-marsh");
                 app.SetMap("highland");app.View.Focus(new Vector3(.6f,.78f,0),37,47,-19);
-                yield return ManorShot("141-map-highland");
+                yield return ManorShot("142-map-highland");
             }
             finally
             {
@@ -537,7 +541,7 @@ namespace Frontline.UnityGame
             yield return Press("Manor.ConfirmUpgrade");
             yield return Press("Manor.Upgrade");yield return Press("Manor.ConfirmUpgrade");
             yield return CheckAutumnWinterLight(captures);
-            Require(app.Estate.Season==3&&app.Estate.approval==64&&app.Estate.Forecast().winterTimber==200,
+            Require(app.Estate.Season==3&&app.Estate.approval==65&&app.Estate.Forecast().winterTimber==200,
                 "Autumn settlement did not transition the winter ledger");
             app.View.Focus(new Vector3(FrontierMap.ManorX+3.0f,1.02f,4.9f),15.5f,35,-14);
             if(captures)
@@ -550,9 +554,9 @@ namespace Frontline.UnityGame
                 app.GetComponent<NativeHud>().UpdateManorHover();
                 Require(Displays("建地 3  英雄酒馆  Lv.3  ·  已满级  ·  派工 1 / 1"),"Manor hover status omitted level or assignment");
                 Require(app.View.StaticRebuilds==builds,"Hover triggered a static batch rebuild");
-                yield return ManorShot("141-desktop-estate");
+                yield return ManorShot("142-desktop-estate");
                 app.View.Focus(new Vector3(FrontierMap.ManorX+Manor.SlotX(5),.66f,Manor.SlotZ(5)),9.5f,35,-29);
-                yield return ManorShot("141-desktop-forge");
+                yield return ManorShot("142-desktop-forge");
             }
             displayLimit=app.Estate.FrontierLimit;
             Require(displayLimit==16,"Farm improvement did not grant march capacity");
@@ -563,6 +567,7 @@ namespace Frontline.UnityGame
                 yield return CheckSeasonalDispatch(captures);
                 yield return CheckExpandedEstate(captures);
                 yield return CheckOuterEstate(captures);
+                yield return CheckManorDevelopment(captures);
             }
             yield return CheckFrontierPreset(0);
             if(artOnly)
@@ -629,7 +634,7 @@ namespace Frontline.UnityGame
                 Require(!app.View.LowActorLod&&!app.View.LowSceneryLod&&app.View.ShadowOnlySubmissions>0,
                     "Fine main view lost high meshes or did not use separate shadow casters");
             }
-            if(captures)yield return ManorShot("141-desktop-contact");
+            if(captures)yield return ManorShot("142-desktop-contact");
             yield return WaitForState(()=>allies.All(u=>!u.entity.alive||!FrontierMap.Safe(u.entity.body.Position.x)),
                 "The last file stalled inside the causeway");
             int forwardTicks=battle.Tick-forwardStart;
@@ -637,7 +642,7 @@ namespace Frontline.UnityGame
             yield return WaitForState(()=>mouth.All(u=>!u.entity.alive)&&app.View.AlertCampMask==6,"Cleared camp retained its warning ring");
             Require(farther.All(u=>u.entity.alive)&&app.View.StaticRebuilds==terrainBuilds,"Clearing one camp affected another camp or rebuilt terrain");
             yield return CheckFrontierPreset(2);
-            if(captures)yield return ManorShot("141-desktop-clearance");
+            if(captures)yield return ManorShot("142-desktop-clearance");
             yield return Press("Frontier.Order.inspire");
             yield return ClickBattlefield(46,6);
             Require(battle.Commander.log.Any(o=>o.type=="inspire"&&o.x>40),"Farther terrain rejected the army order");
@@ -665,7 +670,7 @@ namespace Frontline.UnityGame
             Require(approvalGain>0&&app.Estate.approval==beforeReturn+approvalGain&&
                 ManorReadout("Manor.Settlement.Approval").text=="民心 "+beforeReturn+" → "+app.Estate.approval+"（+"+approvalGain+"）",
                 "Patrol report did not display the approval gain");
-            if(captures)yield return ManorShot("141-settlement");
+            if(captures)yield return ManorShot("142-settlement");
             yield return Press("Manor.Settlement.Done");
             Require(app.View.AlertCampMask==7,"Manor preview did not restore all patrol markers");
             yield return Press("Manor.Expedition");
@@ -696,6 +701,9 @@ namespace Frontline.UnityGame
                 outerPlotConstruction=app.Estate.slots[Manor.FirstOuterPlot].kind,outerCloseupCulled,
                 proceduralClips=verifiedAudioClips,displaySettingsVerified,localSlotsVerified,guideVerified,
                 tierSelectionVerified,seasonalLightingVerified,qaSilent=app.Muted,
+                backyardVerified,developmentVerified,marketNeedsVerified,chronicleVerified,
+                barnyard=app.Estate.slots[1].backyard,developmentMask=app.Estate.developmentMask,
+                chronicleEntries=app.Estate.chronicle.Count,
                 beforeReturn,defeated,approvalGain,approval=app.Estate.approval,tax=app.Estate.tax,decree=app.Estate.decree,
                 market=app.Estate.market,actions=manorActions};
             yield return Save("frontier-smoke.json",Encoding.UTF8.GetBytes(Json.Write(proof)),"application/json");

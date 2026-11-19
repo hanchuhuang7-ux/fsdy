@@ -290,7 +290,8 @@ namespace Frontline.UnityGame
                 bool heatingShortage=f.winterTimber<f.winterTimberRequired;
                 factors.color=heatingShortage||m.approval<Manor.UnrestApproval?danger:pale;
                 factors.text=ForecastFactors(m,f,heatingShortage);
-                synergy.text=EstateSynergyText(f.synergy);
+                string links=EstateSynergyText(f.synergy);
+                synergy.text=f.marketNeeds.Prosperous?"市集兴旺 +1 民心"+(links.Length==0?"":"  ·  "+links):links;
             });
         }
 
@@ -304,8 +305,9 @@ namespace Frontline.UnityGame
             string title=index<0?"主基地":index==0?"领主宅邸":
                 "建地 "+index+"   "+(uncleared?"待开垦林地":kind==null?"空置":Manor.Name(kind));
             if(slot!=null&&slot.level>0)title+="   Lv."+slot.level;
-            bool recruiting=kind=="barracks"||kind=="stables",heroes=kind=="tavern",training=kind=="drill_yard";
-            Label(p,title,12,4,w-(recruiting||heroes||training||index==0?188:111),27,portrait?16:19,gold);
+            bool recruiting=kind=="barracks"||kind=="stables",heroes=kind=="tavern",training=kind=="drill_yard",cottage=kind=="cottage";
+            Label(p,title,12,4,w-(recruiting||heroes||training||cottage||index==0?188:111),27,portrait?16:19,gold);
+            if(cottage)ManorButton(p,"Manor.Backyard","后院副业",w-169,5,84,29,()=>BackyardDialog(index),true);
             if(index==0)ManorButton(p,"Manor.Hall.Governance","领地政务",w-167,5,82,29,GovernanceDialog);
             if(recruiting)
                 ManorButton(p,"Manor.Recruits",kind=="barracks"?"招募":"备军",w-151,5,66,29,Recruitment,true);
@@ -317,7 +319,12 @@ namespace Frontline.UnityGame
             if(index>=0&&!uncleared)description=kind==null?"挑选一种建筑，查看所需金币与建材。":Manor.Description(kind);
             Label(p,description,12,33,w-24,34,portrait?12:14,pale);
             string production=kind==null?"":Manor.BuildingOutput(kind,slot.level);
-            if(production!="")
+            if(cottage)
+                Value(manorValues,Label(p,"",12,63,w-24,24,portrait?11:13,gold),()=>{
+                    string backyard=app.Estate.slots[index].backyard;
+                    return backyard==null?"后院未启用":"后院 "+Manor.BackyardTitle(backyard)+"  ·  "+Manor.BackyardEffect(backyard,slot.level);
+                });
+            else if(production!="")
                 Value(manorValues,Label(p,"",12,66,w-24,20,portrait?11:13,gold),()=>production+PlotSynergyText(kind,PreviewForecast().synergy));
             float rowY=90,h=portrait?33:38;
 
@@ -755,6 +762,7 @@ namespace Frontline.UnityGame
             if(rules.approvalPercent>0)budget+=" · 士气 "+Change(rules.approvalPercent)+"%";
             if(rules.prosperityPercent>0)budget+=" · 雄镇 "+Change(rules.prosperityPercent)+"%";
             if(rules.raidPercent>0)budget+=" · 巡庄 "+Change(rules.raidPercent)+"%";
+            if(rules.developmentPercent>0)budget+=" · 要塞后勤 "+Change(rules.developmentPercent)+"%";
             string recovery=rules.recoveryRate*rules.recoveryDivisor==ManorLogistics.RecoveryDenominator?"1/"+rules.recoveryDivisor:
                 Manor.FormatHundredths((rules.recoveryRate*100+1)/3)+"%";
             return budget+(portrait?"\n":"   ·   ")+"伤员救回 "+recovery+" · 重伤英雄休整 "+rules.heroRestDays+" 日";
@@ -927,7 +935,7 @@ namespace Frontline.UnityGame
         void ManorHelp()
         {
             OpenDialog("领主手册",(p,w)=>{
-                string text="建地与领民\n半岛有 24 块建地。18–23 号外环林地花 8 金币开垦，收回 4 建材。「选地」清单可选中地块并聚焦。农舍和牧场提供住房，有余粮时迎来新户。\n\n领主宏愿\n在领地政务查看六项里程碑，达成即可领取一次奖励。完成全部远征，或在一次巡边击退全部守军，可达成「平定四方」。\n\n生产协同\n运转中的谷仓提振产粮，应急时保住粮底。礼拜堂提升民心和伤员救回率。农田搭配牧场或谷仓可增产，伐木营搭配铁匠铺可增产军械。农舍累计 3 级并建有礼拜堂或酒馆可获得安居民心。\n\n领地专才\n在政务中查看管家、掌柜、医者和巡庄队长。四位分别改善税收、贸易、医护与战备。解锁后从 Lv.1 起，可用金币与物资培养到 Lv.3。\n\n领地运营\n低税、食谱丰富与酒馆能提高民心，低于 40 暂停迁入。夏秋田产增加，冬季减产并按每四户一份建材取暖。政务可切换税率和政令，账本预览收支。集市每季刷新额度，急报可自行打开处理。\n\n边疆巡边\n集结后用「推进」点选外域地面。桥头金线外会接战，撤回线内即可脱离追击。可发军令、撤回半岛或结算归营。缺粮时最多带 3 人。一次巡边击退全部 15 名守军后，可在集结时选警戒 2、3 阶，挑战更强守军并获得更多奖励。\n\n培养与远征\n酒馆派工后开放英雄培养。兵营训练兵种，练兵靶场和马厩工坊征召与备货。战前可一键编队，布阵时用「移动」调整兵员或道具。战后可看回放并查看结算。\n\n日程与视角\n1× 约四秒一日，一季十二日。右键或触屏拖动旋转，滚轮或双指缩放，WASD、方向键、Shift 加左键拖动、中键或双指均可平移。庄园按 1 / 2 / 3 切换全景、半岛和外域，Space 暂停或继续，R 重置，Esc 关闭窗口。庄园按 G 打开政务、P 选地、M 查看宏愿。可在工坊使用 3 个本机存档槽。巡边时 1 / 2 / 3 选择军令。";
+                string text="建地与领民\n半岛有 24 块建地。18–23 号外环林地花 8 金币开垦，收回 4 建材。「选地」清单可选中地块并聚焦。农舍和牧场提供住房，有余粮时迎来新户。选择农舍，可花金币和建材启用或切换一项后院副业，每日结算无需派工。\n\n发展与供给\n历次称号晋升和领取三项宏愿共可获得最多四点发展点。在政务按路线解锁专精。口粮、薪柴和精神供给齐备时，市集兴旺每天额外提高 1 点民心。编年史保留最近十二件领地大事。\n\n领主宏愿\n在领地政务查看六项里程碑，达成即可领取一次奖励。完成全部远征，或在一次巡边击退全部守军，可达成「平定四方」。\n\n生产协同\n运转中的谷仓提振产粮，应急时保住粮底。礼拜堂提升民心和伤员救回率。农田搭配牧场或谷仓可增产，伐木营搭配铁匠铺可增产军械。农舍累计 3 级并建有礼拜堂或酒馆可获得安居民心。\n\n领地专才\n在政务中查看管家、掌柜、医者和巡庄队长。四位分别改善税收、贸易、医护与战备。解锁后从 Lv.1 起，可用金币与物资培养到 Lv.3。\n\n领地运营\n低税、食谱丰富与酒馆能提高民心，低于 40 暂停迁入。夏秋田产增加，冬季减产并按每四户一份建材取暖。政务可切换税率和政令，账本预览收支。集市每季刷新额度，急报可自行打开处理。\n\n边疆巡边\n集结后用「推进」点选外域地面。桥头金线外会接战，撤回线内即可脱离追击。可发军令、撤回半岛或结算归营。缺粮时最多带 3 人。一次巡边击退全部 15 名守军后，可在集结时选警戒 2、3 阶，挑战更强守军并获得更多奖励。\n\n培养与远征\n酒馆派工后开放英雄培养。兵营训练兵种，练兵靶场和马厩工坊征召与备货。战前可一键编队，布阵时用「移动」调整兵员或道具。战后可看回放并查看结算。\n\n日程与视角\n1× 约四秒一日，一季十二日。右键或触屏拖动旋转，滚轮或双指缩放，WASD、方向键、Shift 加左键拖动、中键或双指均可平移。庄园按 1 / 2 / 3 切换全景、半岛和外域，Space 暂停或继续，R 重置，Esc 关闭窗口。庄园按 G 打开政务、P 选地、M 查看宏愿。可在工坊使用 3 个本机存档槽。巡边时 1 / 2 / 3 选择军令。";
                 var help=Label(p,text,0,0,w,portrait?504:340,14,white,TextAnchor.UpperLeft);
                 help.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,help.preferredHeight+8);
             },portrait?575:430);

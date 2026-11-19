@@ -49,6 +49,7 @@ namespace Frontline.Core
             coin -= ReclaimPrice;
             Credit(ref timber,ref remainder.timber,ReclaimTimber * 100);
             reclaimedPlots |= 1 << (index - FirstOuterPlot);
+            Remember("reclaim",index);
         }
 
         bool TwoOuterPlotsCleared => (reclaimedPlots & (reclaimedPlots - 1)) != 0;
@@ -86,6 +87,7 @@ namespace Frontline.Core
             Credit(ref arms,ref remainder.arms,reward.arms*100);
             approval=ClampApproval(approval+reward.approval);
             milestoneClaims |= 1<<index;
+            TrackProsperity();
         }
 
         bool ValidExpansion()

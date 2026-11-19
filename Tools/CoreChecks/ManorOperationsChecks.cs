@@ -9,9 +9,15 @@ static partial class ManorChecks
     {
         var old = (Dictionary<string,object>)Json.Parse(manor.Export());
         old["version"] = version;
-        old.Remove("frontierTier");
-        old.Remove("guideStep");
-        old.Remove("guideDismissed");
+        old.Remove("prosperityPeak");
+        old.Remove("developmentMask");
+        old.Remove("chronicle");
+        if(version<7)
+        {
+            old.Remove("frontierTier");
+            old.Remove("guideStep");
+            old.Remove("guideDismissed");
+        }
         if(version<6)
         {
             old.Remove("reclaimedPlots");
@@ -20,7 +26,7 @@ static partial class ManorChecks
         }
         if(version<5)old.Remove("specialists");
         int plots=version==1?10:version<5?Manor.OriginalPlotCount:version==5?Manor.FirstOuterPlot:Manor.PlotCount;
-        old["slots"]=((List<object>)old["slots"]).Take(plots).ToArray();
+        old["slots"]=LegacyPlots(old["slots"],plots);
         if (version < 4) old.Remove("eventDay");
         if (version < 3)
             foreach (string key in new[] { "approval","tax","decree","market" }) old.Remove(key);
@@ -30,6 +36,13 @@ static partial class ManorChecks
         }
         return old;
     }
+
+    static object[] LegacyPlots(object slots,int count) =>
+        ((List<object>)slots).Take(count).Select(item=>{
+            var plot=(Dictionary<string,object>)item;
+            plot.Remove("backyard");
+            return (object)plot;
+        }).ToArray();
 
     static void ExpectOperationsDefaults(Manor m)
     {
@@ -77,7 +90,7 @@ static partial class ManorChecks
             Expect(plain.food == 0 && plain.tavern == 0,"duplicate grain plots or idle tavern gave a bonus");
             m.Assign(3,1); m.Assign(4,1);
             var varied = m.Forecast();
-            Expect(varied.approvalFactors.food == 2 && varied.approvalFactors.tavern == 2 && varied.approvalAfter == 65,"varied diet or staffed tavern");
+            Expect(varied.approvalFactors.food == 2 && varied.approvalFactors.tavern == 2 && varied.approvalFactors.market == 1 && varied.approvalAfter == 66,"varied diet or staffed tavern");
             m.food = 0;
             var shortage = m.Forecast();
             Expect(shortage.approvalFactors.food == -5 && shortage.approvalFactors.tavern == 2 && shortage.approvalAfter == 58,"empty granary or combined factors");

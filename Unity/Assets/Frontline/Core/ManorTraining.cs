@@ -38,7 +38,7 @@ namespace Frontline.Core
 
         static TrainingCost HireCost(HeroDef hero) => new TrainingCost(hero.hireCoin,hero.hireFood);
         TrainingCost HeroCost(HeroDef hero) => new TrainingCost(Whole(LevelScaling.Scale(24,HeroLevel(hero.id))),
-            Whole(LevelScaling.Scale(4,HeroLevel(hero.id))));
+            Whole(LevelScaling.Scale(4,HeroLevel(hero.id))),coinPercent:HasDevelopment(ManorPerk.FortressLogistics)?90:100);
         TrainingCost UnitCost(int i,string id)
         {
             var p = Plot(i);

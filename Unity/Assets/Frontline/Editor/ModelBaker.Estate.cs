@@ -17,6 +17,7 @@ namespace Frontline.Editor
             Save("manor_firewood",lod,YardProp(lod,1));
             Save("manor_straw",lod,YardProp(lod,2));
             Save("manor_roof_snow",lod,CottageSnow());
+            BakeBackyards(lod);
             for(int i=0;i<Manor.SpecialistIds.Length;i++)
                 Save("specialist_"+Manor.SpecialistIds[i],lod,Specialist(i,lod));
         }

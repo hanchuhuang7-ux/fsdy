@@ -116,12 +116,12 @@ static partial class ManorChecks
                 var loaded=Manor.Import(Json.Write(old));
                 var projected=LegacySchema(loaded,version);
                 foreach(string key in old.Keys)Expect(Json.Write(old[key])==Json.Write(projected[key]),"legacy field changed "+key);
-                Expect(loaded.version==7&&loaded.frontierTier==1&&loaded.guideStep==0&&loaded.guideDismissed&&
+                Expect(loaded.version==Manor.SaveVersion&&loaded.frontierTier==1&&loaded.guideStep==0&&loaded.guideDismissed&&
                     loaded.MaxFrontierTier==(version==6?3:1),"migration defaults "+version);
             }
         });
 
-        check("v7 rejects invalid tier and guidance schema, while a valid v7 round trips",() => {
+        check("current saves reject invalid tier and guidance schema and round trip",() => {
             var m=new Manor();
             var save=m.Export();
             Expect(Manor.Import(save).Export()==save,"round trip");

@@ -6,8 +6,19 @@ namespace Frontline.Core
 {
     public struct ManorApprovalFactors
     {
-        public int tax, food, tavern, heating, decree, chapel, settled, herbalist;
-        public int Total => tax + food + tavern + heating + decree + chapel + settled + herbalist;
+        public int tax, food, tavern, heating, decree, chapel, settled, herbalist, market;
+        public int Total => tax + food + tavern + heating + decree + chapel + settled + herbalist + market;
+    }
+
+    public readonly struct ManorMarketNeeds
+    {
+        public readonly bool rations, variedDiet, fuel, spirit;
+        public bool Prosperous => rations && fuel && spirit;
+
+        internal ManorMarketNeeds(bool rations,bool variedDiet,bool fuel,bool spirit)
+        {
+            this.rations=rations; this.variedDiet=variedDiet; this.fuel=fuel; this.spirit=spirit;
+        }
     }
 
     public struct ManorTradeVolume
@@ -50,7 +61,8 @@ namespace Frontline.Core
         public int TaxApprovalChange => tax == "low" ? 3 : tax == "high" ? -3 : 0;
         static readonly string[] ProsperityTitles = { "拓荒营地","安宁村落","丰饶市镇","边疆雄镇" };
         public string ProsperityTitle => ProsperityTitles[ProsperityTier];
-        public int MarketSeasonLimit => BaseMarketSeasonLimit + 5 * (ProsperityTier + SpecialistLevel("merchant"));
+        public int MarketSeasonLimit => MarketQuota(SpecialistLevel("merchant"));
+        int MarketQuota(int merchant) => BaseMarketSeasonLimit + 5 * (ProsperityTier + merchant) + DevelopmentMarketBonus;
         int ProsperityTier
         {
             get
@@ -81,10 +93,11 @@ namespace Frontline.Core
 
         // Combine rates before rounding once to the nearest hundredth per staffed plot or tax bill.
         static int ScaleYield(int amount,int approvalPercent,int policyPercent = 100,int seasonPercent = 100,
-            int supportPercent = 100,int synergyPercent = 100)
+            int supportPercent = 100,int synergyPercent = 100,int developmentPercent = 100)
         {
-            const long divisor = 100L * 100 * 100 * 100 * 100;
-            return (int)(((long)amount * approvalPercent * policyPercent * seasonPercent * supportPercent * synergyPercent + divisor / 2) / divisor);
+            const long divisor = 100L * 100 * 100 * 100 * 100 * 100;
+            return (int)(((long)amount * approvalPercent * policyPercent * seasonPercent * supportPercent *
+                synergyPercent * developmentPercent + divisor / 2) / divisor);
         }
 
         public ManorDay Forecast()
@@ -99,14 +112,21 @@ namespace Frontline.Core
                     100+StewardBonus(SpecialistRank("steward")))
             };
             string firstFood = null;
-            bool variedDiet = false;
+            bool variedDiet = false, poultry=false, staffedChapel=false;
+            bool sustainableWoods=HasDevelopment(ManorPerk.SustainableWoods);
+            int cropDevelopment=HasDevelopment(ManorPerk.HeavyPlough)?115:100;
+            int forgeDevelopment=HasDevelopment(ManorPerk.GuildSmiths)?120:100;
             int tavern = 0, housing = 2, forgeCount = 0;
             int cropRate = CropSeasonRates[season], pastureRate = season == 3 ? 80 : 100;
             Span<int> staffedForges = stackalloc int[PlotCount];
             for (int i = 0; i < slots.Length; i++)
             {
                 var plot = slots[i];
-                if (plot.kind == "cottage") housing += WholeLevelValue(3,plot.level);
+                if (plot.kind == "cottage")
+                {
+                    housing += WholeLevelValue(3,plot.level);
+                    AddBackyardYield(plot,ref balance,ref poultry);
+                }
                 else if (plot.kind == "pasture") housing += WholeLevelValue(2,plot.level);
                 if (plot.workers == 0) continue;
                 switch (plot.kind)
@@ -115,15 +135,18 @@ namespace Frontline.Core
                         bool pasture = plot.kind == "pasture";
                         int policy = agrarian ? 120 : trade && !pasture ? 90 : 100;
                         balance.food += ScaleYield(Yield(Def(plot.kind).harvest,plot.level) * plot.workers,production,policy,pasture ? pastureRate : cropRate,
-                            100+synergy.grainPercent,100+(pasture?0:synergy.cropPercent));
+                            100+synergy.grainPercent,100+(pasture?0:synergy.cropPercent),pasture?100:cropDevelopment);
                         variedDiet |= firstFood != null && firstFood != plot.kind;
                         firstFood ??= plot.kind;
                         break;
                     case "timber_camp":
-                        balance.timber += ScaleYield(Yield(4,plot.level) * plot.workers,production);
+                        balance.timber += ScaleYield(Yield(4,plot.level) * plot.workers,production,developmentPercent:sustainableWoods?115:100);
                         break;
                     case "tavern":
                         tavern = 2;
+                        break;
+                    case "chapel":
+                        staffedChapel=true;
                         break;
                     case "smithy":
                         staffedForges[forgeCount++] = i;
@@ -134,7 +157,9 @@ namespace Frontline.Core
             int timberAvailable = Math.Min(MaxValue * 100,storedTimber + balance.timber);
             if (season == 3)
             {
-                balance.winterTimberRequired = ((workers + 3) / 4) * 100;
+                int firewood=(workers+3)/4;
+                if(sustainableWoods)firewood=Math.Max(1,firewood*65/100);
+                balance.winterTimberRequired=firewood*100;
                 balance.winterTimber = Math.Min(timberAvailable,balance.winterTimberRequired);
                 timberAvailable -= balance.winterTimber;
             }
@@ -146,7 +171,8 @@ namespace Frontline.Core
                 int working = Math.Min(timberAvailable / 100,plot.workers);
                 timberAvailable -= working * 100;
                 balance.forgeTimber += working * 100;
-                balance.arms += ScaleYield(Yield(2,plot.level) * working,production,forgePolicy,supportPercent:100+synergy.forgePercent);
+                balance.arms += ScaleYield(Yield(2,plot.level) * working,production,forgePolicy,
+                    supportPercent:100+synergy.forgePercent,developmentPercent:forgeDevelopment);
             }
             balance.timber = timberAvailable - storedTimber;
 
@@ -160,11 +186,15 @@ namespace Frontline.Core
                 balance.food+=balance.reserveFood;
                 foodAvailable+=balance.reserveFood;
             }
+            bool hasRations=food>0&&foodAvailable>=100;
+            bool diet=hasRations&&(variedDiet||poultry&&firstFood!=null);
+            balance.marketNeeds=new ManorMarketNeeds(hasRations,diet,balance.winterTimber>=balance.winterTimberRequired,
+                tavern>0||staffedChapel);
             balance.approvalFactors = new ManorApprovalFactors {
-                tax = TaxApprovalChange, food = food == 0 || foodAvailable < 100 ? -5+synergy.granaryLevel : variedDiet ? 2 : 0,
+                tax = TaxApprovalChange, food = !hasRations ? -5+synergy.granaryLevel : diet ? 2 : 0,
                 tavern = tavern, heating = balance.winterTimber < balance.winterTimberRequired ? -3+synergy.granaryLevel : 0,
                 decree = mobilize ? -1 : 0, chapel=synergy.chapelApproval, settled=synergy.settledApproval,
-                herbalist=hasClinic ? SpecialistRank("herbalist") : 0
+                herbalist=hasClinic ? SpecialistRank("herbalist") : 0, market=balance.marketNeeds.Prosperous?1:0
             };
             balance.approvalAfter = ClampApproval(approval + balance.approvalFactors.Total);
             // Production and immigration read the morning's approval. Today's changes take effect tomorrow.
@@ -189,6 +219,7 @@ namespace Frontline.Core
                 if ((day - 1) % 6 == 0) raidReady = true;
                 if ((day - 1) % SeasonDays == 0) market = default;
                 UpdateSeasonEvents();
+                TrackProsperity();
             }
         }
 
@@ -208,9 +239,10 @@ namespace Frontline.Core
         ManorTradeQuote Quote(int inventory,int fraction,ManorTradeVolume volume,int buy,int sell)
         {
             int merchant=SpecialistLevel("merchant");
-            int buyPrice = (buy * (decree == "trade" ? 90 : 100) * (100-2*merchant) + 50) / 100;
             int sellPrice = sell * (decree == "trade" ? 110 : 100);
-            int quota = BaseMarketSeasonLimit + 5 * (ProsperityTier+merchant);
+            int perkRate=HasDevelopment(ManorPerk.FreeMarket)?95:100;
+            int buyPrice=Math.Max(sellPrice+1,(buy * (decree=="trade"?90:100)*(100-2*merchant)*perkRate+5000)/10000);
+            int quota=MarketQuota(merchant);
             // Demotion closes the remaining quota while keeping this season's completed trades.
             int buyRemaining = Math.Max(0,quota - volume.bought), sellRemaining = Math.Max(0,quota - volume.sold);
             int purse = Precise(coin,remainder.coin);
@@ -222,7 +254,7 @@ namespace Frontline.Core
 
         public void Trade(string resource,int deltaUnits)
         {
-            if (deltaUnits == 0 || deltaUnits > MaxMarketSeasonLimit || deltaUnits < -MaxMarketSeasonLimit)
+            if (deltaUnits == 0 || Math.Abs((long)deltaUnits) > MaxMarketSeasonLimit+DevelopmentMarketBonus)
                 throw new InvalidOperationException("交易数量超出范围");
             var quote = QuoteTrade(resource);
             if (deltaUnits > quote.buyRemaining || deltaUnits < -quote.sellRemaining)
@@ -246,8 +278,11 @@ namespace Frontline.Core
             else volume.sold -= units;
         }
 
-        static bool ValidVolume(ManorTradeVolume volume) =>
-            volume.bought >= 0 && volume.bought <= MaxMarketSeasonLimit && volume.sold >= 0 && volume.sold <= MaxMarketSeasonLimit;
+        bool ValidVolume(ManorTradeVolume volume)
+        {
+            int limit=MaxMarketSeasonLimit+DevelopmentMarketBonus;
+            return (uint)volume.bought<=limit&&(uint)volume.sold<=limit;
+        }
 
         bool ValidOperations() => approval >= 0 && approval <= 100 && ValidTax(tax) && ValidDecree(decree) &&
             ValidVolume(market.food) && ValidVolume(market.timber) && ValidVolume(market.arms);

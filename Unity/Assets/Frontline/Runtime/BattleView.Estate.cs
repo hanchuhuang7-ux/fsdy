@@ -126,6 +126,10 @@ namespace Frontline.UnityGame
                 ManorStill(Load(asset).WithoutShadows(),basePoint+facing*YardOrigin,facing,Vector3.one*.76f,White);
                 estateObstacles[estateObstacleCount++]=YardObstacle(index);
             }
+            var backyard=manor.slots[index].backyard;
+            if(backyard!=null)
+                ManorStill(Load("backyard_"+backyard).WithoutShadows(),basePoint+facing*ManorPlotArt.BackyardOrigin,
+                    facing,ManorPlotArt.BackyardScale,White);
             if(kind=="cottage"&&builtSeason==3)
                 ManorStill(Load("manor_roof_snow").WithoutShadows(),basePoint,facing,Vector3.one,White);
         }

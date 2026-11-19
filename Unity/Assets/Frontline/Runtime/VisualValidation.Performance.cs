@@ -113,6 +113,8 @@ namespace Frontline.UnityGame
                 if(layout[i]==null)continue;
                 estate.Build(i+1,layout[i]);estate.Upgrade(i+1);estate.Upgrade(i+1);
             }
+            estate.SetBackyard(1,"garden");estate.SetBackyard(4,"poultry");
+            estate.SetBackyard(7,"workshop");estate.SetBackyard(12,"militia_yard");
             estate.ReclaimPlot(18);estate.Build(18,"farm");
             estate.ReclaimPlot(20);estate.Build(20,"timber_camp");
             estate.workers=24;estate.stock["militia"]=16;

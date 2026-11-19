@@ -258,11 +258,44 @@ namespace Frontline.UnityGame
                         Require(Mathf.Max(Mathf.Abs(bounds.min.x),Mathf.Abs(bounds.max.x))<=ManorPlotArt.HalfWidth(hall)+.001f&&
                             Mathf.Max(Mathf.Abs(bounds.min.z),Mathf.Abs(bounds.max.z))<=ManorPlotArt.HalfDepth(hall)+.001f,
                             "Building overlaps a route: "+kind+level+lod);
+                        if(kind=="cottage")CheckCottageYardClear(mesh);
                         checkedMeshes++;
                     }
+            int backyardMeshes=0;
+            foreach(var item in Manor.Backyards)
+                foreach(string lod in new[]{"","_lod1"})
+                {
+                    var mesh=Resources.Load<Mesh>("Models/backyard_"+item.id+lod);
+                    Require(mesh,"Missing backyard mesh: "+item.id+lod);
+                    var bounds=mesh.bounds;
+                    Require(Mathf.Max(Mathf.Abs(bounds.min.x),Mathf.Abs(bounds.max.x))<=ManorPlotArt.BackyardHalfWidth&&
+                        Mathf.Max(Mathf.Abs(bounds.min.z),Mathf.Abs(bounds.max.z))*ManorPlotArt.BackyardDepthScale<=ManorPlotArt.BackyardHalfDepth&&
+                        bounds.min.y>=-.001f&&bounds.max.y<=ManorPlotArt.BackyardHeight,"Backyard exceeds its reserved area: "+item.id+lod);
+                    backyardMeshes++;
+                }
+            var corner=ManorPlotArt.BackyardOrigin;
+            Require(Mathf.Abs(corner.x)+ManorPlotArt.BackyardHalfWidth<=ManorPlotArt.HalfWidth(false)&&
+                Mathf.Abs(corner.z)+ManorPlotArt.BackyardHalfDepth<=ManorPlotArt.HalfDepth(false),
+                "Backyards extend past the existing plot route blocker");
             var walkClearance=BattleView.CheckEstateRoutes();
-            Debug.Log("FRONTLINE_PLOT_BOUNDS_OK plotCount="+Manor.PlotCount+" tierLodMeshes="+checkedMeshes+" "+Json.Write(walkClearance));
-            return new {plotCount=Manor.PlotCount,tierLodMeshes=checkedMeshes,walkClearance};
+            Debug.Log("FRONTLINE_PLOT_BOUNDS_OK plotCount="+Manor.PlotCount+" tierLodMeshes="+checkedMeshes+
+                " backyardMeshes="+backyardMeshes+" "+Json.Write(walkClearance));
+            return new {plotCount=Manor.PlotCount,tierLodMeshes=checkedMeshes,backyardMeshes,walkClearance};
+        }
+
+        static void CheckCottageYardClear(Mesh mesh)
+        {
+            var court=new Bounds(ManorPlotArt.BackyardOrigin+Vector3.up*(ManorPlotArt.BackyardHeight*.5f),
+                new Vector3(ManorPlotArt.BackyardHalfWidth*2,ManorPlotArt.BackyardHeight,ManorPlotArt.BackyardHalfDepth*2));
+            var verts=mesh.vertices;
+            var tris=mesh.triangles;
+            for(int i=0;i<tris.Length;i+=3)
+            {
+                var tri=new Bounds(verts[tris[i]],Vector3.zero);
+                tri.Encapsulate(verts[tris[i+1]]);
+                tri.Encapsulate(verts[tris[i+2]]);
+                Require(!court.Intersects(tri),"Cottage geometry enters the reserved backyard: "+mesh.name);
+            }
         }
     }
 }

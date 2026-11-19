@@ -403,15 +403,12 @@ namespace Frontline.Editor
             House(g,.91f,.29f,1.17f,1.18f,.83f,.50f,StrawLight,lod);
             Door(g,.92f,-.30f,.62f,.32f);
             Chimney(g,-.03f,.27f,1.83f,.24f);
-            // A short front garden fence leaves a gap in front of the door.
+            // The short rail marks a reserved work yard beside the cottage entrance.
+            const float fenceZ=-1.225f;
             foreach(float x in new[]{.27f,1.53f})
-                g.Box(V(x,.27f,-.99f),V(.11f,.54f,.12f),Wood);
-            g.Box(V(.90f,.30f,-.99f),V(1.35f,.10f,.08f),WoodLight);
-            if(lod==0)
-            {
-                g.Box(V(.90f,.14f,-.99f),V(1.35f,.07f,.08f),WoodLight);
-                for(int i=0;i<3;i++)g.Rock(V(.52f+i*.33f,.17f,-.63f),.23f,Leaf,6,2);
-            }
+                g.Box(V(x,.19f,fenceZ),V(.11f,.38f,.09f),Wood);
+            g.Box(V(.90f,.215f,fenceZ),V(1.35f,.075f,.065f),WoodLight);
+            if(lod==0)g.Box(V(.90f,.10f,fenceZ),V(1.35f,.06f,.065f),WoodLight);
         }
 
         static void Farm(Geometry g,int lod)
