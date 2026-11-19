@@ -6,6 +6,7 @@ using Frontline.UnityGame;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
+using CropAppearance = Frontline.UnityGame.ManorPlotArt.CropAppearance;
 
 namespace Frontline.Editor
 {
@@ -32,6 +33,10 @@ namespace Frontline.Editor
             {
                 Save("manor_hall",lod,ManorBuilding("manor_hall",lod));
                 foreach(string kind in Manor.Buildings)Save(kind,lod,ManorBuilding(kind,lod));
+                foreach(string kind in new[]{"farm","irrigated_field"})
+                    foreach(var state in new[]{CropAppearance.Fallow,CropAppearance.Rich})
+                        Save(ManorPlotArt.CropModel(kind,state),lod,ManorBuilding(kind,lod,state));
+                Save("retinue_guard",lod,RetinueGuard(lod));
                 Save("civilian_hat",lod,CivilianHat(lod));
                 Save("civilian_pack",lod,CivilianPack(lod));
                 Save("frontier_gate",lod,FrontierGate(lod));
@@ -247,15 +252,15 @@ namespace Frontline.Editor
             return g;
         }
 
-        static Geometry ManorBuilding(string kind,int lod)
+        static Geometry ManorBuilding(string kind,int lod,CropAppearance state=CropAppearance.Regular)
         {
             var g=new Geometry();
             switch(kind)
             {
                 case "manor_hall": ManorHall(g,lod); break;
                 case "cottage": Cottages(g,lod); break;
-                case "farm": Farm(g,lod); break;
-                case "irrigated_field": IrrigatedField(g,lod); break;
+                case "farm": Farm(g,lod,state); break;
+                case "irrigated_field": IrrigatedField(g,lod,state); break;
                 case "pasture": Pasture(g,lod); break;
                 case "timber_camp": TimberCamp(g,lod); break;
                 case "smithy": Smithy(g,lod); break;
@@ -411,7 +416,10 @@ namespace Frontline.Editor
             if(lod==0)g.Box(V(.90f,.10f,fenceZ),V(1.35f,.06f,.065f),WoodLight);
         }
 
-        static void Farm(Geometry g,int lod)
+        static readonly Color FallowSoil=new Color(.34f,.21f,.13f,0), FallowRidge=new Color(.46f,.30f,.19f,0);
+        static readonly Color RichStalk=new Color(.96f,.76f,.30f,0), RichGrain=new Color(1,.89f,.46f,0);
+
+        static void Farm(Geometry g,int lod,CropAppearance state)
         {
             // A tapered mill, broad linen sails and planted rows remain legible from the overview.
             var tower=V(-.90f,0,.24f);
@@ -421,34 +429,39 @@ namespace Frontline.Editor
             g.Bevel(V(-.90f,.22f,-.36f),V(.43f,.46f,.14f),.052f,Wood);
             g.Bevel(V(-.90f,.06f,-.47f),V(.57f,.12f,.27f),.036f,Stonework);
             g.Cylinder(hub-Vector3.forward*.08f,hub+Vector3.forward*.12f,.11f,Dark,6);
-            g.Box(V(.89f,.055f,0),V(1.74f,.11f,2.42f),Earth);
+            bool fallow=state==CropAppearance.Fallow, rich=state==CropAppearance.Rich;
+            g.Box(V(.89f,.055f,0),V(1.74f,.11f,2.42f),fallow?FallowSoil:Earth);
             for(int row=0;row<4;row++)
             {
                 float x=.24f+row*.43f;
                 var ridge=new Geometry();
-                Gable(ridge,Vector3.zero,2.22f,.31f,.21f, row%2==0?StrawLight:Straw,Straw,1);
+                Color crop=fallow?FallowRidge:rich?RichStalk:Straw;
+                Color tips=fallow?FallowRidge:rich?RichGrain:StrawLight;
+                Gable(ridge,Vector3.zero,2.22f,.31f,fallow?.066f:.21f,row%2==0?tips:crop,crop,1);
                 g.Append(ridge,Matrix4x4.TRS(V(x,.13f,0),Quaternion.Euler(0,90,0),Vector3.one));
-                if(lod==0)for(int j=0;j<5;j++)
+                if(lod==0&&!fallow)for(int j=0;j<5;j++)
                 {
                     float z=-.91f+j*.43f+(row%2)*.08f;
-                    g.Cylinder(V(x,.18f,z),V(x+.07f,.43f,z+.05f),.027f,StrawLight,4);
-                    g.Cone(V(x+.07f,.37f,z+.05f),.052f,.14f,Ochre,5);
+                    g.Cylinder(V(x,.18f,z),V(x+.07f,.43f,z+.05f),.027f,tips,4);
+                    g.Cone(V(x+.07f,.37f,z+.05f),.052f,.14f,rich?RichGrain:Ochre,5);
                 }
             }
         }
 
-        static void IrrigatedField(Geometry g,int lod)
+        static void IrrigatedField(Geometry g,int lod,CropAppearance state)
         {
-            g.Box(V(0,.07f,0),V(3.45f,.14f,2.59f),Earth);
+            bool fallow=state==CropAppearance.Fallow, rich=state==CropAppearance.Rich;
+            g.Box(V(0,.07f,0),V(3.45f,.14f,2.59f),fallow?FallowSoil:Earth);
             g.Box(V(0,.15f,0),V(.47f,.025f,2.51f),new Color(.20f,.57f,.67f,0));
             foreach(float bank in new[]{-.28f,.28f})
                 g.Box(V(bank,.18f,0),V(.14f,.12f,2.48f),Stonework);
             for(int i=0;i<6;i++)
             {
                 float x=(i<3?-1:1)*(.48f+i%3*.39f);
-                g.Box(V(x,.19f,0),V(.22f,.17f,2.21f),i%2==0?Straw:StrawLight);
-                if(lod==0)for(int j=0;j<5;j++)
-                    g.Cone(V(x,.26f,j*.42f-.88f),.083f,.18f+(j%2)*.10f,StrawLight,4);
+                Color crop=fallow?FallowRidge:rich?(i%2==0?RichStalk:RichGrain):i%2==0?Straw:StrawLight;
+                g.Box(V(x,fallow?.152f:.19f,0),V(.22f,fallow?.078f:.17f,2.21f),crop);
+                if(lod==0&&!fallow)for(int j=0;j<5;j++)
+                    g.Cone(V(x,.26f,j*.42f-.88f),.083f,.18f+(j%2)*.10f,rich?RichGrain:StrawLight,4);
             }
             for(int i=0;i<(lod==0?5:3);i++)
                 g.Box(V(0,.29f,-1.06f+i*(lod==0?.097f:.151f)),V(.77f,.085f,.088f),WoodLight);

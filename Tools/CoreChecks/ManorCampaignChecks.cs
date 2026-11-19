@@ -174,7 +174,7 @@ static partial class ManorChecks
             int wood=winter.timber;
             winter.ResolveEvent(42,0); left.ResolveEvent(42,1);
             Expect(winter.approval==100&&winter.timber==wood-4&&left.approval==93&&left.timber==wood,"winter choice");
-            var merchant=DispatchOn(54); merchant.coin=1000000;
+            var merchant=DispatchOn(54); merchant.coin=1000000; merchant.remainder.coin=0;
             string before=merchant.Export();
             Expect(merchant.EventChoiceBlock(54,1)=="物资将超出仓储上限","event income cap");
             Reject(()=>merchant.ResolveEvent(54,1));

@@ -17,12 +17,23 @@ namespace Frontline.UnityGame
         static readonly Vector3 CargoEast=new Vector3(DockOrigin.x+1.98f,.032f,-17.06f);
         static readonly Vector3 YardOrigin=new Vector3(-1.51f,0,-1.63f);
         static readonly Color[] SpecialistTrim={Color.white,new Color(.72f,.86f,.97f),new Color(1f,.79f,.39f)};
+        static readonly Color RetinueCloth=new Color(.33f,.40f,.58f);
+        // The wider gap on the west flank keeps the south fields' access lane open.
+        static readonly Vector3[] RetinuePosts={
+            new Vector3(-2.50f,0,-3.77f),new Vector3(2.50f,0,-3.77f),
+            new Vector3(-1.22f,0,-3.77f),new Vector3(3.76f,0,-3.77f),
+            new Vector3(-4.89f,0,-3.77f),new Vector3(5.02f,0,-3.77f)
+        };
         readonly MeshSet[] specialistMeshes=new MeshSet[4];
         readonly WalkRoute[] specialistRoutes=new WalkRoute[4];
         readonly int[] specialistLevels=new int[4];
         readonly Vector3[] specialistPoints=new Vector3[4];
         readonly bool[] heroBayClear=new bool[3];
         MeshSet specialistLeg;
+        MeshSet retinueGuard;
+        int manorGuardsAway;
+        internal int VisibleRetinue {get;private set;}
+        internal static Vector3 RetinuePost(int index) => ManorOrigin+RetinuePosts[index];
         internal int VisibleSpecialistMask {get;private set;}
         internal Vector3 SpecialistPoint(int role) => specialistPoints[role];
 
@@ -120,7 +131,7 @@ namespace Frontline.UnityGame
         void DecoratePlot(int index,string kind,Vector3 basePoint,Quaternion facing)
         {
             string asset=kind=="cottage"?"manor_laundry":kind=="smithy"?"manor_firewood":
-                builtSeason==2&&IsFarm(kind)?"manor_straw":null;
+                builtSeason==2&&IsFarm(kind)&&!manor.IsRestingField(index)?"manor_straw":null;
             if(asset!=null)
             {
                 ManorStill(Load(asset).WithoutShadows(),basePoint+facing*YardOrigin,facing,Vector3.one*.76f,White);
@@ -192,6 +203,22 @@ namespace Frontline.UnityGame
             }
         }
 
+        void DrawRetinue()
+        {
+            VisibleRetinue=0;
+            int ready=manor.RetinueReady;
+            for(int i=manorGuardsAway;i<ready;i++)
+            {
+                var point=RetinuePost(i);
+                if(!InView(point,2.4f))continue;
+                var facing=Quaternion.Euler(0,i%2==0?174:186,0);
+                retinueGuard??=Load("retinue_guard");
+                Add(retinueGuard,Pose(point,facing,Vector3.one),RetinueCloth);
+                ContactAt(point,.92f);
+                VisibleRetinue++;
+            }
+        }
+
         // These are the same routes and footprint reservations used by the visible population.
         internal static object CheckEstateRoutes()
         {
@@ -214,6 +241,20 @@ namespace Frontline.UnityGame
                 blockers.Add(pad);
                 if(index!=0)blockers.Add(YardObstacle(index));
             }
+            const float guardRadius=ManorPlotArt.RetinuePostRadius;
+            foreach(var post in RetinuePosts)
+            {
+                if(!FrontierMap.HasGround(ManorOrigin.x+post.x,post.z))
+                    throw new InvalidOperationException("Retinue post leaves the shelf: "+post);
+                foreach(var blocker in blockers)
+                    if(blocker.Contains(post,guardRadius))
+                        throw new InvalidOperationException("Retinue post intersects the estate: "+post+" near "+blocker.center);
+            }
+            for(int i=0;i<RetinuePosts.Length;i++)
+                for(int j=0;j<i;j++)
+                    if((RetinuePosts[i]-RetinuePosts[j]).sqrMagnitude<4*guardRadius*guardRadius)
+                        throw new InvalidOperationException("Retinue posts overlap");
+            foreach(var post in RetinuePosts)blockers.Add(new EstateObstacle(post,guardRadius,guardRadius));
             int checkedPoints=0,checkedRoutes=0;
             void Check(WalkRoute route,string label)
             {
@@ -240,7 +281,7 @@ namespace Frontline.UnityGame
             for(int side=-1;side<=1;side+=2)
                 Check(Trace(new Vector3(WestLaneX,0,side*OuterLaneZ),new Vector3(side>0?.35f:7.75f,0,side*OuterLaneZ)),
                     side>0?"north fields":"south workshops");
-            return new {checkedRoutes,checkedPoints,outerPlots=Manor.PlotCount-Manor.FirstOuterPlot};
+            return new {checkedRoutes,checkedPoints,retinuePosts=RetinuePosts.Length,outerPlots=Manor.PlotCount-Manor.FirstOuterPlot};
         }
     }
 }

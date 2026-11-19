@@ -277,10 +277,32 @@ namespace Frontline.UnityGame
             Require(Mathf.Abs(corner.x)+ManorPlotArt.BackyardHalfWidth<=ManorPlotArt.HalfWidth(false)&&
                 Mathf.Abs(corner.z)+ManorPlotArt.BackyardHalfDepth<=ManorPlotArt.HalfDepth(false),
                 "Backyards extend past the existing plot route blocker");
+            int cropMeshes=0,retinueMeshes=0;
+            foreach(string lod in new[]{"","_lod1"})
+            {
+                foreach(string kind in new[]{"farm","irrigated_field"})
+                    foreach(var state in new[]{ManorPlotArt.CropAppearance.Fallow,ManorPlotArt.CropAppearance.Rich})
+                    {
+                        string model=ManorPlotArt.CropModel(kind,state)+lod;
+                        var mesh=Resources.Load<Mesh>("Models/"+model);
+                        Require(mesh,"Missing crop mesh: "+model);
+                        Require(mesh.bounds.extents.x+Mathf.Abs(mesh.bounds.center.x)<=ManorPlotArt.HalfWidth(false)+.001f&&
+                            mesh.bounds.extents.z+Mathf.Abs(mesh.bounds.center.z)<=ManorPlotArt.HalfDepth(false)+.001f,
+                            "Crop mesh exceeds its field: "+model);
+                        cropMeshes++;
+                    }
+                var guard=Resources.Load<Mesh>("Models/retinue_guard"+lod);
+                Require(guard,"Missing retinue mesh: "+lod);
+                float radius=ManorPlotArt.RetinuePostRadius;
+                foreach(var vertex in guard.vertices)
+                    Require(vertex.x*vertex.x+vertex.z*vertex.z<=radius*radius&&vertex.y>=-.001f,
+                        "Retinue mesh exceeds its standing post: "+lod);
+                retinueMeshes++;
+            }
             var walkClearance=BattleView.CheckEstateRoutes();
             Debug.Log("FRONTLINE_PLOT_BOUNDS_OK plotCount="+Manor.PlotCount+" tierLodMeshes="+checkedMeshes+
-                " backyardMeshes="+backyardMeshes+" "+Json.Write(walkClearance));
-            return new {plotCount=Manor.PlotCount,tierLodMeshes=checkedMeshes,backyardMeshes,walkClearance};
+                " backyardMeshes="+backyardMeshes+" cropMeshes="+cropMeshes+" retinueMeshes="+retinueMeshes+" "+Json.Write(walkClearance));
+            return new {plotCount=Manor.PlotCount,tierLodMeshes=checkedMeshes,backyardMeshes,cropMeshes,retinueMeshes,walkClearance};
         }
 
         static void CheckCottageYardClear(Mesh mesh)

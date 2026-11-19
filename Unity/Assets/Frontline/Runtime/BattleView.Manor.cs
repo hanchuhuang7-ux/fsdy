@@ -1,5 +1,6 @@
 using Frontline.Core;
 using UnityEngine;
+using CropAppearance = Frontline.UnityGame.ManorPlotArt.CropAppearance;
 
 namespace Frontline.UnityGame
 {
@@ -37,6 +38,8 @@ namespace Frontline.UnityGame
         float manorTime, manorScreenShift;
         readonly string[] builtKinds = new string[Manor.PlotCount], builtBackyards=new string[Manor.PlotCount];
         readonly int[] builtLevels = new int[Manor.PlotCount], homes = new int[Manor.PlotCount];
+        readonly CropAppearance[] builtCrops = new CropAppearance[Manor.PlotCount];
+        internal CropAppearance DisplayedCrop(int index) => builtCrops[index];
         int builtReclaimedPlots;
         int homeCount,tavernSlot,builtSeason=-1;
         MeshSet surveyBlock, hat, parcel, farmerCoat, villagerCoat, wrap, sleeve, sails;
@@ -94,7 +97,7 @@ namespace Frontline.UnityGame
             return true;
         }
 
-        public void SetManor(Manor state, int selected, int pace = 1)
+        public void SetManor(Manor state, int selected, int pace = 1,int guardsAway = 0)
         {
             bool changingMode = (manor == null) != (state == null);
             bool sameEstate=state!=null&&ReferenceEquals(state,manor);
@@ -111,6 +114,7 @@ namespace Frontline.UnityGame
                 HoveredPlot=-1;
             }
             manor = state;
+            manorGuardsAway = guardsAway;
             SetSeasonLight(manor?.Season??-1,sameEstate);
             manorSelection = selected;
             manorPace = Mathf.Clamp(pace, 0, 2);
@@ -129,7 +133,7 @@ namespace Frontline.UnityGame
             manorDirty |= changingMode || builtSeason != manor.Season || builtReclaimedPlots != manor.reclaimedPlots;
             for (int i = 0; i < manor.slots.Length && !manorDirty; i++)
                 manorDirty = manor.slots[i].kind != builtKinds[i] || manor.slots[i].level != builtLevels[i] ||
-                    manor.slots[i].backyard != builtBackyards[i];
+                    manor.slots[i].backyard != builtBackyards[i] || FieldAppearance(i) != builtCrops[i];
         }
 
         void UpdateShadowDistance()
@@ -271,6 +275,14 @@ namespace Frontline.UnityGame
             }
         }
 
+        CropAppearance FieldAppearance(int i)
+        {
+            var plot=manor.slots[i];
+            if(!Manor.IsCrop(plot.kind))return CropAppearance.Regular;
+            if(manor.IsRestingField(i))return CropAppearance.Fallow;
+            return plot.fertility>=Manor.RichFertility?CropAppearance.Rich:CropAppearance.Regular;
+        }
+
         void DrawPlotGeometry(int i)
         {
             var p = Plot(i);
@@ -278,6 +290,7 @@ namespace Frontline.UnityGame
             builtKinds[i] = plot.kind;
             builtBackyards[i]=plot.backyard;
             builtLevels[i] = plot.level;
+            var crop=builtCrops[i]=FieldAppearance(i);
             float yaw = FacadeYaw(i);
             var facing = Quaternion.Euler(0, yaw, 0);
             if (!manor.IsPlotCleared(i))
@@ -306,7 +319,7 @@ namespace Frontline.UnityGame
             Tile(p + Vector3.up*.018f, new Vector3(3.85f*footprint,.04f,2.97f*footprint),
                 builtSeason==3?WinterPlot:i==0?new Color(.68f,.67f,.55f):new Color(.67f,.58f,.41f),yaw);
             var basePoint=p+Vector3.up*.042f;
-            ManorStill(Load(plot.kind),basePoint,facing,Vector3.one,White);
+            ManorStill(Load(ManorPlotArt.CropModel(plot.kind,crop)),basePoint,facing,Vector3.one,White);
             if(plot.level>=2)ManorStill(Load(plot.kind+(plot.level==2?"_wing":"_tower")),basePoint,facing,Vector3.one,White);
             StillShade(ManorOrigin+p,(WestPlot(i)?3.24f:4.0f)*footprint,(WestPlot(i)?4.0f:3.24f)*footprint);
             AddPlotObstacle(i);
@@ -625,6 +638,10 @@ namespace Frontline.UnityGame
             for(int i=0;i<occupiedWalkCount;i++)
                 if((p-occupiedWalkSpace[i]).sqrMagnitude<.45f*.45f)return false;
             for(int i=0;i<estateObstacleCount;i++)if(estateObstacles[i].Contains(p))return false;
+            int ready=manor.RetinueReady;
+            const float separation=ManorPlotArt.RetinuePostRadius+.23f;
+            for(int i=manorGuardsAway;i<ready;i++)
+                if((p-RetinuePosts[i]).sqrMagnitude<separation*separation)return false;
             return true;
         }
 
@@ -666,12 +683,15 @@ namespace Frontline.UnityGame
         {
             residentRosterDirty=false;
             residentCount=0;
-            int idle=Mathf.Min(idleWorkers,OrdinaryResidentLimit);
+            int restingWorkers=0;
+            for(int i=0;i<builtCrops.Length;i++)
+                if(builtCrops[i]==CropAppearance.Fallow)restingWorkers+=manor.slots[i].workers;
+            int idle=Mathf.Min(idleWorkers+restingWorkers,OrdinaryResidentLimit);
             int workingLimit=OrdinaryResidentLimit-Mathf.Min(idle,4);
             for(int worker=0;worker<3&&residentCount<workingLimit;worker++)
                 for(int slot=0;slot<manor.slots.Length&&residentCount<workingLimit;slot++)
                 {
-                    if(manor.slots[slot].workers<=worker)continue;
+                    if(manor.slots[slot].workers<=worker||builtCrops[slot]==CropAppearance.Fallow)continue;
                     int id=slot*5+worker;
                     int home=homeCount>0?homes[id%homeCount]:0;
                     AddResident(id,home,slot,worker,false);
@@ -684,6 +704,7 @@ namespace Frontline.UnityGame
         void DrawVillagePeople()
         {
             VisibleFarmers=VisibleVillagers=occupiedWalkCount=0;
+            DrawRetinue();
             ReserveHeroBays();
             DrawSpecialists();
             if(residentRosterDirty)RefreshResidentRoster();

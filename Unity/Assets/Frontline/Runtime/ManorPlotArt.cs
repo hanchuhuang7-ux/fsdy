@@ -4,6 +4,11 @@ namespace Frontline.UnityGame
 {
     public static class ManorPlotArt
     {
+        public enum CropAppearance : byte { Regular, Fallow, Rich }
+        public const float RetinuePostRadius = .62f;
+        public static string CropModel(string kind,CropAppearance state) => state switch {
+            CropAppearance.Fallow => kind+"_fallow", CropAppearance.Rich => kind+"_rich", _ => kind
+        };
         public static float HalfWidth(bool hall)=>hall?2.14f:1.84f;
         public static float HalfDepth(bool hall)=>hall?1.66f:1.40f;
         public const float BackyardHalfWidth=.41f, BackyardHalfDepth=.24f, BackyardHeight=.78f, BackyardDepthScale=.86f;

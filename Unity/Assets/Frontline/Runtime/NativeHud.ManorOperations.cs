@@ -37,7 +37,7 @@ namespace Frontline.UnityGame
                 case 1: season="盛夏 田产 +"+(m.CropSeasonPercent-100)+"%";break;
                 case 2: season="秋收 田产 +"+(m.CropSeasonPercent-100)+"%";break;
                 default:
-                    season="冬季 田产 "+(m.CropSeasonPercent-100)+"% · 牧场 "+(m.PastureSeasonPercent-100)+"% · "+
+                    season="冬季 自动休耕 · 精耕 "+(m.CropSeasonPercent-100)+"% · 牧场 "+(m.PastureSeasonPercent-100)+"% · "+
                         (heatingShortage?"缺柴 ":"耗柴 ")+Manor.FormatHundredths(forecast.winterTimberRequired-(heatingShortage?forecast.winterTimber:0));
                     break;
             }
@@ -87,10 +87,11 @@ namespace Frontline.UnityGame
             float span=w/columns;
             for(int i=0;i<notes.Length;i++)
             {
-                var cell=Panel(p,factorNames[i],i%columns*span,122+i/columns*38,span-5,34,manorInset);
-                notes[i]=Label(cell,"",3,0,span-11,34,portrait?11:13,pale,TextAnchor.MiddleCenter);
+                int height=portrait?34:28;
+                var cell=Panel(p,factorNames[i],i%columns*span,(portrait?122:115)+i/columns*38,span-5,height,manorInset);
+                notes[i]=Label(cell,"",3,0,span-11,height,portrait?11:13,pale,TextAnchor.MiddleCenter);
             }
-            var support=Label(p,"",0,portrait?197:157,w,portrait?42:38,portrait?10:12,pale,TextAnchor.UpperLeft);
+            var support=Label(p,"",0,portrait?197:146,w,portrait?42:35,portrait?10:12,pale,TextAnchor.UpperLeft);
             manorDialogValues.Add(()=>{
                 var m=app.Estate;
                 var forecast=PreviewForecast();
@@ -117,41 +118,68 @@ namespace Frontline.UnityGame
                     (forecast.reserveFood>0?" · 储备 "+Manor.FormatHundredths(forecast.reserveFood)+" 粮":"");
             });
 
-            float y=portrait?244:199;
+            float y=portrait?244:183;
+            int policyButtons=portrait?23:20, policyEffect=portrait?59:51;
             Label(p,"税率政策",0,y,w,20,14,gold);
-            PolicyChoices(p,w,y+23,"Manor.Tax.",TaxPolicies,TaxLabels,()=>app.Estate.tax,app.SetManorTax);
-            Value(manorDialogValues,Label(p,"",1,y+59,w-2,21,12,pale),
+            PolicyChoices(p,w,y+policyButtons,"Manor.Tax.",TaxPolicies,TaxLabels,()=>app.Estate.tax,app.SetManorTax);
+            Value(manorDialogValues,Label(p,"",1,y+policyEffect,w-2,21,12,pale),
                 ()=>"税收 ×"+Manor.FormatHundredths(app.Estate.TaxRevenuePercent)+"  ·  民心 "+Change(app.Estate.TaxApprovalChange)+"/日");
-            y+=86;
+            y+=portrait?86:72;
             Label(p,"领地政令",0,y,w,20,14,gold);
-            PolicyChoices(p,w,y+23,"Manor.Decree.",DecreePolicies,DecreeLabels,()=>app.Estate.decree,app.SetManorDecree);
-            Value(manorDialogValues,Label(p,"",1,y+59,w-2,portrait?34:21,12,pale,TextAnchor.UpperLeft),()=>DecreeEffect(app.Estate.decree));
-            y+=portrait?101:86;
+            PolicyChoices(p,w,y+policyButtons,"Manor.Decree.",DecreePolicies,DecreeLabels,()=>app.Estate.decree,app.SetManorDecree);
+            Value(manorDialogValues,Label(p,"",1,y+policyEffect,w-2,portrait?34:21,12,pale,TextAnchor.UpperLeft),()=>DecreeEffect(app.Estate.decree));
+            y+=portrait?101:72;
 
             Label(p,"快捷调配",0,y,w,20,14,gold);
             float presetWidth=w/3;
             ManorButton(p,"Manor.Work.food","务农备粮",0,y+23,presetWidth-5,31,()=>app.AssignManorPreset("food"));
             ManorButton(p,"Manor.Work.smithing","伐木锻造",presetWidth,y+23,presetWidth-5,31,()=>app.AssignManorPreset("smithing"));
             ManorButton(p,"Manor.Work.balanced","均衡分配",presetWidth*2,y+23,presetWidth-5,31,()=>app.AssignManorPreset("balanced"));
-            y+=66;
+            y+=portrait?66:60;
+            y+=InfluenceActions(p,w,y);
 
             Label(p,"行商集市",0,y,w*.45f,26,16,gold);
             Value(manorDialogValues,Label(p,"",w*.45f,y,w*.55f-5,26,13,white,TextAnchor.MiddleRight),
                 ()=>"金币 "+Manor.FormatHundredths(app.Estate.coin*100+app.Estate.remainder.coin));
-            Value(manorDialogValues,Label(p,"",0,y+25,w,22,12,pale),
+            Value(manorDialogValues,Label(p,"",0,y+(portrait?25:22),w,21,12,pale),
                 ()=>"每种物资每季各买卖 "+app.Estate.MarketSeasonLimit+" 份 · 余 "+(Manor.SeasonDays-(app.Estate.day-1)%Manor.SeasonDays)+" 日刷新");
-            y+=50;
+            y+=portrait?50:43;
             MarketRow(p,w,y,"food","粮食");
             MarketRow(p,w,y+60,"timber","建材");
             MarketRow(p,w,y+120,"arms","军械");
             p.sizeDelta=new Vector2(w,y+176);
         }
 
+        float InfluenceActions(RectTransform p,float width,float y)
+        {
+            float labelWidth=portrait?width:width*.25f;
+            var influence=Label(p,"",0,y,labelWidth-5,portrait?24:31,portrait?12:13,gold);
+            influence.name="Manor.Influence";
+            float x=portrait?0:labelWidth, row=portrait?y+26:y, cell=(width-x)/3;
+            var tithe=ManorButton(p,"Manor.Tithe","什一赈济",x,row,cell-5,30,app.ToggleManorTithe);
+            var festival=ManorButton(p,"Manor.Festival","领地庆典 · "+Manor.FestivalCost,x+cell,row,cell-5,30,app.HoldManorFestival);
+            var merchant=ManorButton(p,"Manor.Merchant","特许行商 · "+Manor.MerchantCost,x+cell*2,row,cell-1,30,app.CallManorMerchant);
+            var caption=tithe.GetComponentInChildren<Text>();
+            if(portrait)
+                foreach(var button in new[]{tithe,festival,merchant})button.GetComponentInChildren<Text>().fontSize=11;
+            manorDialogValues.Add(()=>{
+                var estate=app.Estate;
+                var forecast=PreviewForecast();
+                influence.text="威望 "+estate.influence+" / "+Manor.InfluenceMax+
+                    (forecast.titheFood>0?" · 赈 "+forecast.titheFood+" 粮":"");
+                caption.text="什一赈济 · "+(estate.tithe==0?"关":estate.tithe+"%");
+                festival.interactable=estate.influence>=Manor.FestivalCost;
+                merchant.interactable=estate.influence>=Manor.MerchantCost;
+            });
+            return portrait?62:35;
+        }
+
         Text MarketNeed(Transform parent,float width,int index,string key)
         {
             float cell=width/3;
-            var panel=Panel(parent,key,index*cell,87,cell-5,30,manorInset);
-            var label=Label(panel,"",4,0,cell-13,30,portrait?10:13,pale,TextAnchor.MiddleCenter);
+            int height=portrait?30:28;
+            var panel=Panel(parent,key,index*cell,portrait?87:83,cell-5,height,manorInset);
+            var label=Label(panel,"",4,0,cell-13,height,portrait?10:13,pale,TextAnchor.MiddleCenter);
             label.name="Manor.MarketNeeds."+key;
             return label;
         }

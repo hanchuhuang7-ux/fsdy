@@ -39,7 +39,7 @@ namespace Frontline.UnityGame
             Config=Data.Default();try{var favorites=PlayerPrefs.GetString("frontline.unity.favorites","");if(favorites.Length>0)Favorites=Json.Read<List<Favorite>>(favorites,1024*1024);}catch(Exception e){Debug.LogWarning(e.Message);}while(Favorites.Count<5)Favorites.Add(null);if(Favorites.Count>5)Favorites=Favorites.Take(5).ToList();
             View=gameObject.AddComponent<BattleView>();View.Data=Data;gameObject.AddComponent<BattleInput>().Initialize(this);gameObject.AddComponent<NativeHud>().Initialize(this);gameObject.AddComponent<BattleAudio>().Initialize(this);loaded=true;Refresh();if(qa)gameObject.AddComponent<VisualValidation>().Initialize(this);
         }
-        public void Refresh(){if(!loaded)return;View.Config=Config;View.SetManor(Phase=="manor"||InFrontier?Estate:null,InFrontier?-1:ManorSlot,ManorSpeed);View.FrontierDestination=InFrontier?Battle.MarchDestination:null;View.Current=Phase=="deploy"?null:live;View.Deploying=Phase=="deploy";View.HiddenTeam=Mode=="hotseat"&&Hotseat!="revealed"?(Hotseat=="red"?"blue":Hotseat=="blue"?"red":"both"):null;View.Selection.Clear();View.PropSelection=SelectedProp;int offset=EditingTeam=="red"?1:Config.red.Count+1;foreach(int i in Selected)View.Selection.Add(i+offset);Changed?.Invoke();}
+        public void Refresh(){if(!loaded)return;View.Config=Config;View.SetManor(Phase=="manor"||InFrontier?Estate:null,InFrontier?-1:ManorSlot,ManorSpeed,InFrontier?PlannedSupport.guards:0);View.FrontierDestination=InFrontier?Battle.MarchDestination:null;View.Current=Phase=="deploy"?null:live;View.Deploying=Phase=="deploy";View.HiddenTeam=Mode=="hotseat"&&Hotseat!="revealed"?(Hotseat=="red"?"blue":Hotseat=="blue"?"red":"both"):null;View.Selection.Clear();View.PropSelection=SelectedProp;int offset=EditingTeam=="red"?1:Config.red.Count+1;foreach(int i in Selected)View.Selection.Add(i+offset);Changed?.Invoke();}
         public void Tell(string message){Message=message;Notice?.Invoke(message);}
         public void Try(Action action){try{action();}catch(Exception e){Tell(e.Message);Debug.LogWarning(e.Message);}}
         void Remember(){undo.Push(Json.Clone(Config));while(undo.Count>40){var list=undo.Reverse().Skip(1).ToArray();undo.Clear();foreach(var c in list)undo.Push(c);}}
@@ -164,7 +164,13 @@ namespace Frontline.UnityGame
             if(InManor&&(sortie==null||!sortie.Matches(Config)))throw new InvalidOperationException("阵型与远征名册不匹配");
             Config=Data.Validate(Config,InManor);if(Config.red.Count==0||Config.blue.Count==0)throw new FormatException("双方至少需要一名士兵");Config.commander.aiTeams=Config.commander.enabled?(Mode=="auto"?new List<string>{"red","blue"}:(Mode=="ai"||InManor)?new List<string>{"blue"}:new List<string>()):new List<string>();
             Battle?.Dispose();
-            BeginBattle(new Battle(Data,Config,Factory,InManor,targetScanWorkers:CpuWork.TargetWorkers),true);
+            var running=new Battle(Data,Config,Factory,InManor,targetScanWorkers:CpuWork.TargetWorkers);
+            try
+            {
+                if(InManor&&Estate.SignMercenaryContract(sortie)){ManorRevision++;SaveManor();}
+            }
+            catch { running.Dispose(); throw; }
+            BeginBattle(running,true);
         }
 
 #if UNITY_STANDALONE_WIN && !UNITY_WEBGL

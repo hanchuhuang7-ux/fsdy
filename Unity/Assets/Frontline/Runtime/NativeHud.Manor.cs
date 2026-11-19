@@ -200,8 +200,9 @@ namespace Frontline.UnityGame
             SupplyForecast(ledgerW);
             FrontierCameraBar(true);
 
-            var card=Panel(baseRoot,"Manor plot card",portrait?8:20,rh-(portrait?284:178),
-                portrait?374:532,132,manorPanel);
+            int cropRow=Manor.IsCrop(shownPlotKind)?39:0;
+            var card=Panel(baseRoot,"Manor plot card",portrait?8:20,rh-(portrait?284:178)-cropRow,
+                portrait?374:532,132+cropRow,manorPanel);
             PlotCard(card,card.sizeDelta.x);
             var schedule=Panel(baseRoot,"Manor calendar",portrait?8:rw-456,rh-(portrait?148:168),
                 portrait?374:436,portrait?116:122,manorPanel);
@@ -306,9 +307,15 @@ namespace Frontline.UnityGame
                 "建地 "+index+"   "+(uncleared?"待开垦林地":kind==null?"空置":Manor.Name(kind));
             if(slot!=null&&slot.level>0)title+="   Lv."+slot.level;
             bool recruiting=kind=="barracks"||kind=="stables",heroes=kind=="tavern",training=kind=="drill_yard",cottage=kind=="cottage";
-            Label(p,title,12,4,w-(recruiting||heroes||training||cottage||index==0?188:111),27,portrait?16:19,gold);
+            float governanceWidth=portrait?64:82,retinueWidth=portrait?69:84;
+            float governanceX=w-85-governanceWidth,retinueX=governanceX-5-retinueWidth;
+            Label(p,title,12,4,index==0?retinueX-16:w-(recruiting||heroes||training||cottage?188:111),27,portrait?16:19,gold);
             if(cottage)ManorButton(p,"Manor.Backyard","后院副业",w-169,5,84,29,()=>BackyardDialog(index),true);
-            if(index==0)ManorButton(p,"Manor.Hall.Governance","领地政务",w-167,5,82,29,GovernanceDialog);
+            if(index==0)
+            {
+                ManorButton(p,"Manor.Hall.Governance","领地政务",governanceX,5,governanceWidth,29,GovernanceDialog);
+                ManorButton(p,"Manor.Retinue.Open","领主卫队",retinueX,5,retinueWidth,29,RetinueDialog,true);
+            }
             if(recruiting)
                 ManorButton(p,"Manor.Recruits",kind=="barracks"?"招募":"备军",w-151,5,66,29,Recruitment,true);
             if(heroes)ManorButton(p,"Manor.Heroes","英雄",w-151,5,66,29,HeroTavern,true);
@@ -326,7 +333,9 @@ namespace Frontline.UnityGame
                 });
             else if(production!="")
                 Value(manorValues,Label(p,"",12,66,w-24,20,portrait?11:13,gold),()=>production+PlotSynergyText(kind,PreviewForecast().synergy));
-            float rowY=90,h=portrait?33:38;
+            bool crop=Manor.IsCrop(kind);
+            if(crop)RotationControls(p,w,index);
+            float rowY=crop?129:90,h=portrait?33:38;
 
             if(index<0)
             {
@@ -656,8 +665,9 @@ namespace Frontline.UnityGame
                     logistics.color=rules.approvalPercent<0?danger:pale;
                 });
                 y+=portrait?50:32;
-                Label(p,frontier?"巡边名册 · 兵员与英雄":"远征名册",0,y,w,29,16,gold);
+                Label(p,frontier?"巡边名册":"远征名册",0,y,w,29,16,gold);
                 y+=34;
+                y+=MusterSupport(p,w,y,frontier,raid);
                 int availableItems=0;
                 foreach(var hero in app.Data.Data.heroes)
                     if(app.Estate.HeroLevel(hero.id)>0){ForceRow(p,w,y,hero.id,frontier,raid);y+=55;availableItems++;}
@@ -668,7 +678,7 @@ namespace Frontline.UnityGame
                         if(app.Estate.Stock(prop.id)>0){ForceRow(p,w,y,prop.id,false,raid);y+=55;availableItems++;}
                 if(availableItems==0)
                 {
-                    Label(p,"驻军尚未集结。在练兵靶场或马厩工坊征召，再来调派。",0,y,w,60,14,pale);
+                    Label(p,"常备军尚未集结，可征召兵员或在上方调派增援。",0,y,w,60,14,pale);
                     y+=66;
                 }
                 p.sizeDelta=new Vector2(w,y+4);
@@ -839,9 +849,20 @@ namespace Frontline.UnityGame
                 var rules=app.PlannedLogistics;
                 Label(p,LogisticsText(rules),0,0,w,portrait?45:27,13,rules.approvalPercent<0?danger:gold);
                 float y=portrait?50:34;
-                foreach(var group in app.Config.red.GroupBy(u=>u.type))
+                var support=app.PlannedSupport;
+                foreach(var group in app.Config.red.Take(app.Config.red.Count-support.Count).GroupBy(u=>u.type))
                 {
                     Label(p,ItemName(group.Key)+"  Lv."+group.First().level+"  ×"+group.Count(),0,y,w,34,15,white);
+                    y+=37;
+                }
+                if(support.guards>0)
+                {
+                    Label(p,"领主卫队  Lv."+app.Estate.RetinueBattleLevel+"  ×"+support.guards,0,y,w,34,15,gold);
+                    y+=37;
+                }
+                if(support.mercenaries)
+                {
+                    Label(p,"自由兵团  Lv."+Manor.MercenaryLevel+"  ×"+Manor.MercenarySize+" · 开战签约",0,y,w,34,15,gold);
                     y+=37;
                 }
                 foreach(var group in app.Config.props.Where(q=>q.team=="red").GroupBy(q=>q.type))
@@ -887,6 +908,16 @@ namespace Frontline.UnityGame
                     Label(p,"英雄 "+ItemName(pair.Key)+" · Lv."+app.Estate.HeroLevel(pair.Key)+(pair.Value>0?" · 休整 "+pair.Value+" 日":" · 已归营"),0,y,w,25,13,pale);
                     y+=27;
                 }
+                if(receipt.guards>0)
+                {
+                    Label(p,"领主卫队 · 归营 "+(receipt.guards-receipt.guardLosses)+" · 待整补 "+receipt.guardLosses,0,y,w,25,13,gold);
+                    y+=27;
+                }
+                if(receipt.mercenaries>0)
+                {
+                    Label(p,"自由兵团 · "+receipt.mercenaries+" 人参战 · 战损 "+receipt.mercenaryLosses+" · 合约已结束",0,y,w,25,13,gold);
+                    y+=27;
+                }
                 if(receipt.frontier)
                 {
                     Label(p,"击退守军 "+receipt.defeated+" / "+FrontierMap.Guards.Count,0,y,w,30,14,white);
@@ -905,6 +936,12 @@ namespace Frontline.UnityGame
                 }
                 Label(p,"获得物资 · 金币 +"+receipt.coin+" · 建材 +"+receipt.timber+" · 军械 +"+receipt.arms,0,y,w,34,13,white);
                 y+=40;
+                if(receipt.influence>0)
+                {
+                    var merit=Label(p,"战功威望 +"+receipt.influence,0,y,w,24,14,gold);
+                    merit.name="Manor.Settlement.Influence";
+                    y+=28;
+                }
                 string unlock=receipt.frontier?"":receipt.clearedAfter>receipt.clearedBefore ?
                     (receipt.clearedAfter==Manor.Route.Length?"全部关卡已通关":"解锁第 "+(receipt.clearedAfter+1)+" 关 · "+
                         app.Data.Maps[Manor.Route[receipt.clearedAfter]].name) : "已通关 "+receipt.clearedAfter+" / "+Manor.Route.Length;
@@ -935,7 +972,7 @@ namespace Frontline.UnityGame
         void ManorHelp()
         {
             OpenDialog("领主手册",(p,w)=>{
-                string text="建地与领民\n半岛有 24 块建地。18–23 号外环林地花 8 金币开垦，收回 4 建材。「选地」清单可选中地块并聚焦。农舍和牧场提供住房，有余粮时迎来新户。选择农舍，可花金币和建材启用或切换一项后院副业，每日结算无需派工。\n\n发展与供给\n历次称号晋升和领取三项宏愿共可获得最多四点发展点。在政务按路线解锁专精。口粮、薪柴和精神供给齐备时，市集兴旺每天额外提高 1 点民心。编年史保留最近十二件领地大事。\n\n领主宏愿\n在领地政务查看六项里程碑，达成即可领取一次奖励。完成全部远征，或在一次巡边击退全部守军，可达成「平定四方」。\n\n生产协同\n运转中的谷仓提振产粮，应急时保住粮底。礼拜堂提升民心和伤员救回率。农田搭配牧场或谷仓可增产，伐木营搭配铁匠铺可增产军械。农舍累计 3 级并建有礼拜堂或酒馆可获得安居民心。\n\n领地专才\n在政务中查看管家、掌柜、医者和巡庄队长。四位分别改善税收、贸易、医护与战备。解锁后从 Lv.1 起，可用金币与物资培养到 Lv.3。\n\n领地运营\n低税、食谱丰富与酒馆能提高民心，低于 40 暂停迁入。夏秋田产增加，冬季减产并按每四户一份建材取暖。政务可切换税率和政令，账本预览收支。集市每季刷新额度，急报可自行打开处理。\n\n边疆巡边\n集结后用「推进」点选外域地面。桥头金线外会接战，撤回线内即可脱离追击。可发军令、撤回半岛或结算归营。缺粮时最多带 3 人。一次巡边击退全部 15 名守军后，可在集结时选警戒 2、3 阶，挑战更强守军并获得更多奖励。\n\n培养与远征\n酒馆派工后开放英雄培养。兵营训练兵种，练兵靶场和马厩工坊征召与备货。战前可一键编队，布阵时用「移动」调整兵员或道具。战后可看回放并查看结算。\n\n日程与视角\n1× 约四秒一日，一季十二日。右键或触屏拖动旋转，滚轮或双指缩放，WASD、方向键、Shift 加左键拖动、中键或双指均可平移。庄园按 1 / 2 / 3 切换全景、半岛和外域，Space 暂停或继续，R 重置，Esc 关闭窗口。庄园按 G 打开政务、P 选地、M 查看宏愿。可在工坊使用 3 个本机存档槽。巡边时 1 / 2 / 3 选择军令。";
+                string text="建地与领民\n半岛有 24 块建地。18–23 号外环林地花 8 金币开垦，收回 4 建材。「选地」清单可选中地块并聚焦。农舍和牧场提供住房，有余粮时迎来新户。选择农舍，可花金币和建材启用或切换一项后院副业，每日结算无需派工。\n\n发展与供给\n历次称号晋升和领取三项宏愿共可获得最多四点发展点。在政务按路线解锁专精。口粮、薪柴和精神供给齐备时，市集兴旺每天额外提高 1 点民心。编年史保留最近十二件领地大事。\n\n领主宏愿\n在领地政务查看六项里程碑，达成即可领取一次奖励。完成全部远征，或在一次巡边击退全部守军，可达成「平定四方」。\n\n生产协同\n运转中的谷仓提振产粮，应急时保住粮底。礼拜堂提升民心和伤员救回率。农田搭配牧场或谷仓可增产，伐木营搭配铁匠铺可增产军械。农舍累计 3 级并建有礼拜堂或酒馆可获得安居民心。\n\n领地专才\n在政务中查看管家、掌柜、医者和巡庄队长。四位分别改善税收、贸易、医护与战备。解锁后从 Lv.1 起，可用金币与物资培养到 Lv.3。\n\n领地运营\n低税、食谱丰富与酒馆能提高民心，低于 40 暂停迁入。夏秋田产增加，冬季按每四户一份建材取暖。政务可切换税率和政令，账本预览收支。集市每季刷新额度，急报可自行打开处理。\n\n边疆巡边\n集结后用「推进」点选外域地面。桥头金线外会接战，撤回线内即可脱离追击。可发军令、撤回半岛或结算归营。缺粮时最多带 3 人。一次巡边击退全部 15 名守军后，可在集结时选警戒 2、3 阶，挑战更强守军并获得更多奖励。\n\n培养与远征\n酒馆派工后开放英雄培养。兵营训练兵种，练兵靶场和马厩工坊征召与备货。战前可一键编队，布阵时用「移动」调整兵员或道具。战后可看回放并查看结算。\n\n地力与轮作\n新田地力 100%，产粮按地力缩放，范围 60%–120%。自动轮作冬季或地力低于 80% 时休耕。自动耕作每季减 8，精耕四季生产、每季减 12，休耕不产粮、每季回养 25。牧场派工后，自动轮作和休耕田每季再回养 5。\n\n领主卫队\n在宅邸招募亲兵并强化披甲。宅邸三级分别可养 2、4、6 人。卫队在门前值守，随军占行军名额，战损回营后可用金币整补。\n\n威望与自由兵团\n政务可开启什一赈济。粮食净产为正且留足两日口粮时，捐出约一成净粮（至少一份），每日得 1 威望。远征凯旋、击退掠夺者、清空巡边三营都有战功威望。花 25 威望办庆典，民心 +8。花 20 威望刷新集市额度。出征或巡边可选三人兵团，开战消耗 30 威望和 12 金币，归营解散。\n\n日程与视角\n1× 约四秒一日，一季十二日。右键或触屏拖动旋转，滚轮或双指缩放，WASD、方向键、Shift 加左键拖动、中键或双指均可平移。庄园按 1 / 2 / 3 切换全景、半岛和外域，Space 暂停或继续，R 重置，Esc 关闭窗口。庄园按 G 打开政务、P 选地、M 查看宏愿。可在工坊使用 3 个本机存档槽。巡边时 1 / 2 / 3 选择军令。";
                 var help=Label(p,text,0,0,w,portrait?504:340,14,white,TextAnchor.UpperLeft);
                 help.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,help.preferredHeight+8);
             },portrait?575:430);

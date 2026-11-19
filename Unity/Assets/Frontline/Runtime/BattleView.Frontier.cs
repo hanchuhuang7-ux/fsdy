@@ -75,6 +75,23 @@ namespace Frontline.UnityGame
             if(changed)FrontierFocusChanged?.Invoke();
         }
 
+        internal void FocusManorRetinue()
+        {
+            if(manor==null)return;
+            var previous=Bookmark();
+            bool changed=FrontierFocus!=1;
+            FrontierFocus=1;
+            CameraMode=0;
+            target=ManorOrigin+new Vector3(0,1.22f,-2.70f);
+            bool extended=manor.RetinueReady>2;
+            distance=Viewport.Compact?(extended?17f:11.3f):(extended?13.2f:9.2f);
+            pitch=Viewport.Compact?35:25;
+            yaw=6;
+            manorScreenShift=Viewport.Compact?-.025f:.02f;
+            BlendCamera(previous);
+            if(changed)FrontierFocusChanged?.Invoke();
+        }
+
         void BlendCamera(CameraBookmark previous)
         {
             blendTo=Bookmark();

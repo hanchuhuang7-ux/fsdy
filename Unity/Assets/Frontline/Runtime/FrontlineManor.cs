@@ -25,6 +25,8 @@ namespace Frontline.UnityGame
         readonly Dictionary<string,int> force = new Dictionary<string,int>();
         readonly Dictionary<string,int> raidForce = new Dictionary<string,int>();
         readonly Dictionary<string,int> patrolForce = new Dictionary<string,int>();
+        static readonly IReadOnlyDictionary<string,int> EmptyForce = new Dictionary<string,int>();
+        readonly ManorSupport[] supportDrafts = new ManorSupport[3];
         readonly List<string> draftKeys=new List<string>(20);
         Manor.Sortie sortie;
         float manorClock;
@@ -44,12 +46,17 @@ namespace Frontline.UnityGame
             public Deployment[] undo;
         }
         DuelDesk duel;
+        static int PartyIndex(bool frontier,bool raid) => frontier ? 2 : raid ? 1 : 0;
         Dictionary<string,int> Party(bool frontier,bool raid=false) => frontier ? patrolForce : raid ? raidForce : force;
+        internal ManorSupport PartySupport(bool frontier,bool raid=false) => supportDrafts[PartyIndex(frontier,raid)];
+        internal ManorSupport PlannedSupport => sortie?.Support ?? default;
+        internal string PartySupportBlock(ManorSupport support,bool frontier,bool raid) => Estate.SupportBlock(Data,EmptyForce,support,frontier,raid);
         public int ForceCount(string id,bool frontier=false,bool raid=false) => Party(frontier,raid).TryGetValue(id,out int count) ? count : 0;
         public int ForceCost => PartyCost(false);
         public int ForceUnits => PartyUnits(false);
-        public int PartyCost(bool frontier,bool raid=false) => Estate.ForceCost(Data,Party(frontier,raid));
-        public int PartyUnits(bool frontier,bool raid=false) => Manor.ForceSize(Data,Party(frontier,raid));
+        public int PartyCost(bool frontier,bool raid=false) => Estate.ForceCost(Data,Party(frontier,raid)) +
+            Estate.SupportCost(Data,PartySupport(frontier,raid));
+        public int PartyUnits(bool frontier,bool raid=false) => Manor.ForceSize(Data,Party(frontier,raid),PartySupport(frontier,raid));
         internal ManorLogistics PlannedLogistics => sortie?.Logistics??Estate.Logistics;
         internal int PartyStrength(bool frontier,bool raid=false)
         {
@@ -61,9 +68,15 @@ namespace Frontline.UnityGame
                 int level=hero?Estate.HeroLevel(item.Key):Estate.UnitLevel(item.Key);
                 sum+=LevelScaling.Scale(Data.Unit(item.Key).cost,Math.Max(1,level))*item.Value;
             }
+            var support=PartySupport(frontier,raid);
+            if(support.guards>0)
+                sum+=LevelScaling.Scale(Estate.SupportCost(Data,new ManorSupport(support.guards,false)),Estate.RetinueBattleLevel);
+            if(support.mercenaries)
+                sum+=LevelScaling.Scale(Estate.SupportCost(Data,new ManorSupport(0,true)),Manor.MercenaryLevel);
             return (int)Math.Round(sum);
         }
-        public string ForceAddBlock(string id,bool frontier=false,bool raid=false) => Estate.ForceAddBlock(Data,Party(frontier,raid),id,frontier,raid);
+        public string ForceAddBlock(string id,bool frontier=false,bool raid=false) =>
+            Estate.ForceAddBlock(Data,Party(frontier,raid),id,frontier,raid,PartySupport(frontier,raid));
         public bool AllowsOrder(string order) => !InManor || Estate.AllowsOrder(order);
         void LoadManor()
         {
@@ -133,6 +146,7 @@ namespace Frontline.UnityGame
         void SelectDefaultForce(bool frontier,bool raid=false)
         {
             var draft = Party(frontier,raid);
+            supportDrafts[PartyIndex(frontier,raid)] = default;
             draft.Clear();
             int budget=Estate.ExpeditionLogistics(raid).Budget, limit=frontier?Estate.FrontierLimit:Estate.FieldLimit;
             foreach (var u in Data.Data.units)
@@ -147,6 +161,12 @@ namespace Frontline.UnityGame
             var draft=Party(frontier,raid);
             draftKeys.Clear();draftKeys.AddRange(draft.Keys);
             foreach(var id in draftKeys)draft[id]=Math.Min(draft[id],Estate.Available(id));
+            int index=PartyIndex(frontier,raid);
+            var support=supportDrafts[index];
+            int guards=Math.Min(support.guards,Estate.RetinueReady);
+            bool mercenaries=support.mercenaries&&PartySupportBlock(new ManorSupport(0,true),frontier,raid)==null;
+            while(guards>0&&PartySupportBlock(new ManorSupport(guards,mercenaries),frontier,raid)!=null)guards--;
+            supportDrafts[index]=new ManorSupport(guards,mercenaries);
             int units=PartyUnits(frontier,raid), cost=PartyCost(frontier,raid), budget=Estate.ExpeditionLogistics(raid).Budget;
             int limit=frontier?Estate.FrontierLimit:Estate.FieldLimit;
             // Preserve the draft as supply or morale changes. Remove the most recently added types first.
@@ -224,6 +244,13 @@ namespace Frontline.UnityGame
         public void TrainUnit(string id) => ManorAction(() => Estate.Train(ManorSlot,id),Data.Units[id].name+"训练等级已提升","recruit");
         internal void SetManorTax(string id) => ManorAction(() => Estate.SetTax(id),"税率已调整",null);
         internal void SetManorDecree(string id) => ManorAction(() => Estate.SetDecree(id),"政令已调整",null);
+        internal void SetManorRotation(int plot,string id) => ManorAction(() => Estate.SetRotation(plot,id),null,null);
+        internal void RecruitManorGuard() => ManorAction(Estate.RecruitGuard,"亲兵已加入领主卫队","recruit");
+        internal void UpgradeManorRetinue() => ManorAction(Estate.UpgradeRetinue,"卫队披甲已强化","recruit");
+        internal void RefillManorRetinue() => ManorAction(Estate.RefillRetinue,"卫队已完成整补","recruit");
+        internal void ToggleManorTithe() => ManorAction(() => Estate.SetTithe(Estate.tithe==0?Manor.TitheRate:0),null,null);
+        internal void HoldManorFestival() => ManorAction(Estate.HoldFestival,"领地庆典已召开","milestone");
+        internal void CallManorMerchant() => ManorAction(Estate.CallMerchant,"本季集市额度已刷新","trade");
         internal void AssignManorPreset(string id) => ManorAction(() => Estate.AssignPreset(id),"派工已调配",null);
         internal void UpgradeSpecialist(string id) => ManorAction(() => Estate.UpgradeSpecialist(id),Manor.SpecialistName(id)+"已升级","recruit");
         internal void ResolveManorEvent(int issuedDay,int choice) => ManorAction(() => Estate.ResolveEvent(issuedDay,choice),"领地急报已结案",null);
@@ -249,8 +276,22 @@ namespace Frontline.UnityGame
             Try(() => {
                 var draft = new Dictionary<string,int>(Party(frontier,raid));
                 draft[id] = ForceCount(id,frontier,raid) + delta;
-                Estate.ValidateForce(Data,draft,false,frontier,raid);
+                Estate.ValidateForce(Data,draft,false,frontier,raid,PartySupport(frontier,raid));
                 Party(frontier,raid)[id] = draft[id]; Refresh();
+            });
+        }
+
+        internal void SelectManorSupport(ManorSupport support,bool frontier,bool raid)
+        {
+            if(Phase!="manor")return;
+            Try(()=>{
+                string blocked=PartySupportBlock(support,frontier,raid);
+                if(blocked!=null)throw new InvalidOperationException(blocked);
+                int beforeCost=Estate.ForceCost(Data,Party(frontier,raid));
+                supportDrafts[PartyIndex(frontier,raid)]=support;
+                RecheckForce(frontier,raid);
+                if(Estate.ForceCost(Data,Party(frontier,raid))<beforeCost)Tell("已从普通名册腾出增援席位或军费");
+                Refresh();
             });
         }
 
@@ -258,8 +299,9 @@ namespace Frontline.UnityGame
         {
             if(Phase!="manor")return;
             Try(()=>{
-                var next=Estate.RecommendForce(Data,stage,raid,frontier);
-                if(next.Count==0)throw new InvalidOperationException("没有可上阵的兵员或英雄");
+                var support=PartySupport(frontier,raid);
+                var next=Estate.RecommendForce(Data,stage,raid,frontier,support);
+                if(next.Count==0&&support.Count==0)throw new InvalidOperationException("没有可上阵的兵员或英雄");
                 var draft=Party(frontier,raid);
                 draft.Clear();
                 foreach(var item in next)draft.Add(item.Key,item.Value);
@@ -270,9 +312,14 @@ namespace Frontline.UnityGame
         public void PrepareFrontier()
         {
             if(Phase!="manor")return;
-            var planned=Estate.PrepareFrontier(Data,patrolForce);
+            var planned=Estate.PrepareFrontier(Data,patrolForce,PartySupport(true));
             var running=new Battle(Data,planned.config,Factory,true,targetScanWorkers:CpuWork.TargetWorkers);
-            if(Estate.CompleteGuideStep(2)){ManorRevision++;SaveManor();}
+            try
+            {
+                bool paid=Estate.SignMercenaryContract(planned);
+                if(Estate.CompleteGuideStep(2)||paid){ManorRevision++;SaveManor();}
+            }
+            catch { running.Dispose(); throw; }
             CloseSession(); sortie=planned; returnedEstate=null; returnReceipt=null;
             Battle=running; Config=running.Config; ReplayFile=null;
             live=Battle.Snapshot(Battle.PrepareSnapshot()); Phase="frontier";
@@ -304,7 +351,7 @@ namespace Frontline.UnityGame
         {
             if (Phase != "manor") return;
             Try(() => {
-                var planned = Estate.Prepare(Data,stage,raid,Party(false,raid));
+                var planned = Estate.Prepare(Data,stage,raid,Party(false,raid),PartySupport(false,raid));
                 if(Estate.CompleteGuideStep(2)){ManorRevision++;SaveManor();}
                 CloseSession(); sortie = planned; returnedEstate = null; returnReceipt = null;
                 Config = Json.Clone(planned.config); Phase = "deploy"; Tool = "select"; PropType = null;

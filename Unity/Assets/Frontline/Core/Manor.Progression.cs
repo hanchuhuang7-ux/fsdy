@@ -38,8 +38,6 @@ namespace Frontline.Core
             return true;
         }
 
-        bool ValidProgression() => frontierTier>=1&&frontierTier<=MaxFrontierTier&&(uint)guideStep<=3;
-
         void ReadProgression(Dictionary<string,object> root)
         {
             frontierTier=Number(root["frontierTier"],1,MaxFrontierTier);

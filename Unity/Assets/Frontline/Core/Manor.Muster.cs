@@ -61,13 +61,15 @@ namespace Frontline.Core
             return pressure==armorPressure?ManorThreat.Armored:ManorThreat.Ranged;
         }
 
-        public Dictionary<string,int> RecommendForce(Catalog data,int stage,bool raid,bool frontier = false)
+        public Dictionary<string,int> RecommendForce(Catalog data,int stage,bool raid,bool frontier = false,ManorSupport support=default)
         {
             ManorThreat threat=EnemyThreat(data,stage,raid,frontier);
             var front=threat==ManorThreat.Mounted?AntiCavalry:threat==ManorThreat.Ranged?AntiRanged:FrontlinePicks;
             var rear=threat==ManorThreat.Armored?AntiArmor:RangedPicks;
             var roster=new Dictionary<string,int>(StringComparer.Ordinal);
-            int budget=ExpeditionLogistics(raid&&!frontier).Budget, seats=frontier?FrontierLimit:FieldLimit;
+            ValidateForce(data,roster,false,frontier,raid,support);
+            int budget=ExpeditionLogistics(raid&&!frontier).Budget-SupportCost(data,support);
+            int seats=(frontier?FrontierLimit:FieldLimit)-support.Count;
 
             bool Add(string id)
             {
@@ -99,7 +101,7 @@ namespace Frontline.Core
                 else if (Pick(rear)) output++;
                 else if (!Add("medic")) break;
             }
-            ValidateForce(data,roster,false,frontier,raid&&!frontier);
+            ValidateForce(data,roster,false,frontier,raid,support);
             return roster;
         }
     }

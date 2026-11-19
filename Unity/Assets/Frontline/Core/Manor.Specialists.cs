@@ -118,13 +118,6 @@ namespace Frontline.Core
             specialists[id]=rank+1;
         }
 
-        bool ValidSpecialists()
-        {
-            if(specialists==null)return false;
-            foreach(var item in specialists)
-                if(Array.IndexOf(SpecialistIds,item.Key)<0||item.Value<2||item.Value>SpecialistMaxLevel)return false;
-            return true;
-        }
         void ReadSpecialists(object value)
         {
             if(!(value is Dictionary<string,object> ranks))throw new FormatException("领地专才名册无效");

@@ -5,6 +5,24 @@ namespace Frontline.Editor
 {
     public static partial class ModelBaker
     {
+        static Geometry RetinueGuard(int lod)
+        {
+            var model=lod==0?Body("shield",lod):DistantBody("shield");
+            foreach(float x in new[]{-.15f,.15f})model.Append(Leg(lod),Matrix4x4.Translate(V(x,-.53f,0)));
+            model.Append(Arm("militia",true,lod),Matrix4x4.identity);
+            model.Append(Arm("militia",true,lod),Matrix4x4.Translate(V(.70f,0,0)));
+            model.Bevel(V(-.235f,-.04f,.235f),V(.43f,.66f,.10f),.068f,Gold);
+            model.Bevel(V(-.235f,-.04f,.29f),V(.35f,.57f,.035f),.046f,Indigo);
+            model.Box(V(-.235f,-.04f,.313f),V(.045f,.34f,.017f),Gold);
+            model.Box(V(-.235f,.015f,.314f),V(.23f,.047f,.018f),Gold);
+            model.Bevel(V(0,.673f,.195f),V(.38f,.046f,.045f),.013f,Gold);
+            model.Bevel(V(0,.24f,.22f),V(.32f,.064f,.035f),.015f,Gold);
+            model.Cylinder(V(.36f,-.78f,.15f),V(.36f,1.07f,.15f),.029f,WoodLight,5);
+            model.Spear(V(.36f,.99f,.15f),V(.36f,1.32f,.15f),.081f,LightSteel);
+            model.Cylinder(V(.36f,.94f,.15f),V(.36f,1.04f,.15f),.042f,Gold,5);
+            model.SetAtGrade();
+            return model;
+        }
         static void BakeEstateArt(int lod)
         {
             Save("manor_plaza",lod,CobblePlaza(lod));

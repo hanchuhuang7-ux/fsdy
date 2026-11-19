@@ -9,9 +9,9 @@ static partial class ManorChecks
     {
         var old = (Dictionary<string,object>)Json.Parse(manor.Export());
         old["version"] = version;
-        old.Remove("prosperityPeak");
-        old.Remove("developmentMask");
-        old.Remove("chronicle");
+        foreach(string key in new[]{"retinue","influence","tithe"})old.Remove(key);
+        if(version<8)
+            foreach(string key in new[]{"prosperityPeak","developmentMask","chronicle"})old.Remove(key);
         if(version<7)
         {
             old.Remove("frontierTier");
@@ -26,7 +26,7 @@ static partial class ManorChecks
         }
         if(version<5)old.Remove("specialists");
         int plots=version==1?10:version<5?Manor.OriginalPlotCount:version==5?Manor.FirstOuterPlot:Manor.PlotCount;
-        old["slots"]=LegacyPlots(old["slots"],plots);
+        old["slots"]=LegacyPlots(old["slots"],plots,version>=8);
         if (version < 4) old.Remove("eventDay");
         if (version < 3)
             foreach (string key in new[] { "approval","tax","decree","market" }) old.Remove(key);
@@ -37,10 +37,12 @@ static partial class ManorChecks
         return old;
     }
 
-    static object[] LegacyPlots(object slots,int count) =>
+    static object[] LegacyPlots(object slots,int count,bool backyards=false) =>
         ((List<object>)slots).Take(count).Select(item=>{
             var plot=(Dictionary<string,object>)item;
-            plot.Remove("backyard");
+            if(!backyards)plot.Remove("backyard");
+            plot.Remove("fertility");
+            plot.Remove("rotation");
             return (object)plot;
         }).ToArray();
 
@@ -122,6 +124,7 @@ static partial class ManorChecks
             var m = new Manor { workers = 4, food = 90 };
             m.Build(1,"farm"); m.Build(2,"irrigated_field"); m.Build(3,"pasture");
             m.Assign(1,1); m.Assign(2,1); m.Assign(3,1);
+            m.SetRotation(1,"intensive"); m.SetRotation(2,"intensive");
             int[] harvest = { 1504,1715,1925,722 };
             for (int season=0; season<4; season++)
             {

@@ -505,7 +505,7 @@ namespace Frontline.UnityGame
             var starting=new Manor {coin=3000,timber=1200,food=120,cleared=3,day=36,guideDismissed=true};
             starting.Upgrade(0);starting.Upgrade(0);
             starting.stock["militia"]=16;
-            starting.Build(8,"irrigated_field");starting.Build(9,"pasture");
+            starting.Build(8,"irrigated_field");starting.SetRotation(8,"intensive");starting.Build(9,"pasture");
             starting.Build(4,"drill_yard");starting.Upgrade(4);starting.Upgrade(4);
             starting.Build(1,"cottage");starting.Upgrade(1);starting.Upgrade(1);
             starting.workers=7;
@@ -517,6 +517,7 @@ namespace Frontline.UnityGame
             yield return CheckFrontierPreset(1);
             yield return BuildPlot(2,"farm");
             for(int i=0;i<3;i++)yield return Press("Manor.Worker.Plus");
+            yield return Press("Manor.Rotation.intensive");
             app.View.ResetCamera();
             int displayLimit=app.Estate.FrontierLimit;
             Require(displayLimit==14 && app.View.FrontierFocus==0 && app.View.ViewingFrontier,"Opening frontier overview missing");
@@ -568,6 +569,7 @@ namespace Frontline.UnityGame
                 yield return CheckExpandedEstate(captures);
                 yield return CheckOuterEstate(captures);
                 yield return CheckManorDevelopment(captures);
+                yield return CheckFertilityAndSupport(captures);
             }
             yield return CheckFrontierPreset(0);
             if(artOnly)
@@ -702,6 +704,7 @@ namespace Frontline.UnityGame
                 proceduralClips=verifiedAudioClips,displaySettingsVerified,localSlotsVerified,guideVerified,
                 tierSelectionVerified,seasonalLightingVerified,qaSilent=app.Muted,
                 backyardVerified,developmentVerified,marketNeedsVerified,chronicleVerified,
+                fertilityVerified,retinueVerified,influenceVerified,mercenaryVerified,governanceBottomMargin,
                 barnyard=app.Estate.slots[1].backyard,developmentMask=app.Estate.developmentMask,
                 chronicleEntries=app.Estate.chronicle.Count,
                 beforeReturn,defeated,approvalGain,approval=app.Estate.approval,tax=app.Estate.tax,decree=app.Estate.decree,

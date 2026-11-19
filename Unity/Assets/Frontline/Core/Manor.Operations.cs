@@ -93,11 +93,11 @@ namespace Frontline.Core
 
         // Combine rates before rounding once to the nearest hundredth per staffed plot or tax bill.
         static int ScaleYield(int amount,int approvalPercent,int policyPercent = 100,int seasonPercent = 100,
-            int supportPercent = 100,int synergyPercent = 100,int developmentPercent = 100)
+            int supportPercent = 100,int synergyPercent = 100,int developmentPercent = 100,int fertilityPercent = 100)
         {
-            const long divisor = 100L * 100 * 100 * 100 * 100 * 100;
+            const long divisor = 100L * 100 * 100 * 100 * 100 * 100 * 100;
             return (int)(((long)amount * approvalPercent * policyPercent * seasonPercent * supportPercent *
-                synergyPercent * developmentPercent + divisor / 2) / divisor);
+                synergyPercent * developmentPercent * fertilityPercent + divisor / 2) / divisor);
         }
 
         public ManorDay Forecast()
@@ -133,9 +133,10 @@ namespace Frontline.Core
                 {
                     case "farm": case "irrigated_field": case "pasture":
                         bool pasture = plot.kind == "pasture";
+                        if (!pasture && IsResting(plot,season)) break;
                         int policy = agrarian ? 120 : trade && !pasture ? 90 : 100;
                         balance.food += ScaleYield(Yield(Def(plot.kind).harvest,plot.level) * plot.workers,production,policy,pasture ? pastureRate : cropRate,
-                            100+synergy.grainPercent,100+(pasture?0:synergy.cropPercent),pasture?100:cropDevelopment);
+                            100+synergy.grainPercent,100+(pasture?0:synergy.cropPercent),pasture?100:cropDevelopment,pasture?100:plot.fertility);
                         variedDiet |= firstFood != null && firstFood != plot.kind;
                         firstFood ??= plot.kind;
                         break;
@@ -200,6 +201,7 @@ namespace Frontline.Core
             // Production and immigration read the morning's approval. Today's changes take effect tomorrow.
             balance.newHousehold = approval >= UnrestApproval && workers < housing && foodAvailable >= 200 * (workers + 1);
             if (balance.newHousehold) balance.food -= 200;
+            ApplyTithe(ref balance,storedFood,workers+(balance.newHousehold?1:0));
             return balance;
         }
 
@@ -213,11 +215,17 @@ namespace Frontline.Core
                 Credit(ref food,ref remainder.food,balance.food);
                 Credit(ref timber,ref remainder.timber,balance.timber);
                 Credit(ref arms,ref remainder.arms,balance.arms);
+                GainInfluence(balance.influence);
                 approval = balance.approvalAfter;
                 if (balance.newHousehold) workers++;
+                int endingSeason = Season;
                 day++;
                 if ((day - 1) % 6 == 0) raidReady = true;
-                if ((day - 1) % SeasonDays == 0) market = default;
+                if ((day - 1) % SeasonDays == 0)
+                {
+                    AdvanceFertility(endingSeason);
+                    market = default;
+                }
                 UpdateSeasonEvents();
                 TrackProsperity();
             }
@@ -277,15 +285,6 @@ namespace Frontline.Core
             if (units > 0) volume.bought += units;
             else volume.sold -= units;
         }
-
-        bool ValidVolume(ManorTradeVolume volume)
-        {
-            int limit=MaxMarketSeasonLimit+DevelopmentMarketBonus;
-            return (uint)volume.bought<=limit&&(uint)volume.sold<=limit;
-        }
-
-        bool ValidOperations() => approval >= 0 && approval <= 100 && ValidTax(tax) && ValidDecree(decree) &&
-            ValidVolume(market.food) && ValidVolume(market.timber) && ValidVolume(market.arms);
 
         static ManorTradeVolume ReadVolume(object value,int maxVolume)
         {

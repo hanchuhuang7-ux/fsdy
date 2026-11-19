@@ -78,11 +78,5 @@ namespace Frontline.Core
             }
         }
 
-        bool ValidBackyards()
-        {
-            foreach(var plot in slots)
-                if(plot==null||plot.backyard!=null&&(plot.kind!="cottage"||BackyardIndex(plot.backyard)<0))return false;
-            return true;
-        }
     }
 }

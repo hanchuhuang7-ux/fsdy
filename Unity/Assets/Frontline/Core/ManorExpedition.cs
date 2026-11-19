@@ -22,8 +22,8 @@ namespace Frontline.Core
         }
         public int EnemyCost(Catalog data,int stage,bool raid) => EnemyRoster(stage,raid).Sum(id => (int)data.Units[id].cost);
         public static int ItemCost(Catalog data,string id) => (int)(data.Props.TryGetValue(id,out var prop) ? prop.cost : data.Unit(id).cost);
-        public static int ForceSize(Catalog data,IReadOnlyDictionary<string,int> force) =>
-            force.Where(p => !data.Props.ContainsKey(p.Key)).Sum(p => p.Value);
+        public static int ForceSize(Catalog data,IReadOnlyDictionary<string,int> force,ManorSupport support = default) =>
+            force.Where(p => !data.Props.ContainsKey(p.Key)).Sum(p => p.Value) + support.Count;
         static int GearSize(Catalog data,IReadOnlyDictionary<string,int> force) =>
             force.Where(p => data.Props.ContainsKey(p.Key)).Sum(p => p.Value);
         public int ForceCost(Catalog data, IReadOnlyDictionary<string,int> force)
@@ -46,44 +46,52 @@ namespace Frontline.Core
             if (gear > Catalog.MaxProps) return "道具最多 12 件";
             return null;
         }
-        public string ForceAddBlock(Catalog data,IReadOnlyDictionary<string,int> force,string id,bool frontier=false,bool raid=false)
+        public string ForceAddBlock(Catalog data,IReadOnlyDictionary<string,int> force,string id,bool frontier=false,bool raid=false,ManorSupport support=default)
         {
             if (data.Heroes.ContainsKey(id) && HeroLevel(id) == 0) return "英雄尚未招募";
             if (HeroRest(id) > 0) return "休整 " + HeroRest(id) + " 日";
             if (force.TryGetValue(id,out int count) && count >= Available(id) || Available(id) == 0)
                 return data.Heroes.ContainsKey(id) ? "英雄已上阵" : "库存不足";
             bool prop = data.Props.ContainsKey(id);
-            return ForceLimit(ForceCost(data,force) + ItemCost(data,id),ForceSize(data,force) + (prop ? 0 : 1),
+            return ForceLimit(ForceCost(data,force) + SupportCost(data,support) + ItemCost(data,id),ForceSize(data,force,support) + (prop ? 0 : 1),
                 GearSize(data,force) + (prop ? 1 : 0),frontier,raid);
         }
-        public void ValidateForce(Catalog data, IReadOnlyDictionary<string,int> force, bool requireUnit,bool frontier=false,bool raid=false)
+        public string SupportBlock(Catalog data,IReadOnlyDictionary<string,int> force,ManorSupport support,bool frontier,bool raid)
+        {
+            if (support.guards < 0 || support.guards > RetinueReady) return "可用卫队不足";
+            if (support.mercenaries && !CanHireMercenaries) return "威望或金币不足";
+            return ForceLimit(ForceCost(data,force) + SupportCost(data,support),ForceSize(data,force,support),GearSize(data,force),frontier,raid);
+        }
+        public void ValidateForce(Catalog data, IReadOnlyDictionary<string,int> force, bool requireUnit,bool frontier=false,bool raid=false,ManorSupport support=default)
         {
             if (force == null) throw new InvalidOperationException("请选择出征队伍");
-            int cost = ForceCost(data,force), units = ForceSize(data,force);
-            if (requireUnit && units == 0) throw new InvalidOperationException("至少选择一名常备军或英雄");
-            string reason = ForceLimit(cost,units,GearSize(data,force),frontier,raid);
+            string reason = SupportBlock(data,force,support,frontier,raid);
             if (reason != null) throw new InvalidOperationException(reason);
+            if (requireUnit && ForceSize(data,force,support) == 0) throw new InvalidOperationException("至少选择一名上阵兵员");
         }
         public sealed class Sortie
         {
             internal Manor owner;
             internal Dictionary<string,int> force;
-            internal Dictionary<string,int> levels;
-            internal bool resolved;
+            internal Dictionary<string,int> gear;
+            internal (string type,int level)[] roster;
+            internal bool resolved, contractPaid;
             public int stage { get; internal set; }
             public bool raid { get; internal set; }
             public int FrontierTier { get; internal set; }
             public Deployment config { get; internal set; }
             public ManorLogistics Logistics { get; internal set; }
+            public ManorSupport Support { get; internal set; }
             public bool IsFrontier => config.map == FrontierMap.Id;
 
             public bool Matches(Deployment c)
             {
                 if (c.map != config.map || c.seed != config.seed || c.budget != config.budget || c.manorHall != config.manorHall ||
-                    c.red.Any(u => !levels.TryGetValue(u.type,out int level) || level != u.level)) return false;
-                var roster = c.red.Select(u => u.type).Concat(c.props.Where(p => p.team == "red").Select(p => p.type));
-                var counts = roster.GroupBy(id => id).ToDictionary(g => g.Key, g => g.Count());
-                return counts.Count == force.Count && force.All(p => counts.TryGetValue(p.Key, out int n) && n == p.Value);
+                    c.red.Count != roster.Length) return false;
+                for (int i = 0; i < roster.Length; i++)
+                    if (c.red[i].type != roster[i].type || c.red[i].level != roster[i].level) return false;
+                var counts = c.props.Where(p => p.team == "red").GroupBy(p => p.type).ToDictionary(g => g.Key,g => g.Count());
+                return counts.Count == gear.Count && gear.All(p => counts.TryGetValue(p.Key,out int n) && n == p.Value);
             }
 
             public Deployment MoveProp(Catalog data,Deployment draft,int index,float x,float z)
@@ -145,20 +153,20 @@ namespace Frontline.Core
             }
             throw new InvalidOperationException("本图可用阵位不足，请减少上阵数");
         }
-        public Sortie Prepare(Catalog data, int stage, bool raid, IReadOnlyDictionary<string,int> force)
+        public Sortie Prepare(Catalog data, int stage, bool raid, IReadOnlyDictionary<string,int> force,ManorSupport support=default)
         {
             if (raid) stage = RaidStage;
             if (stage < 0 || stage >= Route.Length || stage > cleared) throw new InvalidOperationException("请先完成前一关");
-            ValidateForce(data,force,true,raid:raid);
+            ValidateForce(data,force,true,raid:raid,support:support);
             var c = new Deployment { map = Route[stage], budget = ExpeditionLogistics(raid).Budget, manorHall = slots[0].level,
                 seed = (uint)(day * 967 + stage * 193 + (raid ? 79 : 11)) };
             c.commander.enabled = true; c.commander.aiTeams.Add("blue");
-            return Muster(data,c,stage,raid,force);
+            return Muster(data,c,stage,raid,force,support);
         }
 
-        public Sortie PrepareFrontier(Catalog data,IReadOnlyDictionary<string,int> force)
+        public Sortie PrepareFrontier(Catalog data,IReadOnlyDictionary<string,int> force,ManorSupport support=default)
         {
-            ValidateForce(data,force,true,true);
+            ValidateForce(data,force,true,true,support:support);
             if(frontierTier<1||frontierTier>MaxFrontierTier)throw new InvalidOperationException("外域警戒阶位尚未解锁");
             var c = new Deployment { map=FrontierMap.Id, budget=Budget, manorHall=slots[0].level,
                 seed=(uint)(day*967+451+(frontierTier-1)*193) };
@@ -169,7 +177,7 @@ namespace Frontline.Core
                 var spawn=FrontierMap.Guards[i].spawn;
                 c.blue.Add(new UnitPlacement(roster[i],spawn.x,spawn.z){level=frontierTier==1?0:frontierTier});
             }
-            var planned=Muster(data,c,-1,false,force);
+            var planned=Muster(data,c,-1,false,force,support);
             planned.FrontierTier=frontierTier;
             return planned;
         }
@@ -187,11 +195,11 @@ namespace Frontline.Core
             throw new InvalidOperationException("集合区阵位不足");
         }
 
-        Sortie Muster(Catalog data,Deployment c,int stage,bool raid,IReadOnlyDictionary<string,int> force)
+        Sortie Muster(Catalog data,Deployment c,int stage,bool raid,IReadOnlyDictionary<string,int> force,ManorSupport support)
         {
             var selected = force.Where(p => p.Value > 0).ToDictionary(p => p.Key,p => p.Value);
-            var levels = new Dictionary<string,int>(StringComparer.Ordinal);
-            int total=c.map==FrontierMap.Id?ForceSize(data,force):0;
+            var gear = new Dictionary<string,int>(StringComparer.Ordinal);
+            int total=c.map==FrontierMap.Id?ForceSize(data,force,support):0;
             void Add(string id,int level,bool prop)
             {
                 if(c.map==FrontierMap.Id) PlaceRally(data,c,id,level,total);
@@ -203,21 +211,20 @@ namespace Frontline.Core
                 {
                     bool prop = recruits[id].prop;
                     int level = prop ? 0 : UnitLevel(id);
-                    if (!prop) levels.Add(id,level);
+                    if (prop) gear.Add(id,count);
                     for (int i = 0; i < count; i++) Add(id,level,prop);
                 }
             foreach (var id in HeroIds)
                 if (selected.ContainsKey(id))
-                {
-                    int level = HeroLevel(id);
-                    levels.Add(id,level);
-                    Add(id,level,false);
-                }
+                    Add(id,HeroLevel(id),false);
+            for (int i = 0; i < support.guards; i++) Add(RetinueRole(i),RetinueBattleLevel,false);
+            if (support.mercenaries)
+                for (int i = 0; i < MercenarySize; i++) Add(MercenaryRole(i),MercenaryLevel,false);
             if(c.map!=FrontierMap.Id)
                 foreach(var id in EnemyRoster(stage,raid)) PlaceOne(data,c,"blue",id,false);
             c.budget = Math.Max(c.budget,(int)data.Cost(c,"blue"));
-            return new Sortie { owner = this, force = selected, levels = levels, stage = stage, raid = raid,
-                Logistics = ExpeditionLogistics(raid), config = data.Validate(c,true) };
+            return new Sortie { owner = this, force = selected, gear = gear, stage = stage, raid = raid, Support = support,
+                roster = c.red.Select(u => (u.type,u.level)).ToArray(), Logistics = ExpeditionLogistics(raid), config = data.Validate(c,true) };
         }
 
         public sealed class TroopReturn
@@ -229,6 +236,7 @@ namespace Frontline.Core
         {
             public string winner;
             public int stage, clearedBefore, clearedAfter, coin, timber, arms, defeated, approvalBefore, approvalAfter, frontierTier;
+            public int influence, guards, guardLosses, mercenaries, mercenaryLosses;
             public ManorLogistics logistics;
             public bool raid, frontier, withdrew;
             public readonly Dictionary<string,TroopReturn> troops = new Dictionary<string,TroopReturn>();
@@ -240,9 +248,10 @@ namespace Frontline.Core
         {
             if (sortie == null || sortie.owner != this || sortie.resolved)
                 throw new InvalidOperationException("远征已结算或已撤回");
-            var next = Import(Export());
-            var copy = new Sortie { owner = next, force = sortie.force, levels = sortie.levels, stage = sortie.stage,
-                raid = sortie.raid, FrontierTier=sortie.FrontierTier, Logistics = sortie.Logistics, config = sortie.config };
+            var next = Import(Json.Write(this));
+            var copy = new Sortie { owner = next, force = sortie.force, gear = sortie.gear, roster = sortie.roster, stage = sortie.stage,
+                raid = sortie.raid, FrontierTier=sortie.FrontierTier, Logistics = sortie.Logistics, config = sortie.config,
+                Support = sortie.Support, contractPaid = sortie.contractPaid };
             receipt = next.Settle(copy,result);
             sortie.resolved = true;
             return next;
@@ -252,16 +261,18 @@ namespace Frontline.Core
         public Settlement Settle(Sortie sortie, Result result)
         {
             if (sortie == null || sortie.owner != this || sortie.resolved || result?.report?.units == null ||
-                result.winner != "red" && result.winner != "draw" && result.winner != "blue")
+                result.winner != "red" && result.winner != "draw" && result.winner != "blue" ||
+                sortie.Support.mercenaries && !sortie.contractPaid)
                 throw new InvalidOperationException("没有可结算的远征战报");
             var report = result.report.units.Where(u => u.team == "red").ToList();
-            var outgoing = sortie.force.Where(p => sortie.levels.ContainsKey(p.Key)).ToDictionary(p => p.Key,p => p.Value);
-            if (report.Count != outgoing.Values.Sum() || report.Select(u => u.id).Distinct().Count() != report.Count ||
-                outgoing.Any(p => report.Count(u => u.type == p.Key) != p.Value) || sortie.force.Any(p => Available(p.Key) < p.Value))
+            if (report.Count != sortie.roster.Length || report.Select(u => u.id).Distinct().Count() != report.Count ||
+                report.Any(u => u.id < 1 || u.id > sortie.roster.Length || u.type != sortie.roster[u.id-1].type) ||
+                sortie.force.Any(p => Available(p.Key) < p.Value) || sortie.Support.guards > RetinueReady)
                 throw new InvalidOperationException("战报与出征名册不一致");
             var receipt = new Settlement { winner = result.winner, stage = sortie.stage, raid = sortie.raid, clearedBefore = cleared,
                 frontier = sortie.IsFrontier, frontierTier=sortie.FrontierTier, withdrew = result.reason == "withdraw",
-                logistics = sortie.Logistics, approvalBefore = approval };
+                logistics = sortie.Logistics, approvalBefore = approval, guards = sortie.Support.guards,
+                mercenaries = sortie.Support.mercenaries ? MercenarySize : 0 };
             if(receipt.frontier)
             {
                 var enemies=result.report.units.Where(u=>u.team=="blue").ToArray();
@@ -269,9 +280,13 @@ namespace Frontline.Core
                     throw new InvalidOperationException("战报与边疆敌情不一致");
                 receipt.defeated=enemies.Count(u=>!u.alive);
             }
-            int casualties = 0;
+            int casualties = 0, regulars = report.Count - sortie.Support.Count;
+            int guardEnd = regulars + receipt.guards;
             foreach (var u in report)
             {
+                // Battle assigns red IDs in roster order, including identical units from different sources.
+                if (u.id > guardEnd) { if (!u.alive) receipt.mercenaryLosses++; continue; }
+                if (u.id > regulars) { if (!u.alive) receipt.guardLosses++; continue; }
                 if (heroes.ContainsKey(u.type))
                 {
                     receipt.heroes.Add(u.type,u.alive ? 0 : Math.Min(receipt.logistics.heroRestDays,MaxValue - day));
@@ -306,6 +321,7 @@ namespace Frontline.Core
                 }
             foreach (var p in receipt.troops) stock[p.Key] += p.Value.survivors + p.Value.wounded;
             foreach (var p in receipt.heroes) heroes[p.Key].restUntil = p.Value > 0 ? day + p.Value : 0;
+            retinue.wounded += receipt.guardLosses;
             int oldCoin = coin, oldTimber = timber, oldArms = arms;
             Credit(ref coin,ref remainder.coin,coins * 100);
             Credit(ref timber,ref remainder.timber,wood * 100);
@@ -323,10 +339,11 @@ namespace Frontline.Core
             else if (victory) approvalChange = receipt.clearedAfter > receipt.clearedBefore ? 8 : 4;
             else approvalChange = !receipt.raid && result.winner == "blue" ? -4 : 0;
             receipt.approvalAfter = approval = ClampApproval(approval + approvalChange);
-            if(receipt.frontier&&receipt.frontierTier>=2&&receipt.defeated==FrontierMap.Guards.Count)
-                Remember("frontier",receipt.frontierTier);
-            else if(!receipt.frontier&&!receipt.raid&&victory)
-                Remember("expedition",receipt.stage);
+            if (receipt.frontier && receipt.defeated == FrontierMap.Guards.Count)
+                Remember("frontier",receipt.frontierTier,receipt.influence = GainInfluence(FrontierInfluence));
+            else if (!receipt.frontier && victory)
+                Remember(receipt.raid ? "raid" : "expedition",receipt.stage,
+                    receipt.influence = GainInfluence(receipt.raid ? RaidInfluence : ExpeditionInfluence));
             TrackProsperity();
             sortie.resolved = true;
             return receipt;

@@ -87,6 +87,8 @@ static partial class ManorChecks
             m.Build(15,"pasture");m.Assign(15,1);
             m.Assign(12,-1);
             m.day=37;
+            for(int i=0;i<m.slots.Length;i++)
+                if(Manor.IsCrop(m.slots[i].kind))m.SetRotation(i,"intensive");
             var before=m.Forecast();
             m.UnlockDevelopment(ManorPerk.HeavyPlough);
             m.UnlockDevelopment(ManorPerk.SustainableWoods);
@@ -197,12 +199,12 @@ static partial class ManorChecks
                 var imported=Manor.Import(Json.Write(old));
                 var projected=LegacySchema(imported,version);
                 foreach(string key in old.Keys)Expect(Json.Write(old[key])==Json.Write(projected[key]),"legacy payload changed "+key);
-                Expect(imported.version==8&&imported.slots.All(plot=>plot.backyard==null)&&imported.developmentMask==0&&
-                    imported.chronicle.Count==0&&imported.Export()==Manor.Import(imported.Export()).Export(),"new defaults or v8 roundtrip");
+                Expect(imported.version==Manor.SaveVersion&&imported.slots.All(plot=>plot.backyard==null)&&imported.developmentMask==0&&
+                    imported.chronicle.Count==0&&imported.Export()==Manor.Import(imported.Export()).Export(),"new defaults or current roundtrip");
             }
         });
 
-        check("v8 rejects wrong backyard types, inconsistent development masks, and invalid chronicle shape or dates",() => {
+        check("current saves reject wrong backyard types, inconsistent development masks, and invalid chronicle shape or dates",() => {
             var m=new Manor();
             m.Build(1,"cottage");m.SetBackyard(1,"garden");
             m.ReclaimPlot(18);
