@@ -22,18 +22,21 @@ namespace Frontline.UnityGame
         static long Allocated(){return AllocationMeter.Read();}
 #endif
         FrontlineApp app;string output;readonly List<object> rows=new List<object>();readonly List<object> uiRows=new List<object>();
+        public static bool FrontierRequested => Array.IndexOf(Environment.GetCommandLineArgs(),"--frontier-smoke")>=0;
+        public static bool ManorSmokeRequested => Array.IndexOf(Environment.GetCommandLineArgs(),"--manor-smoke")>=0;
         public static bool ManorRequested =>
             Array.IndexOf(Environment.GetCommandLineArgs(),"--manor-qa") >= 0 ||
             (Uri.TryCreate(Application.absoluteURL,UriKind.Absolute,out var uri) && uri.IsLoopback && uri.Query.Contains("frontlineQA=manor"));
-        public static bool Requested {get {return ManorRequested||Array.IndexOf(Environment.GetCommandLineArgs(),"--visual-qa")>=0||Application.absoluteURL.Contains("frontlineQA=1");}}
-        public void Initialize(FrontlineApp value){app=value;StartCoroutine(GuardValidation(ManorRequested ? RunManor() : Run()));}
+        public static bool Requested {get {return PerformanceRequested||FrontierRequested||ManorSmokeRequested||ManorRequested||Array.IndexOf(Environment.GetCommandLineArgs(),"--visual-qa")>=0||Application.absoluteURL.Contains("frontlineQA=1");}}
+        public void Initialize(FrontlineApp value){app=value;StartCoroutine(GuardValidation(PerformanceRequested ? RunPerformance() : FrontierRequested ? RunFrontierSmoke() : ManorSmokeRequested ? RunManorSmoke() : ManorRequested ? RunManor() : Run()));}
         IEnumerator GuardValidation(IEnumerator routine)
         {
             var stack=new Stack<IEnumerator>();stack.Push(routine);
             while(stack.Count>0){
                 bool more=false;object current=null;Exception failure=null;
                 try{more=stack.Peek().MoveNext();if(more)current=stack.Peek().Current;}catch(Exception e){failure=e;}
-                if(failure!=null){Debug.LogException(failure);app.Tell("验收失败："+failure.Message);
+                if(failure!=null){while(stack.Count>0)(stack.Pop() as IDisposable)?.Dispose();
+                    Debug.LogException(failure);app.Tell("验收失败："+failure.Message);
 #if !UNITY_WEBGL && !UNITY_EDITOR
                     Application.Quit(1);
 #endif

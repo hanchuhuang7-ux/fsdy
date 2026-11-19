@@ -21,7 +21,26 @@ namespace Frontline.Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)] public static float DistanceXZ(V3 a,V3 b){return (a-b).Planar;}
         [MethodImpl(MethodImplOptions.AggressiveInlining)] public static float Dot(V3 a,V3 b){return a.x*b.x+a.y*b.y+a.z*b.z;}
     }
-    [Serializable] public class UnitDef {public string id,name,subtitle,glyph,description;public float cost,hp,damage,range,speed,cooldown,mass,scale=1,knock,heal;public bool ranged;}
+    public static class LevelScaling
+    {
+        public static double Scale(double baseValue,int level) => baseValue * Math.Pow(1.1,level - 1);
+    }
+    [Serializable] public class UnitDef
+    {
+        public string id,name,subtitle,glyph,description;
+        public float cost,hp,damage,range,speed,cooldown,mass,scale=1,knock,heal;
+        public bool ranged;
+        public UnitDef AtLevel(int level)
+        {
+            if(level<=1)return this;
+            var trained=(UnitDef)MemberwiseClone();
+            trained.hp=(float)LevelScaling.Scale(hp,level);
+            trained.damage=(float)LevelScaling.Scale(damage,level);
+            trained.heal=(float)LevelScaling.Scale(heal,level);
+            return trained;
+        }
+    }
+    [Serializable] public sealed class HeroDef:UnitDef {public int tavernLevel,hireCoin,hireFood;public string ability;}
     [Serializable] public class PropDef {public string id,name,subtitle,glyph,description;public float cost,hp,radius;}
     [Serializable] public class Platform {public float x,y,z,hx,hy,hz,angle;public bool ramp,bridge;}
     [Serializable] public class Rock {public float x,z,r;}
@@ -31,11 +50,11 @@ namespace Frontline.Core
     [Serializable] public class MapDef {public string id,name,description,hint;public int color;public List<Platform> platforms=new List<Platform>();public List<Rock> rocks=new List<Rock>();public List<Wall> walls=new List<Wall>();public List<Zone> zones=new List<Zone>();public List<PropPlacement> props=new List<PropPlacement>();public Passage passage;}
     [Serializable] public class Mission {public string name,description,map,enemy;public int budget;}
     [Serializable] public class FormationDef {public string id;public List<UnitPlacement> red=new List<UnitPlacement>(),blue=new List<UnitPlacement>();}
-    [Serializable] public class CatalogData {public string version;public List<UnitDef> units=new List<UnitDef>();public List<PropDef> props=new List<PropDef>();public List<MapDef> maps=new List<MapDef>();public List<Mission> missions=new List<Mission>();public List<FormationDef> formations=new List<FormationDef>();}
-    [Serializable] public class UnitPlacement {public string type,stance="advance";public float x,z;public UnitPlacement(){}public UnitPlacement(string type,float x,float z,string stance="advance"){this.type=type;this.x=x;this.z=z;this.stance=stance;}}
+    [Serializable] public class CatalogData {public string version;public List<UnitDef> units=new List<UnitDef>();public List<HeroDef> heroes=new List<HeroDef>();public List<PropDef> props=new List<PropDef>();public List<MapDef> maps=new List<MapDef>();public List<Mission> missions=new List<Mission>();public List<FormationDef> formations=new List<FormationDef>();}
+    [Serializable] public class UnitPlacement {public string type,stance="advance";public float x,z;[OmitZero] public int level;public UnitPlacement(){}public UnitPlacement(string type,float x,float z,string stance="advance"){this.type=type;this.x=x;this.z=z;this.stance=stance;}}
     [Serializable] public class PropPlacement {public string type,team="neutral";public float x,z;}
     [Serializable] public class CommanderConfig {public bool enabled;public List<string> aiTeams=new List<string>();}
-    [Serializable] public class Deployment {public string version="0.6.0",map="meadow";public uint seed=42;public int budget=2200;public List<UnitPlacement> red=new List<UnitPlacement>(),blue=new List<UnitPlacement>();public List<PropPlacement> props=new List<PropPlacement>();public CommanderConfig commander=new CommanderConfig();public List<UnitPlacement> Army(string team){return team=="red"?red:blue;}}
+    [Serializable] public class Deployment {public string version="0.6.0",map="meadow";public uint seed=42;public int budget=2200;public List<UnitPlacement> red=new List<UnitPlacement>(),blue=new List<UnitPlacement>();public List<PropPlacement> props=new List<PropPlacement>();public CommanderConfig commander=new CommanderConfig();[OmitZero] public int manorHall;public List<UnitPlacement> Army(string team){return team=="red"?red:blue;}}
     [Serializable] public class Order {public string type;public float x,z;public Order(){}public Order(string type,float x,float z){this.type=type;this.x=x;this.z=z;}}
     [Serializable] public class OrderEntry:Order {public int id,tick,endTick;public string team;}
     [Serializable] public class CommanderState {public Dictionary<string,int> points=new Dictionary<string,int>{{"red",3},{"blue",3}},readyAt=new Dictionary<string,int>{{"red",0},{"blue",0}};public List<OrderEntry> active=new List<OrderEntry>(),log=new List<OrderEntry>();}

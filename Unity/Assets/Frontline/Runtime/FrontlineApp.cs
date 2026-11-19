@@ -17,6 +17,11 @@ namespace Frontline.UnityGame
         public bool Paused,Bo3,TouchCamera=true,Modal,Busy,Muted,BriefOpen,Mirror;public float Speed=1,ReplayTime;public int PlayerLimit=2200,FavoriteSlot;public List<Favorite> Favorites=new List<Favorite>();
         public event Action Changed;public event Action<string> Notice;readonly Stack<Deployment> undo=new Stack<Deployment>();readonly List<Frame> recorded=new List<Frame>();Frame live;Frame[] archive;int archiveIndex;float accumulator;Coroutine job;IEnumerator activeJob;bool loaded;
         bool HasJob => Busy || job != null || activeJob != null;
+        internal PlayerPresentation Presentation {get;private set;}
+        internal bool FixedPerformanceStep {get;set;}
+        void OnApplicationPause(bool paused){if(paused)Presentation?.Flush();}
+        void OnApplicationQuit(){Presentation?.Flush();}
+        internal long PerformanceSimulationTicks {get;private set;}
         public string EditingTeam {get{return Mode=="hotseat"?Hotseat=="blue"?"blue":"red":Team;}}
         public bool CanEdit {get{return Phase=="deploy"&&!Busy&&(Mode!="hotseat"||Hotseat=="red"||Hotseat=="blue");}}
         public Deployment PublicConfig {get{return Mode=="hotseat"&&Hotseat!="revealed"?Catalog.Visible(Config,Hotseat):Json.Clone(Config);}}
@@ -24,16 +29,22 @@ namespace Frontline.UnityGame
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)] static void Bootstrap(){if(FindAnyObjectByType<FrontlineApp>()==null)new GameObject("Frontline").AddComponent<FrontlineApp>();}
         void Awake()
         {
-            Application.targetFrameRate=60;Time.fixedDeltaTime=Catalog.Step;Screen.sleepTimeout=SleepTimeout.NeverSleep;
+            Time.fixedDeltaTime=Catalog.Step;
             Data=new Catalog(Resources.Load<TextAsset>("catalog").text);if(HeadlessRunner.Requested){gameObject.AddComponent<HeadlessRunner>().Initialize(Data,Factory);enabled=false;return;}
+            bool qa=VisualValidation.Requested;
+            if(qa)PlayerPresentation.ResetQa();
+            Presentation=new PlayerPresentation(qa);
+            Presentation.ApplyStartup();
+            Muted=qa;
             Config=Data.Default();try{var favorites=PlayerPrefs.GetString("frontline.unity.favorites","");if(favorites.Length>0)Favorites=Json.Read<List<Favorite>>(favorites,1024*1024);}catch(Exception e){Debug.LogWarning(e.Message);}while(Favorites.Count<5)Favorites.Add(null);if(Favorites.Count>5)Favorites=Favorites.Take(5).ToList();
-            View=gameObject.AddComponent<BattleView>();View.Data=Data;gameObject.AddComponent<BattleInput>().Initialize(this);gameObject.AddComponent<NativeHud>().Initialize(this);gameObject.AddComponent<BattleAudio>().Initialize(this);loaded=true;Refresh();if(VisualValidation.Requested)gameObject.AddComponent<VisualValidation>().Initialize(this);
+            View=gameObject.AddComponent<BattleView>();View.Data=Data;gameObject.AddComponent<BattleInput>().Initialize(this);gameObject.AddComponent<NativeHud>().Initialize(this);gameObject.AddComponent<BattleAudio>().Initialize(this);loaded=true;Refresh();if(qa)gameObject.AddComponent<VisualValidation>().Initialize(this);
         }
-        public void Refresh(){if(!loaded)return;View.SetManor(Phase=="manor"?Estate:null,ManorSlot,ManorSpeed);View.Config=Config;View.Current=Phase=="deploy"?null:live;View.Deploying=Phase=="deploy";View.HiddenTeam=Mode=="hotseat"&&Hotseat!="revealed"?(Hotseat=="red"?"blue":Hotseat=="blue"?"red":"both"):null;View.Selection.Clear();int offset=EditingTeam=="red"?1:Config.red.Count+1;foreach(int i in Selected)View.Selection.Add(i+offset);Changed?.Invoke();}
+        public void Refresh(){if(!loaded)return;View.Config=Config;View.SetManor(Phase=="manor"||InFrontier?Estate:null,InFrontier?-1:ManorSlot,ManorSpeed);View.FrontierDestination=InFrontier?Battle.MarchDestination:null;View.Current=Phase=="deploy"?null:live;View.Deploying=Phase=="deploy";View.HiddenTeam=Mode=="hotseat"&&Hotseat!="revealed"?(Hotseat=="red"?"blue":Hotseat=="blue"?"red":"both"):null;View.Selection.Clear();View.PropSelection=SelectedProp;int offset=EditingTeam=="red"?1:Config.red.Count+1;foreach(int i in Selected)View.Selection.Add(i+offset);Changed?.Invoke();}
         public void Tell(string message){Message=message;Notice?.Invoke(message);}
         public void Try(Action action){try{action();}catch(Exception e){Tell(e.Message);Debug.LogWarning(e.Message);}}
         void Remember(){undo.Push(Json.Clone(Config));while(undo.Count>40){var list=undo.Reverse().Skip(1).ToArray();undo.Clear();foreach(var c in list)undo.Push(c);}}
-        void Change(Deployment config){Config=Data.Validate(config);Selected.Clear();Refresh();}
+        void Change(Deployment config){Config=Data.Validate(config,InManor);Selected.Clear();SelectedProp=-1;Refresh();}
+        public bool CanUndo => CanEdit && undo.Count > 0;
         public void Undo(){if(!CanEdit||undo.Count==0)return;Change(undo.Pop());Tell("已撤销布阵");}
         public void SetMode(string mode){if(Busy||InManor)return;ReturnToDeploy();Mode=mode;Team="red";Hotseat="red";if(mode=="hotseat"){Config.red.Clear();Config.blue.Clear();Config.props.Clear();}Series=null;undo.Clear();Tell("已切换模式："+ModeName(mode));Refresh();}
         internal static string ModeName(string mode)
@@ -52,21 +63,49 @@ namespace Frontline.UnityGame
         public void ClearTeam(){if(InManor||!CanEdit)return;Remember();Config.Army(EditingTeam).Clear();Config.props.RemoveAll(p=>p.team==EditingTeam);Selected.Clear();Refresh();}
         public void SelectAt(Vector3 p,bool add=false)
         {
-            if(!CanEdit)return;int best=-1;float distance=1.2f;var army=Config.Army(EditingTeam);for(int i=0;i<army.Count;i++){float d=Catalog.Distance(p.x,p.z,army[i].x,army[i].z);if(d<distance){best=i;distance=d;}}if(!add)Selected.Clear();if(best>=0){if(Selected.Contains(best)&&add)Selected.Remove(best);else Selected.Add(best);}Refresh();
+            if(!CanEdit)return;
+            int best=-1;float distance=1.2f;var army=Config.Army(EditingTeam);
+            for(int i=0;i<army.Count;i++){float d=Catalog.Distance(p.x,p.z,army[i].x,army[i].z);if(d<distance){best=i;distance=d;}}
+            SelectedProp=-1;
+            if(InManor)
+                for(int i=0;i<Config.props.Count;i++)
+                {
+                    var prop=Config.props[i];
+                    if(prop.team!=EditingTeam)continue;
+                    float d=Catalog.Distance(p.x,p.z,prop.x,prop.z);
+                    if(d<distance){SelectedProp=i;distance=d;}
+                }
+            if(!add||SelectedProp>=0)Selected.Clear();
+            if(best>=0&&SelectedProp<0){if(Selected.Contains(best)&&add)Selected.Remove(best);else Selected.Add(best);}
+            Refresh();
         }
         public void SelectRectangle(Vector2 a,Vector2 b)
         {
-            if(!CanEdit)return;Selected.Clear();var army=Config.Army(EditingTeam);for(int i=0;i<army.Count;i++){var u=army[i];var s=View.ViewCamera.WorldToScreenPoint(new Vector3(u.x,Data.Height(Config.map,u.x,u.z)+.8f,u.z));if(s.x>=Mathf.Min(a.x,b.x)&&s.x<=Mathf.Max(a.x,b.x)&&s.y>=Mathf.Min(a.y,b.y)&&s.y<=Mathf.Max(a.y,b.y))Selected.Add(i);}Refresh();
+            if(!CanEdit)return;Selected.Clear();SelectedProp=-1;var army=Config.Army(EditingTeam);for(int i=0;i<army.Count;i++){var u=army[i];var s=View.ViewCamera.WorldToScreenPoint(new Vector3(u.x,Data.Height(Config.map,u.x,u.z)+.8f,u.z));if(s.x>=Mathf.Min(a.x,b.x)&&s.x<=Mathf.Max(a.x,b.x)&&s.y>=Mathf.Min(a.y,b.y)&&s.y<=Mathf.Max(a.y,b.y))Selected.Add(i);}Refresh();
         }
         public void PlaceAt(Vector3 p)
         {
-            if(!CanEdit)return;Try(()=>{if(Tool=="select"){SelectAt(p);return;}if(InManor&&Tool!="move")return;Remember();if(Tool=="move"&&Selected.Count>0){var army=Config.Army(EditingTeam);float x=Selected.Average(i=>army[i].x),z=Selected.Average(i=>army[i].z);Change(Data.Move(Config,EditingTeam,Selected,p.x-x,p.z-z,PlayerLimit));return;}
-                if(InManor)return;
+            if(!CanEdit)return;Try(()=>{if(Tool=="select"){SelectAt(p);return;}
+                if(InManor){MoveExpedition(p);return;}
+                Remember();if(Tool=="move"&&Selected.Count>0){var army=Config.Army(EditingTeam);float x=Selected.Average(i=>army[i].x),z=Selected.Average(i=>army[i].z);Change(Data.Move(Config,EditingTeam,Selected,p.x-x,p.z-z,PlayerLimit));return;}
                 if(PropType!=null){if(Config.props.Count(q=>q.team==EditingTeam)>=12||!Data.CanPlace(Config,EditingTeam,PropType,p.x,p.z,true))throw new FormatException("道具位置无效或重叠");var c=Json.Clone(Config);c.props.Add(new PropPlacement{type=PropType,team=EditingTeam,x=p.x,z=p.z});if(Data.Cost(c,EditingTeam)>PlayerLimit)throw new FormatException("军费不足");Change(c);}
                 else {var list=new List<UnitPlacement>{new UnitPlacement(UnitType,p.x,p.z,Stance)};if(Mirror&&Math.Abs(p.z)>.5f)list.Add(new UnitPlacement(UnitType,p.x,-p.z,Stance));Change(Data.Place(Config,EditingTeam,list,null,PlayerLimit));}});
         }
+        void MoveExpedition(Vector3 p)
+        {
+            if(Tool!="move"||sortie==null)return;
+            Deployment moved;
+            if(SelectedProp>=0) moved=sortie.MoveProp(Data,Config,SelectedProp,p.x,p.z);
+            else
+            {
+                if(Selected.Count==0){Tell("先用选择工具点选部队或道具");return;}
+                float x=Selected.Average(i=>Config.red[i].x),z=Selected.Average(i=>Config.red[i].z);
+                moved=sortie.MoveTroops(Data,Config,Selected,p.x-x,p.z-z);
+            }
+            Remember();Change(moved);Tell("已移动 · 可撤销");
+        }
         public void DeleteSelection(){if(InManor||!CanEdit||Selected.Count==0)return;Remember();foreach(int i in Selected.OrderByDescending(i=>i))Config.Army(EditingTeam).RemoveAt(i);Selected.Clear();Refresh();}
-        public void Arrange(string shape){if(!CanEdit)return;Try(()=>{var indices=Selected.Count>0?Selected.ToList():Enumerable.Range(0,Config.Army(EditingTeam).Count).ToList();var roster=indices.Select(i=>Config.Army(EditingTeam)[i]).ToList();if(roster.Count==0)return;var list=Catalog.Squad(roster,EditingTeam,shape,EditingTeam=="red"?-6:6,0,false);Remember();Change(Data.Place(Config,EditingTeam,list,indices,PlayerLimit));});}
+        public void Arrange(string shape){if(!CanEdit)return;Try(()=>{var indices=Selected.Count>0?Selected.ToList():Enumerable.Range(0,Config.Army(EditingTeam).Count).ToList();var roster=indices.Select(i=>Config.Army(EditingTeam)[i]).ToList();if(roster.Count==0)return;var list=Catalog.Squad(roster,EditingTeam,shape,EditingTeam=="red"?-6:6,0,false);var next=InManor?sortie.PlaceTroops(Data,Config,indices,list):Data.Place(Config,EditingTeam,list,indices,PlayerLimit);Remember();Change(next);});}
         public void SaveFavorite(){if(InManor||!CanEdit)return;Favorites[FavoriteSlot]=Data.SaveFavorite(Config,EditingTeam,"收藏 "+(FavoriteSlot+1));PlayerPrefs.SetString("frontline.unity.favorites",Json.Write(Favorites));PlayerPrefs.Save();Tell("已保存到收藏 "+(FavoriteSlot+1));Refresh();}
         public void LoadFavorite(){if(InManor||!CanEdit)return;Try(()=>{Remember();Change(Data.LoadFavorite(Config,EditingTeam,Favorites[FavoriteSlot],PlayerLimit));});}
         public void SealHotseat(){if(Mode!="hotseat"||Phase!="deploy")return;if((Hotseat=="red"||Hotseat=="blue")&&Config.Army(Hotseat).Count==0){Tell("至少招募一名士兵后才能封存");return;}if(Hotseat=="red"){Hotseat="handoff";Selected.Clear();Tell("红方已封存，请交给蓝方");}else if(Hotseat=="handoff")Hotseat="blue";else if(Hotseat=="blue"){Hotseat="revealed";Tell("双方阵型已公开，可以开战");}Refresh();}
@@ -123,25 +162,83 @@ namespace Frontline.UnityGame
         void StartBattle()
         {
             if(InManor&&(sortie==null||!sortie.Matches(Config)))throw new InvalidOperationException("阵型与远征名册不匹配");
-            Config=Data.Validate(Config);if(Config.red.Count==0||Config.blue.Count==0)throw new FormatException("双方至少需要一名士兵");Config.commander.aiTeams=Config.commander.enabled?(Mode=="auto"?new List<string>{"red","blue"}:(Mode=="ai"||InManor)?new List<string>{"blue"}:new List<string>()):new List<string>();Battle?.Dispose();Battle=new Battle(Data,Config,Factory);ReplayFile=null;recorded.Clear();archive=new Frame[902];for(int i=0;i<archive.Length;i++)archive[i]=Battle.PrepareSnapshot();archiveIndex=0;recorded.Add(RecordFrame());live=Battle.Snapshot(Battle.PrepareSnapshot());Phase="battle";Paused=false;accumulator=0;Selected.Clear();if(Bo3&&Series==null)Series=new BattleSeries(Data,Config);Tell("战斗进行中");Refresh();
+            Config=Data.Validate(Config,InManor);if(Config.red.Count==0||Config.blue.Count==0)throw new FormatException("双方至少需要一名士兵");Config.commander.aiTeams=Config.commander.enabled?(Mode=="auto"?new List<string>{"red","blue"}:(Mode=="ai"||InManor)?new List<string>{"blue"}:new List<string>()):new List<string>();
+            Battle?.Dispose();
+            BeginBattle(new Battle(Data,Config,Factory,InManor,targetScanWorkers:CpuWork.TargetWorkers),true);
         }
+
+#if UNITY_STANDALONE_WIN && !UNITY_WEBGL
+        internal void StartPerformanceStress()
+        {
+            if(!FixedPerformanceStep||InManor||Phase!="deploy")throw new InvalidOperationException("Desktop stress requires performance QA");
+            Battle?.Dispose();
+            BeginBattle(Frontline.Core.Battle.CreatePerformanceStress(Data,Config,Factory,CpuWork.TargetWorkers),false);
+        }
+#endif
+
+        void BeginBattle(Battle battle,bool record)
+        {
+            Battle=battle;ReplayFile=null;recorded.Clear();archiveIndex=0;
+            archive=record?new Frame[902]:null;
+            if(record)
+            {
+                for(int i=0;i<archive.Length;i++)archive[i]=Battle.PrepareSnapshot();
+                recorded.Add(RecordFrame());
+            }
+            live=Battle.Snapshot(Battle.PrepareSnapshot());Phase="battle";Paused=false;accumulator=0;Selected.Clear();SelectedProp=-1;
+            if(Bo3&&Series==null)Series=new BattleSeries(Data,Config);
+            Tell("战斗进行中");Refresh();
+        }
+
         void Update()
         {
-            if(!loaded||Busy)return;
+            if(FixedPerformanceStep)PerformanceSimulationTicks=0;
+            if(!loaded||Busy||HoldExpedition)return;
             if(Phase=="manor"){UpdateManorClock();return;}
             if(Phase=="replay"&&ReplayFile!=null&&!Paused){ReplayTime=Mathf.Min(ReplayFile.result.time,ReplayTime+Time.unscaledDeltaTime*Speed);live=ReplayFile.frames[Replay.AtTime(ReplayFile.frames,ReplayTime)];View.Current=live;if(ReplayTime>=ReplayFile.result.time)Paused=true;return;}
-            if(Phase!="battle"||Paused||Battle==null)return;accumulator=Mathf.Min(.25f,accumulator+Time.unscaledDeltaTime*Speed);int steps=0;while(accumulator>=Catalog.Step&&steps++<16&&Battle.Result==null){Battle.Step();accumulator-=Catalog.Step;if(Battle.Tick%6==0)recorded.Add(RecordFrame());}live=Battle.Snapshot(live);View.Current=live;
-            if(Battle.Result!=null){if(recorded[recorded.Count-1].tick!=Battle.Tick)recorded.Add(RecordFrame());ReplayFile=Replay.Create(Data,Config,recorded,Battle.Result);if(Bo3&&Series!=null)Series.Record(Config,Battle.Result);Phase="result";if(InManor)SaveResult();Tell(Battle.Result.winner=="draw"?"本局平局":(Battle.Result.winner=="red"?"红方":"蓝方")+"获胜");Refresh();}
+            if(Phase!="battle"&&!InFrontier||Paused||Battle==null||Battle.Result!=null)return;
+            long before=FixedPerformanceStep?System.Diagnostics.Stopwatch.GetTimestamp():0;
+            accumulator=FixedPerformanceStep?Catalog.Step:Mathf.Min(.25f,accumulator+Time.unscaledDeltaTime*Speed);
+            int steps=0;
+            while(accumulator>=Catalog.Step&&steps++<16&&Battle.Result==null)
+            {
+                Battle.Step();accumulator-=Catalog.Step;
+                if(!InFrontier&&archive!=null&&Battle.Tick%6==0)recorded.Add(RecordFrame());
+            }
+            live=Battle.Snapshot(live);View.Current=live;
+            if(FixedPerformanceStep)PerformanceSimulationTicks=System.Diagnostics.Stopwatch.GetTimestamp()-before;
+            if(InFrontier)
+            {
+                View.FrontierDestination=Battle.MarchDestination;
+                if(Battle.Result!=null)
+                {
+                    SaveResult();
+                    Tell(Battle.Result.winner=="red"?"三支巡队已击溃，可以归营结算":"巡边结束，可以归营结算");
+                    Refresh();
+                }
+                return;
+            }
+            if(Battle.Result!=null&&archive!=null){if(recorded[recorded.Count-1].tick!=Battle.Tick)recorded.Add(RecordFrame());ReplayFile=Replay.Create(Data,Config,recorded,Battle.Result,engineVersion:InManor?Replay.RefinedExpeditionEngine:Replay.RefinedEngine);if(Bo3&&Series!=null)Series.Record(Config,Battle.Result);Phase="result";if(InManor)SaveResult();Tell(Battle.Result.winner=="draw"?"本局平局":(Battle.Result.winner=="red"?"红方":"蓝方")+"获胜");Refresh();}
         }
         Frame RecordFrame(){if(archiveIndex>=archive.Length)throw new InvalidOperationException("Replay frame limit exceeded");return Battle.Snapshot(archive[archiveIndex++]);}
         public Frame CurrentFrame {get{return live;}}
         public IReadOnlyList<Highlight> Highlights => (IReadOnlyList<Highlight>)(ReplayFile?.highlights??Battle?.Highlights)??Array.Empty<Highlight>();
-        public void TogglePause(){if(Phase=="battle"||Phase=="replay"){Paused=!Paused;Refresh();}}
-        public void CommandAt(Vector3 p){if(Phase!="battle"||Battle==null)return;if(!AllowsOrder(OrderType)){Tell("宅邸等级尚未解锁此军令");return;}string team=Team;if(Mode=="ai")team="red";if(!Battle.IssueOrder(team,new Order(OrderType,p.x,p.z),out string reason))Tell(reason);else Tell((team=="red"?"红方":"蓝方")+"军令已下达");Refresh();}
+        public void TogglePause(){if(Phase=="battle"||Phase=="replay"||InFrontier&&Battle?.Result==null){Paused=!Paused;Refresh();}}
+        public void ChooseOrder(string type){if(!AllowsOrder(type))return;OrderType=type;if(InFrontier)Tool="order";Refresh();}
+        public void CommandAt(Vector3 p)
+        {
+            if(Phase!="battle"&&!InFrontier||Battle==null)return;
+            if(!AllowsOrder(OrderType)){Tell("宅邸等级尚未解锁此军令");return;}
+            string team=Mode=="ai"?"red":Team;
+            if(!Battle.IssueOrder(team,new Order(OrderType,p.x,p.z),out string reason))Tell(reason);
+            else if(InFrontier){Tool="march";Tell("军令已释放，已切回推进模式");}
+            else Tell((team=="red"?"红方":"蓝方")+"军令已下达");
+            Refresh();
+        }
         public void ReturnToDeploy(){if(InManor){ReturnManor();return;}bool returned=Phase!="deploy"&&!HasJob;CancelJob();Battle?.Dispose();Battle=null;archive=null;Phase="deploy";live=null;ReplayTime=0;Paused=false;Selected.Clear();if(Mode=="hotseat")Hotseat="revealed";if(returned)Tell("已返回布阵");Refresh();}
         public void NextRound(){if(Series==null||Series.Complete)return;var next=Series.Next();ReturnToDeploy();Config=next;Hotseat=Mode=="hotseat"?"red":"revealed";if(Mode=="hotseat"){Config.red.Clear();Config.blue.Clear();Config.props.Clear();}undo.Clear();Tell("下一局可调整布阵，地图与总军费已锁定");Refresh();}
-        public void Watch(){if(InManor||ReplayFile?.kind!="trajectory")return;Battle?.Dispose();Battle=null;Phase="replay";ReplayTime=0;Paused=false;live=ReplayFile.frames[0];Tell("回放播放中");Refresh();}
-        public void Seek(float time){if(InManor||ReplayFile?.kind!="trajectory")return;Phase="replay";ReplayTime=Mathf.Clamp(time,0,ReplayFile.result.time);live=ReplayFile.frames[Replay.AtTime(ReplayFile.frames,ReplayTime)];View.Current=live;Paused=true;}
+        public void Watch(){if(ReplayFile?.kind!="trajectory")return;Battle?.Dispose();Battle=null;Phase="replay";ReplayTime=0;Paused=false;live=ReplayFile.frames[0];Tell("回放播放中");Refresh();}
+        public void Seek(float time){if(ReplayFile?.kind!="trajectory")return;Phase="replay";ReplayTime=Mathf.Clamp(time,0,ReplayFile.result.time);live=ReplayFile.frames[Replay.AtTime(ReplayFile.frames,ReplayTime)];View.Current=live;Paused=true;}
         public void SeekHighlight(Highlight h){if(ReplayFile==null)return;int index=Replay.AfterTick(ReplayFile.frames,h.tick);Seek(ReplayFile.frames[index].time);Refresh();}
         public void ExportConfig(){Try(()=>FileBridge.Export("frontline-formation.json",Json.Write(Mode=="hotseat"?PublicConfig:Config)));}
         public void ExportReplay(bool seed=false){if(ReplayFile==null)return;Try(()=>FileBridge.Export(seed?"frontline-seed.json":"frontline-replay.json",Json.Write(seed?Replay.Create(Data,ReplayFile.config,ReplayFile.frames,ReplayFile.result,true,ReplayFile.engineVersion):ReplayFile)));}
@@ -155,13 +252,18 @@ namespace Frontline.UnityGame
         {
             if(Busy)throw new InvalidOperationException("请先停止当前计算");var raw=Json.Parse(text) as Dictionary<string,object>;if(raw==null)throw new FormatException("JSON 需要是对象");
             if(raw.TryGetValue("format",out var format)&&format as string=="frontline-manor"){ImportManor(text);return;}
-            if(InManor)throw new FormatException("请选择 frontline-manor.json 庄园存档");
-            if(format as string=="frontline-replay"){var replay=Replay.Import(Data,text);ReturnToDeploy();Config=replay.config;ReplayFile=replay;if(replay.kind=="seed")StartJob(ExpandSeed(replay),Watch);else Watch();return;}
+            if(format as string=="frontline-replay")
+            {
+                var replay=Replay.Import(Data,text);
+                if(Replay.IsExpeditionEngine(replay.engineVersion)){OpenExpeditionReplay(replay);return;}
+                if(!InManor){ReturnToDeploy();Config=replay.config;ReplayFile=replay;if(replay.kind=="seed")StartJob(ExpandSeed(replay),Watch);else Watch();return;}
+            }
+            if(InManor)throw new FormatException("请选择庄园存档或远征回放");
             if(!CanEdit)throw new InvalidOperationException("请先返回布阵");var imported=Data.Import(text);if(Mode=="hotseat"&&Hotseat!="revealed"){if(imported.map!=Config.map||imported.budget!=Config.budget)throw new FormatException("热座封存不能变更地图和军费");Remember();Config=Data.LoadFavorite(Config,EditingTeam,Data.SaveFavorite(imported,EditingTeam,"导入"),PlayerLimit);}else{Remember();Config=imported;PlayerLimit=Config.budget;Series=null;Mode="sandbox";Team="red";Hotseat="revealed";}Selected.Clear();Tell("阵型已导入");Refresh();
         }
         IEnumerator ExpandSeed(ReplayPackage replay)
         {
-            var frames=new List<Frame>();using(IRecordedBattle b=replay.engineVersion=="unity-0.6.0"||replay.engineVersion=="unity-0.7.0"?(IRecordedBattle)new Frontline.Core.History07.Battle(Data,replay.config,replay.engineVersion=="unity-0.6.0"?(IWorldFactory)new LegacyUnityWorldFactory():new Unity07WorldFactory()):replay.engineVersion=="unity-0.8.0"?(IRecordedBattle)new Frontline.Core.History08.Battle(Data,replay.config,new Unity08WorldFactory()):new Battle(Data,replay.config,Factory)){b.UseOrderLog(replay.orderLog);frames.Add(b.Snapshot());while(b.Result==null){for(int i=0;i<60&&b.Result==null;i++){b.Step();if(b.Tick%6==0)frames.Add(b.Snapshot());}Progress="重建 Unity 种子回放 · "+b.Tick+" / 5400";yield return null;}if(frames[frames.Count-1].tick!=b.Tick)frames.Add(b.Snapshot());ReplayFile=Replay.Create(Data,replay.config,frames,b.Result,false,replay.engineVersion);}
+            var frames=new List<Frame>();using(IRecordedBattle b=replay.engineVersion=="unity-0.6.0"||replay.engineVersion=="unity-0.7.0"?(IRecordedBattle)new Frontline.Core.History07.Battle(Data,replay.config,replay.engineVersion=="unity-0.6.0"?(IWorldFactory)new LegacyUnityWorldFactory():new Unity07WorldFactory()):replay.engineVersion=="unity-0.8.0"?(IRecordedBattle)new Frontline.Core.History08.Battle(Data,replay.config,new Unity08WorldFactory()):new Battle(Data,replay.config,new UnityWorldFactory(Replay.UsesRefinedPhysics(replay.engineVersion)),Replay.IsExpeditionEngine(replay.engineVersion),replay.engineVersion==Replay.LegacyExpeditionEngine,CpuWork.TargetWorkers)){b.UseOrderLog(replay.orderLog);frames.Add(b.Snapshot());while(b.Result==null){for(int i=0;i<60&&b.Result==null;i++){b.Step();if(b.Tick%6==0)frames.Add(b.Snapshot());}Progress="重建 Unity 种子回放 · "+b.Tick+" / 5400";yield return null;}if(frames[frames.Count-1].tick!=b.Tick)frames.Add(b.Snapshot());ReplayFile=Replay.Create(Data,replay.config,frames,b.Result,false,replay.engineVersion);}
         }
         public void AddArenaFormation(string json){if(InManor)return;var c=Data.Import(json);string team=c.red.Count>0?"red":"blue";if(c.Army(team).Count==0)throw new FormatException("导入阵型为空");ImportedEntrants.Add(new Entrant{id="import-"+ImportedEntrants.Count,name="导入阵型 "+(ImportedEntrants.Count+1),map=c.map,team=team,units=c.Army(team),props=c.props.Where(p=>p.team==team).ToList()});Tell("已加入擂台参赛列表");}
         public void Arena(List<Entrant> entrants,List<string> maps,List<uint> seeds){if(Busy||InManor)return;var tournament=new Tournament(Data,Factory,entrants,maps,seeds,Config.budget,Config.commander.enabled);StartJob(ArenaRoutine(tournament));}

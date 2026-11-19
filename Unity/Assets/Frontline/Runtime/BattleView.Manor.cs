@@ -6,8 +6,23 @@ namespace Frontline.UnityGame
     public sealed partial class BattleView
     {
         static readonly Plane ManorGround = new Plane(Vector3.up, Vector3.zero);
-        static readonly Color Meadow = new Color(.46f, .60f, .34f);
+        static readonly Color[] ManorSoils = {
+            new Color(.49f,.65f,.36f), new Color(.57f,.65f,.34f),
+            new Color(.69f,.53f,.32f), new Color(.76f,.83f,.83f)
+        };
+        static readonly Color[] ManorHorizons = {
+            new Color(.74f,.83f,.77f), new Color(.86f,.87f,.71f),
+            new Color(.85f,.73f,.57f), new Color(.74f,.82f,.90f)
+        };
+        static readonly Color[] ManorSkies = {
+            new Color(.26f,.46f,.56f), new Color(.32f,.49f,.58f),
+            new Color(.44f,.40f,.46f), new Color(.30f,.44f,.64f)
+        };
         static readonly Color Track = new Color(.76f, .65f, .44f);
+        static readonly Color WinterTrack = new Color(.72f,.71f,.64f);
+        static readonly Color WinterPlot = new Color(.76f,.77f,.75f);
+        static readonly Color WinterPine = new Color(.91f,.96f,1f);
+        static readonly Quaternion SmokeBillboard = Quaternion.AngleAxis(90,Vector3.right);
         static readonly Color Timber = new Color(.46f, .30f, .19f);
         static readonly Color Survey = new Color(.96f, .86f, .63f);
         static readonly Color[] Clothes = {
@@ -17,13 +32,41 @@ namespace Frontline.UnityGame
 
         Manor manor;
         int manorSelection = -1, manorPace = 1;
-        bool manorDirty;
+        internal int HoveredPlot {get;set;}=-1;
+        bool manorDirty,winterHeating;
         float manorTime, manorScreenShift;
-        readonly string[] builtKinds = new string[10];
-        readonly int[] builtLevels = new int[10], homes = new int[10];
-        int homeCount;
-        MeshSet surveyBlock, hat, parcel;
+        readonly string[] builtKinds = new string[Manor.PlotCount];
+        readonly int[] builtLevels = new int[Manor.PlotCount], homes = new int[Manor.PlotCount];
+        int builtReclaimedPlots;
+        int homeCount,tavernSlot,builtSeason=-1;
+        MeshSet surveyBlock, hat, parcel, farmerCoat, villagerCoat, wrap, sleeve, sails;
+        MeshSet hoe,sickle,bucket,basket,crate,jug;
+        readonly Vector3[] millHubs=new Vector3[Manor.PlotCount];
+        readonly int[] millPlots=new int[Manor.PlotCount],forgePlots=new int[Manor.PlotCount];
+        readonly Vector3[] occupiedWalkSpace=new Vector3[ResidentLimit+3],heroBays=new Vector3[3];
+        int forgeCount,occupiedWalkCount;
+        MeshSet forgeFlame;
+        readonly Quaternion[] millFacing=new Quaternion[Manor.PlotCount];
+        readonly int[] destinations=new int[Manor.PlotCount+1];
+        readonly ResidentVisit[] residents=new ResidentVisit[OrdinaryResidentLimit];
+        int millCount,destinationCount,idleWorkers,residentCount;
+        bool residentRosterDirty;
+        const int ResidentLimit=32, OrdinaryResidentLimit=28, IdleFirst=Manor.PlotCount*5;
+        const int HeroFirst=IdleFirst+OrdinaryResidentLimit, SpecialistFirst=HeroFirst+3;
+        public int VisibleFarmers {get;private set;}
+        public int VisibleVillagers {get;private set;}
         WalkRoute[] walks;
+        readonly System.Collections.Generic.List<Batch> ambient=new System.Collections.Generic.List<Batch>();
+        readonly float[] localHeading=new float[SpecialistFirst+4];
+        readonly bool[] headingSet=new bool[SpecialistFirst+4];
+        MeshSet waterBlock,solidBlock,surveyPeg,contactShade,raidPennant,hoverRing;
+        bool fillingAmbient,ambientDirty=true,ambientPopulated;
+        float fadeReach=-1,fadeStartSquared;
+        static readonly int GroundFadeId=Shader.PropertyToID("_GroundFade");
+        static readonly Color HoverTint=new Color(.49f,.92f,.94f,.78f);
+        float nextAmbient;
+        int ambientCameraVersion;
+        static readonly Color GroundShade=new Color(.09f,.105f,.075f,.24f);
 
         struct CameraBookmark
         {
@@ -54,63 +97,79 @@ namespace Frontline.UnityGame
         public void SetManor(Manor state, int selected, int pace = 1)
         {
             bool changingMode = (manor == null) != (state == null);
+            bool sameEstate=state!=null&&ReferenceEquals(state,manor);
             if (changingMode)
             {
+                cameraBlending=false;
+                ClearAmbient();
+                System.Array.Clear(headingSet,0,headingSet.Length);
                 if (manor == null) arenaCamera = Bookmark();
                 else villageCamera = Bookmark();
                 cachedMap = null;
                 cachedQuality = -1;
                 Marker = null;
+                HoveredPlot=-1;
             }
             manor = state;
+            SetSeasonLight(manor?.Season??-1,sameEstate);
             manorSelection = selected;
             manorPace = Mathf.Clamp(pace, 0, 2);
             if (changingMode)
             {
+                ViewCamera.fieldOfView=manor!=null?FrontierFov:Viewport.Compact?65:42;
+                ViewCamera.farClipPlane=manor!=null?390:160;
                 if (!Restore(manor == null ? arenaCamera : villageCamera)) ResetCamera();
                 UpdateShadowDistance();
             }
             if (manor == null) return;
-            manorDirty |= changingMode;
+            ambientDirty=residentRosterDirty=true;
+            idleWorkers=manor.FreeWorkers;
+            for(int i=0;i<specialistLevels.Length;i++)specialistLevels[i]=manor.SpecialistLevel(Manor.SpecialistIds[i]);
+            winterHeating=manor.Season==3 && manor.Forecast().winterTimber>0;
+            manorDirty |= changingMode || builtSeason != manor.Season || builtReclaimedPlots != manor.reclaimedPlots;
             for (int i = 0; i < manor.slots.Length && !manorDirty; i++)
                 manorDirty = manor.slots[i].kind != builtKinds[i] || manor.slots[i].level != builtLevels[i];
         }
 
         void UpdateShadowDistance()
         {
-            float reach = QualityLevel == 0 ? 22 : QualityLevel == 1 ? 42 : 65;
-            QualitySettings.shadowDistance = manor == null ? reach : Mathf.Max(reach, distance + 20);
-            QualitySettings.shadows = manor == null && QualityLevel == 0 ? ShadowQuality.HardOnly : ShadowQuality.All;
+            float reach=QualityLevel==0?22:QualityLevel==1?42:82;
+#if !UNITY_WEBGL
+            if(manor==null&&QualityLevel==2)
+            {
+                // Cover the far edge and restore the pre-zoom reach for very wide views.
+                reach=Mathf.Clamp(distance+24,34,72)+Mathf.SmoothStep(0,10,Mathf.InverseLerp(48,60,distance));
+            }
+#endif
+            if(manor!=null)
+            {
+                bool fineDesktop=QualityLevel==2&&!Viewport.Compact;
+                float nearCap=QualityLevel==0?42:QualityLevel==1?70:fineDesktop?144:108;
+                float farCap=QualityLevel==0?32:QualityLevel==1?54:fineDesktop?100:86;
+                float wide=Mathf.InverseLerp(fineDesktop?116:80,fineDesktop?162:132,distance);
+                float cap=Mathf.SmoothStep(nearCap,farCap,wide);
+                reach=Mathf.Clamp(distance+14,24,cap);
+            }
+            if(!Mathf.Approximately(QualitySettings.shadowDistance,reach))QualitySettings.shadowDistance=reach;
         }
 
-        void FrameManor()
+        void ClearAmbient()
         {
-            bool compact = Viewport.Compact;
-            ViewCamera.fieldOfView = compact ? 65 : 42;
-            CameraMode = 0;
-            target = Vector3.up * .25f;
-            yaw = compact ? -6 : -12;
-            pitch = compact ? 53 : 46;
-            float aspect = Screen.width / (float)Mathf.Max(1, Screen.height);
-            float virtualHeight = (compact ? 390 : 1280) / aspect;
-            float top = compact ? 148 : 120, bottom = compact ? 215 : 155;
-            float tangent = Mathf.Tan(ViewCamera.fieldOfView * .5f * Mathf.Deg2Rad);
-            manorScreenShift = (top - bottom) / virtualHeight * tangent;
-            float tanX = tangent * aspect * .94f;
-            float tanY = tangent * Mathf.Clamp((virtualHeight - top - bottom) / virtualHeight, .28f, .98f) * .95f;
-            var toView = Quaternion.Inverse(Quaternion.Euler(pitch, yaw, 0));
-            distance = 20;
-            // Include the near cliff lip, far treetops and hall roof in the available HUD window.
-            for (int xi = -1; xi <= 1; xi += 2)
-                for (int zi = -1; zi <= 1; zi += 2)
-                {
-                    FitPoint(new Vector3(13 * xi, -1.65f, 9 * zi), toView, tanX, tanY);
-                    FitPoint(new Vector3(12 * xi, zi > 0 ? 3.1f : .45f, 8.4f * zi), toView, tanX, tanY);
-                }
-            FitPoint(Vector3.up * 4.25f, toView, tanX, tanY);
-            distance = Mathf.Clamp(distance, 20, 90);
-            UpdateShadowDistance();
+            if(!ambientPopulated)return;
+            foreach(var page in ambient)page.Clear();
+            ambientPopulated=false;
         }
+        internal int CachedAmbientInstances
+        {
+            get
+            {
+                int count=0;
+                foreach(var batch in ambient)for(var page=batch;page!=null;page=page.next)count+=page.count;
+                return count;
+            }
+        }
+
+        void FrameManor() => FrameFrontier(FrontierFocus);
 
         void FitPoint(Vector3 point, Quaternion toView, float tanX, float tanY)
         {
@@ -119,71 +178,72 @@ namespace Frontline.UnityGame
         }
 
         static Vector3 Plot(int index) => new Vector3(Manor.SlotX(index), 0, Manor.SlotZ(index));
-        const float LaneZ = 2.85f, CrossX = 3.25f;
+        const float LaneZ=2.85f, CrossX=3.25f, WestLaneX=-20.65f, OuterLaneZ=12.35f;
+        const float BridgeLocalX=Manor.PlateauHalfWidth;
+        const int Gate=Manor.PlotCount, WestOuterStart=Manor.PlotCount-2;
+
+        static bool WestPlot(int plot) => plot>=Manor.OriginalPlotCount&&plot<Manor.FirstOuterPlot||
+            plot>=WestOuterStart&&plot<Gate;
+        static bool OuterRow(int plot) => plot>=Manor.FirstOuterPlot&&plot<WestOuterStart;
+        static float OuterConnector(float z) => z>0?-5.36f:-3.76f;
 
         static Vector3 LaneMouth(int plot)
         {
-            if (plot == 10) return new Vector3(-12, 0, -LaneZ);
-            var p = Plot(plot);
-            p.z = p.z > 2 ? LaneZ : -LaneZ;
+            if (plot == Gate) return new Vector3(BridgeLocalX-6.65f,0,-LaneZ);
+            var p=Plot(plot);
+            if(WestPlot(plot))return new Vector3(WestLaneX,0,p.z);
+            p.z=Mathf.Sign(p.z)* (OuterRow(plot)?OuterLaneZ:LaneZ);
+            if(plot==0||Mathf.Abs(Manor.SlotZ(plot))<2)p.z=-LaneZ;
             return p;
         }
 
         static Vector3 Door(int plot)
         {
-            if (plot == 10) return LaneMouth(plot);
-            var p = Plot(plot);
-            p.z += Mathf.Sign(LaneMouth(plot).z - p.z) * (plot == 0 ? 2.04f : 1.72f);
+            if (plot == Gate) return new Vector3(BridgeLocalX-.38f,0,0);
+            var p=Plot(plot);
+            var mouth=LaneMouth(plot);
+            if(WestPlot(plot))return p+Vector3.right*(Mathf.Sign(mouth.x-p.x)*1.85f);
+            p.z += Mathf.Sign(mouth.z-p.z)*(plot==0?2.14f:1.79f);
             return p;
         }
 
-        static float FacadeYaw(int index) => Door(index).z > Plot(index).z ? 180 : 0;
+        static float FacadeYaw(int index) => WestPlot(index)?(index>=WestOuterStart?-90:90):Door(index).z>Plot(index).z?180:0;
 
         void Still(MeshSet mesh, Vector3 p, Quaternion rotation, Vector3 size, Color tint, float wind = 0)
         {
-            (mesh.still ?? Buffer(mesh, still, 1)).Add(Pose(p, rotation, size), tint, wind);
+            (mesh.still ?? Buffer(mesh, still, 1)).Add(Pose(p, rotation, size),tint,wind,
+                chunk:manor!=null?StaticRegion(p):-1);
         }
+        void ManorStill(MeshSet mesh,Vector3 p,Quaternion rotation,Vector3 size,Color tint,float wind=0) =>
+            Still(mesh,p+ManorOrigin,rotation,size,tint,wind);
 
         void Tile(Vector3 p, Vector3 size, Color tint, float angle = 0)
         {
-            Still(surveyBlock, p, Quaternion.Euler(0, angle, 0), size, tint);
+            ManorStill(surveyBlock, p, Quaternion.Euler(0, angle, 0), size, tint);
         }
 
         void Lane(Vector3 from, Vector3 to, float width)
         {
             Vector3 span = to - from;
             if (span.sqrMagnitude < .001f) return;
-            Still(surveyBlock, (from + to) * .5f + Vector3.up * .011f, Quaternion.LookRotation(span),
-                new Vector3(width, .018f, span.magnitude + .18f), Track);
-        }
-
-        void Fence(Vector3 at, float angle, int spans)
-        {
-            var rotation = Quaternion.Euler(0, angle, 0);
-            for (int i = 0; i <= spans; i++)
-            {
-                Vector3 post = at + rotation * (Vector3.right * (1.3f * i));
-                Still(surveyBlock, post + Vector3.up * .32f, rotation, new Vector3(.10f, .64f, .10f), Timber);
-                if (i == spans) break;
-                for (int j = 0; j < 2; j++)
-                    Still(surveyBlock, post + rotation * new Vector3(.65f, .24f + .25f * j, 0),
-                        rotation, new Vector3(1.36f, .072f, .07f), new Color(.61f, .43f, .25f));
-            }
+            ManorStill(surveyBlock, (from + to) * .5f + Vector3.up * .011f, Quaternion.LookRotation(span),
+                new Vector3(width, .018f, span.magnitude + .18f), builtSeason==3?WinterTrack:Track);
         }
 
         void MeadowBorder()
         {
-            var tree = Load("tree");
-            var rock = Load("rock");
+            var tree = Load(manor.Season==3?"pine":"tree");
+            var rock = Load("rock").WithoutShadows();
             var grass = Load("grass");
             var flowers = Load("flowers");
-            // The shelterbelt stands behind the plots, with a gap at the western gate.
+            // Border planting leaves both the field lanes and the full building pads clear.
             for (int i = 0; i < 7; i++)
             {
-                float x = i < 4 ? -11.8f + i * 1.48f : 11.5f + (i - 5) * .45f;
-                float z = i < 4 ? 7.85f + Mathf.Sin(i * 2.1f) * .35f : 7.8f - (i - 4) * 2.3f;
+                float x = i < 3 ? -26.80f : i < 5 ? 9.6f+(i-3)*7.85f : BridgeLocalX-3.19f+(i-5)*.40f;
+                float z = i < 3 ? -14.85f+i*14.73f : i < 5 ? 15.32f : i==5?9.68f:-8.67f;
                 float scale = .70f + (i * 7 % 5) * .08f;
-                Still(tree, new Vector3(x, 0, z), Quaternion.Euler(0, i * 67, 0), Vector3.one * scale, White, .011f);
+                ManorStill(tree, new Vector3(x, 0, z), Quaternion.Euler(0, i * 67, 0), Vector3.one * scale, builtSeason==3?WinterPine:White, .011f);
+                StillShade(ManorOrigin+new Vector3(x,0,z),2.3f*scale,1.7f*scale);
             }
             int sprigs = QualityLevel == 0 ? 42 : QualityLevel == 1 ? 92 : 145;
             for (int i = 0; i < sprigs; i++)
@@ -192,23 +252,22 @@ namespace Frontline.UnityGame
                 float along = Mathf.Repeat(.62f + i * .618034f, 1), inset = Mathf.Repeat(.3f + i * .414214f, 1);
                 bool side = i % 3 == 0;
                 float sign = (i & 1) == 0 ? 1 : -1;
-                Vector3 p = side ? new Vector3(sign * (11.4f + inset), .005f, (along - .5f) * 16.5f)
-                                 : new Vector3((along - .5f) * 25, .005f, sign * (7.9f + inset * .75f));
-                if (side && p.x < 0 && Mathf.Abs(p.z + LaneZ) < .55f) continue;
+                Vector3 p = side ? new Vector3(sign*(Manor.PlateauHalfWidth-.93f+inset*.42f),.005f,(along-.5f)*34f)
+                                 : new Vector3((along-.5f)*52,.005f,sign*(Manor.PlateauHalfDepth-1.10f+inset*.65f));
+                if(!side && sign<0 && Mathf.Abs(p.x-DockOrigin.x)<2.6f)continue;
+                if (side && p.x > 0 && Mathf.Abs(p.z)<4.1f) continue;
                 float size = .5f + .45f * inset;
-                Still(i % 5 == 0 ? flowers : grass, p, Quaternion.Euler(0, i * 137.5f, 0), Vector3.one * size, White, .026f);
+                if (manor.Season != 3 || i % 4 == 0)
+                    ManorStill(i % 5 == 0 ? flowers : grass, p, Quaternion.Euler(0, i * 137.5f, 0), Vector3.one * size, White, .026f);
             }
             for (int i = 0; i < 12; i++)
             {
-                float x = -11.7f + i * 2.12f;
-                float z = i % 3 == 1 ? 8.8f : -8.9f;
-                Still(rock, new Vector3(x, -.26f, z), Quaternion.Euler(0, i * 37, 0),
+                float x = -25.9f + i * 4.65f;
+                float z = i % 3 == 1 ? 17.45f : -17.68f;
+                if(z<0&&Mathf.Abs(x-DockOrigin.x)<2.65f)continue;
+                ManorStill(rock, new Vector3(x, -.26f, z), Quaternion.Euler(0, i * 37, 0),
                     new Vector3(.68f + i % 3 * .23f, .53f, .73f), White);
             }
-            Fence(new Vector3(-12f, 0, -7.6f), -90, 2);
-            Fence(new Vector3(-12f, 0, -1.5f), -90, 2);
-            Fence(new Vector3(7.8f, 0, -8.1f), 2, 3);
-            Fence(new Vector3(-4.4f, 0, 8.25f), 0, 6);
         }
 
         void DrawPlotGeometry(int i)
@@ -217,39 +276,61 @@ namespace Frontline.UnityGame
             var plot = manor.slots[i];
             builtKinds[i] = plot.kind;
             builtLevels[i] = plot.level;
-            var facing = Quaternion.Euler(0, FacadeYaw(i), 0);
+            float yaw = FacadeYaw(i);
+            var facing = Quaternion.Euler(0, yaw, 0);
+            if (!manor.IsPlotCleared(i))
+            {
+                DrawUnclearedPlot(i,p,facing);
+                AddPlotObstacle(i);
+                return;
+            }
             if (string.IsNullOrEmpty(plot.kind))
             {
-                Tile(p + Vector3.up * .019f, new Vector3(3.40f, .026f, 2.48f), new Color(.61f,.65f,.40f));
+                Tile(p + Vector3.up * .019f, new Vector3(3.40f, .026f, 2.48f), builtSeason==3?WinterPlot:new Color(.61f,.65f,.40f),yaw);
                 // Four survey pegs and a cream cross identify buildable land from either camera angle.
                 for (int x = -1; x <= 1; x += 2)
                     for (int z = -1; z <= 1; z += 2)
                     {
-                        var peg = p + new Vector3(1.65f*x,.115f,1.20f*z);
-                        Tile(peg, new Vector3(.12f,.23f,.12f), Timber);
-                        Tile(peg + Vector3.up*.13f, new Vector3(.145f,.048f,.145f), Survey);
+                        var peg = p + facing*new Vector3(1.65f*x,.115f,1.20f*z);
+                        ManorStill(surveyPeg,peg,Quaternion.identity,new Vector3(.12f,.23f,.12f),Timber);
+                        ManorStill(surveyPeg,peg+Vector3.up*.13f,Quaternion.identity,new Vector3(.145f,.048f,.145f),Survey);
                     }
-                Tile(p + Vector3.up*.054f, new Vector3(.78f,.04f,.19f), Survey);
-                Tile(p + Vector3.up*.055f, new Vector3(.19f,.04f,.78f), Survey);
+                Tile(p + Vector3.up*.054f, new Vector3(.78f,.04f,.19f), Survey,yaw);
+                Tile(p + Vector3.up*.055f, new Vector3(.19f,.04f,.78f), Survey,yaw);
                 return;
             }
 
             float footprint = i == 0 ? 1.19f : 1;
             Tile(p + Vector3.up*.018f, new Vector3(3.85f*footprint,.04f,2.97f*footprint),
-                i == 0 ? new Color(.68f,.67f,.55f) : new Color(.67f,.58f,.41f));
-            float rise = 1 + (plot.level - 1) * .035f;
-            Still(Load(plot.kind), p + Vector3.up*.042f, facing, new Vector3(1,rise,1), White);
-            // The dark stake with one to three bright inlays sits on the camera-facing verge.
-            var sign = p + new Vector3(1.48f*footprint,.21f,-1.40f*footprint);
-            Tile(sign, new Vector3(.76f,.42f,.18f), Timber);
-            for (int rank = 0; rank < plot.level; rank++)
+                builtSeason==3?WinterPlot:i==0?new Color(.68f,.67f,.55f):new Color(.67f,.58f,.41f),yaw);
+            var basePoint=p+Vector3.up*.042f;
+            ManorStill(Load(plot.kind),basePoint,facing,Vector3.one,White);
+            if(plot.level>=2)ManorStill(Load(plot.kind+(plot.level==2?"_wing":"_tower")),basePoint,facing,Vector3.one,White);
+            StillShade(ManorOrigin+p,(WestPlot(i)?3.24f:4.0f)*footprint,(WestPlot(i)?4.0f:3.24f)*footprint);
+            AddPlotObstacle(i);
+            DecoratePlot(i,plot.kind,basePoint,facing);
+            if(plot.kind=="farm")
             {
-                float x = (rank - (plot.level-1)*.5f)*.21f;
-                Still(dot, sign+new Vector3(x,.205f,-.012f), Quaternion.identity,
-                    new Vector3(.16f,2f,.16f), Survey);
-                Tile(sign+new Vector3(x,.02f,-.102f), new Vector3(.105f,.24f,.025f), Survey);
+                millHubs[millCount]=basePoint+ManorOrigin+facing*ManorPlotArt.MillHub;
+                millPlots[millCount]=i;
+                millFacing[millCount++]=facing;
             }
-            if (plot.kind == "cottage") homes[homeCount++] = i;
+            if(plot.kind=="smithy")forgePlots[forgeCount++]=i;
+            if(!IsFarm(plot.kind))destinations[destinationCount++]=i;
+            // The dark stake with one to three bright inlays sits on the camera-facing verge.
+            var sign=p+facing*new Vector3(1.41f*footprint,.24f,-1.35f*footprint);
+            bool full=plot.level>=Manor.BuildingMaxLevel;
+            var metal=full?new Color(.44f,.72f,.49f):new Color(.81f,.65f,.41f);
+            ManorStill(surveyBlock,sign,facing,new Vector3(.63f,.37f,.115f),Timber);
+            ManorStill(surveyBlock,sign+Vector3.up*.205f,facing,new Vector3(.69f,.043f,.14f),metal);
+            for(int rank=0;rank<Manor.BuildingMaxLevel;rank++)
+            {
+                float x=(rank-1)*.159f;
+                ManorStill(surveyBlock,sign+facing*new Vector3(x,.008f,-.063f),facing,
+                    new Vector3(.084f,.193f,.022f),rank<plot.level?metal:new Color(.28f,.29f,.24f));
+            }
+            if (plot.kind == "cottage" || plot.kind == "pasture") homes[homeCount++] = i;
+            if (tavernSlot == 0 && plot.kind == "tavern") tavernSlot = i;
         }
 
         void RebuildManor()
@@ -257,33 +338,79 @@ namespace Frontline.UnityGame
             foreach (var b in still) b.Clear();
             foreach (var b in grid) b.Clear();
             surveyBlock = Load("platform");
+            if(waterBlock==null)
+            {
+                waterBlock=surveyBlock.Variant(false,false);
+                solidBlock=surveyBlock.Variant(true,true);
+                surveyPeg=surveyBlock.Variant(false,false,true);
+                contactShade=dust.Variant(false,false);
+                raidPennant=props["banner"].Variant(true,true);
+                hoverRing=Load("ring",true);
+            }
+            ambientDirty=true;
             hat = Load("civilian_hat");
             parcel = Load("civilian_pack");
-            Tile(new Vector3(0,-.18f,0),new Vector3(26,.36f,18),Meadow);
-            Tile(new Vector3(0,-.56f,0),new Vector3(25.9f,.58f,17.9f),new Color(.54f,.44f,.30f));
-            Tile(new Vector3(0,-1.16f,0),new Vector3(25.4f,.88f,17.5f),new Color(.47f,.48f,.40f));
-            Still(Load("cliff"),new Vector3(0,-1.93f,0),Quaternion.identity,new Vector3(24,1.7f,16.5f),White);
+            sails=Load("mill_sails");forgeFlame=Load("flame",true);
+            farmerCoat=Load("farmer_clothes");villagerCoat=Load("villager_clothes");
+            wrap=Load("villager_wrap");sleeve=Load("resident_sleeve");
+            hoe=Load("carry_hoe");sickle=Load("carry_sickle");bucket=Load("carry_bucket");
+            basket=Load("carry_basket");crate=Load("carry_crate");jug=Load("carry_jug");
+            float width = Manor.PlateauHalfWidth * 2, depth = Manor.PlateauHalfDepth * 2;
+            builtSeason = manor.Season;
+            builtReclaimedPlots=manor.reclaimedPlots;
+            Tile(new Vector3(0,-.18f,0),new Vector3(width,.36f,depth),ManorSoils[builtSeason]);
+            Tile(new Vector3(0,-.56f,0),new Vector3(width-.1f,.58f,depth-.1f),new Color(.54f,.44f,.30f));
+            Tile(new Vector3(0,-1.16f,0),new Vector3(width-.6f,.88f,depth-.5f),new Color(.47f,.48f,.40f));
+            ManorStill(Load("cliff"),new Vector3(0,-1.93f,0),Quaternion.identity,new Vector3(width-2,1.7f,depth-1.5f),White);
+            var shore=Load("rock").WithoutShadows();
+            for(int side=-1;side<=1;side+=2)for(int i=0;i<13;i++)
+            {
+                float lip=.31f*Mathf.Sin(i*2.39f), x=-26f+i*4.32f;
+                if(side<0&&Mathf.Abs(x-DockOrigin.x)<2.4f)continue;
+                ManorStill(shore,new Vector3(x,-.85f,side*(Manor.PlateauHalfDepth+lip)),Quaternion.Euler(0,i*49,0),
+                    new Vector3(3.38f+(i%3)*.32f,1.06f,1.43f),new Color(.52f,.58f,.49f));
+            }
             MeadowBorder();
-            Lane(new Vector3(-12.2f,0,-LaneZ),new Vector3(9,0,-LaneZ),.78f);
-            Lane(new Vector3(-8.8f,0,LaneZ),new Vector3(9,0,LaneZ),.68f);
+            Lane(new Vector3(WestLaneX,0,-LaneZ),LaneMouth(Gate),.78f);
+            Lane(new Vector3(WestLaneX,0,LaneZ),new Vector3(LaneMouth(Gate).x,0,LaneZ),.68f);
+            Lane(LaneMouth(Gate),Door(Gate),1.08f);
+            Lane(new Vector3(LaneMouth(Gate).x,0,LaneZ),Door(Gate),.86f);
+            Lane(new Vector3(WestLaneX,0,-OuterLaneZ),new Vector3(WestLaneX,0,OuterLaneZ),.78f);
+            for(int side=-1;side<=1;side+=2)
+            {
+                float z=side*OuterLaneZ, x=OuterConnector(z);
+                Lane(new Vector3(WestLaneX,0,z),new Vector3(side>0?.35f:7.75f,0,z),.69f);
+                Lane(new Vector3(x,0,z),new Vector3(x,0,side*LaneZ),.65f);
+            }
+            var landingJunction=new Vector3(DockOrigin.x,0,-OuterLaneZ);
+            Lane(landingJunction,DockApproach,.85f);
             for (int side = -1; side <= 1; side += 2)
                 Lane(new Vector3(side*CrossX,0,-LaneZ),new Vector3(side*CrossX,0,LaneZ),.57f);
-            homeCount = 0;
+            homeCount = tavernSlot = millCount = forgeCount = 0;
+            estateObstacleCount=0;
+            BuildEstateDetails();
+            destinationCount=1;destinations[0]=Gate;
             for (int i = 0; i < manor.slots.Length; i++)
             {
                 Lane(Door(i), LaneMouth(i), i == 0 ? .93f : .50f);
                 DrawPlotGeometry(i);
             }
             if (walks == null) BuildRoutes();
-            sky.SetColor("_Horizon",new Color(.72f,.79f,.70f));
-            sky.SetColor("_Zenith",new Color(.25f,.44f,.51f));
+            residentRosterDirty=true;
+            variedTerrain=false;
+            BuildFrontierLand();
+            for(int i=0;i<2;i++)
+                ManorStill(raidPennant,new Vector3(BridgeLocalX-3.45f,0,-4.1f-i*1.45f),Quaternion.Euler(0,-21,0),
+                    Vector3.one*1.12f,new Color(.98f,.12f,.08f),.048f);
+            sky.SetColor("_Horizon",ManorHorizons[builtSeason]);
+            sky.SetColor("_Zenith",ManorSkies[builtSeason]);
             sky.SetColor("_Nadir",new Color(.30f,.39f,.34f));
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogColor = new Color(.72f,.79f,.70f);
-            RenderSettings.fogDensity = .0060f;
-            material.SetColor("_SkyLight",new Color(.64f,.69f,.66f));
-            material.SetColor("_GroundLight",new Color(.29f,.30f,.23f));
+            RenderSettings.fogColor = ManorHorizons[builtSeason];
+            RenderSettings.fogDensity = .00165f;
+            material.SetColor("_SkyLight",Color.Lerp(ManorHorizons[builtSeason],new Color(.52f,.54f,.55f),.45f));
+            material.SetColor("_GroundLight",Color.Lerp(ManorSoils[builtSeason],new Color(.16f,.18f,.16f),.70f));
             cachedQuality = QualityLevel;
             manorDirty = false;
             StaticRebuilds++;
@@ -291,99 +418,374 @@ namespace Frontline.UnityGame
 
         sealed class WalkRoute
         {
-            public readonly Vector3[] origins = new Vector3[5], directions = new Vector3[5];
-            public readonly float[] lengths = new float[5];
-            public int count;
+            readonly struct Leg
+            {
+                public readonly Vector3 origin, direction;
+                public readonly float length;
+                public Leg(Vector3 origin,Vector3 direction,float length)
+                {
+                    this.origin=origin;this.direction=direction;this.length=length;
+                }
+            }
+
+            readonly Leg[] legs=new Leg[9];
+            int count;
             public float total;
             public void Segment(Vector3 from, Vector3 to)
             {
                 Vector3 span = to - from;
                 float len = span.magnitude;
                 if (len < .001f) return;
-                origins[count] = from;
-                directions[count] = span / len;
-                lengths[count++] = len;
+                legs[count++]=new Leg(from,span/len,len);
                 total += len;
             }
             public void Sample(float travel, out Vector3 p, out Vector3 dir)
             {
                 int i = 0;
-                while (i < count - 1 && travel > lengths[i]) travel -= lengths[i++];
-                dir = directions[i];
-                p = origins[i] + dir * Mathf.Min(lengths[i], travel);
+                while (i < count - 1 && travel > legs[i].length) travel -= legs[i++].length;
+                var leg=legs[i];
+                dir=leg.direction;
+                p=leg.origin+dir*Mathf.Min(leg.length,travel);
             }
         }
 
         void BuildRoutes()
         {
-            // Each route follows the actual lanes and stops at doorsteps. Index 10 is the western gate.
-            walks = new WalkRoute[11 * 10];
-            for (int home = 0; home <= 10; home++)
-                for (int dest = 0; dest < 10; dest++)
+            // Each route follows the actual lanes and stops at doorsteps.
+            walks = new WalkRoute[(Gate+1)*(Gate+1)];
+            for (int home = 0; home <= Gate; home++)
+                for (int dest = 0; dest <= Gate; dest++)
                 {
                     if (home == dest) continue;
-                    var path = walks[home * 10 + dest] = new WalkRoute();
-                    Vector3 a = LaneMouth(home), b = LaneMouth(dest);
-                    path.Segment(Door(home), a);
-                    if (a.z != b.z)
-                    {
-                        float cross = a.x + b.x < 0 ? -CrossX : CrossX;
-                        var near = new Vector3(cross, 0, a.z);
-                        var far = new Vector3(cross, 0, b.z);
-                        path.Segment(a, near);
-                        path.Segment(near, far);
-                        a = far;
-                    }
-                    path.Segment(a, b);
-                    path.Segment(b, Door(dest));
+                    walks[home * (Gate+1) + dest] = WalkBetween(home,dest);
                 }
+            BuildSpecialistRoutes();
         }
 
-        void DrawResident(int slot, int worker)
+        static Vector3 MainLaneJoin(int plot,Vector3 mouth)
         {
-            int id = slot * 5 + worker;
-            int home = homeCount > 0 && (slot == 0 || (id & 1) != 0)
-                ? homes[id % homeCount] : slot == 0 ? 10 : 0;
-            var route = walks[home * 10 + slot];
-            if (route == null || route.count == 0) return;
-            const float pause = .72f;
-            float trip = route.total + pause;
-            float travel = Mathf.Repeat(manorTime * (1.18f + .08f * (id%4)) + id*2.16f, 2*trip);
-            bool returning = travel >= trip;
-            float legTime = returning ? travel-trip : travel;
-            float at = Mathf.Min(route.total, legTime);
-            route.Sample(returning ? route.total-at : at, out var p, out var dir);
-            if (returning) dir = -dir;
-            p += new Vector3(dir.z,0,-dir.x)*((worker%3)-1)*.10f;
-            float step = legTime >= route.total ? 0 : Mathf.Sin(at*5.1f);
-            var tint = Clothes[id%Clothes.Length];
-            var root = Pose(p + Vector3.up*(.70f+.021f*Mathf.Abs(step)),Quaternion.LookRotation(dir),Vector3.one*.80f);
-            Add(torso,root,tint);
-            Add(head,root*Matrix4x4.Translate(new Vector3(0,.49f,.01f)),White);
-            Add(hat,root*Matrix4x4.Translate(new Vector3(0,.65f,.01f)),White);
-            if (returning) Add(parcel,root*Matrix4x4.Translate(new Vector3(0,-.07f,-.25f)),White);
-            for (int side = -1; side <= 1; side += 2)
+            if(WestPlot(plot))return new Vector3(mouth.x,0,Mathf.Sign(mouth.z)*LaneZ);
+            if(OuterRow(plot))return new Vector3(OuterConnector(mouth.z),0,Mathf.Sign(mouth.z)*LaneZ);
+            return mouth;
+        }
+
+        static WalkRoute WalkBetween(int home,int dest)
+        {
+            var path=new WalkRoute();
+            Vector3 a=LaneMouth(home), b=LaneMouth(dest);
+            path.Segment(Door(home),a);
+            if(WestPlot(home)&&WestPlot(dest)||OuterRow(home)&&OuterRow(dest)&&a.z==b.z)path.Segment(a,b);
+            else
             {
-                float swing = step*side*29;
-                Add(leg,root*Pose(new Vector3(side*.135f,-.51f,0),Quaternion.Euler(swing,0,0),Vector3.one),White);
-                var shoulder = Pose(new Vector3(side*.30f,.25f,0),Quaternion.Euler(-swing*.80f,side==1?180:0,0),Vector3.one*.92f);
-                Add(armLeft,root*shoulder*Matrix4x4.Translate(new Vector3(.36f,-.27f,0)),tint);
+                Vector3 start=MainLaneJoin(home,a),end=MainLaneJoin(dest,b);
+                Vector3 firstTurn=new Vector3(start.x,0,a.z),lastTurn=new Vector3(end.x,0,b.z);
+                path.Segment(a,firstTurn);
+                path.Segment(firstTurn,start);
+                if(start.z!=end.z)
+                {
+                    float cross=start.x+end.x<0?-CrossX:CrossX;
+                    var near=new Vector3(cross,0,start.z);
+                    var far=new Vector3(cross,0,end.z);
+                    path.Segment(start,near);path.Segment(near,far);
+                    start=far;
+                }
+                path.Segment(start,end);path.Segment(end,lastTurn);path.Segment(lastTurn,b);
+            }
+            path.Segment(b,Door(dest));
+            return path;
+        }
+
+        static bool IsFarm(string kind) => kind=="farm"||kind=="irrigated_field"||kind=="pasture";
+
+        void UpdateGroundFade()
+        {
+            float reach=QualitySettings.shadowDistance;
+            if(Mathf.Approximately(reach,fadeReach))return;
+            fadeReach=reach;
+            float start=reach-Mathf.Clamp(.17f*reach,4,23);
+            float end=reach+Mathf.Clamp(.045f*reach,1.5f,6);
+            fadeStartSquared=start*start;
+            groundingMaterial.SetVector(GroundFadeId,new Vector4(start,1/(end-start),0,0));
+        }
+        void StillShade(Vector3 point,float width,float depth)
+        {
+            Still(contactShade,new Vector3(point.x+.18f,.052f,point.z+.12f),Quaternion.identity,
+                new Vector3(width,1,depth),GroundShade,1);
+        }
+        void ContactAt(Vector3 point,float width)
+        {
+            point.y=.057f;
+            if((point-cameraPosition).sqrMagnitude>fadeStartSquared)
+                Add(contactShade,Pose(point,Quaternion.identity,new Vector3(width,1,width*.76f)),GroundShade,1);
+        }
+        float LocalHeading(int index,float desired)
+        {
+            float dt=fillingAmbient?.08f:Mathf.Min(.12f,Time.unscaledDeltaTime);
+            localHeading[index]=headingSet[index]?Mathf.MoveTowardsAngle(localHeading[index],desired,dt*195):desired;
+            headingSet[index]=true;
+            return localHeading[index];
+        }
+
+        readonly struct ResidentVisit
+        {
+            public readonly WalkRoute route;
+            public readonly int id, dest, lane;
+            public readonly bool idle;
+
+            public ResidentVisit(WalkRoute route,int id,int dest,int lane,bool idle)
+            {
+                this.route=route;this.id=id;this.dest=dest;this.lane=lane;this.idle=idle;
+            }
+        }
+
+        void AddResident(int id,int home,int dest,int lane,bool idle)
+        {
+            if(home==dest)home=dest==0?Gate:0;
+            residents[residentCount++]=new ResidentVisit(walks[home*(Gate+1)+dest],id,dest,lane,idle);
+        }
+
+        void DrawResident(in ResidentVisit visit)
+        {
+            int id=visit.id,dest=visit.dest,lane=visit.lane;
+            var route=visit.route;
+            string kind=dest==Gate?null:manor.slots[dest].kind;
+            bool farmer=!visit.idle&&IsFarm(kind);
+            float speed=.85f+(id%4)*.09f;
+            float travel=route.total/speed;
+            float dwell=farmer?7f:3.7f;
+            float cycle=2*travel+dwell+1.8f;
+            float phase=Mathf.Repeat(manorTime+travel+(farmer?lane*cycle/3f:id*2.19f),cycle);
+            bool atWork=phase>=travel&&phase<travel+dwell;
+            bool returning=phase>=travel+dwell;
+            float along=returning?Mathf.Max(0,route.total-(phase-travel-dwell)*speed):Mathf.Min(route.total,phase*speed);
+            route.Sample(along,out var pos,out var direction);
+            if(returning)direction=-direction;
+            float spacing=(lane%3-1)*.38f;
+            // Keep to the right of the lane in each travel direction, with a small stable offset per resident.
+            float roadOffset=(.205f+(id%4)*.045f)*Mathf.Clamp01(Mathf.Min(along,route.total-along)/.8f);
+            pos+=new Vector3(direction.z,0,-direction.x)*roadOffset;
+            if(atWork)
+            {
+                var door=Door(dest);
+                if(farmer)
+                {
+                    var facing=Quaternion.Euler(0,FacadeYaw(dest),0);
+                    float row=kind=="farm"?.70f:kind=="pasture"?.83f:.23f;
+                    float blend=Mathf.Clamp01(Mathf.Min(phase-travel,travel+dwell-phase)*2);
+                    pos=Vector3.Lerp(pos,Plot(dest)+facing*new Vector3(row+spacing,0,-1.79f),blend);
+                    direction=facing*Vector3.forward;
+                }
+                else
+                {
+                    float blend=Mathf.Clamp01(Mathf.Min(phase-travel,travel+dwell-phase)*2);
+                    float stop=kind=="tavern"?spacing:(id%2==0?-.36f:.36f)+spacing;
+                    var facade=dest==Gate?Quaternion.identity:Quaternion.Euler(0,FacadeYaw(dest),0);
+                    pos=Vector3.Lerp(pos,door+facade*new Vector3(stop,0,-.14f),blend);
+                    direction=facade*new Vector3(id%2==0?1:-1,0,.25f);
+                }
+            }
+            bool walking=!atWork&&!(returning&&along==0);
+            if(!InView(ManorOrigin+pos,3))return;
+            if(!TryPlaceWalker(pos,direction,out pos))return;
+            if(farmer)VisibleFarmers++;else VisibleVillagers++;
+            float gait=walking?Mathf.Sin(along*4.6f+id):0;
+            float gesture=atWork?Mathf.Sin(manorTime*(farmer?2.1f:1.3f)+id):0;
+            var tint=Clothes[id%Clothes.Length];
+            var root=Pose(ManorOrigin+pos+Vector3.up*(.74f+.025f*Mathf.Abs(gait)),
+                Quaternion.Euler(0,LocalHeading(id,Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg),0)*
+                Quaternion.Euler(farmer&&atWork?9+gesture*6:0,0,0),Vector3.one*.91f);
+            Add(farmer?farmerCoat:villagerCoat,root,tint);
+            ContactAt(ManorOrigin+pos,.92f);
+            if(lowActors)return;
+            Add(head,root*Matrix4x4.Translate(new Vector3(0,.49f,.015f)),White);
+            Add(farmer?hat:wrap,root*Matrix4x4.Translate(new Vector3(0,.65f,0)),White);
+            if(farmer&&returning)Add(parcel,root*Matrix4x4.Translate(new Vector3(0,-.03f,-.27f)),White);
+            MeshSet prop=farmer?(kind=="pasture"?bucket:kind=="irrigated_field"?hoe:sickle):
+                (id%4==0?basket:id%4==1?crate:id%4==2?jug:null);
+            for(int side=-1;side<=1;side+=2)
+            {
+                Add(leg,root*Pose(new Vector3(side*.135f,-.51f,0),Quaternion.Euler(gait*side*27,0,0),Vector3.one),White);
+                float swing=gait*side*-19;
+                if(side==1&&atWork)swing=farmer&&prop!=bucket?-48+gesture*38:-17+gesture*13;
+                var shoulder=root*Pose(new Vector3(side*.275f,.25f,0),Quaternion.Euler(swing,0,side*9),Vector3.one);
+                Add(sleeve,shoulder,tint);
+                if(side==1&&prop!=null)
+                {
+                    var hand=shoulder*Matrix4x4.Translate(new Vector3(.018f,-.39f,.12f));
+                    Add(prop,hand*Matrix4x4.Rotate(Quaternion.Euler(prop==hoe||prop==sickle?39:0,0,0)),White);
+                }
+            }
+        }
+
+        bool FreeWalkSpace(Vector3 p)
+        {
+            if(!FrontierMap.HasGround(ManorOrigin.x+p.x,p.z))return false;
+            for(int i=0;i<occupiedWalkCount;i++)
+                if((p-occupiedWalkSpace[i]).sqrMagnitude<.45f*.45f)return false;
+            for(int i=0;i<estateObstacleCount;i++)if(estateObstacles[i].Contains(p))return false;
+            return true;
+        }
+
+        bool TryPlaceWalker(Vector3 wanted,Vector3 heading,out Vector3 chosen)
+        {
+            chosen=wanted;
+            if(!FreeWalkSpace(wanted))
+            {
+                var side=new Vector3(heading.z,0,-heading.x).normalized;
+                var right=wanted+side*.29f;
+                var left=wanted-side*.29f;
+                var back=wanted-heading.normalized*.49f;
+                if(FreeWalkSpace(right))chosen=right;
+                else if(FreeWalkSpace(left))chosen=left;
+                else if(FreeWalkSpace(back))chosen=back;
+                else return false;
+            }
+            occupiedWalkSpace[occupiedWalkCount++]=chosen;
+            return true;
+        }
+
+        void ReserveHeroBays()
+        {
+            var plot=Plot(tavernSlot);
+            var facade=Quaternion.Euler(0,FacadeYaw(tavernSlot),0);
+            float offset=ManorPlotArt.HalfWidth(tavernSlot==0)+.50f;
+            for(int i=0;i<Manor.HeroIds.Length;i++)
+            {
+                heroBayClear[i]=false;
+                if(manor.HeroLevel(Manor.HeroIds[i])==0||HeroOnPatrol(Manor.HeroIds[i]))continue;
+                float side=i==0?-1:1;
+                float wave=manor.HeroRest(Manor.HeroIds[i])>0?0:Mathf.Sin(manorTime*.32f+i*1.7f)*.063f;
+                var bay=plot+facade*new Vector3(offset*side+wave,0,i==2?.44f:-1.17f);
+                heroBayClear[i]=InView(ManorOrigin+bay,2.4f)&&TryPlaceWalker(bay,facade*Vector3.forward,out heroBays[i]);
+            }
+        }
+
+        void RefreshResidentRoster()
+        {
+            residentRosterDirty=false;
+            residentCount=0;
+            int idle=Mathf.Min(idleWorkers,OrdinaryResidentLimit);
+            int workingLimit=OrdinaryResidentLimit-Mathf.Min(idle,4);
+            for(int worker=0;worker<3&&residentCount<workingLimit;worker++)
+                for(int slot=0;slot<manor.slots.Length&&residentCount<workingLimit;slot++)
+                {
+                    if(manor.slots[slot].workers<=worker)continue;
+                    int id=slot*5+worker;
+                    int home=homeCount>0?homes[id%homeCount]:0;
+                    AddResident(id,home,slot,worker,false);
+                }
+            int idleCount=Mathf.Min(idle,OrdinaryResidentLimit-residentCount);
+            for(int i=0;i<idleCount;i++)
+                AddResident(IdleFirst+i,homeCount>0?homes[i%homeCount]:0,destinations[(i+1)%destinationCount],i,true);
+        }
+
+        void DrawVillagePeople()
+        {
+            VisibleFarmers=VisibleVillagers=occupiedWalkCount=0;
+            ReserveHeroBays();
+            DrawSpecialists();
+            if(residentRosterDirty)RefreshResidentRoster();
+            for(int i=0;i<residentCount;i++)DrawResident(residents[i]);
+            for(int heroIndex=0;heroIndex<Manor.HeroIds.Length;heroIndex++)
+            {
+                string id=Manor.HeroIds[heroIndex];
+                if (manor.HeroLevel(id)==0 || HeroOnPatrol(id) || !heroBayClear[heroIndex]) continue;
+                var model=Model(id);
+                bool resting=manor.HeroRest(id)>0;
+                float pace=manorTime*.32f+heroIndex*1.7f;
+                var p=heroBays[heroIndex]+Vector3.up*(model.definition.scale*.8f);
+                float desired=(heroIndex==0?-83:81)+(resting?4:13)*Mathf.Sin(pace);
+                float facing=LocalHeading(HeroFirst+heroIndex,desired+FacadeYaw(tavernSlot))*Mathf.Deg2Rad;
+                Soldier(model,"red",p+ManorOrigin,facing,0,200+heroIndex,speed:resting?0:.66f,direction:1,gait:manorTime*.63f);
+            }
+        }
+
+        void DrawWorkshopActivity()
+        {
+            for(int i=0;i<millCount;i++)
+            {
+                if(!InView(millHubs[i],2.5f))continue;
+                int workers=manor.slots[millPlots[i]].workers;
+                float angle=21+i*37+(workers>0?manorTime*(13+workers*6):0);
+                Add(sails,Pose(millHubs[i],millFacing[i]*Quaternion.AngleAxis(angle,Vector3.forward),Vector3.one),White);
+            }
+            for(int i=0;i<forgeCount;i++)
+            {
+                int site=forgePlots[i];
+                int workers=manor.slots[site].workers;
+                if(workers==0)continue;
+                var facing=Quaternion.Euler(0,FacadeYaw(site),0);
+                var mouth=ManorOrigin+Plot(site)+facing*ManorPlotArt.ForgeMouth;
+                if(!InView(mouth,1.6f))continue;
+                float breathe=.89f+Mathf.Sin(manorTime*6.8f+site)*.11f;
+                Add(forgeFlame,Pose(mouth,facing,new Vector3(.31f,.33f*breathe,.18f)),new Color(1,.66f,.25f,.89f));
+                if(!lowActors)
+                {
+                    float rise=Mathf.Repeat(manorTime*.72f+site*.37f,1);
+                    Add(forgeFlame,Pose(mouth+facing*new Vector3(.12f*rise,.28f+rise*.45f,-.09f),facing,
+                        Vector3.one*(.061f-.037f*rise)),new Color(1,.76f,.36f,1-rise));
+                }
+            }
+        }
+
+        void DrawWinterSmoke()
+        {
+            if(builtSeason!=3||QualityLevel!=2||lowActors||distance>44)return;
+            var billboard=ViewCamera.transform.rotation*SmokeBillboard;
+            int visible=0;
+            for(int site=1;site<manor.slots.Length&&visible<4;site++)
+            {
+                var plot=manor.slots[site];
+                Vector3 vent;
+                if(plot.kind=="cottage"&&winterHeating)vent=ManorPlotArt.CottageChimney;
+                else if(plot.kind=="smithy"&&plot.workers>0)vent=ManorPlotArt.ForgeChimney;
+                else continue;
+                Vector3 chimney=ManorOrigin+Plot(site)+Vector3.up*.042f+Quaternion.Euler(0,FacadeYaw(site),0)*vent;
+                if(!InView(chimney,1.2f))continue;
+                float rise=Mathf.Repeat(manorTime*.43f+site*.37f,1);
+                Vector3 center=chimney+new Vector3(rise*.37f,.12f+rise*.88f,-rise*.17f);
+                float size=.28f+rise*.44f;
+                Add(dust,Pose(center,billboard,new Vector3(size,1,size*.82f)),new Color(.82f,.85f,.87f,.34f*(1-rise)),1);
+                visible++;
             }
         }
 
         void DrawManor()
         {
+            if(!lowActors)ClearAmbient();
             if (manorDirty || cachedQuality != QualityLevel) RebuildManor();
+            SyncCampMarkers();
             foreach (var b in still) Draw(b,true);
-            manorTime += Mathf.Min(Time.unscaledDeltaTime,.2f)*manorPace;
-            for (int i = 0; i < manor.slots.Length; i++)
-                for (int w = 0; w < manor.slots[i].workers; w++) DrawResident(i,w);
+            manorTime += Mathf.Min(Time.unscaledDeltaTime,.2f)*Mathf.Max(.65f,manorPace);
+            if(!lowActors||ambientDirty||ambientCameraVersion!=visibilityVersion||Time.unscaledTime>=nextAmbient)
+            {
+                fillingAmbient=lowActors;
+                if(fillingAmbient){ClearAmbient();ambientPopulated=true;}
+                DrawWorkshopActivity();
+                DrawWinterSmoke();
+                DrawVillagePeople();
+                if(Current==null||Config.map!=FrontierMap.Id)DrawPreviewGuards();
+                fillingAmbient=false;ambientDirty=!lowActors;
+                nextAmbient=Time.unscaledTime+.08f;ambientCameraVersion=visibilityVersion;
+            }
+            if(lowActors)foreach(var page in ambient)Draw(page,false);
+            if(Config.map!=FrontierMap.Id && HoveredPlot!=manorSelection && (uint)HoveredPlot<manor.slots.Length)
+            {
+                float radius=HoveredPlot==0?2.60f:2.12f;
+                var at=ManorOrigin+Plot(HoveredPlot)+Vector3.up*.069f;
+                if(InView(at,radius))
+                {
+                    Add(hoverRing,Pose(at,Quaternion.identity,new Vector3(radius,1,radius*.86f)),HoverTint);
+                    Add(dust,Pose(at-Vector3.up*.008f,Quaternion.identity,new Vector3(2*radius,1,1.72f*radius)),new Color(.43f,.85f,.86f,.16f),1);
+                }
+            }
             if ((uint)manorSelection < manor.slots.Length)
             {
-                Vector3 p = Plot(manorSelection) + Vector3.up*.073f;
+                Vector3 p = Plot(manorSelection) + ManorOrigin + Vector3.up*.073f;
                 float radius = manorSelection == 0 ? 2.65f : 2.16f;
-                Add(ring,Pose(p,Quaternion.identity,new Vector3(radius,1,radius*.86f)),Gold);
+                if(InView(p,radius))Add(ring,Pose(p,Quaternion.identity,new Vector3(radius,1,radius*.86f)),Gold);
             }
+            DrawFrontierPatrol();
             foreach (var b in moving) Draw(b,false);
         }
     }

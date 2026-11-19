@@ -11,7 +11,9 @@ if(['build','windows','web','physics','profile'].includes(task)){
  const target={build:'Both',windows:'Windows',web:'Web',physics:'CheckPhysics',profile:'ProfileBoth'}[task];
  log=resolve(root,`Builds/Logs/${target}.log`);executable=editor;
  args=['-batchmode','-nographics',...(task==='physics'?[]:['-quit']),'-projectPath',resolve(root,'Unity'),'-executeMethod',`Frontline.Editor.BuildTools.${target}`,'-logFile',log];
- if(task==='physics')args.push('--frontline-task','checks','--out',resolve(root,'Builds/Checks'));
+ // Use the desktop scripting symbols even if the last player built in Both was WebGL.
+ if(task==='physics')args.push('-buildTarget','Win64','--frontline-task','checks','--out',resolve(root,'Builds/Checks'));
+ else args.push(...extra);
 } else {
  executable=process.env.FRONTLINE_EXE||resolve(root,'Builds/Windows/FrontlineLab.exe');
  if(!existsSync(executable))throw Error('请先运行 npm run build:windows，或设置 FRONTLINE_EXE。');

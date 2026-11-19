@@ -16,4 +16,7 @@ Unity/*.sln*
 Builds/
 Tools/**/bin/
 Tools/**/obj/
+/Unity/MemoryCaptures/
+/Unity/Recordings/
+/Unity/.idea/
 Tools/*.local.json

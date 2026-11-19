@@ -29,6 +29,7 @@ namespace Frontline.Core
     public interface IWallImpactWorld {List<WallImpact> WallImpacts();}
     public interface ICorpseCount {int CorpseCount {get;}}
     public interface ICombatBody {void Facing(float angle,bool fast);}
+    public interface IFrontierBody {void StopAtFrontier(float x);}
     public interface IRecordedBattle:IDisposable
     {
         int Tick {get;} Result Result {get;}

@@ -90,8 +90,10 @@ namespace Frontline.Core
             foreach (var field in value.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance))
             {
                 if (Attribute.IsDefined(field,typeof(NonSerializedAttribute))) continue;
-                if (Attribute.IsDefined(field,typeof(OmitZeroAttribute)) && field.GetValue(value) is float optional && optional==0) continue;
-                if (!leading) b.Append(','); leading = false; Quote(field.Name, b); b.Append(':'); Encode(field.GetValue(value), b, depth + 1);
+                var item = field.GetValue(value);
+                if (Attribute.IsDefined(field,typeof(OmitZeroAttribute)) &&
+                    (item is float fraction && fraction == 0 || item is int integer && integer == 0)) continue;
+                if (!leading) b.Append(','); leading = false; Quote(field.Name, b); b.Append(':'); Encode(item, b, depth + 1);
             }
             b.Append('}');
         }

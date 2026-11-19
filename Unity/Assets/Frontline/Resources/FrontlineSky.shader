@@ -8,7 +8,12 @@ Shader "Frontline/GradientSky" {
  float4 _Zenith,_Horizon,_Nadir;
  struct v2f {float4 pos:SV_POSITION;float3 direction:TEXCOORD0;};
  v2f vert(float4 vertex:POSITION){v2f o;o.pos=UnityObjectToClipPos(vertex);o.direction=vertex.xyz;return o;}
- fixed4 frag(v2f i):SV_Target {float h=normalize(i.direction).y;float3 c=h>0?lerp(_Horizon.rgb,_Zenith.rgb,pow(saturate(h),.55)):lerp(_Horizon.rgb,_Nadir.rgb,pow(saturate(-h),.75));return float4(c,1);}
+ fixed4 frag(v2f i):SV_Target
+ {
+   float h=normalize(i.direction).y;
+   float ramp=pow(saturate(abs(h)),h>0?.55:.75);
+   return float4(lerp(_Horizon.rgb,h>0?_Zenith.rgb:_Nadir.rgb,ramp),1);
+ }
  ENDCG}
  } Fallback Off
 }

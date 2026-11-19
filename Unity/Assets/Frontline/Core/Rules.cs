@@ -8,14 +8,20 @@ namespace Frontline.Core
     {
         public readonly CatalogData Data;
         public readonly Dictionary<string,UnitDef> Units;
+        public readonly Dictionary<string,HeroDef> Heroes;
         public readonly Dictionary<string,PropDef> Props;
         public readonly Dictionary<string,MapDef> Maps;
+        public readonly MapDef Frontier = FrontierMap.Create();
         public readonly Dictionary<string,FormationDef> Formations;
         public Catalog(string json)
         {
             Data=Json.Read<CatalogData>(json);Units=Data.units.ToDictionary(x=>x.id,StringComparer.Ordinal);Props=Data.props.ToDictionary(x=>x.id,StringComparer.Ordinal);Maps=Data.maps.ToDictionary(x=>x.id,StringComparer.Ordinal);Formations=Data.formations.ToDictionary(x=>x.id,StringComparer.Ordinal);
-            if(Units.Count!=10||Props.Count!=5||Maps.Count!=6||Data.missions.Count!=6)throw new FormatException("游戏目录不完整");
+            Heroes=Data.heroes.ToDictionary(x=>x.id,StringComparer.Ordinal);
+            if(Units.Count!=10||Props.Count!=5||Maps.Count!=6||Data.missions.Count!=6||
+                Heroes.Count!=0&&!new HashSet<string>(Manor.HeroIds).SetEquals(Heroes.Keys))throw new FormatException("游戏目录不完整");
         }
+        public UnitDef Unit(string id) => Units.TryGetValue(id,out var unit) ? unit : Heroes[id];
+        public MapDef Map(string id) => id==FrontierMap.Id?Frontier:Maps[id];
         public static string Other(string team){return team=="red"?"blue":"red";}
         public static bool Team(string team){return team=="red"||team=="blue";}
         public static bool Finite(float n){return !float.IsNaN(n)&&!float.IsInfinity(n);}
@@ -26,29 +32,43 @@ namespace Frontline.Core
         public const float Step=1f/60f;
         public float Height(string map,float x,float z)
         {
+            if(map==FrontierMap.Id)return FrontierMap.HasGround(x,z)?0:float.NegativeInfinity;
             if(!Maps.ContainsKey(map)||!Finite(x)||!Finite(z))return float.NegativeInfinity;
             float height=float.NegativeInfinity;
             foreach(var p in Maps[map].platforms){float cos=(float)Math.Cos(p.angle),extent=p.hx*cos+p.hy*Math.Abs((float)Math.Sin(p.angle));if(Math.Abs(x-p.x)<=extent-.01f&&Math.Abs(z-p.z)<=p.hz-.01f)height=Math.Max(height,p.y+p.hy/cos+(float)Math.Tan(p.angle)*(x-p.x));}
             return height;
         }
-        public string Terrain(string map,float x,float z){foreach(var p in Maps[map].zones)if(Math.Abs(x-p.x)<p.hx&&Math.Abs(z-p.z)<p.hz)return p.type;return "ground";}
-        public float Cost(Deployment c,string team){return c.Army(team).Sum(u=>Units.ContainsKey(u.type??"")?Units[u.type].cost:0)+c.props.Where(p=>p.team==team).Sum(p=>Props.ContainsKey(p.type??"")?Props[p.type].cost:0);}
+        public string Terrain(string map,float x,float z){foreach(var p in Map(map).zones)if(Math.Abs(x-p.x)<p.hx&&Math.Abs(z-p.z)<p.hz)return p.type;return "ground";}
+        public float Cost(Deployment c,string team){return c.Army(team).Sum(u=>Units.TryGetValue(u.type??"",out var unit)?unit.cost:c.manorHall>0&&team=="red"&&Heroes.TryGetValue(u.type??"",out var hero)?hero.cost:0)+c.props.Where(p=>p.team==team).Sum(p=>Props.ContainsKey(p.type??"")?Props[p.type].cost:0);}
         public Deployment Default(string map="meadow",int budget=2200){var c=new Deployment{map=map,budget=budget};ApplyFormation(c,"red","balanced");ApplyFormation(c,"blue","balanced");return Validate(c);}
         public void ApplyFormation(Deployment c,string team,string preset){c.Army(team).Clear();c.props.RemoveAll(p=>p.team==team);foreach(var u in team=="red"?Formations[preset].red:Formations[preset].blue)if(Cost(c,team)+Units[u.type].cost<=c.budget)c.Army(team).Add(Json.Clone(u));}
         public Deployment Import(string json){var raw=Json.Parse(json,1024*1024) as Dictionary<string,object>;if(raw==null||!new[]{"version","map","seed","budget","red","blue"}.All(raw.ContainsKey))throw new FormatException("阵型缺少必要字段");return Validate(Json.Read<Deployment>(json,1024*1024));}
-        public Deployment Validate(Deployment input)
+        public Deployment Validate(Deployment input,bool expedition=false)
         {
             if(input==null||!new[]{"0.1.0","0.2.0","0.3.0","0.4.0","0.5.0","0.6.0"}.Contains(input.version))throw new FormatException("不支持的布阵版本");
             var c=Json.Clone(input);c.version="0.6.0";
-            if(c.map==null||!Maps.ContainsKey(c.map))throw new FormatException("未知地图");
+            if(expedition ? c.manorHall<1||c.manorHall>Manor.BuildingMaxLevel : c.manorHall!=0)throw new FormatException("远征等级仅用于领地庄园");
+            bool frontier=c.map==FrontierMap.Id;
+            if(c.map==null||!(frontier?expedition:Maps.ContainsKey(c.map)))throw new FormatException("未知地图");
             if(c.budget<100||c.budget>10000)throw new FormatException("军费须为 100–10000");
             if(c.red==null||c.blue==null||c.props==null||c.props.Count>24||c.commander==null||c.commander.aiTeams==null||c.commander.aiTeams.Count>2||c.commander.aiTeams.Distinct().Count()!=c.commander.aiTeams.Count||c.commander.aiTeams.Any(t=>!Team(t)))throw new FormatException("编队或军令配置无效");
+            if(frontier&&(c.red.Count>FrontierMap.MaxParty||c.blue.Count>FrontierMap.Guards.Count||c.props.Count!=0||c.commander.aiTeams.Count!=0))
+                throw new FormatException("巡边名册无效");
+            int guardLevel=frontier?FrontierMap.ValidateGuardLevels(c.blue):0;
             foreach(var team in new[]{"red","blue"})
             {
                 if(c.Army(team).Count>60||c.props.Count(p=>p.team==team)>12)throw new FormatException("兵力或道具数量超限");
+                bool manorArmy=expedition&&team=="red";
+                var deployedHeroes=manorArmy?new HashSet<string>(StringComparer.Ordinal):null;
                 foreach(var u in c.Army(team))
                 {
-                    if(u==null||u.type==null||!Units.ContainsKey(u.type)||!LegalPosition(c,team,u.x,u.z))throw new FormatException("兵种、半场或坐标无效");
+                    if(u==null||u.type==null||!LegalPosition(c,team,u.x,u.z))throw new FormatException("兵种、半场或坐标无效");
+                    if(manorArmy&&Heroes.ContainsKey(u.type))
+                    {
+                        if(u.level<1||u.level>Manor.HeroMaxLevel||!deployedHeroes.Add(u.type))throw new FormatException("英雄等级或名册无效");
+                    }
+                    else if(!Units.ContainsKey(u.type)||(manorArmy?u.level<1||u.level>Manor.UnitMaxLevel:u.level!=guardLevel))
+                        throw new FormatException("兵种或等级无效");
                     if(string.IsNullOrEmpty(u.stance))u.stance="advance";if(!Stances.Contains(u.stance))throw new FormatException("未知姿态");
                 }
             }
@@ -56,14 +76,19 @@ namespace Frontline.Core
             foreach(var team in new[]{"red","blue"})if(Cost(c,team)>c.budget)throw new FormatException("士兵与道具超出军费");
             return c;
         }
-        bool LegalPosition(Deployment c,string team,float x,float z){return Finite(x)&&Finite(z)&&Math.Abs(x)<=16.8f&&Math.Abs(z)<=10.8f&&(team=="red"?x<=-2.5f:x>=2.5f)&&Finite(Height(c.map,x,z));}
+        bool LegalPosition(Deployment c,string team,float x,float z)
+        {
+            if(c.map==FrontierMap.Id)return (team=="red"?FrontierMap.AtManor(x):x>=FrontierMap.EnemyStop)&&FrontierMap.HasGround(x,z);
+            return Finite(x)&&Finite(z)&&Math.Abs(x)<=16.8f&&Math.Abs(z)<=10.8f&&(team=="red"?x<=-2.5f:x>=2.5f)&&Finite(Height(c.map,x,z));
+        }
+        public bool OrderGround(string map,float x,float z) => (map==FrontierMap.Id||Math.Abs(x)<=18&&Math.Abs(z)<=12)&&Finite(Height(map,x,z));
         public bool CanPlace(Deployment c,string team,string type,float x,float z,bool prop=false)
         {
-            if(!Team(team)||type==null||!(prop?Props.ContainsKey(type):Units.ContainsKey(type))||!LegalPosition(c,team,x,z))return false;
-            var radius=prop?Props[type].radius:.62f*Units[type].scale;var m=Maps[c.map];
+            if(!Team(team)||type==null||!(prop?Props.ContainsKey(type):Units.ContainsKey(type)||c.manorHall>0&&team=="red"&&Heroes.ContainsKey(type))||!LegalPosition(c,team,x,z))return false;
+            var radius=prop?Props[type].radius:.62f*Unit(type).scale;var m=Map(c.map);
             if(m.walls.Any(w=>Math.Abs(x-w.x)<w.hx+radius&&Math.Abs(z-w.z)<w.hz+radius)||m.rocks.Any(r=>Distance(x,z,r.x,r.z)<r.r+radius))return false;
             if(m.props.Concat(c.props).Any(p=>!( !prop&&(p.type=="spring"||p.type=="spikes"))&&Distance(x,z,p.x,p.z)<radius+Props[p.type].radius))return false;
-            return !c.red.Concat(c.blue).Any(u=>Distance(x,z,u.x,u.z)<radius+.62f*Units[u.type].scale);
+            return !c.red.Concat(c.blue).Any(u=>Distance(x,z,u.x,u.z)<radius+.62f*Unit(u.type).scale);
         }
         public static float Distance(float x,float z,float bx,float bz){float dx=x-bx,dz=z-bz;return (float)Math.Sqrt(dx*dx+dz*dz);}
         public Deployment Place(Deployment input,string team,IEnumerable<UnitPlacement> additions,IEnumerable<int> removing=null,int playerLimit=10000)

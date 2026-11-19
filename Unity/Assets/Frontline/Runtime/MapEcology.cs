@@ -11,15 +11,15 @@ namespace Frontline.UnityGame
     {
         public struct Decoration
         {
-            public string mesh; public Matrix4x4 matrix; public Color tint; public float wind; public bool atmosphere;
+            public string mesh; public Matrix4x4 matrix; public Color tint; public float wind; public bool atmosphere,castsShadow;
         }
         public struct Mote
         {
             public Vector3 origin; public float phase,speed,size; public string mesh; public Color tint;
         }
         static readonly Color White=Color.white;
-        static void Put(List<Decoration> rows,string mesh,Vector3 p,Vector3 size,float yaw=0,Color? tint=null,float wind=0,bool atmosphere=false,Quaternion? rotation=null)
-        { rows.Add(new Decoration{mesh=mesh,matrix=Matrix4x4.TRS(p,rotation??Quaternion.Euler(0,yaw,0),size),tint=tint??White,wind=wind,atmosphere=atmosphere}); }
+        static void Put(List<Decoration> rows,string mesh,Vector3 p,Vector3 size,float yaw=0,Color? tint=null,float wind=0,bool atmosphere=false,Quaternion? rotation=null,bool castsShadow=true)
+        { rows.Add(new Decoration{mesh=mesh,matrix=Matrix4x4.TRS(p,rotation??Quaternion.Euler(0,yaw,0),size),tint=tint??White,wind=wind,atmosphere=atmosphere,castsShadow=castsShadow}); }
         static float Range(System.Random rng,float a,float b){return a+(float)rng.NextDouble()*(b-a);}
         static bool ClearOfCover(MapDef map,float x,float z)
         {
@@ -47,14 +47,18 @@ namespace Frontline.UnityGame
             foreach(var r in map.rocks)Put(rows,"rock",new Vector3(r.x,r.r*.2f,r.z),Vector3.one*r.r*2,CombatMotion.RockYaw(r.x,r.z),rock);
             foreach(var w in map.walls){bool alongZ=w.hz>w.hx;Put(rows,"wall",new Vector3(w.x,w.hy,w.z),alongZ?new Vector3(w.hz*2,w.hy*2,w.hx*2):new Vector3(w.hx*2,w.hy*2,w.hz*2),alongZ?90:0,tint:rock);}
             foreach(var z in map.zones)
-            {float h=data.Height(id,z.x,z.z);if(Catalog.Finite(h))Put(rows,"platform",new Vector3(z.x,h+.008f,z.z),new Vector3(z.hx*2,.012f,z.hz*2),tint:z.type=="mud"?new Color(.31f,.34f,.24f):new Color(.61f,.8f,.85f));}
-            int density=quality==0?90:quality==1?280:560;
+            {float h=data.Height(id,z.x,z.z);if(Catalog.Finite(h))Put(rows,"platform",new Vector3(z.x,h+.008f,z.z),new Vector3(z.hx*2,.012f,z.hz*2),tint:z.type=="mud"?new Color(.33f,.28f,.17f):new Color(.53f,.75f,.82f));}
+            int density=quality==0?83:quality==1?209:425;
             for(int i=0;i<density;i++)
             {
                 float x=Range(rng,-17.6f,17.6f),z=Range(rng,-11.6f,11.6f),h=data.Height(id,x,z);
-                if(!Catalog.Finite(h)||!ClearOfCover(map,x,z)||(!marsh&&Mathf.Abs(z)<1.6f))continue;
-                string mesh=snow?"grass":marsh?"reeds":ruins?(i%4==0?"rock":"grass"):i%8==0?"flowers":i%13==0?"shrub":"grass";
-                float scale=Range(rng,.45f,1.05f);if(ruins)scale*=.65f;if(snow)scale*=.5f;
+                if(!Catalog.Finite(h)||!ClearOfCover(map,x,z)||Mathf.Abs(z)<1.6f)continue;
+                bool reedBank=marsh&&Mathf.Abs(z)>7.65f&&Mathf.Abs(x)<4.95f;
+                if(snow&&Mathf.Abs(z)<4.65f&&Mathf.Abs(x)<8.4f)continue;
+                string mesh=reedBank?"reeds":(!snow&&!ruins&&i%9==0?"flowers":"grass");
+                float scale=Range(rng,.39f,.94f);
+                if(ruins||snow)scale*=.60f;
+                if(reedBank)scale*=.73f;
                 var tint=snow?new Color(.77f,.84f,.81f):marsh?new Color(.65f,.76f,.48f):ruins?new Color(.64f,.63f,.42f):White;
                 Put(rows,mesh,new Vector3(x,h+.006f,z),new Vector3(scale,scale,scale),Range(rng,0,360),tint,mesh=="rock"?0:.035f);
             }
@@ -66,47 +70,167 @@ namespace Frontline.UnityGame
                 if(bridge&&Mathf.Abs(x)<3.3f)continue;
                 string mesh=snow?"pine":marsh||ruins?"dead_tree":"tree";
                 Put(rows,mesh,new Vector3(x,-.15f,z),Vector3.one*scale,Range(rng,0,360),White,.012f);
-                Put(rows,"rock",new Vector3(x,-.45f,z),new Vector3(2.2f,.9f,2),Range(rng,0,360),rock);
+                Put(rows,"rock",new Vector3(x,-.45f,z),new Vector3(2.2f,.9f,2),Range(rng,0,360),rock,castsShadow:false);
             }
-            if(id=="meadow")
+            switch(id)
             {
-                for(int i=0;i<26;i++)
-                {float x=-17+i*1.35f,z=Mathf.Sin(i*.22f)*.55f,h=data.Height(id,x,z);Put(rows,"dot",new Vector3(x,h+.014f,z),new Vector3(1.7f,.015f,1.05f),tint:new Color(.64f,.56f,.37f));}
-                for(int i=0;i<12;i++)Put(rows,"shrub",new Vector3(-16+i*3,-.02f,(i%2==0?-1:1)*11.5f),Vector3.one*1.1f,Range(rng,0,360),wind:.025f);
-            }
-            else if(bridge)
-            {
-                Put(rows,"platform",new Vector3(0,-4.15f,0),new Vector3(6.1f,.08f,70),tint:new Color(.19f,.42f,.47f));
-                for(int i=0;i<12;i++){float z=-16+i*2.8f;Put(rows,"water_ripple",new Vector3(Range(rng,-1.5f,1.5f),-4.06f,z),new Vector3(1.3f,.4f,2.4f),tint:new Color(.65f,.85f,.85f,.32f),atmosphere:true);}
-                for(int i=0;i<4;i++){float x=i%2==0?-2.8f:2.8f,z=i<2?-1.4f:1.4f;Put(rows,"column",new Vector3(x,-4,z),new Vector3(.35f,1.2f,.35f),tint:new Color(.5f,.34f,.22f));}
-                for(int i=0;i<10;i++)Put(rows,"rock",new Vector3((i%2==0?-1:1)*Range(rng,3.4f,5),-3.8f,Range(rng,-17,17)),new Vector3(2,3,2),Range(rng,0,360),rock);
-            }
-            else if(island)
-            {
-                for(int i=0;i<10;i++){float a=i*Mathf.PI*.2f;Put(rows,"rock",new Vector3(Mathf.Cos(a)*17,-3-Range(rng,0,4),Mathf.Sin(a)*12),Vector3.one*Range(rng,.8f,2.8f),Range(rng,0,360),rock);}
-                for(int i=0;i<6;i++){float x=-13+i*5.2f;Put(rows,"column",new Vector3(x,0,10.6f),Vector3.one*Range(rng,.7f,1.1f));if(i%2==0)Put(rows,"brazier",new Vector3(x,.04f,-10.5f),Vector3.one);}
-            }
-            else if(ruins)
-            {
-                for(int i=0;i<8;i++){float x=-15+i*4.4f;Put(rows,"column",new Vector3(x,.12f,(i%2==0?-1:1)*11.6f),new Vector3(1,1.2f,1),rotation:Quaternion.Euler(0,Range(rng,0,360),i%3==0?78:0));}
-                Put(rows,"arch",new Vector3(-10,0,12.8f),Vector3.one*1.8f,15);Put(rows,"arch",new Vector3(10,0,-12.6f),Vector3.one*1.5f,-15);
-                for(int i=0;i<5;i++)Put(rows,"brazier",new Vector3(-14+i*7,0,(i%2==0?-1:1)*10.4f),Vector3.one*.9f);
-                for(int i=0;i<20;i++){float x=Range(rng,-16,16),z=Range(rng,-10,10);Put(rows,"dot",new Vector3(x,.018f,z),new Vector3(Range(rng,.5f,1.8f),.01f,Range(rng,.7f,1.4f)),tint:new Color(.28f,.27f,.23f));}
-            }
-            else if(marsh)
-            {
-                for(int i=0;i<14;i++){float x=Range(rng,-3.8f,3.8f),z=Range(rng,-7.2f,7.2f);Put(rows,"water_ripple",new Vector3(x,.032f,z),Vector3.one*Range(rng,.7f,1.4f),tint:new Color(.53f,.69f,.62f,.28f),atmosphere:true);}
-                for(int i=0;i<12;i++){float x=Range(rng,-15,15),z=Range(rng,-9,9);Put(rows,"mist",new Vector3(x,.14f+Range(rng,0,.2f),z),new Vector3(6.8f,.7f,4.6f),tint:new Color(.7f,.79f,.71f,.16f),wind:1,atmosphere:true);}
-            }
-            else if(snow)
-            {
-                for(int i=0;i<16;i++){float x=-17+i*2.25f;Put(rows,"icicle",new Vector3(x,-.4f,(i%2==0?-1:1)*12.05f),new Vector3(.7f,Range(rng,.7f,1.5f),.7f));}
-                for(int i=0;i<20;i++)Put(rows,"rock",new Vector3(Range(rng,-18,18),-.5f,(i%2==0?-1:1)*12),new Vector3(1.8f,2.2f,1.6f),Range(rng,0,360),new Color(.75f,.85f,.87f));
+                case "meadow": MeadowTrail(rows,data); break;
+                case "bridge": Gorge(rows,rock); break;
+                case "island": IslandFringe(rows,rock); break;
+                case "ruins": FallenCourt(rows,data,rock); break;
+                case "marsh": MarshBanks(rows,quality); break;
+                case "highland": IceShelf(rows,data,rock); break;
             }
             // Distant pillars frame the miniature without extending the simulation map.
-            for(int i=0;i<8;i++){float a=(i+.5f)*Mathf.PI*.25f;Put(rows,"rock",new Vector3(Mathf.Cos(a)*31,-8,Mathf.Sin(a)*25),new Vector3(3,Range(rng,5,12),3),Range(rng,0,360),rock*.72f);}
+            for(int i=0;i<8;i++){float a=(i+.5f)*Mathf.PI*.25f;Put(rows,"rock",new Vector3(Mathf.Cos(a)*31,-8,Mathf.Sin(a)*25),new Vector3(3,Range(rng,5,12),3),Range(rng,0,360),rock*.72f,castsShadow:false);}
             return rows;
         }
+        // Marks sit flush with the sampled surface. Overhanging scenery is placed beyond the actors' footprint.
+        static void Surface(List<Decoration> rows,Catalog data,string id,float x,float z,float width,float length,Color tint,float lift=.018f,float yaw=0)
+        {
+            float h=data.Height(id,x,z);
+            if(Catalog.Finite(h))Put(rows,"platform",new Vector3(x,h+lift,z),new Vector3(width,.010f,length),yaw,tint);
+        }
+
+        static void MeadowTrail(List<Decoration> rows,Catalog data)
+        {
+            var track=new Color(.70f,.59f,.38f);
+            var shoulder=new Color(.60f,.61f,.35f);
+            for(int i=0;i<22;i++)
+            {
+                float x=-17.1f+i*1.62f,z=Mathf.Sin(i*.33f)*.63f;
+                Put(rows,"dot",new Vector3(x,.015f,z),new Vector3(2.25f,1,2.43f),i%2==0?0:26,shoulder);
+                Put(rows,"dot",new Vector3(x,.027f,z),new Vector3(2.17f,.75f,1.57f),i%2==0?0:26,track);
+                if(i%2==0)for(int side=-1;side<=1;side+=2)
+                    Surface(rows,data,"meadow",x+.31f,z+side*1.21f,.42f,.13f,new Color(.62f,.60f,.49f),.022f,27*i);
+            }
+            for(int i=0;i<9;i++)
+            {
+                float x=-16+i*3.95f;
+                Put(rows,"rock",new Vector3(x,-.19f,i%2==0?-12.4f:12.4f),new Vector3(1.2f,.61f,1.04f),i*63);
+            }
+        }
+
+        static void Gorge(List<Decoration> rows,Color rock)
+        {
+            Put(rows,"platform",new Vector3(0,-4.15f,0),new Vector3(7.4f,.08f,70),tint:new Color(.21f,.44f,.51f));
+            Put(rows,"platform",new Vector3(-.34f,-4.097f,0),new Vector3(2.35f,.012f,57),tint:new Color(.16f,.35f,.43f));
+            for(int i=0;i<14;i++)
+            {
+                float z=-21.9f+i*3.31f,x=Mathf.Sin(i*1.97f)*1.15f;
+                Put(rows,"water_ripple",new Vector3(x,-4.065f,z),new Vector3(1.04f,.47f,1.64f),i*29,
+                    new Color(.67f,.84f,.85f,.42f),atmosphere:true);
+            }
+            var oak=new Color(.63f,.43f,.25f);
+            for(int i=0;i<12;i++)
+            {
+                float x=-2.90f+i*.526f;
+                Put(rows,"platform",new Vector3(x,.012f,0),new Vector3(.499f,.023f,3.56f),
+                    tint:Color.Lerp(oak,new Color(.77f,.56f,.32f),(i%4)*.17f));
+            }
+            foreach(int side in new[]{-1,1})
+            {
+                float edge=side*1.93f;
+                Put(rows,"platform",new Vector3(0,.345f,edge),new Vector3(5.86f,.101f,.12f),tint:oak);
+                for(int i=0;i<4;i++)Put(rows,"platform",new Vector3(-2.85f+i*1.9f,.19f,edge),
+                    new Vector3(.19f,.47f,.20f),tint:new Color(.57f,.47f,.32f));
+                for(int i=0;i<7;i++)Put(rows,"rock",new Vector3(side*(3.59f+.31f*Mathf.Sin(i*2)), -2.11f, -13+i*4.14f),
+                    new Vector3(2.05f,3.4f,3.2f),38*i,rock,castsShadow:false);
+                Put(rows,"column",new Vector3(side*1.62f,-4.03f,-1.03f),new Vector3(1.11f,1.87f,1.09f),tint:rock,castsShadow:false);
+                Put(rows,"column",new Vector3(side*1.62f,-4.03f,1.03f),new Vector3(1.11f,1.87f,1.09f),tint:rock,castsShadow:false);
+                Put(rows,"platform",new Vector3(side*1.62f,-.43f,0),new Vector3(.52f,.43f,3.66f),tint:oak);
+            }
+        }
+
+        static void IslandFringe(List<Decoration> rows,Color rock)
+        {
+            for(int i=0;i<11;i++)
+            {
+                float a=i*Mathf.PI*2/11;
+                var p=new Vector3(Mathf.Cos(a)*14.1f,-3.65f-i%3*.50f,Mathf.Sin(a)*9.15f);
+                Put(rows,"island_root",p,new Vector3(3.6f+i%3*.58f,3.68f+i%4,3.05f),31*i,rock);
+            }
+            for(int i=0;i<6;i++)
+            {
+                float x=-12+i*4.8f,z=i%2==0?10.47f:-10.47f;
+                Put(rows,"rock",new Vector3(x,-.27f,z),new Vector3(2.51f,.88f,1.91f),16*i,rock);
+                Put(rows,"column",new Vector3(x,.02f,z),Vector3.one*(i%2==0?1.02f:.81f),31*i,rock);
+                if(i%2==0)Put(rows,"brazier",new Vector3(x+.61f,.022f,-z),Vector3.one*.88f);
+            }
+        }
+
+        static void FallenCourt(List<Decoration> rows,Catalog data,Color stone)
+        {
+            for(int row=-2;row<=2;row++)for(int i=0;i<15;i++)
+            {
+                if((i*7+row*5+12)%6==0)continue;
+                float x=-16.8f+i*2.37f;
+                float z=row*.71f+(i%2==0?.08f:-.12f);
+                var shade=Color.Lerp(stone,new Color(.66f,.59f,.46f),(i*3+row+16)%5*.13f);
+                Surface(rows,data,"ruins",x,z,1.62f+(i%3)*.13f,.44f,shade,.017f,(i%3-1)*6);
+            }
+            for(int i=0;i<8;i++)
+            {
+                float x=-15+i*4.4f,z=i%2==0?-12.66f:12.66f;
+                Put(rows,"column",new Vector3(x,-.11f,z),new Vector3(.90f,1.12f,.9f),
+                    tint:stone,rotation:Quaternion.Euler(0,i*69,i%3==0?80:0));
+                if(i%2==0)Put(rows,"brazier",new Vector3(x+.66f,.028f,z),Vector3.one*.84f);
+            }
+            Put(rows,"arch",new Vector3(-10,0,13.3f),Vector3.one*1.55f,15);
+            Put(rows,"arch",new Vector3(10,0,-13.5f),Vector3.one*1.4f,-15);
+        }
+
+        static void MarshBanks(List<Decoration> rows,int quality)
+        {
+            var dry=new Color(.65f,.60f,.37f);
+            var wet=new Color(.30f,.41f,.37f);
+            foreach(int side in new[]{-1,1})
+            {
+                for(int i=0;i<10;i++)
+                {
+                    float x=-13.8f+i*3.04f,z=side*(9.52f+.24f*Mathf.Sin(i*2.03f));
+                    Put(rows,"dot",new Vector3(x,.018f,z),new Vector3(3.63f,.9f,1.36f),26*i,dry);
+                }
+                for(int i=0;i<7;i++)
+                {
+                    float x=-3.58f+i*1.17f,z=side*(6.78f+Mathf.Sin(i*1.68f)*.44f);
+                    Put(rows,"dot",new Vector3(x,.024f,z),new Vector3(.89f,.58f,.52f),34*i,wet);
+                    Put(rows,"water_ripple",new Vector3(x,.034f,z),new Vector3(.51f,.43f,.76f),23*i,
+                        new Color(.66f,.80f,.66f,.37f),atmosphere:true);
+                }
+            }
+            for(int i=0;i<(quality==2?6:4);i++)
+            {
+                int bank=i/2;
+                float x=(i%2==0?-1:1)*(5.80f+bank*4.65f),z=bank*2.41f-3.1f+(i%2)*.78f;
+                Put(rows,"mist",new Vector3(x,.11f,z),new Vector3(4.48f,.7f,2.8f),tint:new Color(.73f,.79f,.69f,.13f),wind:1,atmosphere:true);
+            }
+        }
+
+        static void IceShelf(List<Decoration> rows,Catalog data,Color rock)
+        {
+            var snow=new Color(.87f,.94f,.96f);
+            var edge=new Color(.40f,.64f,.73f);
+            for(int side=-1;side<=1;side+=2)
+            {
+                Surface(rows,data,"highland",0,side*4.34f,5.61f,.17f,snow,.029f);
+                for(int i=0;i<8;i++)
+                {
+                    float x=side*(3.18f+i*.62f),z=side*4.14f;
+                    Surface(rows,data,"highland",x,z,.25f+i%3*.03f,.15f,snow,.044f);
+                    Put(rows,"icicle",new Vector3(-16.8f+i*4.75f,-1.05f,side*12.02f),
+                        new Vector3(.81f,.77f+i%3*.27f,.77f),rotation:Quaternion.Euler(0,0,180));
+                    Put(rows,"rock",new Vector3(-17+i*4.72f,-.30f,side*12.23f),
+                        new Vector3(1.53f,1.28f,1.52f),37*i,rock);
+                }
+                for(int i=0;i<3;i++)
+                {
+                    float z=side*(1.04f+i*.79f);
+                    Surface(rows,data,"highland",side*(.35f+i*.77f),z,1.08f,.055f,edge,.032f,31+i*21);
+                }
+            }
+        }
+
         public static Mote[] Particles(string id,int quality)
         {
             int n=quality==0?12:quality==1?40:88;var seeds=new Mote[n];var rng=new System.Random(701+StableHash(id));

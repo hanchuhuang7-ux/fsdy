@@ -15,17 +15,21 @@ namespace Frontline.Core
         public readonly Entity entity;
         public readonly UnitDef definition;
         public readonly string stance;
-        internal readonly bool isRed,isRanged,isCavalry,isMedic,isSpear,isGiant,isCrossbow,isCatapult,isHold,isFlank,isHunt,canFortify;
+        internal readonly bool isRed,isRanged,isCavalry,canHeal,keepsMedicDistance,isSpear,isGiant,isCrossbow,isCatapult,isHold,isFlank,isHunt,canFortify;
+        internal readonly bool isVanguard,isMarksman;
         internal readonly float turnRateAtRest,windupDuration;
-        internal Soldier(Entity entity,UnitDef definition,string stance)
+        internal Soldier(Entity entity,UnitDef definition,string stance,bool legacyManorMotion)
         {
             this.entity=entity;this.definition=definition;this.stance=stance;
             string type=entity.type;
+            string ability=(definition as HeroDef)?.ability;
+            isVanguard=ability=="vanguard";isMarksman=ability=="marksman";
             isRed=entity.team=="red";isRanged=definition.ranged;isCavalry=type=="cavalry";
-            isMedic=type=="medic";isSpear=type=="spear";isGiant=type=="giant";isCrossbow=type=="crossbow";isCatapult=type=="catapult";
+            canHeal=type=="medic"||ability=="field_healer";keepsMedicDistance=type=="medic"||legacyManorMotion&&canHeal;
+            isSpear=type=="spear";isGiant=type=="giant"||isVanguard;isCrossbow=type=="crossbow"||isMarksman;isCatapult=type=="catapult";
             isHold=stance=="hold";isFlank=stance=="flank";isHunt=stance=="hunt";
             canFortify=type=="shield"||isSpear||isGiant||type=="militia";
-            turnRateAtRest=CombatMotion.TurnRate(type,0);windupDuration=CombatMotion.Windup(type);
+            turnRateAtRest=CombatMotion.TurnRate(isVanguard?"giant":type,0);windupDuration=CombatMotion.Windup(isVanguard?"giant":type);
             collisionFast=isCavalry;combatBody=entity.body as ICombatBody;
         }
         public float angle,cooldown,attack,stun,charge,floor;public V3 anchor,progress,avoidance,avoidanceTarget;
@@ -40,13 +44,19 @@ namespace Frontline.Core
         public uint state;public Seeded(uint seed){state=seed;}
         public float Next(){state=unchecked(state*1664525u+1013904223u);return (state>>8)*(1f/16777216f);}
     }
-    public sealed class Battle:IRecordedBattle
+    public sealed partial class Battle:IRecordedBattle
     {
         public readonly Catalog Data;public readonly Deployment Config;public readonly IPhysicsWorld World;public readonly Seeded Random;
         public readonly List<Soldier> Units=new List<Soldier>();public readonly List<PropState> Props=new List<PropState>();public readonly List<Shot> Shots=new List<Shot>();
         public readonly CommanderState Commander=new CommanderState();public readonly List<Highlight> Highlights=new List<Highlight>();public readonly List<Cue> Cues=new List<Cue>(24);public readonly List<EffectFrame> Effects=new List<EffectFrame>(CombatMotion.EffectCapacity);
         public int Tick {get;private set;}public float Time {get{return Tick*Catalog.Step;}}public Result Result {get;private set;}
-        readonly List<Soldier>[] grid=new List<Soldier>[128*128];readonly List<List<Soldier>> gridBuckets=new List<List<Soldier>>();readonly List<Soldier> redTargets=new List<Soldier>(60),blueTargets=new List<Soldier>(60);readonly Dictionary<int,List<Soldier>> overflowGrid=new Dictionary<int,List<Soldier>>();readonly Dictionary<int,Entity> entities=new Dictionary<int,Entity>();readonly Dictionary<int,Soldier> soldiersById=new Dictionary<int,Soldier>();readonly Dictionary<int,PropState> propsById=new Dictionary<int,PropState>();readonly Dictionary<int,Shot> shotsById=new Dictionary<int,Shot>();
+        struct GridCell {public int first,last;}
+        readonly GridCell[] grid=new GridCell[128*128];
+        readonly int[] occupied,nextInCell;
+        int occupiedCount;
+        readonly Dictionary<int,GridCell> overflowGrid=new Dictionary<int,GridCell>();
+        readonly List<Soldier> redTargets=new List<Soldier>(60),blueTargets=new List<Soldier>(60);
+        readonly Dictionary<int,Entity> entities=new Dictionary<int,Entity>();readonly Dictionary<int,Soldier> soldiersById=new Dictionary<int,Soldier>();readonly Dictionary<int,PropState> propsById=new Dictionary<int,PropState>();readonly Dictionary<int,Shot> shotsById=new Dictionary<int,Shot>();
         readonly Dictionary<string,int> cueTimes=new Dictionary<string,int>(),highlightTimes=new Dictionary<string,int>();
         readonly Stack<Cue> cuePool=new Stack<Cue>(24);readonly Stack<EffectFrame> effectPool=new Stack<EffectFrame>(CombatMotion.EffectCapacity);readonly bool legacyMath;readonly MapDef map;readonly GroundSample[] groundSamples;
         readonly ZoneSample[] zoneSamples;
@@ -56,9 +66,21 @@ namespace Frontline.Core
         enum Terrain { Ground, Mud, Ice }
         struct ZoneSample {public float x,z,hx,hz;public Terrain terrain;}
         int nextId=1,nextCue=1,nextEffect=1,leader,replayIndex;bool firstDeath,disposed;List<OrderEntry> replayOrders;
-        public Battle(Catalog catalog,Deployment input,IWorldFactory factory)
+        public Battle(Catalog catalog,Deployment input,IWorldFactory factory,bool expedition=false,
+            bool legacyManorMotion=false,int targetScanWorkers=TargetWorkerCap)
+            :this(catalog,catalog.Validate(input,expedition),factory,targetScanWorkers,legacyManorMotion) {}
+
+        Battle(Catalog catalog,Deployment validated,IWorldFactory factory,int targetScanWorkers,bool legacyManorMotion)
         {
-            Data=catalog;Config=catalog.Validate(input);Random=new Seeded(Config.seed);World=factory.Create(catalog,Config);legacyMath=World is ILegacyCompatibilityWorld;map=Data.Maps[Config.map];var platforms=map.platforms;groundSamples=new GroundSample[platforms.Count];for(int i=0;i<platforms.Count;i++){var p=platforms[i];float cos=(float)Math.Cos(p.angle);groundSamples[i]=new GroundSample{x=p.x,z=p.z,hz=p.hz,extent=p.hx*cos+p.hy*Math.Abs((float)Math.Sin(p.angle)),top=p.y+p.hy/cos,slope=(float)Math.Tan(p.angle)};}
+            Data=catalog;Config=validated;
+            int unitCapacity=Math.Max(2*Catalog.MaxUnits,Config.red.Count+Config.blue.Count);
+            occupied=new int[unitCapacity];nextInCell=new int[unitCapacity+1];
+            IsFrontier=Config.map==FrontierMap.Id;Random=new Seeded(Config.seed);World=factory.Create(catalog,Config);legacyMath=World is ILegacyCompatibilityWorld;map=Data.Map(Config.map);var platforms=map.platforms;groundSamples=new GroundSample[platforms.Count];for(int i=0;i<platforms.Count;i++){var p=platforms[i];float cos=(float)Math.Cos(p.angle);groundSamples[i]=new GroundSample{x=p.x,z=p.z,hz=p.hz,extent=p.hx*cos+p.hy*Math.Abs((float)Math.Sin(p.angle)),top=p.y+p.hy/cos,slope=(float)Math.Tan(p.angle)};}
+            if(IsFrontier)march=new MarchState();
+#if !UNITY_WEBGL
+            if(!IsFrontier&&!legacyMath&&!legacyManorMotion)
+                TargetScanWorkers=Math.Max(1,Math.Min(Math.Min(TargetWorkerCap,Environment.ProcessorCount),targetScanWorkers));
+#endif
             var zones=map.zones;
             zoneSamples=zones.Count==0?Array.Empty<ZoneSample>():new ZoneSample[zones.Count];
             for(int i=0;i<zones.Count;i++)
@@ -70,10 +92,11 @@ namespace Frontline.Core
             try{
                 foreach(var team in new[]{"red","blue"})foreach(var p in Config.Army(team))
                 {
-                    var d=catalog.Units[p.type];var e=new Entity{id=nextId++,type=p.type,team=team,hp=d.hp,maxHp=d.hp,spawn=new V3(p.x,0,p.z)};e.body=World.Unit(e.id,p,team,d);e.position=e.body.Position;entities.Add(e.id,e);
-                    Units.Add(new Soldier(e,d,p.stance){cooldown=Random.Next()*.6f,angle=team=="red"?(float)Math.PI/2:-(float)Math.PI/2,anchor=e.spawn,progress=e.position});
+                    var d=catalog.Unit(p.type).AtLevel(p.level);var e=new Entity{id=nextId++,type=p.type,team=team,hp=d.hp,maxHp=d.hp,spawn=new V3(p.x,0,p.z)};e.body=World.Unit(e.id,p,team,d);e.position=e.body.Position;entities.Add(e.id,e);
+                    if(IsFrontier&&team=="blue"&&!(e.body is IFrontierBody))throw new InvalidOperationException("边疆需要安全区物理约束");
+                    Units.Add(new Soldier(e,d,p.stance,legacyManorMotion){cooldown=Random.Next()*.6f,angle=team=="red"?(float)Math.PI/2:-(float)Math.PI/2,anchor=e.spawn,progress=e.position});
                 }
-                foreach(var placement in catalog.Maps[Config.map].props.Concat(Config.props))
+                foreach(var placement in map.props.Concat(Config.props))
                 {
                     var p=Json.Clone(placement);if(!Catalog.Team(p.team))p.team="neutral";var d=catalog.Props[p.type];var e=new Entity{id=nextId++,type=p.type,team=p.team,hp=d.hp,maxHp=d.hp,spawn=new V3(p.x,0,p.z)};e.body=World.Prop(e.id,p,d);e.position=e.body.Position;entities.Add(e.id,e);var prop=new PropState{entity=e,definition=d,floor=catalog.Height(Config.map,p.x,p.z)};
                     Props.Add(prop);
@@ -102,17 +125,41 @@ namespace Frontline.Core
         static readonly Passage MarshPassage=new Passage{approach=5.3f,lanes=new[]{-9.6f,9.6f}};
         static readonly float[] EscapeAngles={1.047f,1.571f,-1.047f,-1.571f,3.14159f};
         [MethodImpl(MethodImplOptions.AggressiveInlining)] static int Key(float x,float z){return ((int)Math.Floor(x/3)+64)*128+(int)Math.Floor(z/3)+64;}
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] List<Soldier> GridBucket(int key){if((uint)key<(uint)grid.Length)return grid[key];overflowGrid.TryGetValue(key,out var value);return value;}
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] int FirstInCell(int key){if((uint)key<(uint)grid.Length)return grid[key].first;return overflowGrid.TryGetValue(key,out var cell)?cell.first:0;}
         [MethodImpl(MethodImplOptions.AggressiveInlining)] float GroundAt(float x,float z){return GroundAt(x,z,out _);}
         [MethodImpl(MethodImplOptions.AggressiveInlining)] float GroundAt(float x,float z,out float slope)
         {
-            slope=0;if(legacyMath)return Data.Height(Config.map,x,z);if(!Catalog.Finite(x)||!Catalog.Finite(z))return float.NegativeInfinity;float height=float.NegativeInfinity;
+            slope=0;if(legacyMath||IsFrontier)return Data.Height(Config.map,x,z);if(!Catalog.Finite(x)||!Catalog.Finite(z))return float.NegativeInfinity;float height=float.NegativeInfinity;
             for(int i=0;i<groundSamples.Length;i++){ref readonly var p=ref groundSamples[i];if(Math.Abs(x-p.x)<=p.extent-.01f&&Math.Abs(z-p.z)<=p.hz-.01f){float h=p.slope==0?p.top:p.top+p.slope*(x-p.x);if(h>height){height=h;slope=p.slope;}}}return height;
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)] bool Within(V3 a,V3 b,float radius){if(legacyMath)return V3.DistanceXZ(a,b)<=radius;float x=a.x-b.x,z=a.z-b.z;return x*x+z*z<=radius*radius;}
         void Cache()
         {
-            foreach(var bucket in gridBuckets)bucket.Clear();gridBuckets.Clear();redTargets.Clear();blueTargets.Clear();foreach(var u in Units)if(u.entity.alive){u.entity.position=u.entity.body.Position;(u.isRed?redTargets:blueTargets).Add(u);u.floor=GroundAt(u.entity.position.x,u.entity.position.z,out u.slope);int k=Key(u.entity.position.x,u.entity.position.z);var bucket=GridBucket(k);if(bucket==null){bucket=new List<Soldier>(8);if((uint)k<(uint)grid.Length)grid[k]=bucket;else overflowGrid.Add(k,bucket);}if(bucket.Count==0)gridBuckets.Add(bucket);bucket.Add(u);}
+            for(int i=0;i<occupiedCount;i++)grid[occupied[i]]=default;
+            occupiedCount=0;overflowGrid.Clear();redTargets.Clear();blueTargets.Clear();exposedParty=false;
+            for(int i=0;i<Units.Count;i++)
+            {
+                var u=Units[i];if(!u.entity.alive)continue;
+                var p=u.entity.body.Position;u.entity.position=p;
+                (u.isRed?redTargets:blueTargets).Add(u);
+                if(IsFrontier&&u.isRed&&!FrontierMap.Safe(p.x))exposedParty=true;
+                u.floor=GroundAt(p.x,p.z,out u.slope);
+                int key=Key(p.x,p.z),index=i+1;
+                nextInCell[index]=0;
+                if((uint)key<(uint)grid.Length)
+                {
+                    ref var cell=ref grid[key];
+                    if(cell.first==0){occupied[occupiedCount++]=key;cell.first=index;}
+                    else nextInCell[cell.last]=index;
+                    cell.last=index;
+                }
+                else
+                {
+                    overflowGrid.TryGetValue(key,out var cell);
+                    if(cell.first==0)cell.first=index;else nextInCell[cell.last]=index;
+                    cell.last=index;overflowGrid[key]=cell;
+                }
+            }
         }
         Neighborhood Nearby(V3 p,float radius){return new Neighborhood(this,p,radius);}
         // foreach in the per-soldier avoidance path stays on the stack. LINQ consumers
@@ -125,23 +172,40 @@ namespace Frontline.Core
             IEnumerator<Soldier> IEnumerable<Soldier>.GetEnumerator(){return GetEnumerator();}System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator(){return GetEnumerator();}
             public struct Enumerator:IEnumerator<Soldier>
             {
-                readonly Battle battle;readonly V3 p;readonly float radius;readonly int maxX,minZ,maxZ;int x,z,index;List<Soldier> bucket;
+                readonly Battle battle;readonly V3 p;readonly float radius;readonly int maxX,minZ,maxZ;int x,z,index;
                 public Soldier Current {get;private set;}object System.Collections.IEnumerator.Current {get{return Current;}}
-                public Enumerator(Battle battle,V3 p,float radius){this.battle=battle;this.p=p;this.radius=radius;x=(int)Math.Floor((p.x-radius)/3);maxX=(int)Math.Floor((p.x+radius)/3);minZ=(int)Math.Floor((p.z-radius)/3);maxZ=(int)Math.Floor((p.z+radius)/3);z=minZ;index=0;bucket=null;Current=null;}
-                public bool MoveNext(){while(true){if(bucket!=null){while(index<bucket.Count){var u=bucket[index++];if(u.entity.alive&&battle.Within(p,u.entity.position,radius)){Current=u;return true;}}bucket=null;}if(x>maxX)return false;bucket=battle.GridBucket((x+64)*128+z+64);index=0;if(++z>maxZ){z=minZ;x++;}}}
+                public Enumerator(Battle battle,V3 p,float radius){this.battle=battle;this.p=p;this.radius=radius;x=(int)Math.Floor((p.x-radius)/3);maxX=(int)Math.Floor((p.x+radius)/3);minZ=(int)Math.Floor((p.z-radius)/3);maxZ=(int)Math.Floor((p.z+radius)/3);z=minZ;index=0;Current=null;}
+                public bool MoveNext()
+                {
+                    while(true)
+                    {
+                        while(index!=0)
+                        {
+                            var u=battle.Units[index-1];index=battle.nextInCell[index];
+                            if(u.entity.alive&&battle.Within(p,u.entity.position,radius)){Current=u;return true;}
+                        }
+                        if(x>maxX)return false;
+                        index=battle.FirstInCell((x+64)*128+z+64);
+                        if(++z>maxZ){z=minZ;x++;}
+                    }
+                }
                 public void Dispose(){}public void Reset(){throw new NotSupportedException();}
             }
         }
         Soldier Target(Soldier own)
         {
-            Soldier best=null;float score=float.PositiveInfinity;bool flank=own.isFlank,hunt=own.isHunt,focused=own.focus!=null&&own.focus.endTick>Tick;
-            var origin=own.entity.position;var targets=own.isRed?blueTargets:redTargets;for(int targetIndex=0;targetIndex<targets.Count;targetIndex++)
+            if(IsFrontier&&(!exposedParty||FrontierMap.Safe(own.entity.position.x)))return null;
+            Soldier best=null;float score=float.PositiveInfinity;
+            var query=new TargetQuery(own,Tick);
+            var targets=own.isRed?blueTargets:redTargets;
+            for(int targetIndex=0;targetIndex<targets.Count;targetIndex++)
             {
-                var foe=targets[targetIndex];if(!foe.entity.alive)continue;
+                var foe=targets[targetIndex];if(!foe.entity.alive||IsFrontier&&!FrontierTarget(own,foe))continue;
                 var position=foe.entity.position;
-                float s;if(legacyMath){s=V3.DistanceXZ(origin,position);s*=s;}else{float dx=origin.x-position.x,dz=origin.z-position.z;s=dx*dx+dz*dz;}
-                if(focused&&Catalog.Distance(position.x,position.z,own.focus.x,own.focus.z)<4)s*=.08f;
-                if(flank&&foe.isRanged)s*=.42f;if(hunt)s*=foe.isRanged?.12f*(160/foe.definition.cost):foe.isMedic?.2f:1.5f;
+                float s;
+                if(legacyMath){s=V3.DistanceXZ(query.position,position);s*=s;}
+                else s=query.DistanceSquared(position);
+                s=query.Weigh(s,position,foe.isRanged,foe.canHeal,foe.definition.cost);
                 if(s<score){best=foe;score=s;}
             }return best;
         }
@@ -149,7 +213,8 @@ namespace Frontline.Core
         public bool IssueOrder(string team,Order order,out string reason)
         {
             reason=null;if(!Config.commander.enabled)reason="军令模式未开启";else if(Result!=null)reason="本局已经结束";else if(!Catalog.Team(team)||order==null||!Catalog.Orders.Contains(order.type))reason="军令或阵营无效";
-            else if(!Catalog.Finite(order.x)||!Catalog.Finite(order.z)||Math.Abs(order.x)>18||Math.Abs(order.z)>12||!Catalog.Finite(Data.Height(Config.map,order.x,order.z)))reason="请选择战场地面";
+            else if(team=="red"&&Config.manorHall>0&&Config.manorHall<Manor.OrderLevel(order.type))reason="宅邸等级尚未解锁此军令";
+            else if(!Data.OrderGround(Config.map,order.x,order.z))reason="请选择战场地面";
             else if(Commander.points[team]<1)reason="军令点数不足";else if(Tick<Commander.readyAt[team])reason="军令正在冷却";
             if(reason!=null)return false;Cache();var entry=new OrderEntry{id=Commander.log.Count+1,team=team,type=order.type,x=order.x,z=order.z,tick=Tick,endTick=Tick+(order.type=="focus"?360:300)};
             Commander.points[team]--;Commander.readyAt[team]=Tick+480;Commander.log.Add(entry);Commander.active.Add(entry);
@@ -188,17 +253,20 @@ namespace Frontline.Core
         {
             if(!target.alive)return;float actual=Math.Max(0,Math.Min(target.maxHp-target.hp,amount));target.hp+=actual;if(source!=null)source.stats.healing+=actual;if(actual>0&&(Tick+target.id)%12==0){Cue("heal",target.position);Effect("heal",target.position,.4f);}
         }
-        void Command(Soldier u)
+        void Command(Soldier u,int index,bool scanPrepared)
         {
-            var e=u.entity;var p=e.position;var d=u.definition;if(p.y< -4||Math.Abs(p.x)>23||Math.Abs(p.z)>19){Kill(u,new V3(),"fall",null);return;}
+            var e=u.entity;var p=e.position;var d=u.definition;
+            if(IsFrontier?FrontierMap.Fell(p):p.y< -4||Math.Abs(p.x)>23||Math.Abs(p.z)>19){Kill(u,new V3(),"fall",null);return;}
             bool inspired=u.inspireUntil>Tick;u.cooldown-=Catalog.Step*(inspired?1.15f:1);u.attack=Math.Max(0,u.attack-Catalog.Step*3);u.stun=Math.Max(0,u.stun-Catalog.Step);u.hitFlash=Math.Max(0,u.hitFlash-Catalog.Step*7.5f);u.guard=Math.Max(0,u.guard-Catalog.Step*5);u.hitTiltX*=.83f;u.hitTiltZ*=.83f;
-            bool ai=(Tick+e.id)%6==0;if(ai||u.target==null||!u.target.entity.alive)u.target=Target(u);
-            if(u.isMedic&&ai){Soldier ally=null;float ratio=1;foreach(var a in Nearby(p,6))if(a.entity.team==e.team&&a.entity.hp/a.entity.maxHp<ratio){ally=a;ratio=a.entity.hp/a.entity.maxHp;}if(ally!=null)Heal(ally.entity,d.heal*.1f,e);}
-            var target=u.target;if(target==null)return;var tp=target.entity.position;var diff=tp-p;float dist=diff.Planar,range=d.range*(u.isRanged&&u.floor>target.floor+1?1.18f:1),min=target.definition.scale*.25f;
+            bool ai=(Tick+e.id)%6==0;
+            if(ai||u.target==null||!u.target.entity.alive||IsFrontier&&!FrontierTarget(u,u.target))
+                u.target=ResolveTarget(u,index,scanPrepared);
+            if(u.canHeal&&ai){Soldier ally=null;float ratio=1;foreach(var a in Nearby(p,6))if(a.entity.team==e.team&&a.entity.hp/a.entity.maxHp<ratio){ally=a;ratio=a.entity.hp/a.entity.maxHp;}if(ally!=null)Heal(ally.entity,d.heal*.1f,e);}
+            var target=u.target;if(target==null){if(IsFrontier)WalkFrontier(u,inspired);return;}var tp=target.entity.position;var diff=tp-p;float dist=diff.Planar,range=d.range*(u.isRanged&&u.floor>target.floor+1?1.18f:1),min=target.definition.scale*.25f;
             V3 move=new V3(diff.x/(dist>.001f?dist:1),0,diff.z/(dist>.001f?dist:1));float speed=d.speed;bool firing=u.isRanged&&dist<range;
             if(u.isCrossbow&&p.x*tp.x<0&&Config.map=="ruins"){float crossing=p.z+(tp.z-p.z)*(-p.x/(tp.x-p.x));if(Math.Abs(crossing)>2.1f&&Math.Abs(crossing)<9.1f)firing=false;}
-            if((u.isRanged||u.isMedic)&&dist<4&&!u.isHold){move*=-1;speed*=.7f;}else if(firing||(!u.isRanged&&dist<range+min-.15f)||u.isHold)speed=0;
-            if(u.isMedic&&dist>5&&dist<9)speed=0;
+            if((u.isRanged||u.keepsMedicDistance)&&dist<4&&!u.isHold){move*=-1;speed*=.7f;}else if(firing||(!u.isRanged&&dist<range+min-.15f)||u.isHold)speed=0;
+            if(u.keepsMedicDistance&&dist>5&&dist<9)speed=0;
             if(u.isHold&&!firing&&dist>range+min&&V3.DistanceXZ(p,u.anchor)>1.4f){move=(u.anchor-p);move.y=0;move=move.Normalized;speed=d.speed*.7f;}
             bool narrow=CombatMotion.Narrow(Config.map,p.x,p.z);var passage=map.passage;if(passage==null&&u.isFlank&&Config.map=="marsh")passage=MarshPassage;
             if(passage!=null&&!u.isHold&&!firing&&dist>range+min-.15f)
@@ -254,15 +322,15 @@ namespace Frontline.Core
         void Shoot(Soldier u,Soldier target)
         {
             if(Shots.Count>=1024)return;var e=u.entity;var d=u.definition;var p=e.position;var t=target.entity.position;var delta=t-p;float dist=Math.Max(.01f,delta.Planar);
-            string type=e.type=="bomber"?"bomb":e.type=="catapult"?"stone":e.type=="crossbow"?"bolt":"arrow";bool bomb=type=="bomb",stone=type=="stone",bolt=type=="bolt";
+            string type=e.type=="bomber"?"bomb":e.type=="catapult"?"stone":u.isCrossbow?"bolt":"arrow";bool bomb=type=="bomb",stone=type=="stone",bolt=type=="bolt";
             float flight=Math.Max(.22f,dist/(bomb?10:stone?12:bolt?28:19)),gravity=bolt?.2f:1,spread=(Random.Next()-.5f)*(bomb?.9f:stone?1.1f:bolt?.2f:.55f);
             var spawn=CombatMotion.Launch(e.type,p,new V3(delta.x/dist,0,delta.z/dist),d.scale);var tv=target.entity.body.Velocity;var velocity=new V3((t.x+tv.x*flight*.6f-spawn.x+spread)/flight,(t.y+.15f-spawn.y+9*gravity*flight*flight)/flight,(t.z+tv.z*flight*.6f-spawn.z+spread)/flight);
-            var shot=new Shot{id=nextId++,type=type,owner=e,life=bomb?1.8f:6,damage=d.damage,knock=d.knock,pierce=bolt?.6f:0};shot.body=World.Projectile(shot.id,type,spawn,velocity,gravity,e.id);Shots.Add(shot);shotsById.Add(shot.id,shot);Cue(e.type=="archer"?"bow":e.type,p);
+            var shot=new Shot{id=nextId++,type=type,owner=e,life=bomb?1.8f:6,damage=d.damage,knock=d.knock,pierce=u.isMarksman?.9f:bolt?.6f:0};shot.body=World.Projectile(shot.id,type,spawn,velocity,gravity,e.id);Shots.Add(shot);shotsById.Add(shot.id,shot);Cue(e.type=="archer"?"bow":u.isMarksman?"crossbow":e.type,p);
         }
         public void Hit(Soldier target,float damage,Entity source,float knock,V3? origin=null,float pierce=0)
         {
-            var e=target.entity;if(!e.alive)return;var p=e.body.Position;var from=origin??(source==null?p+new V3(-1,0,0):source.alive?source.body.Position:source.position);var diff=p-from;float dist=Math.Max(.01f,diff.Planar);bool block=e.type=="shield"&&((float)Math.Sin(target.angle)*-diff.x+(float)Math.Cos(target.angle)*-diff.z)/dist>.25f;
-            int tier=CombatMotion.HitTier(knock,source?.type);if(block){damage*=.4f+.6f*pierce;knock*=CombatMotion.BlockImpulse(pierce);}if(target.fortifyUntil>Tick){damage*=.75f;knock*=.5f;}float actual=Math.Min(e.hp,Math.Max(0,damage));e.stats.damageTaken+=actual;
+            var e=target.entity;if(!e.alive||IsFrontier&&!FrontierCanHit(e,source))return;var p=e.body.Position;var from=origin??(source==null?p+new V3(-1,0,0):source.alive?source.body.Position:source.position);var diff=p-from;float dist=Math.Max(.01f,diff.Planar);bool block=e.type=="shield"&&((float)Math.Sin(target.angle)*-diff.x+(float)Math.Cos(target.angle)*-diff.z)/dist>.25f;
+            int tier=CombatMotion.HitTier(knock,source?.type);if(block){damage*=.4f+.6f*pierce;knock*=CombatMotion.BlockImpulse(pierce);}if(target.isVanguard)damage*=.75f;if(target.fortifyUntil>Tick){damage*=.75f;knock*=.5f;}float actual=Math.Min(e.hp,Math.Max(0,damage));e.stats.damageTaken+=actual;
             if(source!=null){source.stats.damageDealt+=actual;if(source.team==e.team)source.stats.friendlyFire+=actual;target.lastSource=source;target.lastHitTick=Tick;}
             e.hp=Math.Max(0,e.hp-damage);target.stun=Math.Max(target.stun,CombatMotion.Stun(tier,block));
             if(tier>0&&target.preparing)target.windup=Math.Min(.42f,target.windup+(block?.025f:tier==2?.14f:.055f));
@@ -275,6 +343,7 @@ namespace Frontline.Core
         void Kill(Soldier u,V3 impulse,string reason,Entity source)
         {
             var e=u.entity;if(!e.alive)return;if(reason=="fall"){e.stats.falls++;if(Tick-u.lastHitTick<=180)source=u.lastSource;}
+            if(IsFrontier){u.target=null;u.preparing=false;}
             if(source!=null){if(source.team==e.team)source.stats.friendlyKills++;else{source.stats.kills++;if(reason=="fall")source.stats.fallKills++;}}
             if(!firstDeath){firstDeath=true;Highlight("firstKill",source==null?"neutral":source.team);}
             var p=e.body.Position;var v=e.body.Velocity;e.position=p;e.alive=false;e.hp=0;World.Remove(e.body);World.Corpse(e.id,e.type,e.team,u.definition,p,v,impulse);
@@ -283,7 +352,7 @@ namespace Frontline.Core
         void ChargeContact(int attacker,int defender)
         {
             if(!soldiersById.TryGetValue(attacker,out var u)||!u.isCavalry||!u.entity.alive||u.charge<=.55f||u.moveSpeed<3.8f)return;
-            if(!soldiersById.TryGetValue(defender,out var target)||!target.entity.alive||target.entity.team==u.entity.team)return;
+            if(!soldiersById.TryGetValue(defender,out var target)||!target.entity.alive||target.entity.team==u.entity.team||IsFrontier&&!FrontierCanHit(target.entity,u.entity))return;
             var delta=target.entity.position-u.entity.position;var forward=CombatMotion.Forward(u.angle);if((delta.x*forward.x+delta.z*forward.z)/Math.Max(.01f,delta.Planar)<.45f)return;
             Hit(target,u.definition.damage*2.5f,u.entity,Math.Max(u.definition.knock*2.8f,u.definition.mass*u.moveSpeed*.35f));u.charge=0;u.cooldown=u.definition.cooldown;u.preparing=false;u.attack=1;
             Effect("charge",u.entity.position,.45f,u.angle);Cue("heavy",u.entity.position);
@@ -328,7 +397,16 @@ namespace Frontline.Core
         void Effect(string type,V3 p,float life,float angle=0){if(Effects.Count>=CombatMotion.EffectCapacity){effectPool.Push(Effects[0]);Effects.RemoveAt(0);}var fx=effectPool.Pop();fx.id=nextEffect++;fx.type=type;fx.x=p.x;fx.y=p.y;fx.z=p.z;fx.life=fx.maxLife=life;fx.angle=angle;Effects.Add(fx);}
         public void Step()
         {
-            if(disposed)throw new ObjectDisposedException("Battle");if(Result!=null)return;Cache();if(Config.commander.enabled)TickOrders();if(Tick%6==0)TickProps();foreach(var u in Units)if(u.entity.alive)Command(u);World.Step(Catalog.Step);if(World is IWallImpactWorld walls)foreach(var impact in walls.WallImpacts())WallFeedback(impact);
+            if(disposed)throw new ObjectDisposedException("Battle");if(Result!=null)return;
+            Cache();if(Config.commander.enabled)TickOrders();if(Tick%6==0)TickProps();
+            bool scanPrepared=false;
+#if !UNITY_WEBGL
+            if(TargetScanWorkers>1&&redTargets.Count+blueTargets.Count>=ParallelTargetScanThreshold)
+                scanPrepared=PrepareTargetScan();
+#endif
+            for(int i=0;i<Units.Count;i++)if(Units[i].entity.alive)Command(Units[i],i,scanPrepared);
+            World.Step(Catalog.Step);if(World is IWallImpactWorld walls)foreach(var impact in walls.WallImpacts())WallFeedback(impact);
+            if(IsFrontier)FrontlineBoundary();
             foreach(var contact in World.Contacts())
             {
                 shotsById.TryGetValue(contact.a,out var shot);if(shot==null)shotsById.TryGetValue(contact.b,out shot);if(shot==null){ChargeContact(contact.a,contact.b);ChargeContact(contact.b,contact.a);continue;}if(shot.type=="bomb")continue;int other=contact.a==shot.id?contact.b:contact.a;if(other==shot.owner.id)continue;if(shot.type=="stone"){Explode(shot);continue;}if(entities.TryGetValue(other,out var entity)&&entity.alive){soldiersById.TryGetValue(entity.id,out var u);if(u!=null)Hit(u,shot.damage,shot.owner,shot.knock,shot.body.Position,shot.pierce);else{propsById.TryGetValue(entity.id,out var prop);if(prop!=null)DamageProp(prop,shot.damage,shot.owner);}}RemoveShot(shot);
@@ -338,7 +416,7 @@ namespace Frontline.Core
             for(int i=Effects.Count-1;i>=0;i--){var effect=Effects[i];effect.life-=Catalog.Step;if(effect.life<=0){effectPool.Push(effect);Effects.RemoveAt(i);}}World.AgeCorpses(Catalog.Step);Tick++;
             int red=0,blue=0;
             for(int i=0;i<Units.Count;i++)if(Units[i].entity.alive){if(Units[i].isRed)red++;else blue++;}
-            bool powerCheck=Tick%60==0,finished=red==0||blue==0||Tick>=5400;
+            bool powerCheck=Tick%60==0,timeout=!IsFrontier&&Tick>=5400,finished=red==0||blue==0||timeout;
             if(!powerCheck&&!finished)return;
             // Power only affects reversal highlights and the result. Keep the original sum order.
             float rp=0,bp=0;
@@ -348,12 +426,16 @@ namespace Frontline.Core
                 if(u.isRed)rp+=power;else bp+=power;
             }
             if(powerCheck&&Math.Abs(rp-bp)>=80){int next=rp>bp?1:-1;if(leader!=0&&next!=leader)Highlight("reversal",next==1?"red":"blue",Math.Abs(rp-bp));leader=next;}
-            if(finished)Result=new Result{winner=red==0&&blue==0?"draw":red==0?"blue":blue==0?"red":Math.Abs(rp-bp)<1?"draw":rp>bp?"red":"blue",reason=Tick>=5400?"timeout":"elimination",time=Time,red=red,blue=blue,remainingValue=new Dictionary<string,float>{{"red",rp},{"blue",bp}},report=Report(),orders=Json.Clone(Commander.log),highlights=Json.Clone(Highlights)};
+            if(finished)Finish(red==0&&blue==0?"draw":red==0?"blue":blue==0?"red":Math.Abs(rp-bp)<1?"draw":rp>bp?"red":"blue",timeout?"timeout":"elimination",red,blue,rp,bp);
+        }
+        void Finish(string winner,string reason,int red,int blue,float rp,float bp)
+        {
+            Result=new Result{winner=winner,reason=reason,time=Time,red=red,blue=blue,remainingValue=new Dictionary<string,float>{{"red",rp},{"blue",bp}},report=Report(),orders=Json.Clone(Commander.log),highlights=Json.Clone(Highlights)};
         }
         public BattleReport Report()
         {
             var report=new BattleReport();foreach(var u in Units){var e=u.entity;var r=new UnitReport{id=e.id,type=e.type,team=e.team,alive=e.alive,hp=e.hp,spawn=e.spawn};r.Add(e.stats);r.score=r.Score;report.units.Add(r);}foreach(var p in Props){var e=p.entity;var r=new UnitReport{id=e.id,type=e.type,team=e.team,alive=e.alive,hp=e.hp};r.Add(e.stats);report.props.Add(r);}
-            foreach(var team in new[]{"red","blue"}){var sum=new TeamReport();foreach(var u in report.units.Where(u=>u.team==team)){sum.Add(u);sum.initial++;if(u.alive)sum.survived++;else sum.lost++;if(!sum.byType.TryGetValue(u.type,out var row)){row=new TypeReport();sum.byType.Add(u.type,row);}row.Add(u);row.initial++;if(u.alive)row.survived++;else row.lost++;sum.remainingValue+=Math.Max(0,u.hp)/Data.Units[u.type].hp*Data.Units[u.type].cost;}foreach(var p in report.props.Where(p=>p.team==team))sum.Add(p);report.teams.Add(team,sum);}report.mvp=report.units.OrderByDescending(u=>u.score).ThenBy(u=>u.id).FirstOrDefault();return report;
+            foreach(var team in new[]{"red","blue"}){var sum=new TeamReport();foreach(var u in report.units.Where(u=>u.team==team)){sum.Add(u);sum.initial++;if(u.alive)sum.survived++;else sum.lost++;if(!sum.byType.TryGetValue(u.type,out var row)){row=new TypeReport();sum.byType.Add(u.type,row);}row.Add(u);row.initial++;if(u.alive)row.survived++;else row.lost++;var definition=soldiersById[u.id].definition;sum.remainingValue+=Math.Max(0,u.hp)/definition.hp*definition.cost;}foreach(var p in report.props.Where(p=>p.team==team))sum.Add(p);report.teams.Add(team,sum);}report.mvp=report.units.OrderByDescending(u=>u.score).ThenBy(u=>u.id).FirstOrDefault();return report;
         }
         public int SnapshotShotCapacity {get {int total=0;foreach(var u in Units)if(u.isRanged)total+=(int)Math.Ceiling(6f*1.15f/u.definition.cooldown)+2;return Math.Min(1024,total);}}
         public Frame PrepareSnapshot()
@@ -376,6 +458,14 @@ namespace Frontline.Core
         }
         static void CopyOrder(OrderEntry a,OrderEntry b){b.id=a.id;b.tick=a.tick;b.endTick=a.endTick;b.team=a.team;b.type=a.type;b.x=a.x;b.z=a.z;}
         static OrderEntry CopyOrder(OrderEntry o){return new OrderEntry{id=o.id,tick=o.tick,endTick=o.endTick,team=o.team,type=o.type,x=o.x,z=o.z};}
-        public void Dispose(){if(disposed)return;disposed=true;World.Dispose();}
+        public void Dispose()
+        {
+            if(disposed)return;
+            disposed=true;
+#if !UNITY_WEBGL
+            targetScan?.Dispose();
+#endif
+            World.Dispose();
+        }
     }
 }

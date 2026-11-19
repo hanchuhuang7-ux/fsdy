@@ -8,16 +8,27 @@ namespace Frontline.UnityGame
 {
     public sealed partial class FrontlineApp
     {
-        static string ManorKey => VisualValidation.IsolatedManor ? "frontline.qa.manor.v1" : "frontline.unity.manor.v1";
+        static string ManorKey => VisualValidation.PerformanceRequested ? "frontline.qa.performance.manor" : VisualValidation.FrontierRequested ? VisualValidation.FrontierSaveKey :
+            VisualValidation.IsolatedManor ? "frontline.qa.manor.v1" : "frontline.unity.manor.v1";
         public Manor Estate { get; private set; }
         public bool InManor { get; private set; }
         public int ManorSlot { get; private set; } = -1;
         public int ManorSpeed { get; private set; } = 1;
+        public int ManorRevision {get;private set;}
+        public int SelectedProp { get; private set; } = -1;
+        public bool InFrontier => Phase == "frontier";
+        public bool ConfirmManorExit => InManor && (Phase == "deploy" || Phase == "battle" || InFrontier && Battle?.Result==null);
+        public bool HoldExpedition { get; set; }
+        public bool PendingSettlement => returnedEstate != null;
         public event Action<string> ManorSound;
+        public event Action<Manor.Settlement> ExpeditionReturned;
         readonly Dictionary<string,int> force = new Dictionary<string,int>();
+        readonly Dictionary<string,int> raidForce = new Dictionary<string,int>();
+        readonly Dictionary<string,int> patrolForce = new Dictionary<string,int>();
+        readonly List<string> draftKeys=new List<string>(20);
         Manor.Sortie sortie;
         float manorClock;
-        string returnMessage;
+        Manor.Settlement returnReceipt;
         Manor returnedEstate;
 
         sealed class DuelDesk
@@ -33,9 +44,26 @@ namespace Frontline.UnityGame
             public Deployment[] undo;
         }
         DuelDesk duel;
-        public int ForceCount(string id) => force.TryGetValue(id,out int count) ? count : 0;
-        public int ForceCost => Estate.ForceCost(Data,force);
-        public int ForceUnits => force.Where(p => Data.Units.ContainsKey(p.Key)).Sum(p => p.Value);
+        Dictionary<string,int> Party(bool frontier,bool raid=false) => frontier ? patrolForce : raid ? raidForce : force;
+        public int ForceCount(string id,bool frontier=false,bool raid=false) => Party(frontier,raid).TryGetValue(id,out int count) ? count : 0;
+        public int ForceCost => PartyCost(false);
+        public int ForceUnits => PartyUnits(false);
+        public int PartyCost(bool frontier,bool raid=false) => Estate.ForceCost(Data,Party(frontier,raid));
+        public int PartyUnits(bool frontier,bool raid=false) => Manor.ForceSize(Data,Party(frontier,raid));
+        internal ManorLogistics PlannedLogistics => sortie?.Logistics??Estate.Logistics;
+        internal int PartyStrength(bool frontier,bool raid=false)
+        {
+            double sum=0;
+            foreach(var item in Party(frontier,raid))
+            {
+                if(Data.Props.ContainsKey(item.Key))continue;
+                bool hero=Data.Heroes.ContainsKey(item.Key);
+                int level=hero?Estate.HeroLevel(item.Key):Estate.UnitLevel(item.Key);
+                sum+=LevelScaling.Scale(Data.Unit(item.Key).cost,Math.Max(1,level))*item.Value;
+            }
+            return (int)Math.Round(sum);
+        }
+        public string ForceAddBlock(string id,bool frontier=false,bool raid=false) => Estate.ForceAddBlock(Data,Party(frontier,raid),id,frontier,raid);
         public bool AllowsOrder(string order) => !InManor || Estate.AllowsOrder(order);
         void LoadManor()
         {
@@ -57,12 +85,13 @@ namespace Frontline.UnityGame
             StopJob();
             Battle?.Dispose(); Battle = null; archive = null; archiveIndex = 0;
             recorded.Clear(); live = null; ReplayTime = 0; Paused = false;
-            accumulator = 0; Modal = false; Selected.Clear(); undo.Clear();
+            accumulator = 0; Modal = HoldExpedition = false; Selected.Clear(); SelectedProp = -1; undo.Clear();
             View.Marker = null;
         }
-        public void SetManorMode(bool enter)
+        public void SetManorMode(bool enter,bool abandon = false)
         {
-            if (enter == InManor) return;
+            if (enter == InManor || !enter && ConfirmManorExit && !abandon) return;
+            Manor.Settlement receipt = null;
             if (enter)
             {
                 duel = new DuelDesk {
@@ -80,8 +109,8 @@ namespace Frontline.UnityGame
             }
             else
             {
-                if (Phase == "result") { SaveResult(); Estate = returnedEstate; }
-                CloseSession(); InManor = false; sortie = null; returnedEstate = null;
+                receipt = CollectReturn();
+                CloseSession(); InManor = false; sortie = null;
                 var d = duel; duel = null;
                 Config = d.config; Mode = d.mode; Team = d.team; Hotseat = d.hotseat; Style = d.style; UnitType = d.unit;
                 PropType = d.prop; Stance = d.stance; Tool = d.tool; OrderType = d.order; Bo3 = d.bo3;
@@ -92,45 +121,109 @@ namespace Frontline.UnityGame
                 Phase = "deploy"; Tell("已返回演武斗蛐蛐");
             }
             Refresh();
+            if (receipt != null) ExpeditionReturned?.Invoke(receipt);
         }
 
         void SelectDefaultForce()
         {
-            force.Clear();
+            SelectDefaultForce(false);
+            SelectDefaultForce(true);
+            SelectDefaultForce(false,true);
+        }
+        void SelectDefaultForce(bool frontier,bool raid=false)
+        {
+            var draft = Party(frontier,raid);
+            draft.Clear();
+            int budget=Estate.ExpeditionLogistics(raid).Budget, limit=frontier?Estate.FrontierLimit:Estate.FieldLimit;
             foreach (var u in Data.Data.units)
                 for (int i = 0; i < Estate.Stock(u.id); i++)
                 {
-                    if (ForceUnits >= Estate.FieldLimit || ForceCost + u.cost > Estate.Budget) break;
-                    force[u.id] = ForceCount(u.id) + 1;
+                    if (PartyUnits(frontier,raid) >= limit || PartyCost(frontier,raid) + u.cost > budget) break;
+                    draft[u.id] = ForceCount(u.id,frontier,raid) + 1;
                 }
         }
-        void RecheckForce()
+        void RecheckForce(bool frontier,bool raid=false)
         {
-            // Preserve a hand-picked party as supply shrinks. Only remove the surplus.
-            foreach (var id in force.Keys.ToArray())
-                while (force[id] > 0 && (force[id] > Estate.Stock(id) ||
-                    Data.Units.ContainsKey(id) && ForceUnits > Estate.FieldLimit)) force[id]--;
+            var draft=Party(frontier,raid);
+            draftKeys.Clear();draftKeys.AddRange(draft.Keys);
+            foreach(var id in draftKeys)draft[id]=Math.Min(draft[id],Estate.Available(id));
+            int units=PartyUnits(frontier,raid), cost=PartyCost(frontier,raid), budget=Estate.ExpeditionLogistics(raid).Budget;
+            int limit=frontier?Estate.FrontierLimit:Estate.FieldLimit;
+            // Preserve the draft as supply or morale changes. Remove the most recently added types first.
+            for(int i=draftKeys.Count-1;i>=0&&(units>limit||cost>budget);i--)
+            {
+                string id=draftKeys[i];
+                bool troop=!Data.Props.ContainsKey(id);
+                int price=Manor.ItemCost(Data,id);
+                while(draft[id]>0&&(cost>budget||troop&&units>limit))
+                {
+                    draft[id]--;cost-=price;
+                    if(troop)units--;
+                }
+            }
         }
-        public void SelectManorSlot(int index)
+        public void SelectManorSlot(int index,bool focus=false)
         {
             if (Phase != "manor" || index < -1 || index >= Estate.slots.Length) return;
-            ManorSlot = index; Refresh();
+            ManorSlot = index;
+            Refresh();
+            if(focus&&index>=0)View.FocusManorPlot(index);
         }
         void ManorAction(Action operation,string message,string sound)
         {
             if (Phase != "manor") return;
             Try(() => {
-                operation(); RecheckForce(); SaveManor();
-                if (sound != null) ManorSound?.Invoke(sound);
+                int oldDispatch=Estate.eventDay;
+                operation();
+                Estate.CompleteGuideStep(0);
+                ManorRevision++; RecheckForce(false); RecheckForce(true); RecheckForce(false,true); SaveManor();
+                if(Estate.eventDay!=0&&Estate.eventDay!=oldDispatch)ManorSound?.Invoke("dispatch");
+                else if(sound!=null)ManorSound?.Invoke(sound);
                 if (message != null) Tell(message);
                 Refresh();
             });
         }
-        public void Construct(string kind) => ManorAction(() => Estate.Build(ManorSlot,kind),"已建成" + Manor.Name(kind),"build");
-        public void UpgradeSlot() => ManorAction(() => Estate.Upgrade(ManorSlot),"建筑已升级","build");
+        internal void ReclaimManorPlot() => ManorAction(() => Estate.ReclaimPlot(ManorSlot),
+            "建地已开垦 · 收回 "+Manor.ReclaimTimber+" 建材","build");
+        internal void ClaimManorMilestone(int index) => ManorAction(() => Estate.ClaimMilestone(index),"已领取宏愿奖励","milestone");
+        internal void SetFrontierTier(int tier)
+        {
+            if(Phase=="manor"&&Estate.frontierTier!=tier)
+                ManorAction(()=>Estate.SelectFrontierTier(tier),null,null);
+        }
+
+        internal void SeeGovernance()
+        {
+            if(Phase=="manor"&&Estate.CompleteGuideStep(1))SaveGuide();
+        }
+        internal void DismissManorGuide()
+        {
+            if(Phase=="manor"&&Estate.DismissGuide())SaveGuide();
+        }
+        void SaveGuide()
+        {
+            ManorRevision++;
+            SaveManor();
+            Refresh();
+        }
+
+        static string ConstructionSound(string kind) => kind=="smithy"?"forge":kind=="chapel"?"milestone":"build";
+        public void Construct(string kind) => ManorAction(() => Estate.Build(ManorSlot,kind),"已建成" + Manor.Name(kind),ConstructionSound(kind));
+        public void UpgradeSlot() => ManorAction(() => Estate.Upgrade(ManorSlot),"建筑已升级",
+            ManorSlot>=0?ConstructionSound(Estate.slots[ManorSlot].kind):null);
         public void DemolishSlot() => ManorAction(() => Estate.Demolish(ManorSlot),"已拆除并回收部分建材","build");
-        public void AssignWorker(int delta) => ManorAction(() => Estate.Assign(ManorSlot,delta),delta > 0 ? "已指派一户" : "已抽回一户",null);
+        public void AssignWorker(int delta) => ManorAction(() => Estate.Assign(ManorSlot,delta),delta > 0 ? "已指派一户" : "已抽回一户",
+            delta>0&&ManorSlot>=0&&Estate.slots[ManorSlot].kind=="smithy"?"forge":null);
         public void Recruit(string id) => ManorAction(() => Estate.Recruit(ManorSlot,id),"已加入庄园库存","recruit");
+        public void HireHero(string id) => ManorAction(() => Estate.HireHero(ManorSlot,Data.Heroes[id]),Data.Heroes[id].name+"已加入庄园","recruit");
+        public void UpgradeHero(string id) => ManorAction(() => Estate.UpgradeHero(ManorSlot,Data.Heroes[id]),Data.Heroes[id].name+"已升级","recruit");
+        public void TrainUnit(string id) => ManorAction(() => Estate.Train(ManorSlot,id),Data.Units[id].name+"训练等级已提升","recruit");
+        internal void SetManorTax(string id) => ManorAction(() => Estate.SetTax(id),"税率已调整",null);
+        internal void SetManorDecree(string id) => ManorAction(() => Estate.SetDecree(id),"政令已调整",null);
+        internal void AssignManorPreset(string id) => ManorAction(() => Estate.AssignPreset(id),"派工已调配",null);
+        internal void UpgradeSpecialist(string id) => ManorAction(() => Estate.UpgradeSpecialist(id),Manor.SpecialistName(id)+"已升级","recruit");
+        internal void ResolveManorEvent(int issuedDay,int choice) => ManorAction(() => Estate.ResolveEvent(issuedDay,choice),"领地急报已结案",null);
+        internal void TradeManor(string id,int units) => ManorAction(() => Estate.Trade(id,units),units>0?"已购入物资":"已售出物资","trade");
         public void AdvanceDays(int days) => ManorAction(() => Estate.Advance(days),"已推进" + days + "日","harvest");
         public void SetManorSpeed(int speed)
         {
@@ -146,25 +239,74 @@ namespace Frontline.UnityGame
             if (Estate.day >= 1000000) { SetManorSpeed(0); return; }
             ManorAction(() => Estate.Advance(1),null,"harvest");
         }
-        public void SelectForce(string id,int delta)
+        public void SelectForce(string id,int delta,bool frontier=false,bool raid=false)
         {
             if (Phase != "manor" || Math.Abs((long)delta) != 1) return;
             Try(() => {
-                var draft = new Dictionary<string,int>(force);
-                draft[id] = ForceCount(id) + delta;
-                Estate.ValidateForce(Data,draft,false);
-                force[id] = draft[id]; Refresh();
+                var draft = new Dictionary<string,int>(Party(frontier,raid));
+                draft[id] = ForceCount(id,frontier,raid) + delta;
+                Estate.ValidateForce(Data,draft,false,frontier,raid);
+                Party(frontier,raid)[id] = draft[id]; Refresh();
             });
+        }
+
+        internal void RecommendManorForce(int stage,bool raid,bool frontier)
+        {
+            if(Phase!="manor")return;
+            Try(()=>{
+                var next=Estate.RecommendForce(Data,stage,raid,frontier);
+                if(next.Count==0)throw new InvalidOperationException("没有可上阵的兵员或英雄");
+                var draft=Party(frontier,raid);
+                draft.Clear();
+                foreach(var item in next)draft.Add(item.Key,item.Value);
+                Tell("推荐编队已更新，可继续调整");
+                Refresh();
+            });
+        }
+        public void PrepareFrontier()
+        {
+            if(Phase!="manor")return;
+            var planned=Estate.PrepareFrontier(Data,patrolForce);
+            var running=new Battle(Data,planned.config,Factory,true,targetScanWorkers:CpuWork.TargetWorkers);
+            if(Estate.CompleteGuideStep(2)){ManorRevision++;SaveManor();}
+            CloseSession(); sortie=planned; returnedEstate=null; returnReceipt=null;
+            Battle=running; Config=running.Config; ReplayFile=null;
+            live=Battle.Snapshot(Battle.PrepareSnapshot()); Phase="frontier";
+            Mode="frontier"; Team="red"; OrderType="inspire"; Tool="march"; TouchCamera=false; Speed=1;
+            ManorSound?.Invoke("patrol");
+            Tell("队伍已集结。点选外域地面可过桥推进");
+            Refresh();
+        }
+        public void ClickFrontier(Vector3 point)
+        {
+            if(!InFrontier||Battle?.Result!=null)return;
+            if(Tool=="order"){CommandAt(point);return;}
+            if(Battle.MarchFrontier(point.x,point.z))
+            {
+                View.FrontierDestination=Battle.MarchDestination;
+                Tell(FrontierMap.Safe(point.x)?"队伍向安全区移动":"队伍推进 · 遇敌自动接战");
+            }
+        }
+        public void RecallFrontier()
+        {
+            if(!InFrontier||Battle?.Result!=null)return;
+            var rally=FrontierMap.Rally;
+            Battle.MarchFrontier(rally.x,rally.z);
+            Tool="march";
+            Tell("队伍撤向半岛集合点");
+            Refresh();
         }
         public void PrepareExpedition(int stage,bool raid)
         {
             if (Phase != "manor") return;
             Try(() => {
-                var planned = Estate.Prepare(Data,stage,raid,force);
-                CloseSession(); sortie = planned; returnedEstate = null; returnMessage = null;
+                var planned = Estate.Prepare(Data,stage,raid,Party(false,raid));
+                if(Estate.CompleteGuideStep(2)){ManorRevision++;SaveManor();}
+                CloseSession(); sortie = planned; returnedEstate = null; returnReceipt = null;
                 Config = Json.Clone(planned.config); Phase = "deploy"; Tool = "select"; PropType = null;
                 Stance = "advance"; Team = "red"; OrderType = "inspire"; TouchCamera = false;
-                Mode = "expedition"; PlayerLimit = Estate.Budget; ReplayFile = null; Speed = 1;
+                Mode = "expedition"; PlayerLimit = planned.Logistics.Budget; ReplayFile = null; Speed = 1;
+                ManorSound?.Invoke("patrol");
                 Tell((raid ? "迎战掠夺者" : "领地远征") + " · 调整队形后开战");
                 Refresh(); View.ResetCamera();
             });
@@ -173,19 +315,40 @@ namespace Frontline.UnityGame
         void SaveResult()
         {
             if (returnedEstate != null) return;
-            returnedEstate = Estate.ReturnedState(sortie,Battle.Result,out returnMessage);
+            returnedEstate = Estate.ReturnedState(sortie,Battle.Result,out returnReceipt);
             PlayerPrefs.SetString(ManorKey,returnedEstate.Export());
             PlayerPrefs.Save();
+        }
+        Manor.Settlement CollectReturn()
+        {
+            if(InFrontier){Battle.EndFrontier();SaveResult();}
+            if (Phase == "result") SaveResult();
+            if (returnedEstate == null) return null;
+            Estate = returnedEstate;
+            var receipt = returnReceipt;
+            returnedEstate = null; returnReceipt = null;
+            return receipt;
         }
         public void ReturnManor()
         {
             if (!InManor || Phase == "manor") return;
-            if (Phase == "result") { SaveResult(); Estate = returnedEstate; }
-            var message = returnedEstate != null ? returnMessage : "部队已撤回庄园";
-            CloseSession(); sortie = null; returnedEstate = null; Phase = "manor";
+            var receipt = CollectReturn();
+            var message = receipt != null ? receipt.frontier?"巡边已结算":"远征已结算" : sortie == null ? "已返回庄园" : "部队已撤回庄园";
+            CloseSession(); sortie = null; Phase = "manor";
             Config = new Deployment(); ReplayFile = null; ManorSlot = -1; TouchCamera = true;
             SelectDefaultForce(); manorClock = 0;
             Tell(message); Refresh();
+            if (receipt != null) ExpeditionReturned?.Invoke(receipt);
+        }
+        void OpenExpeditionReplay(ReplayPackage replay)
+        {
+            if (InManor && Phase != "manor") throw new InvalidOperationException("请先返回庄园再导入回放");
+            if (!InManor) SetManorMode(true);
+            CloseSession(); sortie = null;
+            Config = replay.config; ReplayFile = replay; Phase = "replay";
+            if (replay.kind == "seed") StartJob(ExpandSeed(replay),Watch);
+            else Watch();
+            View.ResetCamera();
         }
         public void ExportManor()
         {
@@ -196,7 +359,7 @@ namespace Frontline.UnityGame
             var imported = Manor.Import(text);
             if (InManor && Phase != "manor") throw new InvalidOperationException("请先返回庄园再导入存档");
             if (!InManor) SetManorMode(true);
-            Estate = imported; ManorSlot = -1; manorClock = 0; SelectDefaultForce();
+            Estate = imported; ManorRevision++; ManorSlot = -1; manorClock = 0; SelectDefaultForce();
             SaveManor(); Tell("庄园存档已导入"); Refresh();
         }
     }

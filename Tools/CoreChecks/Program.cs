@@ -35,6 +35,14 @@ class Program
   Check("replay rejects forged points",()=>{var p=Json.Clone(replay);p.frames[1].commander.points["red"]=3;Reject(()=>Replay.Validate(db,p));});
   Check("replay rejects forged quaternion",()=>{var p=Json.Clone(replay);p.frames[0].units[0].t[6]=0;Reject(()=>Replay.Validate(db,p));});
   Check("native seed preserves orders",()=>{var p=Replay.Create(db,replay.config,replay.frames,replay.result,true);Assert(p.kind=="seed"&&p.frames.Count==0&&p.orderLog.Count==1);Replay.Import(db,Json.Write(p));});
+  Check("1.3.5 replay identities preserve old seed families and accept new trajectories",()=>{
+   var modern=Replay.Create(db,replay.config,replay.frames,replay.result,engineVersion:Replay.RefinedEngine);
+   var seed=Replay.Create(db,modern.config,modern.frames,modern.result,true,Replay.RefinedEngine);
+   Assert(Replay.Import(db,Json.Write(modern)).engineVersion==Replay.RefinedEngine);
+   Assert(Replay.Import(db,Json.Write(seed)).kind=="seed");
+   Assert(!Replay.UsesRefinedPhysics(Replay.Engine)&&!Replay.UsesRefinedPhysics(Replay.ExpeditionEngine));
+   Assert(Replay.IsExpeditionEngine(Replay.RefinedExpeditionEngine)&&Replay.UsesRefinedPhysics(Replay.RefinedExpeditionEngine));
+  });
   Check("legacy seed requires converter",()=>{var p=Json.Clone(replay);p.version=2;p.engineVersion="0.5.0";p.kind="seed";p.frames.Clear();Reject(()=>Replay.Validate(db,p));});
   Check("Bo3 scoring/seed",()=>{var c=Duel();var s=new BattleSeries(db,c);s.Record(c,replay.result);Assert(s.Archive.wins["red"]==1&&!s.Complete);var n=s.Next();Assert(n.seed==43);s.Record(n,replay.result);Assert(s.Complete&&s.Winner=="red");Reject(()=>s.Next());});
   Check("tournament draw credit and averages",()=>{var t=new Tournament(db,factory,new List<Entrant>{new Entrant{name="A",ai="guardian"},new Entrant{name="B",ai="counter"}},new List<string>{"meadow"},new List<uint>{42},100);var r=Json.Clone(replay.result);r.winner="draw";r.remainingValue["red"]=20;r.remainingValue["blue"]=30;r.time=10;t.Report.matches.Add(new MatchRecord{red=0,blue=1,result=r});t.Summarize();Assert(t.Report.ranking.All(x=>x.draws==1&&x.scoreRate==.5f&&x.winRate==0));Assert(t.Report.matrix[0][1].averageRemaining==20&&t.Report.matrix[1][0].averageRemaining==30);Assert(t.Report.ranking[0].name=="B");});
@@ -104,8 +112,74 @@ class Program
     Assert(units.Where(u=>u.fortified).Select(u=>u.type).OrderBy(type=>type).SequenceEqual(new[]{"giant","militia","shield","spear"}));
    }
   });
+  Check("60v60 serial and parallel battles match every snapshot bit and report",()=>{
+   var config=new Deployment {seed=77,budget=10000,commander=new CommanderConfig{enabled=true}};
+   var types=db.Data.units;
+   for(int i=0;i<60;i++)
+   {
+    float x=3.2f+i/10*2.65f,z=-9+i%10*2;
+    string stance=i%3==0?"hunt":i%3==1?"flank":"advance";
+    config.red.Add(new UnitPlacement(types[i%10].id,-x,z,stance));
+    config.blue.Add(new UnitPlacement(types[(i+3)%10].id,x,z));
+   }
+   var proof=Frontline.UnityGame.ParallelBattleChecks.Verify(db,config,factory);
+   Console.WriteLine("PARALLEL_CORE_OK "+Json.Write(proof));
+  });
+  Check("parallel target scans recover from same-tick deaths in original tie order",()=>{
+   var config=new Deployment {budget=10000};
+   for(int i=0;i<60;i++)
+   {
+    config.red.Add(new UnitPlacement("militia",-4-i/10,-9+i%10*2));
+    config.blue.Add(new UnitPlacement("militia",4+i/10,-9+i%10*2));
+   }
+   using(var serial=new Battle(db,config,factory,targetScanWorkers:1))
+   using(var parallel=new Battle(db,config,factory))
+   {
+    foreach(var b in new[]{serial,parallel})
+    {
+     var first=b.Units[0];
+     ReferenceWorld.Position(first.entity.body,-3.25f,-8.5f);
+     ReferenceWorld.Position(b.Units[1].entity.body,-3.25f,-8.5f);
+     ReferenceWorld.Position(b.Units[60].entity.body,-2.75f,-8.5f);
+     ReferenceWorld.Position(b.Units[61].entity.body,-2.75f,-8);
+     ReferenceWorld.Position(b.Units[62].entity.body,-2.75f,-9);
+     b.Units[60].entity.hp=1;
+     first.cooldown=0;first.preparing=true;first.windup=0;
+     b.Step();
+     Assert(!b.Units[60].entity.alive&&b.Units[1].target==b.Units[61],"Ordered casualty fallback or tie order changed");
+    }
+    Assert(parallel.TargetScanWorkers==1||parallel.ParallelTargetScanFallbacks>0,"Same-tick invalidation did not exercise the fallback");
+    Assert(Json.Write(serial.Snapshot())==Json.Write(parallel.Snapshot()),"Same-tick casualty snapshot diverged");
+   }
+  });
+  Check("steady target-scan dispatch adds no managed allocations on the caller",()=>{
+   var config=new Deployment {budget=10000};
+   for(int i=0;i<60;i++)
+   {
+    config.red.Add(new UnitPlacement("militia",-11-i/10,-9+i%10*2));
+    config.blue.Add(new UnitPlacement("militia",11+i/10,-9+i%10*2));
+   }
+   using(var battle=new Battle(db,config,new ReferenceFactory{freezeUnits=true}))
+   {
+    for(int i=0;i<60;i++)battle.Step();
+    int scans=battle.ParallelTargetScanTicks;
+    long before=GC.GetAllocatedBytesForCurrentThread();
+    for(int i=0;i<120;i++)
+    {
+     foreach(var unit in battle.Units)unit.target=null;
+     battle.Step();
+    }
+    Assert(GC.GetAllocatedBytesForCurrentThread()==before,"Steady scan allocated managed bytes");
+    Assert(battle.TargetScanWorkers==1||battle.ParallelTargetScanTicks-scans==120,"Steady parallel scan did not run");
+   }
+  });
   CombatChecks.Run(db,Check);
   ManorChecks.Run(db,Check);
+  ManorChecks.RunOperations(db,Check);
+  ManorChecks.RunCampaign(db,Check);
+  ManorChecks.RunEstate(db,Check);
+  ManorChecks.RunExpansion(db,Check);
+  ManorChecks.RunProgression(db,Check);
   Check("all test worlds disposed",()=>Assert(factory.live==0));Console.WriteLine($"Core rule checks: {passed} passed, {failed} failed. Reference physics is a test double; run Unity smoke for real PhysX.");return failed==0?0:1;
  }
 }
