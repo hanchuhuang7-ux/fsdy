@@ -117,7 +117,8 @@ namespace Frontline.UnityGame
             if(builtInBase)ManorHud();else if(app.InFrontier)FrontierHud();else if(app.Phase=="deploy"){if(app.InManor)ExpeditionDeploy();else Deploy();}else BattleHud();
             if(!status){var notice=Panel(baseRoot,"Status",portrait?10:302,rh-36,portrait?370:Mathf.Min(680,rw-320),28,ink);notice.GetComponent<Image>().raycastTarget=false;status=Label(notice,app.Message,10,1,notice.sizeDelta.x-20,26,12,gold);}if(app.Busy){var p=Panel(baseRoot,"Calculation",portrait?12:335,portrait?100:90,portrait?366:610,83,ink);progress=Label(p,app.Progress??"准备计算",14,8,portrait?230:460,35,14,gold);Button(p,"停止",portrait?270:500,20,74,42,app.CancelJob);Label(p,"分片推演中，可随时停止",14,44,230,25,11,muted);}
             readoutsDirty=true;UpdateReadouts();
-            if(overlay&&(resized||!builtInBase)&&dialogBuilder!=null)OpenDialog(dialogTitle,dialogBuilder,dialogHeight,dialogFooter,true,dialogWidth,dialogWholeRows);
+            if(overlay&&(resized||!builtInBase)&&dialogBuilder!=null)
+                OpenDialog(dialogTitle,dialogBuilder,dialogHeight,dialogFooter,true,dialogWidth,dialogWholeRows,dialogHeader);
             RefreshManorValues();
         }
         void Deploy()
@@ -258,7 +259,7 @@ namespace Frontline.UnityGame
             return content;
         }
         void OpenDialog(string title,Action<RectTransform,float> builder,float maxHeight=760,Action<RectTransform,float> footer=null,
-            bool rebuild=false,float maxWidth=880,bool wholeRows=false)
+            bool rebuild=false,float maxWidth=880,bool wholeRows=false,Action<RectTransform,float> header=null)
         {
             float scrollY=overlay&&dialogTitle==title&&dialogContent?dialogContent.anchoredPosition.y:0;
             string notice=rebuild&&dialogNotice?dialogNotice.text:"";
@@ -266,6 +267,7 @@ namespace Frontline.UnityGame
             manorDialogValues.Clear();dialogNotice=null;
             app.Modal=true;dialogTitle=title;dialogBuilder=builder;dialogFooter=footer;dialogHeight=maxHeight;dialogWidth=maxWidth;
             dialogWholeRows=wholeRows;
+            dialogHeader=header;
             app.View.HoveredPlot=-1;
             overlay=Panel(canvas.transform,"Dialog overlay",0,0,rw,rh,new Color(.025f,.025f,.022f,.73f),null);
             float w=Mathf.Min(rw-24,maxWidth),h=Mathf.Min(rh-40,maxHeight);
@@ -275,8 +277,15 @@ namespace Frontline.UnityGame
             Label(shell,title,18,9,w-113,43,portrait?18:21,gold);dismissDialog=Button(shell,"关闭",w-84,14,66,34,CloseDialog);
             Rule(shell,18,54,w-36);
             float noticeSpace=app.InManor?32:0,footerSpace=footer==null?0:52;
-            float chrome=80+noticeSpace+footerSpace;
-            dialogContent=Scroll(shell,18,62,w-36,0);
+            float headerSpace=header==null?0:42;
+            if(header!=null)
+            {
+                var tabs=Node(shell,"Dialog tabs");
+                Rect(tabs,18,62,w-60,35);
+                header(tabs,w-60);
+            }
+            float chrome=80+noticeSpace+footerSpace+headerSpace;
+            dialogContent=Scroll(shell,18,62+headerSpace,w-36,0);
             builder(dialogContent,w-60);
             float contentHeight=dialogContent.sizeDelta.y;
             foreach(RectTransform child in dialogContent)contentHeight=Mathf.Max(contentHeight,-child.anchoredPosition.y+child.sizeDelta.y);
@@ -302,7 +311,7 @@ namespace Frontline.UnityGame
             if(!app.Modal||!overlay||!dismissDialog||!dismissDialog.isActiveAndEnabled||!dismissDialog.IsInteractable())return false;
             CloseDialog();return true;
         }
-        void CloseDialog(){app.Presentation?.Flush();if(overlay){overlay.gameObject.SetActive(false);Destroy(overlay.gameObject);}overlay=null;dismissDialog=null;dialogContent=null;dialogBuilder=null;dialogFooter=null;dialogNotice=null;manorDialogValues.Clear();app.Modal=app.HoldExpedition=false;EventSystem.current?.SetSelectedGameObject(null);}
+        void CloseDialog(){app.Presentation?.Flush();if(overlay){overlay.gameObject.SetActive(false);Destroy(overlay.gameObject);}overlay=null;dismissDialog=null;dialogContent=null;dialogBuilder=null;dialogFooter=dialogHeader=null;dialogNotice=null;manorDialogValues.Clear();app.Modal=app.HoldExpedition=false;EventSystem.current?.SetSelectedGameObject(null);}
         void QualityEntry(RectTransform bar,float x,float y,float w,float h)
         {
             var entry=Button(bar,portrait?"设置":"显示 · "+QualityNames[app.View.QualityLevel],x,y,w,h,QualityDialog);

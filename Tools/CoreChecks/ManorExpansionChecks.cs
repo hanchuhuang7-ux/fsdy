@@ -103,7 +103,7 @@ static partial class ManorChecks
                 var comparable=LegacySchema(migrated,version);
                 foreach(string key in old.Keys)
                     Expect(Json.Write(old[key])==Json.Write(comparable[key]),"v"+version+" lost "+key);
-                Expect(migrated.version==Manor.SaveVersion&&migrated.slots.Length==24&&migrated.reclaimedPlots==0&&migrated.milestoneClaims==0&&
+                Expect(migrated.version==Manor.SaveVersion&&migrated.slots.Length==Manor.PlotCount&&migrated.reclaimedPlots==0&&migrated.milestoneClaims==0&&
                     !migrated.frontierSwept&&Enumerable.Range(0,18).All(migrated.IsPlotCleared)&&
                     migrated.slots.Skip(18).All(p=>p.kind==null&&p.level==0&&p.workers==0),"v6 migration defaults");
                 if(version==5)Expect(migrated.slots[14].workers==1&&migrated.slots[17].level==3&&

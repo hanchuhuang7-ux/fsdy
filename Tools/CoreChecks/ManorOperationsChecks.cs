@@ -9,8 +9,12 @@ static partial class ManorChecks
     {
         var old = (Dictionary<string,object>)Json.Parse(manor.Export());
         old["version"] = version;
-        old.Remove("clearedSectors");
-        old.Remove("claimedSectors");
+        old.Remove("nobility");
+        if(version<10)
+        {
+            old.Remove("clearedSectors");
+            old.Remove("claimedSectors");
+        }
         if(version<9)
             foreach(string key in new[]{"retinue","influence","tithe"})old.Remove(key);
         if(version<8)
@@ -28,7 +32,7 @@ static partial class ManorChecks
             old.Remove("frontierSwept");
         }
         if(version<5)old.Remove("specialists");
-        int plots=version==1?10:version<5?Manor.OriginalPlotCount:version==5?Manor.FirstOuterPlot:Manor.PlotCount;
+        int plots=version==1?10:version<5?Manor.OriginalPlotCount:version==5?Manor.FirstOuterPlot:Manor.FirstNoblePlot;
         old["slots"]=LegacyPlots(old["slots"],plots,version>=8,version>=9);
         if (version < 4) old.Remove("eventDay");
         if (version < 3)

@@ -21,9 +21,10 @@ namespace Frontline.UnityGame
         void ApprovalMeter(RectTransform ledger,float x,float w)
         {
             LedgerMark(ledger,x,new Color(.84f,.67f,.70f));
-            var title=Label(ledger,"",x+11,3,w-18,18,portrait?11:12,pale);
+            var title=Label(ledger,"",x+11,3,w-17,18,portrait?10:12,pale);
+            title.name="Manor.Nobility.Ledger";
             var score=Label(ledger,"",x+11,20,w-18,ledger.sizeDelta.y-21,portrait?14:17,gold);
-            Value(manorValues,title,()=>app.Estate.ProsperityTitle);
+            Value(manorValues,title,()=>app.Estate.NobleTitle+" · "+app.Estate.ProsperityTitle);
             Value(manorValues,score,()=>"民心 "+app.Estate.approval);
             manorValues.Add(()=>score.color=ApprovalColor(app.Estate.approval));
         }
@@ -63,17 +64,20 @@ namespace Frontline.UnityGame
             var marketStatus=Label(p,"",w*.59f,27,w*.41f-1,24,portrait?10:13,thriving,TextAnchor.MiddleRight);
             marketStatus.name="Manor.MarketNeeds.Summary";
             EventEntry(p,"Manor.Governance.Event",w-actionWidth,1,actionWidth,26,manorDialogValues,fromGovernance:true);
-            float nav=w/5;
+            float nav=w/6;
             ManorButton(p,"Manor.Specialists",portrait?"专才":"领地专才",0,52,nav-5,28,SpecialistsDialog);
             var development=ManorButton(p,"Manor.Development",portrait?"发展":"领地发展",nav,52,nav-5,28,DevelopmentDialog);
             var milestones=ManorButton(p,"Manor.Milestones",portrait?"宏愿":"领主宏愿",2*nav,52,nav-5,28,MilestonesDialog);
             var claims=ManorButton(p,"Manor.Claims",portrait?"疆域":"边疆疆域",3*nav,52,nav-5,28,TerritoryDialog);
-            ManorButton(p,"Manor.Chronicle","编年史",4*nav,52,nav-1,28,ChronicleDialog);
+            var nobility=ManorButton(p,"Manor.Nobility",portrait?"爵位":"贵族爵位",4*nav,52,nav-5,28,NobilityDialog);
+            var records=ManorButton(p,"Manor.Chronicle","编年史",5*nav,52,nav-1,28,ChronicleDialog);
+            if(portrait)records.GetComponentInChildren<Text>().fontSize=12;
             manorDialogValues.Add(()=>{
                 var todo=app.Estate.Todos;
                 SetTodoLook(development,(todo&ManorTodo.Development)!=0);
                 SetTodoLook(milestones,(todo&ManorTodo.Milestone)!=0);
                 SetTodoLook(claims,(todo&ManorTodo.Claim)!=0);
+                SetTodoLook(nobility,(todo&ManorTodo.Nobility)!=0);
                 if(next)next.text=NextTodoText(todo);
             });
             var rations=MarketNeed(p,w,0,"Rations");
@@ -95,7 +99,7 @@ namespace Frontline.UnityGame
                 var forecast=PreviewForecast();
                 var factors=forecast.approvalFactors;
                 int today=forecast.approvalAfter-m.approval;
-                title.text=m.ProsperityTitle+"  ·  民心 "+m.approval+" / 100";
+                title.text=m.NobleTitle+" · "+m.ProsperityTitle+" · 民心 "+m.approval+" / 100";
                 title.color=ApprovalColor(m.approval);
                 status.text=ApprovalStatus(m.approval)+"  ·  日变化 "+Change(today)+" → "+forecast.approvalAfter;
                 if(today!=factors.Total&&!portrait)status.text+="（触及限值）";

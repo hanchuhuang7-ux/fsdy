@@ -183,6 +183,7 @@ class Program
   ManorChecks.RunDevelopment(db,Check);
   ManorChecks.RunFertilityAndSupport(db,Check);
   ManorChecks.RunClaims(db,Check);
+  ManorChecks.RunNobility(db,Check);
   Check("all test worlds disposed",()=>Assert(factory.live==0));Console.WriteLine($"Core rule checks: {passed} passed, {failed} failed. Reference physics is a test double; run Unity smoke for real PhysX.");return failed==0?0:1;
  }
 }

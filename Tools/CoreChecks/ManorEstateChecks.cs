@@ -7,9 +7,9 @@ static partial class ManorChecks
 {
     public static void RunEstate(Catalog data,Action<string,Action> check)
     {
-        check("all 24 plots fit the 56x36 shelf without moving the causeway or frontier",() => {
+        check("all 32 plots fit the 56x36 shelf without moving the causeway or frontier",() => {
             var shelf=data.Frontier.platforms[0]; var bridge=data.Frontier.platforms[1]; var coast=data.Frontier.platforms[2];
-            Expect(Manor.PlotCount==24&&shelf.x==-50&&shelf.hx==28&&shelf.hz==18&&FrontierMap.West==-78,"shelf bounds");
+            Expect(Manor.PlotCount==32&&shelf.x==-50&&shelf.hx==28&&shelf.hz==18&&FrontierMap.West==-78,"shelf bounds");
             Expect(FrontierMap.BridgeStart==-22&&FrontierMap.Boundary==-10&&bridge.x==-16&&bridge.hz==3.6f&&
                 coast.x==27&&coast.hx==37&&coast.hz==24,"old bridge or coast moved");
             Expect(FrontierMap.HasGround(-77,16)&&!FrontierMap.HasGround(-78,16)&&!FrontierMap.HasGround(-77,18)&&!FrontierMap.HasGround(-17,4)&&
@@ -20,7 +20,7 @@ static partial class ManorChecks
                 Expect(Manor.PickSlot(x,z)==i&&FrontierMap.HasGround(FrontierMap.ManorX+x,z),"unpickable plot "+i);
                 if(i>=14&&i<18)Expect(x==-18.3f&&Math.Abs(z)>5,"western layout changed");
                 if(i>=18&&i<22)Expect(Math.Abs(z)==14.85f,"outer farm or shore row");
-                if(i>=22)Expect(x==-24.55f,"outer woodland row");
+                if(i>=22&&i<Manor.FirstNoblePlot)Expect(x==-24.55f,"outer woodland row");
                 for(int j=0;j<i;j++)
                     Expect(Math.Pow(x-Manor.SlotX(j),2)+Math.Pow(z-Manor.SlotZ(j),2)>4.2*4.2,"ambiguous pick regions");
             }

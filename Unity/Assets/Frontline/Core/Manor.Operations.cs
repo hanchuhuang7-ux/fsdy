@@ -108,8 +108,8 @@ namespace Frontline.Core
             ManorSynergy synergy=ReadSynergies(out bool hasClinic);
             var balance = new ManorDay {
                 food = (1 - workers) * 100, timber = 100, synergy=synergy,
-                coin = ScaleYield(Yield(8 + 2 * hall.workers,hall.level),production,TaxRevenuePercent,trade ? 120 : 100,
-                    100+StewardBonus(SpecialistRank("steward")))
+                coin = NobleYield(ScaleYield(Yield(8 + 2 * hall.workers,hall.level),production,TaxRevenuePercent,trade ? 120 : 100,
+                    100+StewardBonus(SpecialistRank("steward"))))
             };
             string firstFood = AddSectorSupplies(ref balance) ? Sectors[NorthGlade].id : null;
             bool variedDiet = false, poultry=false, staffedChapel=false;
@@ -135,13 +135,13 @@ namespace Frontline.Core
                         bool pasture = plot.kind == "pasture";
                         if (!pasture && IsResting(plot,season)) break;
                         int policy = agrarian ? 120 : trade && !pasture ? 90 : 100;
-                        balance.food += ScaleYield(Yield(Def(plot.kind).harvest,plot.level) * plot.workers,production,policy,pasture ? pastureRate : cropRate,
-                            100+synergy.grainPercent,100+(pasture?0:synergy.cropPercent),pasture?100:cropDevelopment,pasture?100:plot.fertility);
+                        balance.food += NobleYield(ScaleYield(Yield(Def(plot.kind).harvest,plot.level) * plot.workers,production,policy,pasture ? pastureRate : cropRate,
+                            100+synergy.grainPercent,100+(pasture?0:synergy.cropPercent),pasture?100:cropDevelopment,pasture?100:plot.fertility));
                         variedDiet |= firstFood != null && firstFood != plot.kind;
                         firstFood ??= plot.kind;
                         break;
                     case "timber_camp":
-                        balance.timber += ScaleYield(Yield(4,plot.level) * plot.workers,production,developmentPercent:sustainableWoods?115:100);
+                        balance.timber += NobleYield(ScaleYield(Yield(4,plot.level) * plot.workers,production,developmentPercent:sustainableWoods?115:100));
                         break;
                     case "tavern":
                         tavern = 2;
@@ -172,8 +172,8 @@ namespace Frontline.Core
                 int working = Math.Min(timberAvailable / 100,plot.workers);
                 timberAvailable -= working * 100;
                 balance.forgeTimber += working * 100;
-                balance.arms += ScaleYield(Yield(2,plot.level) * working,production,forgePolicy,
-                    supportPercent:100+synergy.forgePercent,developmentPercent:forgeDevelopment);
+                balance.arms += NobleYield(ScaleYield(Yield(2,plot.level) * working,production,forgePolicy,
+                    supportPercent:100+synergy.forgePercent,developmentPercent:forgeDevelopment));
             }
             balance.timber = timberAvailable - storedTimber;
 
@@ -195,7 +195,7 @@ namespace Frontline.Core
                 tax = TaxApprovalChange, food = !hasRations ? -5+synergy.granaryLevel : diet ? 2 : 0,
                 tavern = tavern, heating = balance.winterTimber < balance.winterTimberRequired ? -3+synergy.granaryLevel : 0,
                 decree = mobilize ? -1 : 0, chapel=synergy.chapelApproval, settled=synergy.settledApproval,
-                herbalist=hasClinic ? SpecialistRank("herbalist") : 0, market=balance.marketNeeds.Prosperous?1:0
+                herbalist=hasClinic ? SpecialistRank("herbalist") : 0, market=balance.marketNeeds.Prosperous?ProsperousMarketApproval:0
             };
             balance.approvalAfter = ClampApproval(approval + balance.approvalFactors.Total);
             // Production and immigration read the morning's approval. Today's changes take effect tomorrow.

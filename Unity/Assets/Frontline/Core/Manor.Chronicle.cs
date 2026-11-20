@@ -52,6 +52,8 @@ namespace Frontline.Core
                 case "raid": return "击退掠夺者"+MeritText(entry.choice);
                 case "festival": return "召开领地庆典 · 鼓舞民心";
                 case "claim": return "宣称并筑哨 · "+Sectors[subject].name;
+                case "nobility": return "受封"+NobleRanks[subject].title+" · 赐地 "+
+                    GrantedPlotCount(subject-1)+"–"+(GrantedPlotCount(subject)-1);
                 default: throw new InvalidOperationException("未知编年史记录");
             }
         }
@@ -61,10 +63,15 @@ namespace Frontline.Core
         bool ValidChronicle(int schema)
         {
             if(chronicle==null||chronicle.Count>ChronicleLimit)return false;
-            int previous=1;
+            int previous=1,lastRank=0;
             foreach(var entry in chronicle)
             {
                 if(entry.day<previous||entry.day>day||!ValidChronicleEntry(entry,schema))return false;
+                if(entry.kind=="nobility")
+                {
+                    if(entry.subject<=lastRank)return false;
+                    lastRank=entry.subject;
+                }
                 previous=entry.day;
             }
             return true;
@@ -83,11 +90,12 @@ namespace Frontline.Core
             switch(entry.kind)
             {
                 case "title": return subject>=1&&subject<=prosperityPeak;
-                case "reclaim": return subject>=FirstOuterPlot&&IsPlotCleared(subject);
-                case "granary": case "chapel": return subject>0&&subject<PlotCount;
+                case "reclaim": return subject>=FirstOuterPlot&&subject<FirstNoblePlot&&IsPlotCleared(subject);
+                case "granary": case "chapel": return subject>0&&IsPlotGranted(subject);
                 case "development": return HasDevelopment((ManorPerk)subject);
                 case "festival": return merit&&subject==0;
                 case "claim": return schema>=ClaimsSaveVersion&&ClaimedSector(subject);
+                case "nobility": return schema>=NobilitySaveVersion&&subject>=1&&subject<=nobility;
                 default: return false;
             }
         }

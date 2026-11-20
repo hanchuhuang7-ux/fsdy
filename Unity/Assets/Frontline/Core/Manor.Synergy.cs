@@ -9,6 +9,7 @@ namespace Frontline.Core
 
     public sealed partial class Manor
     {
+        public const int CropCompanionPercent=8, TimberSmithyPercent=10, ProsperousMarketApproval=1;
         static int GranaryPercent(int level) => level==0?0:6+2*level;
         static int ChapelApproval(int level,bool staffed) => 2+level+(staffed?1:0);
 
@@ -39,8 +40,9 @@ namespace Frontline.Core
             }
             hasClinic=social;
             return new ManorSynergy {
-                granaryLevel=granary,grainPercent=GranaryPercent(granary),cropPercent=crops&&(pasture||granary>0)?8:0,
-                forgePercent=logging&&smith?10:0,settledApproval=social&&cottages>=3?1:0,
+                granaryLevel=granary,grainPercent=GranaryPercent(granary),
+                cropPercent=crops&&(pasture||granary>0)?CropCompanionPercent:0,
+                forgePercent=logging&&smith?TimberSmithyPercent:0,settledApproval=social&&cottages>=3?1:0,
                 chapelApproval=chapelMorale,chapelRecoveryPercent=chapelRecovery
             };
         }

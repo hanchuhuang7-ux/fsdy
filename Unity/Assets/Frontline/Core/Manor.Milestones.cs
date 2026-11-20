@@ -18,7 +18,7 @@ namespace Frontline.Core
     public sealed partial class Manor
     {
         public const int ReclaimPrice = 8, ReclaimTimber = 4;
-        const int OuterPlotMask = (1 << (PlotCount - FirstOuterPlot)) - 1;
+        const int OuterPlotMask = (1 << (FirstNoblePlot - FirstOuterPlot)) - 1;
         public int reclaimedPlots, milestoneClaims;
         public bool frontierSwept;
 
@@ -34,11 +34,14 @@ namespace Frontline.Core
         static readonly int MilestoneMask = (1 << Milestones.Count) - 1;
 
         public bool IsPlotCleared(int index) =>
-            (uint)index < PlotCount && (index < FirstOuterPlot || (reclaimedPlots & (1 << (index - FirstOuterPlot))) != 0);
+            IsPlotGranted(index) && (index < FirstOuterPlot || index >= FirstNoblePlot ||
+                (reclaimedPlots & (1 << (index - FirstOuterPlot))) != 0);
 
         public string ReclaimBlock(int index)
         {
-            if (index < FirstOuterPlot || index >= PlotCount || IsPlotCleared(index)) return "此处无需开垦";
+            if (index < FirstOuterPlot || index >= PlotCount) return "此处无需开垦";
+            if (!IsPlotGranted(index)) return "晋升"+NobleRanks[PlotRank(index)].title+"后开放";
+            if (IsPlotCleared(index)) return "此处无需开垦";
             return coin < ReclaimPrice ? "金币不足" : null;
         }
 
@@ -94,7 +97,7 @@ namespace Frontline.Core
         {
             if ((uint)reclaimedPlots > OuterPlotMask || (uint)milestoneClaims > MilestoneMask ||
                 (MilestoneClaimed(0) && !TwoOuterPlotsCleared) || (MilestoneClaimed(5) && !FrontiersSecured)) return false;
-            for (int i=FirstOuterPlot;i<PlotCount;i++)
+            for (int i=FirstOuterPlot;i<FirstNoblePlot;i++)
             {
                 var plot=slots[i];
                 if (plot==null || !IsPlotCleared(i) && (plot.kind!=null || plot.level!=0 || plot.workers!=0)) return false;

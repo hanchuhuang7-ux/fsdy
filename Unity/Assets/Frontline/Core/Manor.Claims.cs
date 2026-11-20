@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Frontline.Core
 {
     [Flags]
-    public enum ManorTodo { None=0, Dispatch=1, Development=2, Milestone=4, Claim=8 }
+    public enum ManorTodo { None=0, Dispatch=1, Development=2, Milestone=4, Claim=8, Nobility=16 }
 
     public readonly struct ManorSector
     {
@@ -61,6 +61,7 @@ namespace Frontline.Core
                 if(CanResolveDispatch)todo|=ManorTodo.Dispatch;
                 if(DevelopmentPointsAvailable>0)todo|=ManorTodo.Development;
                 if(ReadyMilestones!=0)todo|=ManorTodo.Milestone;
+                if(nobility+1<NobleRanks.Count&&NoblePromotionBlock(nobility+1)==null)todo|=ManorTodo.Nobility;
                 int eligible=clearedSectors&~claimedSectors;
                 for(int i=0;i<Sectors.Count;i++)
                     if((eligible&(1<<i))!=0&&SectorClaimBlock(i)==null)return todo|ManorTodo.Claim;

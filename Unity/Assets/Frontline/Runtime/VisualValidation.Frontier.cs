@@ -212,11 +212,11 @@ namespace Frontline.UnityGame
             yield return CheckFrontierPreset(1);
             CheckButtonHit("Settings.Quality");CheckButtonHit("Frontier.View.1");CheckButtonHit("Frontier.View.2");CheckButtonHit("Manor.Patrol");
             CheckFloatingStatus();
-            if(captures)yield return ManorShot("145-portrait-manor");
+            if(captures)yield return ManorShot("150-portrait-manor");
             yield return Press("Manor.Governance");
             CheckButtonHit("Manor.Decree.mobilize");CheckButtonHit("Manor.Work.balanced");
             CheckGovernanceViewport();
-            if(captures)yield return ManorShot("145-portrait-governance");
+            if(captures)yield return ManorShot("150-portrait-governance");
             yield return Press("Manor.Milestones");
             CheckButtonHit("Manor.Milestones.Back");
             yield return Press("Manor.Milestones.Back");
@@ -226,6 +226,7 @@ namespace Frontline.UnityGame
             yield return Press("Manor.Patrol");
             CheckButtonHit("Manor.Force.Recommend");CheckButtonHit("Manor.Patrol.Start");
             Require(app.GetComponent<BattleInput>().Shortcut(KeyCode.Escape)&&!app.Modal,"Portrait muster could not close");
+            yield return CheckPortraitCodex(captures);
             app.ImportText(saved);
         }
 
@@ -241,7 +242,8 @@ namespace Frontline.UnityGame
             string standard=forecast.text;
             yield return Press("Manor.Governance");
             Require(app.Modal&&Displays("领地政务与集市")&&Displays("民心 "+estate.approval)&&
-                Displays(estate.ProsperityTitle)&&Displays("冬柴足额 0"),"Governance did not bind approval and winter forecast");
+                ManorReadout("Manor.Nobility.Ledger").text.Contains(estate.ProsperityTitle)&&Displays("冬柴足额 0"),
+                "Governance did not bind approval and winter forecast");
             var marketControl=VisibleButton("Manor.Trade.Buy.food");
             yield return Press("Manor.Tax.high");
             Require(estate.tax=="high"&&Displays("税率 -3")&&forecast.text!=standard,"Tax change did not refresh the daily ledger");
@@ -696,9 +698,11 @@ namespace Frontline.UnityGame
             yield return Press("Manor.Expedition");
             Require(Displays("1  风起草甸"),"Six-mission expedition is no longer accessible");
             yield return Press("关闭");
+            yield return CheckNobilityAndCodex(captures);
             yield return Press("Mode.Duel");
             Require(Json.Write(app.Config)==arena&&app.View.Weather==ManorWeather.Clear&&app.View.WeatherParticles==0,
                 "Manor state or weather leaked into the arena");
+            yield return CheckArenaCodex(captures);
             yield return CheckHudArena(captures);
 
             Require(Screen.width==1280&&Screen.height==800,"Main smoke switched away from the desktop viewport");
@@ -728,6 +732,8 @@ namespace Frontline.UnityGame
                 claimsVerified,todosVerified,hoverDetailsVerified,weatherVerified,weatherAllocationBytes,weatherBudgets,
                 modalSkinVerified,rosterScrollVerified,portraitStatusVerified,portraitGovernanceBottomMargin,
                 outpostPickingVerified,verifiedGarrisons,flurryAllocationBytes,
+                nobilityVerified,codexTabsVerified,arenaCodexVerified,portraitCodexVerified,dukePlotsBuilt,rankSounds,nobleDetails,
+                nobleRank=app.Estate.nobility,grantedPlots=app.Estate.GrantedPlots,
                 clearedSectors=app.Estate.clearedSectors,claimedSectors=app.Estate.claimedSectors,
                 barnyard=app.Estate.slots[1].backyard,developmentMask=app.Estate.developmentMask,
                 chronicleEntries=app.Estate.chronicle.Count,

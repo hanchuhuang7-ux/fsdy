@@ -9,14 +9,17 @@ namespace Frontline.Core
     public readonly struct ManorLogistics
     {
         public const int RecoveryDenominator=300, MaxRecoveryPercent=65;
-        public readonly int baseBudget, approvalPercent, prosperityPercent, raidPercent, developmentPercent, recoveryDivisor, recoveryRate, heroRestDays;
-        public int Budget => (baseBudget * (100 + approvalPercent + prosperityPercent + raidPercent + developmentPercent) + 50) / 100;
+        public readonly int baseBudget, approvalPercent, prosperityPercent, raidPercent, developmentPercent, nobilityPercent;
+        public readonly int recoveryDivisor, recoveryRate, heroRestDays;
+        public int Budget => (baseBudget * (100 + approvalPercent + prosperityPercent + raidPercent + developmentPercent + nobilityPercent) + 50) / 100;
 
-        internal ManorLogistics(int baseBudget,int approvalPercent,int prosperityPercent,int raidPercent,int developmentPercent,int recoveryDivisor,int bonusRecovery,int heroRestDays)
+        internal ManorLogistics(int baseBudget,int approvalPercent,int prosperityPercent,int raidPercent,int developmentPercent,
+            int nobilityPercent,int recoveryDivisor,int bonusRecovery,int heroRestDays)
         {
             this.baseBudget=baseBudget; this.approvalPercent=approvalPercent; this.prosperityPercent=prosperityPercent;
             this.raidPercent=raidPercent;
             this.developmentPercent=developmentPercent;
+            this.nobilityPercent=nobilityPercent;
             this.recoveryDivisor=recoveryDivisor; this.heroRestDays=heroRestDays;
             recoveryRate=Math.Min(MaxRecoveryPercent*3,RecoveryDenominator/recoveryDivisor+bonusRecovery*3);
         }
@@ -34,7 +37,8 @@ namespace Frontline.Core
             int modifier = morale ? 8 : approval < UnrestApproval ? -10 : 0;
             int recovery = Synergies().chapelRecoveryPercent + 5*SpecialistLevel("herbalist");
             return new ManorLogistics(Whole(LevelScaling.Scale(620,slots[0].level)),modifier,tier==3?10:0,
-                raid?2*SpecialistLevel("watchman"):0,DevelopmentBudgetBonus,morale?2:3,recovery,tier>=2?1:HeroRestDays);
+                raid?2*SpecialistLevel("watchman"):0,DevelopmentBudgetBonus,NobleRanks[nobility].budgetPercent,
+                morale?2:3,recovery,tier>=2?1:HeroRestDays);
         }
 
         static readonly string[] FrontlinePicks = { "shield","spear","militia","giant","cavalry" };

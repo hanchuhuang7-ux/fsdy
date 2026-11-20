@@ -20,7 +20,7 @@ namespace Frontline.UnityGame
         string hoverText;
         bool shownPlotCleared;
         RectTransform dialogContent;
-        Action<RectTransform,float> dialogFooter;
+        Action<RectTransform,float> dialogFooter,dialogHeader;
         float dialogHeight = 760, dialogWidth = 880;
         bool dialogWholeRows;
         bool builtManorMode,builtInBase;
@@ -60,14 +60,15 @@ namespace Frontline.UnityGame
             Rule(bar,0,barHeight-1,rw);
             if(portrait)
             {
-                Label(bar,"阵线实验室",12,3,112,32,16,gold);
+                Label(bar,"阵线实验室",10,3,76,32,14,gold);
                 bool estate=app.Phase=="manor";
-                QualityEntry(bar,estate?128:131,3,estate?49:72,34);
+                CodexEntryButton(bar,89,3,44,34);
+                QualityEntry(bar,138,3,estate?43:68,34);
                 if(estate)
                 {
-                    Button(bar,"手册",182,3,49,34,ManorHelp);
-                    Button(bar,"工坊",236,3,49,34,Workshop);
-                    GovernanceEntry(bar,290,3,89,34);
+                    Button(bar,"手册",186,3,42,34,ManorHelp);
+                    Button(bar,"工坊",233,3,42,34,Workshop);
+                    GovernanceEntry(bar,280,3,99,34);
                 }
                 else if(app.InManor)
                 {
@@ -89,7 +90,8 @@ namespace Frontline.UnityGame
                 Label(bar,"FRONTLINE LAB   ·   "+Application.version,21,41,280,20,11,muted);
                 ModeTab(bar,false,365,12,144,44);
                 ModeTab(bar,true,517,12,144,44);
-                QualityEntry(bar,710,15,116,38);
+                CodexEntryButton(bar,671,15,53,38);
+                QualityEntry(bar,730,15,110,38);
                 if(app.InManor)
                 {
                     if(app.Phase=="manor")
@@ -323,9 +325,11 @@ namespace Frontline.UnityGame
             int index=app.ManorSlot;
             var slot=index<0?null:estate.slots[index];
             var kind=slot?.kind;
-            bool uncleared=index>=0&&!estate.IsPlotCleared(index);
+            bool ungranted=index>=0&&!estate.IsPlotGranted(index);
+            bool uncleared=index>=0&&!ungranted&&!estate.IsPlotCleared(index);
+            int rank=Manor.PlotRank(index);
             string title=index<0?"主基地":index==0?"领主宅邸":
-                "建地 "+index+"   "+(uncleared?"待开垦林地":kind==null?"空置":Manor.Name(kind));
+                "建地 "+index+"   "+(ungranted?Manor.NobleRanks[rank].title+"封地":uncleared?"待开垦林地":kind==null?"空置":Manor.Name(kind));
             if(slot!=null&&slot.level>0)title+="   Lv."+slot.level;
             bool recruiting=kind=="barracks"||kind=="stables",heroes=kind=="tavern",training=kind=="drill_yard",cottage=kind=="cottage";
             float governanceWidth=portrait?64:82,retinueWidth=portrait?69:84;
@@ -343,8 +347,8 @@ namespace Frontline.UnityGame
             if(training)ManorButton(p,"Manor.Training","强化",w-151,5,66,29,BarracksTraining,true);
             ManorButton(p,"Manor.Plots","选地",w-80,5,68,29,PlotList);
             string description=index<0?"点击地块查看建筑、派工或建造。":
-                uncleared?"清理林地后即可建造。":"";
-            if(index>=0&&!uncleared)description=kind==null?"挑选一种建筑，查看所需金币与建材。":Manor.Description(kind);
+                ungranted?"晋升"+Manor.NobleRanks[rank].title+"后，此处即为可建造地块。":uncleared?"清理林地后即可建造。":"";
+            if(index>=0&&!ungranted&&!uncleared)description=kind==null?"挑选一种建筑，查看所需金币与建材。":Manor.Description(kind);
             Label(p,description,12,33,w-24,34,portrait?12:14,pale);
             string production=kind==null?"":Manor.BuildingOutput(kind,slot.level);
             if(cottage)
@@ -353,7 +357,18 @@ namespace Frontline.UnityGame
                     return backyard==null?"后院未启用":"后院 "+Manor.BackyardTitle(backyard)+"  ·  "+Manor.BackyardEffect(backyard,slot.level);
                 });
             else if(production!="")
-                Value(manorValues,Label(p,"",12,66,w-24,20,portrait?11:13,gold),()=>production+PlotSynergyText(kind,PreviewForecast().synergy));
+            {
+                float left=12;
+                if(index==0)
+                {
+                    var rankBadge=Badge(p,"",12,66,52,20,12);
+                    rankBadge.name="Manor.Nobility.Hall";
+                    var backdrop=rankBadge.transform.parent.GetComponent<Image>();
+                    manorValues.Add(()=>BadgeLook(rankBadge,backdrop,app.Estate.NobleTitle,active:true));
+                    left=70;
+                }
+                Value(manorValues,Label(p,"",left,66,w-left-12,20,portrait?11:13,gold),()=>production+PlotSynergyText(kind,PreviewForecast().synergy));
+            }
             bool crop=Manor.IsCrop(kind);
             if(crop)RotationControls(p,w,index);
             float rowY=crop?129:90,h=portrait?33:38;
@@ -362,6 +377,11 @@ namespace Frontline.UnityGame
             {
                 ManorButton(p,"Manor.Hall","查看宅邸",12,rowY,(w-30)/2,h,()=>app.SelectManorSlot(0));
                 ManorButton(p,"Manor.FindLand","选择建地",18+(w-30)/2,rowY,(w-30)/2,h,PlotList,true);
+                return;
+            }
+            if(ungranted)
+            {
+                ManorButton(p,"Manor.Nobility.Plot","查看爵位",12,rowY,w-24,h,NobilityDialog);
                 return;
             }
             if(uncleared)
@@ -460,7 +480,8 @@ namespace Frontline.UnityGame
                     var plot=estate.slots[i];
                     string name=(i==0?"中央":"建地 "+i)+"  "+(plot.kind==null?"":Manor.Name(plot.kind));
                     int capacity=Manor.StaffLimit(plot.kind);
-                    string state=plot.kind==null?(estate.IsPlotCleared(i)?"空置":"待开垦"):
+                    string state=!estate.IsPlotGranted(i)?Manor.NobleRanks[Manor.PlotRank(i)].title+"封地 · 未封授":
+                        plot.kind==null?(estate.IsPlotCleared(i)?"空置":"待开垦"):
                         "Lv."+plot.level+(capacity>0?"  ·  派工 "+plot.workers+"/"+capacity:"");
                     var button=ManorButton(p,"Manor.Slot."+i,name.TrimEnd()+"\n"+state,
                         i%columns*cell,i/columns*row,cell-5,row-5,
@@ -782,6 +803,7 @@ namespace Frontline.UnityGame
             if(rules.prosperityPercent>0)budget+=" · 雄镇 "+Change(rules.prosperityPercent)+"%";
             if(rules.raidPercent>0)budget+=" · 巡庄 "+Change(rules.raidPercent)+"%";
             if(rules.developmentPercent>0)budget+=" · 要塞后勤 "+Change(rules.developmentPercent)+"%";
+            if(rules.nobilityPercent>0)budget+=" · 爵位 "+Change(rules.nobilityPercent)+"%";
             string recovery=rules.recoveryRate*rules.recoveryDivisor==ManorLogistics.RecoveryDenominator?"1/"+rules.recoveryDivisor:
                 Manor.FormatHundredths((rules.recoveryRate*100+1)/3)+"%";
             return budget+(portrait?"\n":"   ·   ")+"伤员救回 "+recovery+" · 重伤英雄休整 "+rules.heroRestDays+" 日";

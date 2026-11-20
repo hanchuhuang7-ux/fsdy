@@ -30,7 +30,7 @@ namespace Frontline.Core
     // The only persistent manor state. Draft formations and battle frames belong to the running sortie.
     public sealed partial class Manor
     {
-        public const int SeasonDays = 12, BuildingMaxLevel = 3, OriginalPlotCount = 14, FirstOuterPlot = 18, PlotCount = 24;
+        public const int SeasonDays = 12, BuildingMaxLevel = 3, OriginalPlotCount = 14, FirstOuterPlot = 18, PlotCount = 32;
         public const float PlateauHalfWidth = 28, PlateauHalfDepth = 18;
         const int MaxValue = 1000000;
         public string format = "frontline-manor";
@@ -43,8 +43,12 @@ namespace Frontline.Core
 
         public static readonly string[] Buildings = { "cottage", "farm", "irrigated_field", "pasture", "timber_camp", "smithy", "barracks", "stables", "tavern", "drill_yard", "granary", "chapel" };
         public static readonly string[] Route = { "meadow", "bridge", "ruins", "marsh", "highland", "island" };
-        static readonly float[] xs = { 0, -8, -2.8f, 2.8f, 8.4f, -8.5f, 8.5f, -7.5f, 0, 7.5f, -13, 13, -13, 13, -18.3f, -18.3f, -18.3f, -18.3f, -12.6f, -1.2f, -12.6f, 6.2f, -24.55f, -24.55f };
-        static readonly float[] zs = { 0, 5.4f, 5.6f, 5.6f, 5.4f, 0, 0, -5.7f, -5.9f, -5.7f, 5, 5, -5, -5, 9.8f, 5.35f, -5.35f, -9.8f, 14.85f, 14.85f, -14.85f, -14.85f, 6.1f, -6.1f };
+        static readonly float[] xs = { 0, -8, -2.8f, 2.8f, 8.4f, -8.5f, 8.5f, -7.5f, 0, 7.5f, -13, 13, -13, 13,
+            -18.3f, -18.3f, -18.3f, -18.3f, -12.6f, -1.2f, -12.6f, 6.2f, -24.55f, -24.55f,
+            19.0f, 19.0f, 11.1f, 11.1f, 17.9f, 17.9f, 24.65f, 24.65f };
+        static readonly float[] zs = { 0, 5.4f, 5.6f, 5.6f, 5.4f, 0, 0, -5.7f, -5.9f, -5.7f, 5, 5, -5, -5,
+            9.8f, 5.35f, -5.35f, -9.8f, 14.85f, 14.85f, -14.85f, -14.85f, 6.1f, -6.1f,
+            5.9f, -5.9f, 14.85f, -14.85f, 14.85f, -14.85f, 14.85f, -14.85f };
         public static float SlotX(int index) => xs[index];
         public static float SlotZ(int index) => zs[index];
         public static int PickSlot(float x, float z)
@@ -123,8 +127,8 @@ namespace Frontline.Core
         }
         public int Season => (day - 1) / SeasonDays % 4;
         public int Housing => 2 + Capacity(b => b.housing);
-        public int ArmyLimit => Capacity(b => b.army,2) + DevelopmentArmyBonus;
-        public int FieldLimit => food == 0 ? 3 : Math.Min(Catalog.MaxUnits, Math.Min(ArmyLimit, Capacity(b => b.field,1)));
+        public int ArmyLimit => Capacity(b => b.army,2) + DevelopmentArmyBonus + NobleRanks[nobility].armyBonus;
+        public int FieldLimit => food == 0 ? 3 : Math.Min(Catalog.MaxUnits, Math.Min(ArmyLimit, Capacity(b => b.field,1)+NobleRanks[nobility].fieldBonus));
         public int FrontierLimit => Math.Min(FrontierMap.MaxParty,FieldLimit);
         public int Budget => Logistics.Budget;
         public int ArmySize
@@ -182,7 +186,8 @@ namespace Frontline.Core
         static int HallRequirement(int level) => level == 1 ? 1 : 3;
         static string Price(int coins, int wood) => coins + " 金币 · " + wood + " 建材";
         static int UpgradeAmount(int baseCost,int currentLevel) => Whole(LevelScaling.Scale(baseCost,currentLevel));
-        public string BuildPrice(string kind) { var b = Def(kind); return Price(b.coin, b.timber); }
+        public static string BuildingPrice(string kind) { var b = Def(kind); return Price(b.coin, b.timber); }
+        public string BuildPrice(string kind) => BuildingPrice(kind);
         public string UpgradePrice(int i)
         {
             var p = Plot(i);
@@ -200,6 +205,7 @@ namespace Frontline.Core
         {
             var b = Def(kind); var p = Plot(i);
             if (i == 0 || p.kind != null || kind == "manor_hall") throw new InvalidOperationException("请选择空建地");
+            if (!IsPlotGranted(i)) throw new InvalidOperationException("晋升"+NobleRanks[PlotRank(i)].title+"后开放");
             if (!IsPlotCleared(i)) throw new InvalidOperationException("请先开垦这块建地");
             Pay(b.coin, b.timber); p.kind = kind; p.level = 1;
             if (IsCrop(kind)) { p.fertility = DefaultFertility; p.rotation = "auto"; }
@@ -238,10 +244,15 @@ namespace Frontline.Core
             whole = total / 100;
             fraction = total % 100;
         }
-        RecruitDef Offer(string id)
+        static RecruitDef Offer(string id)
         {
             if (id == null || !recruits.TryGetValue(id, out var d)) throw new InvalidOperationException("未知征召项目");
             return d;
+        }
+        public static (string building,int level) RecruitRequirement(string id)
+        {
+            var offer=Offer(id);
+            return (offer.kind,offer.level);
         }
         int RecruitCoins(RecruitDef d)
         {
@@ -267,8 +278,8 @@ namespace Frontline.Core
 
         const int FileLimit = 32768;
         const int SpecialistSaveVersion = 5, ExpansionSaveVersion = 6, FrontierSaveVersion = 7, DevelopmentSaveVersion = 8;
-        const int RetinueSaveVersion = 9, ClaimsSaveVersion = 10;
-        public const int SaveVersion = ClaimsSaveVersion;
+        const int RetinueSaveVersion = 9, ClaimsSaveVersion = 10, NobilitySaveVersion = 11;
+        public const int SaveVersion = NobilitySaveVersion;
         static readonly string[] LegacySaveFields = { "format","version","coin","food","timber","arms","workers","day","cleared","raidReady","slots","stock" };
         static readonly string[] ProgressSaveFields = LegacySaveFields.Concat(new[] { "remainder","training","heroes" }).ToArray();
         static readonly string[] OperationsSaveFields = ProgressSaveFields.Concat(new[] { "approval","tax","decree","market" }).ToArray();
@@ -278,7 +289,8 @@ namespace Frontline.Core
         static readonly string[] FrontierSaveFields = EstateSaveFields.Concat(new[] { "frontierTier","guideStep","guideDismissed" }).ToArray();
         static readonly string[] DevelopmentSaveFields = FrontierSaveFields.Concat(new[] { "prosperityPeak","developmentMask","chronicle" }).ToArray();
         static readonly string[] RetinueSaveFields = DevelopmentSaveFields.Concat(new[] { "retinue","influence","tithe" }).ToArray();
-        static readonly string[] SaveFields = RetinueSaveFields.Concat(new[] { "clearedSectors","claimedSectors" }).ToArray();
+        static readonly string[] ClaimSaveFields = RetinueSaveFields.Concat(new[] { "clearedSectors","claimedSectors" }).ToArray();
+        static readonly string[] SaveFields = ClaimSaveFields.Concat(new[] { "nobility" }).ToArray();
         static readonly string[] LegacyPlotSaveFields = { "kind","level","workers" };
         static readonly string[] BackyardPlotSaveFields = { "kind","level","workers","backyard" };
         static readonly string[] PlotSaveFields = { "kind","level","workers","backyard","fertility","rotation" };
@@ -312,11 +324,13 @@ namespace Frontline.Core
                 1 => LegacySaveFields, 2 => ProgressSaveFields, 3 => OperationsSaveFields, 4 => EventSaveFields,
                 SpecialistSaveVersion => SpecialistSaveFields, ExpansionSaveVersion => EstateSaveFields,
                 FrontierSaveVersion => FrontierSaveFields, DevelopmentSaveVersion => DevelopmentSaveFields,
-                RetinueSaveVersion => RetinueSaveFields, _ => SaveFields
+                RetinueSaveVersion => RetinueSaveFields, ClaimsSaveVersion => ClaimSaveFields, _ => SaveFields
             });
             if (!(root["format"] is string f) || f != "frontline-manor" || !(root["raidReady"] is bool raid))
                 throw new FormatException("无效的庄园存档标识");
-            int layoutSize = schema < SpecialistSaveVersion ? OriginalPlotCount : schema == SpecialistSaveVersion ? FirstOuterPlot : PlotCount;
+            bool nobleSchema=schema>=NobilitySaveVersion;
+            int layoutSize = schema < SpecialistSaveVersion ? OriginalPlotCount : schema == SpecialistSaveVersion ? FirstOuterPlot :
+                nobleSchema ? PlotCount : FirstNoblePlot;
             if (!(root["slots"] is List<object> plots) || plots.Count != layoutSize && !(legacy && plots.Count == 10))
                 throw new FormatException("庄园建地数量无效");
             int maxHouseholds = 2 + (legacy ? BuildingMaxLevel : WholeLevelValue(3,BuildingMaxLevel)) * (plots.Count - 1);
@@ -324,7 +338,8 @@ namespace Frontline.Core
                 coin = Number(root["coin"],0,MaxValue), food = Number(root["food"],0,MaxValue),
                 timber = Number(root["timber"],0,MaxValue), arms = Number(root["arms"],0,MaxValue),
                 workers = Number(root["workers"],2,maxHouseholds), day = Number(root["day"],1,MaxValue),
-                cleared = Number(root["cleared"],0,Route.Length), raidReady = raid
+                cleared = Number(root["cleared"],0,Route.Length), raidReady = raid,
+                nobility = nobleSchema ? Number(root["nobility"],0,NobleRanks.Count-1) : 0
             };
             bool developed = schema >= DevelopmentSaveVersion, hasRetinue = schema >= RetinueSaveVersion;
             var plotFields = hasRetinue ? PlotSaveFields : developed ? BackyardPlotSaveFields : LegacyPlotSaveFields;
@@ -356,9 +371,11 @@ namespace Frontline.Core
             var inventory = ObjectWith(root["stock"], recruits.Keys.ToArray());
             foreach (var id in recruits.Keys) m.stock[id] = Number(inventory[id],0,60);
             // Closing a farm can leave veterans above today's supply. The historical maximum still bounds a legal reserve.
+            int usableLand=nobleSchema?m.GrantedPlots:plots.Count;
             int maxArmy = legacy ? 8 + 5 * m.slots[0].level + 2 * 27 :
-                Math.Max(77,WholeLevelValue(13,m.slots[0].level) + WholeLevelValue(4,BuildingMaxLevel) * (plots.Count - 1));
-            if (m.ArmySize > maxArmy + m.DevelopmentArmyBonus) throw new FormatException("常备军超出可达上限");
+                Math.Max(77,WholeLevelValue(13,m.slots[0].level) + WholeLevelValue(4,BuildingMaxLevel) * (usableLand - 1));
+            if (m.ArmySize > maxArmy + m.DevelopmentArmyBonus + NobleRanks[m.nobility].armyBonus)
+                throw new FormatException("常备军超出可达上限");
             if (!legacy)
             {
                 var parts = ObjectWith(root["remainder"],"coin","food","timber","arms");
@@ -379,6 +396,7 @@ namespace Frontline.Core
             if (schema >= FrontierSaveVersion) m.ReadProgression(root);
             else m.guideDismissed = true;
             if (schema >= ClaimsSaveVersion) m.ReadClaims(root);
+            if(nobleSchema)m.ReadNobility();
             if(developed)
             {
                 if(!m.ValidDevelopment())throw new FormatException("发展点或专精前置条件无效");

@@ -59,7 +59,7 @@ namespace Frontline.UnityGame
             new EstateObstacle(CargoWest,.68f,.55f),
             new EstateObstacle(CargoEast,.68f,.55f)
         };
-        readonly EstateObstacle[] estateObstacles=new EstateObstacle[Manor.PlotCount*2+LandmarkObstacles.Length];
+        readonly EstateObstacle[] estateObstacles=new EstateObstacle[Manor.PlotCount*2+LandmarkObstacles.Length+CivicDetails.Length];
         int estateObstacleCount;
 
         static EstateObstacle PlotObstacle(int index)
@@ -241,6 +241,19 @@ namespace Frontline.UnityGame
                 blockers.Add(pad);
                 if(index!=0)blockers.Add(YardObstacle(index));
             }
+            foreach(var detail in CivicDetails)
+            {
+                var obstacle=detail.Footprint;
+                for(int x=-1;x<=1;x+=2)
+                    for(int z=-1;z<=1;z+=2)
+                        if(!FrontierMap.HasGround(ManorOrigin.x+obstacle.center.x+x*obstacle.hx,obstacle.center.z+z*obstacle.hz))
+                            throw new InvalidOperationException("Civic detail leaves the shelf: "+obstacle.center);
+                foreach(var blocker in blockers)
+                    if(Mathf.Abs(obstacle.center.x-blocker.center.x)<obstacle.hx+blocker.hx&&
+                        Mathf.Abs(obstacle.center.z-blocker.center.z)<obstacle.hz+blocker.hz)
+                        throw new InvalidOperationException("Civic detail overlaps a plot or landmark: "+obstacle.center+" near "+blocker.center);
+                blockers.Add(obstacle);
+            }
             const float guardRadius=ManorPlotArt.RetinuePostRadius;
             foreach(var post in RetinuePosts)
             {
@@ -279,9 +292,10 @@ namespace Frontline.UnityGame
                 new Vector3(DockOrigin.x,0,-OuterLaneZ),DockApproach),"south quay");
             Check(Trace(new Vector3(WestLaneX,0,-OuterLaneZ),new Vector3(WestLaneX,0,OuterLaneZ)),"west lane");
             for(int side=-1;side<=1;side+=2)
-                Check(Trace(new Vector3(WestLaneX,0,side*OuterLaneZ),new Vector3(side>0?.35f:7.75f,0,side*OuterLaneZ)),
+                Check(Trace(new Vector3(WestLaneX,0,side*OuterLaneZ),new Vector3(OuterLaneEast,0,side*OuterLaneZ)),
                     side>0?"north fields":"south workshops");
-            return new {checkedRoutes,checkedPoints,retinuePosts=RetinuePosts.Length,outerPlots=Manor.PlotCount-Manor.FirstOuterPlot};
+            return new {checkedRoutes,checkedPoints,retinuePosts=RetinuePosts.Length,outerPlots=Manor.FirstNoblePlot-Manor.FirstOuterPlot,
+                noblePlots=Manor.PlotCount-Manor.FirstNoblePlot,civicDetails=CivicDetails.Length};
         }
     }
 }

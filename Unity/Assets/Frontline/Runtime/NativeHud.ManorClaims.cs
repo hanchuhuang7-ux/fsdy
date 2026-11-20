@@ -22,6 +22,7 @@ namespace Frontline.UnityGame
         static string NextTodoText(ManorTodo todo)
         {
             if((todo&ManorTodo.Dispatch)!=0)return "待办 · 领地急报";
+            if((todo&ManorTodo.Nobility)!=0)return "待办 · 可受封晋爵";
             if((todo&ManorTodo.Development)!=0)return "待办 · 可解锁专精";
             if((todo&ManorTodo.Milestone)!=0)return "待办 · 可领宏愿";
             return (todo&ManorTodo.Claim)!=0?"待办 · 可宣称疆域":"";

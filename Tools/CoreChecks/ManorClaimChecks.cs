@@ -127,14 +127,14 @@ static partial class ManorChecks
                 var projected=LegacySchema(upgraded,version);
                 foreach(var field in old)
                     Expect(Json.Write(field.Value)==Json.Write(projected[field.Key]),"migration lost "+field.Key+" from v"+version);
-                Expect(upgraded.version==10&&upgraded.clearedSectors==0&&upgraded.claimedSectors==0&&
+                Expect(upgraded.version==Manor.SaveVersion&&upgraded.clearedSectors==0&&upgraded.claimedSectors==0&&
                     (upgraded.Todos&ManorTodo.Claim)==0,"old save created a sector entitlement");
                 var current=upgraded.Export();
-                Expect(Manor.Import(current).Export()==current,"canonical v10 migration from v"+version);
+                Expect(Manor.Import(current).Export()==current,"canonical migration from v"+version);
             }
         });
 
-        check("v10 save validation rejects malformed, impossible or obsolete claim records",()=>{
+        check("save validation rejects malformed, impossible or obsolete claim records",()=>{
             var manor=new Manor();
             string valid=manor.Export();
             Dictionary<string,object> Raw()=> (Dictionary<string,object>)Json.Parse(valid);

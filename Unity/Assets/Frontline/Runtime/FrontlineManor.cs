@@ -269,16 +269,23 @@ namespace Frontline.UnityGame
         internal void CallManorMerchant() => ManorAction(Estate.CallMerchant,"本季集市额度已刷新","trade");
         internal void ClaimManorSector(int index) => ManorAction(()=>Estate.ClaimSector(index),
             "已在"+Manor.Sectors[index].name+"筑哨","milestone");
+        internal void PromoteManorNobility(int rank) => ManorAction(()=>Estate.PromoteNobility(rank),
+            "受封"+Manor.NobleRanks[rank].title+" · 新增 "+Manor.NoblePlotsPerRank+" 块建地","milestone");
 
         internal string ManorHoverStatus(int index)
         {
+            int rank=Manor.PlotRank(index);
+            string grant=rank==0?"":Manor.NobleRanks[rank].title+"封地";
+            if(!Estate.IsPlotGranted(index))
+                return "建地 "+index+"  ·  "+grant+"（晋升"+Manor.NobleRanks[rank].title+"后开放）";
             if(!Estate.IsPlotCleared(index))return "建地 "+index+"  ·  待开垦林地";
             var plot=Estate.slots[index];
             string title=index==0?"领主宅邸":"建地 "+index+"  "+Manor.Name(plot.kind);
-            if(plot.kind==null)return title+"  ·  可建造";
+            if(plot.kind==null)return title+"  ·  "+(rank==0?"":grant+"  ·  ")+"可建造";
             title+="  Lv."+plot.level;
             if(index==0)
-                return title+"  ·  卫队 "+Estate.RetinueReady+" / "+Estate.RetinueLimit+"  ·  披甲 Lv."+Estate.retinue.level;
+                return title+"  ·  "+Estate.NobleTitle+"  ·  卫队 "+Estate.RetinueReady+" / "+Estate.RetinueLimit+"  ·  披甲 Lv."+Estate.retinue.level;
+            if(rank!=0)title+="  ·  "+grant;
             if(plot.kind=="cottage")return title+"  ·  后院 "+(plot.backyard==null?"未启用":Manor.BackyardTitle(plot.backyard));
             if(Manor.IsCrop(plot.kind))
             {

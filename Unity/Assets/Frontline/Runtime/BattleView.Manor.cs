@@ -40,7 +40,7 @@ namespace Frontline.UnityGame
         readonly int[] builtLevels = new int[Manor.PlotCount], homes = new int[Manor.PlotCount];
         readonly CropAppearance[] builtCrops = new CropAppearance[Manor.PlotCount];
         internal CropAppearance DisplayedCrop(int index) => builtCrops[index];
-        int builtReclaimedPlots;
+        int builtReclaimedPlots,builtNobility;
         int homeCount,tavernSlot,builtSeason=-1;
         MeshSet surveyBlock, hat, parcel, farmerCoat, villagerCoat, wrap, sleeve, sails;
         MeshSet hoe,sickle,bucket,basket,crate,jug;
@@ -130,7 +130,8 @@ namespace Frontline.UnityGame
             idleWorkers=manor.FreeWorkers;
             for(int i=0;i<specialistLevels.Length;i++)specialistLevels[i]=manor.SpecialistLevel(Manor.SpecialistIds[i]);
             winterHeating=manor.Season==3 && manor.Forecast().winterTimber>0;
-            manorDirty |= changingMode || builtSeason != manor.Season || builtReclaimedPlots != manor.reclaimedPlots;
+            manorDirty |= changingMode || builtSeason != manor.Season || builtReclaimedPlots != manor.reclaimedPlots ||
+                builtNobility!=manor.nobility;
             for (int i = 0; i < manor.slots.Length && !manorDirty; i++)
                 manorDirty = manor.slots[i].kind != builtKinds[i] || manor.slots[i].level != builtLevels[i] ||
                     manor.slots[i].backyard != builtBackyards[i] || FieldAppearance(i) != builtCrops[i];
@@ -185,11 +186,12 @@ namespace Frontline.UnityGame
         static Vector3 Plot(int index) => new Vector3(Manor.SlotX(index), 0, Manor.SlotZ(index));
         const float LaneZ=2.85f, CrossX=3.25f, WestLaneX=-20.65f, OuterLaneZ=12.35f;
         const float BridgeLocalX=Manor.PlateauHalfWidth;
-        const int Gate=Manor.PlotCount, WestOuterStart=Manor.PlotCount-2;
+        const int Gate=Manor.PlotCount, WestOuterStart=Manor.FirstNoblePlot-2;
+        const float OuterLaneEast=24.65f;
 
         static bool WestPlot(int plot) => plot>=Manor.OriginalPlotCount&&plot<Manor.FirstOuterPlot||
-            plot>=WestOuterStart&&plot<Gate;
-        static bool OuterRow(int plot) => plot>=Manor.FirstOuterPlot&&plot<WestOuterStart;
+            plot>=WestOuterStart&&plot<Manor.FirstNoblePlot;
+        static bool OuterRow(int plot) => plot>=Manor.FirstOuterPlot&&plot<WestOuterStart||Manor.PlotRank(plot)>=2;
         static float OuterConnector(float z) => z>0?-5.36f:-3.76f;
 
         static Vector3 LaneMouth(int plot)
@@ -295,7 +297,8 @@ namespace Frontline.UnityGame
             var facing = Quaternion.Euler(0, yaw, 0);
             if (!manor.IsPlotCleared(i))
             {
-                DrawUnclearedPlot(i,p,facing);
+                if(manor.IsPlotGranted(i))DrawUnclearedPlot(i,p,facing);
+                else DrawNobleBoundary(i,p,facing);
                 AddPlotObstacle(i);
                 return;
             }
@@ -373,6 +376,7 @@ namespace Frontline.UnityGame
             float width = Manor.PlateauHalfWidth * 2, depth = Manor.PlateauHalfDepth * 2;
             builtSeason = manor.Season;
             builtReclaimedPlots=manor.reclaimedPlots;
+            builtNobility=manor.nobility;
             Tile(new Vector3(0,-.18f,0),new Vector3(width,.36f,depth),ManorSoils[builtSeason]);
             Tile(new Vector3(0,-.56f,0),new Vector3(width-.1f,.58f,depth-.1f),new Color(.54f,.44f,.30f));
             Tile(new Vector3(0,-1.16f,0),new Vector3(width-.6f,.88f,depth-.5f),new Color(.47f,.48f,.40f));
@@ -394,7 +398,7 @@ namespace Frontline.UnityGame
             for(int side=-1;side<=1;side+=2)
             {
                 float z=side*OuterLaneZ, x=OuterConnector(z);
-                Lane(new Vector3(WestLaneX,0,z),new Vector3(side>0?.35f:7.75f,0,z),.69f);
+                Lane(new Vector3(WestLaneX,0,z),new Vector3(OuterLaneEast,0,z),.69f);
                 Lane(new Vector3(x,0,z),new Vector3(x,0,side*LaneZ),.65f);
             }
             var landingJunction=new Vector3(DockOrigin.x,0,-OuterLaneZ);
@@ -404,6 +408,7 @@ namespace Frontline.UnityGame
             homeCount = tavernSlot = millCount = forgeCount = 0;
             estateObstacleCount=0;
             BuildEstateDetails();
+            BuildCivicDetails();
             destinationCount=1;destinations[0]=Gate;
             for (int i = 0; i < manor.slots.Length; i++)
             {
@@ -741,7 +746,8 @@ namespace Frontline.UnityGame
                 var mouth=ManorOrigin+Plot(site)+facing*ManorPlotArt.ForgeMouth;
                 if(!InView(mouth,1.6f))continue;
                 float breathe=.89f+Mathf.Sin(manorTime*6.8f+site)*.11f;
-                Add(forgeFlame,Pose(mouth,facing,new Vector3(.31f,.33f*breathe,.18f)),new Color(1,.66f,.25f,.89f));
+                float glow=WeatherMakesLampsVisible?1.22f:1f;
+                Add(forgeFlame,Pose(mouth,facing,new Vector3(.31f*glow,.33f*breathe*glow,.18f)),new Color(1,.66f,.25f,.89f));
                 if(!lowActors)
                 {
                     float rise=Mathf.Repeat(manorTime*.72f+site*.37f,1);
@@ -785,6 +791,7 @@ namespace Frontline.UnityGame
                 fillingAmbient=lowActors;
                 if(fillingAmbient){ClearAmbient();ambientPopulated=true;}
                 DrawWorkshopActivity();
+                DrawWetWeatherLights();
                 DrawWinterSmoke();
                 DrawVillagePeople();
                 if(Current==null||Config.map!=FrontierMap.Id)DrawPreviewGuards();
