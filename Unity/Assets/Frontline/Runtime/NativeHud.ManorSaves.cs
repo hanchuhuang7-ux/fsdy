@@ -17,6 +17,8 @@ namespace Frontline.UnityGame
                 case KeyCode.G: GovernanceDialog();return true;
                 case KeyCode.P: PlotList();return true;
                 case KeyCode.M: MilestonesDialog();return true;
+                case KeyCode.L: LedgerDialog();return true;
+                case KeyCode.N: NobilityDialog();return true;
                 default:return false;
             }
         }

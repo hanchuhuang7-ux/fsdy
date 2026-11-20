@@ -257,7 +257,7 @@ namespace Frontline.UnityGame
         public void Recruit(string id) => ManorAction(() => Estate.Recruit(ManorSlot,id),"已加入庄园库存","recruit");
         public void HireHero(string id) => ManorAction(() => Estate.HireHero(ManorSlot,Data.Heroes[id]),Data.Heroes[id].name+"已加入庄园","recruit");
         public void UpgradeHero(string id) => ManorAction(() => Estate.UpgradeHero(ManorSlot,Data.Heroes[id]),Data.Heroes[id].name+"已升级","recruit");
-        internal void ForgeHero(string id) => ManorAction(()=>Estate.ForgeHero(id),"专属武装锻造完成","forge");
+        internal void ForgeHero(string id) => ManorAction(()=>Estate.ForgeHero(id),"专属武装锻造完成","anvil");
         public void TrainUnit(string id) => ManorAction(() => Estate.Train(ManorSlot,id),Data.Units[id].name+"训练等级已提升","recruit");
         internal void SetManorTax(string id) => ManorAction(() => Estate.SetTax(id),"税率已调整",null);
         internal void SetManorDecree(string id) => ManorAction(() => Estate.SetDecree(id),"政令已调整",null);
@@ -271,7 +271,7 @@ namespace Frontline.UnityGame
         internal void ClaimManorSector(int index) => ManorAction(()=>Estate.ClaimSector(index),
             "已在"+Manor.Sectors[index].name+"筑哨","milestone");
         internal void PromoteManorNobility(int rank) => ManorAction(()=>Estate.PromoteNobility(rank),
-            "受封"+Manor.NobleRanks[rank].title+" · 新增 "+Manor.NoblePlotsPerRank+" 块建地","milestone");
+            "受封"+Manor.NobleRanks[rank].title+" · 新增 "+Manor.NoblePlotsPerRank+" 块建地","coronation");
 
         internal string ManorHoverStatus(int index)
         {

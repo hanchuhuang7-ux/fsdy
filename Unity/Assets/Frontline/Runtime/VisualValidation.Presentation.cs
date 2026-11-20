@@ -18,6 +18,12 @@ namespace Frontline.UnityGame
             Require(settings.FrameRateMode==0&&settings.Shake&&!settings.AudioMuted&&settings.AmbienceEnabled&&Application.targetFrameRate==60&&
                 QualitySettings.vSyncCount==0&&app.Muted,"Desktop defaults or QA mute differ");
             verifiedAudioClips=BattleAudio.VerifyClips();
+            mix60=BattleAudio.VerifyCrowdMix(1);
+            mix120=BattleAudio.VerifyCrowdMix(2);
+            Require(BattleAudio.OrderCue("inspire")=="order_inspire"&&BattleAudio.OrderCue("focus")=="order_focus"&&
+                BattleAudio.OrderCue("fortify")=="order_fortify"&&mix120.attempts==2*mix60.attempts,
+                "Accent routing or crowd fixture density changed");
+            Debug.Log("FRONTLINE_CROWD_MIX_OK 60="+mix60+" 120="+mix120);
             yield return Press("Settings.Quality");
             yield return Press("Settings.Fps.1");
             Require(Application.targetFrameRate==120&&QualitySettings.vSyncCount==0,"120 FPS not applied");

@@ -32,11 +32,17 @@ namespace Frontline.UnityGame
             if(Input.GetKeyDown(KeyCode.Alpha1)||Input.GetKeyDown(KeyCode.Keypad1))Shortcut(KeyCode.Alpha1);
             if(Input.GetKeyDown(KeyCode.Alpha2)||Input.GetKeyDown(KeyCode.Keypad2))Shortcut(KeyCode.Alpha2);
             if(Input.GetKeyDown(KeyCode.Alpha3)||Input.GetKeyDown(KeyCode.Keypad3))Shortcut(KeyCode.Alpha3);
+            bool modified=Input.GetKey(KeyCode.LeftControl)||Input.GetKey(KeyCode.RightControl)||
+                Input.GetKey(KeyCode.LeftCommand)||Input.GetKey(KeyCode.RightCommand)||
+                Input.GetKey(KeyCode.LeftAlt)||Input.GetKey(KeyCode.RightAlt);
+            if(!modified&&Input.GetKeyDown(KeyCode.C)&&Shortcut(KeyCode.C)){CancelPointer();return;}
             if(app.Phase=="manor")
             {
                 if(Input.GetKeyDown(KeyCode.G))Shortcut(KeyCode.G);
                 else if(Input.GetKeyDown(KeyCode.P))Shortcut(KeyCode.P);
                 else if(Input.GetKeyDown(KeyCode.M))Shortcut(KeyCode.M);
+                else if(!modified&&Input.GetKeyDown(KeyCode.L))Shortcut(KeyCode.L);
+                else if(!modified&&Input.GetKeyDown(KeyCode.N))Shortcut(KeyCode.N);
                 if(app.Modal){CancelPointer();return;}
             }
             else
@@ -77,6 +83,7 @@ namespace Frontline.UnityGame
             if(Editing())return false;
             if(app.Modal)return key==KeyCode.Escape&&Hud.TryDismissDialog();
             if(app.Busy)return false;
+            if(key==KeyCode.C){Hud.CodexDialog();return true;}
             if(key==KeyCode.R){app.View.ResetCamera();return true;}
             if(key==KeyCode.Space)
             {

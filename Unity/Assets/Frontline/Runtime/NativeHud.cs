@@ -364,43 +364,6 @@ namespace Frontline.UnityGame
             Label(p,"地图集合（本地阵型需与地图一致）",0,y,w,32,14,gold);y+=38;foreach(var map in app.Data.Maps.Values){string id=map.id;Button(p,(arenaMaps.Contains(id)?"[已选] ":"[未选] ")+map.name,0,y,w,36,()=>{if(!arenaMaps.Add(id))arenaMaps.Remove(id);ArenaDialog();});y+=42;}
             Label(p,"种子列表，逗号分隔，最多 10 个",0,y,w,30,13,muted);y+=34;var seeds=InputBox(p,seedText,0,y,w,38,s=>seedText=s);y+=50;Button(p,"开始循环赛",0,y,w,44,()=>{seedText=seeds.text;var entrants=new List<Entrant>();for(int i=0;i<4;i++)if(arenaStyles[i])entrants.Add(new Entrant{id=Catalog.Styles[i],name=new[]{"守正","奇袭","知敌","算策"}[i],ai=Catalog.Styles[i]});foreach(int index in arenaFavorites.OrderBy(x=>x)){var f=app.Favorites[index];entrants.Add(new Entrant{id="fav-"+index,name="收藏 "+(index+1),map=f.map,team=f.team,units=f.units,props=f.props});}foreach(int index in arenaImports.OrderBy(x=>x))entrants.Add(app.ImportedEntrants[index]);var values=seedText.Split(',').Select(s=>uint.Parse(s.Trim())).ToList();app.Arena(entrants,app.Data.Maps.Keys.Where(arenaMaps.Contains).ToList(),values);CloseDialog();},true);y+=56;Button(p,"查看最近排名 / 胜率矩阵",0,y,w,40,ArenaResults);p.sizeDelta=new Vector2(w,y+54);});}
         void ArenaResults(){OpenDialog("演武擂台 · 排名与矩阵",(p,w)=>{if(app.ArenaReport==null){Label(p,"完成循环赛后显示结果。",0,0,w,50,15,muted);p.sizeDelta=new Vector2(w,70);return;}float y=0;Label(p,"名次  参赛方  ·  胜/平/负  ·  胜率  ·  残余战力 / 用时 / 稳定 MVP",0,y,w,56,13,gold);y+=62;int i=1;foreach(var r in app.ArenaReport.ranking){Label(p,i+++". "+r.name+"  "+r.wins+" / "+r.draws+" / "+r.losses+"   "+r.winRate.ToString("P0")+"\n残余 "+r.averageRemaining.ToString("0.0")+" · "+r.averageTime.ToString("0.0")+"s · "+(r.stableMvp==null?"—":app.Data.Units[r.stableMvp].name),0,y,w,66,14,white);y+=74;}Label(p,"交锋矩阵 · 每行从左方视角统计",0,y,w,38,16,gold);y+=44;for(i=0;i<app.ArenaReport.entrants.Count;i++)for(int j=i+1;j<app.ArenaReport.entrants.Count;j++){var r=app.ArenaReport.matrix[i][j];Label(p,app.ArenaReport.entrants[i].name+" → "+app.ArenaReport.entrants[j].name+"："+r.wins+" 胜 / "+r.draws+" 平 / "+r.losses+" 负",0,y,w,42,14,muted);y+=46;}Button(p,"导出擂台报告 JSON",0,y,w,42,app.ExportArena,true);p.sizeDelta=new Vector2(w,y+56);});}
-        public void ReportDialog()
-        {
-            OpenDialog("战果 · 贡献与关键战况",(p,w)=>{
-                var result=app.ReplayFile?.result??app.Battle?.Result;
-                var report=result?.report??app.Battle?.Report();
-                if(report==null){Label(p,"开战后查看贡献。",0,0,w,44,14,muted);return;}
-                string outcome=result==null?"实时战报":result.winner=="draw"?"平局":(result.winner=="red"?"红方":"蓝方")+"获胜";
-                Label(p,outcome+"  ·  "+(result?.time??app.Battle.Time).ToString("0.0")+"s",0,0,w,38,20,gold);
-                float y=46;
-                if(report.mvp!=null)
-                {
-                    Label(p,"MVP · "+app.Data.Unit(report.mvp.type).name+"   贡献 "+report.mvp.score.ToString("0"),0,y,w,36,15,white);
-                    y+=44;
-                }
-                foreach(var team in new[]{"red","blue"})
-                {
-                    var r=report.teams[team];
-                    Label(p,(team=="red"?"红方":"蓝方")+" · 存活 "+r.survived+" / "+r.initial+" · 残余战力 "+r.remainingValue.ToString("0"),0,y,w,34,16,gold);y+=40;
-                    foreach(var row in r.byType)
-                    {
-                        var d=row.Value;
-                        Label(p,app.Data.Unit(row.Key).name+"  "+d.survived+" / "+d.initial+"  伤害 "+d.damageDealt.ToString("0")+"  治疗 "+d.healing.ToString("0")+"  误伤 "+d.friendlyFire.ToString("0")+"  击杀 "+d.kills,0,y,w,46,13,muted);y+=50;
-                    }
-                    y+=16;
-                }
-                bool playable=app.ReplayFile?.kind=="trajectory";
-                Label(p,playable?"高光时刻（可点击跳转）":"关键战况",0,y,w,32,16,gold);y+=40;
-                foreach(var h in app.Highlights)
-                {
-                    var captured=h;
-                    if(playable)Button(p,Replay.HighlightText(h),0,y,w,40,()=>{CloseDialog();app.SeekHighlight(captured);});
-                    else Label(p,Replay.HighlightText(h),0,y,w,40,13,pale);
-                    y+=46;
-                }
-                p.sizeDelta=new Vector2(w,y);
-            });
-        }
         void Help(){OpenDialog("阵线手册",(p,w)=>{string text="布阵\n选择兵种后点击己方半场放置。右键拖动视角、滚轮缩放；选择工具拖框，多选后切到移动工具点选新中心。Ctrl/Cmd+Z 撤销，Delete 删除所选。\n\n对战\nSpace 暂停或继续；Tab 依次切换全景、俯瞰、追踪。R 重置视角，Esc 关闭窗口。军令开启时，1 / 2 / 3 选择鼓舞、集火、盾阵，点击地面释放。每方 3 点，冷却 8 秒。输入框或弹窗打开时会屏蔽快捷键。\n\n触屏\n“拖动视角”用于单手转动镜头，切到“点选布阵 / 军令”后才接受落点。超过拖动阈值、双指缩放、取消触摸均不会放兵。\n\n兵种\n游勇：便宜近战；盾卫：正面减伤；长枪：克制骑兵；弓手：高台射程；弩手：穿盾；爆破手：范围误伤；巨人：击退；骑兵：冲锋；军医：治疗；投石车：远程范围打击。\n\n规则\n每局最多 90 秒，按残余战力判定。Bo3 率先两胜或打满三局；小局间可调整布阵。热座封存阶段只显示己方。道具也计入军费。\n\n外部智能体\nWindows 版可用命令行启动两个 stdio 子进程 Bot。每 60 步接收公开观察，合法军令才入战斗；网页平台可导入 Bot 对战回放。详见随包 docs/UNITY_MIGRATION.md 和 AGENT_PROTOCOL.md。\n\n兼容\n原有布阵可导入。旧版本完整轨迹回放直接播放；旧 Rapier 种子回放用 Node 转换工具生成完整轨迹。Unity 版本使用原生 PhysX，跨平台复盘以完整轨迹为准。";Label(p,text,0,0,w,1180,14,white,TextAnchor.UpperLeft);p.sizeDelta=new Vector2(w,1200);});}
         void ShowNotice(string message)
         {

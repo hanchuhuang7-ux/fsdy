@@ -24,7 +24,7 @@ namespace Frontline.UnityGame
             yield return Press("Manor.Heroes");
             yield return Press("Manor.Tavern.Gear");
             CheckModalSkin("英雄专属武装锻造");
-            void Hear(string cue){if(cue=="forge")forgeClips++;}
+            void Hear(string cue){if(cue=="anvil")forgeClips++;}
             app.ManorSound+=Hear;
             try
             {

@@ -31,7 +31,7 @@ namespace Frontline.UnityGame
             button.name="Codex.Open";
         }
 
-        void CodexDialog() => OpenDialog("游戏图鉴",BuildCodex,maxHeight:740,maxWidth:970,wholeRows:true,header:CodexHeader);
+        internal void CodexDialog() => OpenDialog("游戏图鉴",BuildCodex,maxHeight:740,maxWidth:970,wholeRows:true,header:CodexHeader);
 
         void CodexHeader(RectTransform parent,float width)
         {

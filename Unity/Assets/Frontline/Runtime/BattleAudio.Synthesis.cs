@@ -43,6 +43,15 @@ namespace Frontline.UnityGame
         static float Drum(float t,float low,float frequency,float decay) =>
             (.68f*Wave(frequency,t+.01f*(1-Mathf.Exp(-32*t)))+.32f*low)*Envelope(t,.006f,decay);
 
+        static float Coronation(float t) =>
+            .44f*Horn(t,146.83f,.54f)+.28f*Horn(t-.075f,220,.48f)+
+            .21f*Horn(t-.16f,293.66f,.41f)+.46f*Horn(t-.55f,196,.68f)+
+            .29f*Horn(t-.58f,246.94f,.64f)+.24f*Horn(t-.64f,392,.61f);
+
+        static float Anvil(float t,float noise,float low) =>
+            .77f*Metal(t,1061,9)+.21f*Metal(t,1771,11)+.34f*Drum(t,low,73,16)+
+            .34f*Metal(t-.145f,1313,13)+noise*Envelope(t,.002f,96)*.19f;
+
         static float CueSample(string key,float t,float noise,float low) => key switch
         {
             "block" => Metal(t,1177,20)+noise*Envelope(t,.002f,105)*.29f,
@@ -52,6 +61,12 @@ namespace Frontline.UnityGame
             "dispatch" => Horn(t,196,.22f)+.91f*Horn(t-.25f,294,.42f),
             "patrol" => Horn(t,220,.24f)+Horn(t-.21f,330,.43f),
             "order" => Horn(t,329.63f,.39f),
+            "coronation" => Coronation(t),
+            "anvil" => Anvil(t,noise,low),
+            "order_inspire" => .77f*Horn(t,329.63f,.22f)+.61f*Horn(t-.15f,440,.30f),
+            "order_focus" => .56f*Metal(t,1329,18)+.29f*Wave(571,t+.009f*(1-Mathf.Exp(-43*t)))*Envelope(t,.006f,16)
+                +noise*Envelope(t,.006f,36)*.17f,
+            "order_fortify" => .67f*Drum(t,low,112,18)+.38f*Metal(t,481,19)+.29f*Metal(t-.109f,297,14),
             "bow" => .59f*Wave(277,t+.019f*(1-Mathf.Exp(-58*t)))*Envelope(t,.002f,38)+noise*Envelope(t,.005f,30)*.34f,
             "crossbow" => .65f*Wave(166,t)*Envelope(t,.0015f,28)+noise*Envelope(t,.002f,50)*.52f,
             "explosion" => Drum(t,low,43,8)+.41f*noise*Envelope(t,.003f,25)+.45f*low*Envelope(t,.019f,5),
@@ -69,8 +84,12 @@ namespace Frontline.UnityGame
 
         static AudioClip MakeCue(string key)
         {
-            float duration=key=="milestone"?1.4f:key=="dispatch"||key=="patrol"||key=="explosion"?.76f:
-                key=="order"||key=="harvest"||key=="heal"?.49f:.36f;
+            float duration=key switch {
+                "milestone"=>1.4f,"coronation"=>1.31f,"anvil"=>.81f,
+                "dispatch" or "patrol" or "explosion"=>.76f,
+                "order" or "order_inspire" or "order_focus" or "order_fortify" or "harvest" or "heal"=>.49f,
+                _=>.36f
+            };
             int length=Mathf.RoundToInt(duration*SampleRate);
             var samples=new float[length];
             uint state=182457;
@@ -140,20 +159,72 @@ namespace Frontline.UnityGame
 
         internal static int VerifyClips()
         {
+            float effectsPeak=0,ambientPeak=0;
             for(int i=0;i<CueKeys.Length+BedCount-1;i++)
             {
                 var clip=i<CueKeys.Length?MakeCue(CueKeys[i]):MakeSoundscape(i-CueKeys.Length+1);
                 var samples=new float[clip.samples];
                 bool read=clip.GetData(samples,0);
-                float peak=0;
-                foreach(float value in samples)peak=Mathf.Max(peak,Mathf.Abs(value));
+                float peak=0,step=0;
+                for(int j=0;j<samples.Length;j++)
+                {
+                    peak=Mathf.Max(peak,Mathf.Abs(samples[j]));
+                    if(j>0)step=Mathf.Max(step,Mathf.Abs(samples[j]-samples[j-1]));
+                }
                 Destroy(clip);
                 if(!read||peak<=.015f||peak>1||float.IsNaN(peak))
                     throw new System.InvalidOperationException("Generated clip is empty or clipped: "+i);
                 if(i>=CueKeys.Length&&Mathf.Abs(samples[0]-samples[samples.Length-1])>.06f)
                     throw new System.InvalidOperationException("Audible discontinuity in ambient loop: "+i);
+                if(i<CueKeys.Length)
+                {
+                    effectsPeak=Mathf.Max(effectsPeak,peak);
+                    if(Mathf.Abs(samples[0])>.01f||Mathf.Abs(samples[samples.Length-1])>.025f||step>.85f)
+                        throw new System.InvalidOperationException("Audible discontinuity in cue: "+CueKeys[i]);
+                }
+                else ambientPeak=Mathf.Max(ambientPeak,peak);
             }
+            if(EffectsHeadroom*effectsPeak+ambientPeak>=1)
+                throw new System.InvalidOperationException("Audio buses exceed the full-volume peak ceiling");
             return CueKeys.Length+BedCount-1;
+        }
+
+        internal static (int attempts,int accepted,float peak,float minGain) VerifyCrowdMix(int density)
+        {
+            var tones=new CrowdTone[CrowdWindows.Length];
+            var volume=new float[VoiceCount];
+            var ends=new float[VoiceCount];
+            int attempts=0,accepted=0,next=0;
+            float mix=1,peak=0,min=1;
+            const int hz=120;
+            for(int frame=0;frame<5*hz;frame++)
+            {
+                float now=frame/(float)hz;
+                if(frame%3==0&&frame<4*hz)
+                    for(int burst=0;burst<density;burst++)for(int i=0;i<tones.Length;i++)
+                    {
+                        attempts++;
+                        if(!CrowdLevel(ref tones[i],i,now,out float level))continue;
+                        accepted++;
+                        int slot=next++%CrowdVoices;
+                        volume[slot]=level;
+                        ends[slot]=now+.36f;
+                    }
+                if(frame%29==0&&frame<4*hz)
+                {
+                    int slot=CrowdVoices+frame/29%(VoiceCount-CrowdVoices);
+                    volume[slot]=.81f;
+                    ends[slot]=now+.66f;
+                }
+                float sum=0;
+                for(int i=0;i<volume.Length;i++)if(now<ends[i])sum+=volume[i];
+                mix=VoiceMix(mix,sum,1f/hz);
+                peak=Mathf.Max(peak,mix*sum);
+                min=Mathf.Min(min,mix);
+            }
+            if(accepted>=attempts/2||accepted==0||peak>EffectsHeadroom+.001f||min>=.8f||mix<.97f)
+                throw new System.InvalidOperationException("Crowd scheduling or gain recovery failed");
+            return (attempts,accepted,peak,min);
         }
     }
 }

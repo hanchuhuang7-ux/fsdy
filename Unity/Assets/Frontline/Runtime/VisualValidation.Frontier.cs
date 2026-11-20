@@ -233,6 +233,7 @@ namespace Frontline.UnityGame
             Require(app.GetComponent<BattleInput>().Shortcut(KeyCode.Escape)&&!app.Modal,"Portrait muster could not close");
             yield return CheckPortraitCodex(captures);
             yield return CheckEconomy(captures,true);
+            yield return CheckMerit(captures,true);
             app.ImportText(saved);
         }
 
@@ -707,12 +708,15 @@ namespace Frontline.UnityGame
             Require(Displays("1  风起草甸"),"Six-mission expedition is no longer accessible");
             yield return Press("关闭");
             yield return CheckNobilityAndCodex(captures);
+            yield return CheckExpeditionLeaders();
+            yield return CheckManorQuality(captures);
             yield return Press("Mode.Duel");
             Require(Json.Write(app.Config)==arena&&app.View.Weather==ManorWeather.Clear&&app.View.WeatherParticles==0,
                 "Manor state or weather leaked into the arena");
             yield return CheckArenaCodex(captures);
             yield return CheckHudArena(captures);
             yield return CheckArenaLandscape(captures);
+            yield return CheckBattleQuality(captures);
 
             Require(Screen.width==1280&&Screen.height==800,"Main smoke switched away from the desktop viewport");
             yield return CheckPortrait(captures);
@@ -745,6 +749,11 @@ namespace Frontline.UnityGame
                 nobleRank=app.Estate.nobility,grantedPlots=app.Estate.GrantedPlots,
                 craftBuildingsVerified,codexLineBreaksVerified,specialistCloseupMask,heroCloseupMask,retinueCloseup,arenaCloseup,
                 forgedTiers,forgeClips,ledgerVerified,plotFiltersVerified,caravanVerified,portraitEconomyVerified,armedPatrolVerified,landscapeVerified,
+                meritVerified,portraitMeritVerified,extraShortcutsVerified,idleBadgeVerified,helpKeysVerified,bridgeWaterVerified,
+                impactReviewVerified,portraitReportVerified,expeditionLeadersVerified,orderAccentMask,impactAccentMask,reportJumps,
+                peakAccentInstances,accentCasters=app.View.AccentCasters,
+                crowdLow=new {mix60.attempts,mix60.accepted,mix60.peak,mix60.minGain},
+                crowdHigh=new {mix120.attempts,mix120.accepted,mix120.peak,mix120.minGain},
                 clearedSectors=app.Estate.clearedSectors,claimedSectors=app.Estate.claimedSectors,
                 barnyard=app.Estate.slots[1].backyard,developmentMask=app.Estate.developmentMask,
                 chronicleEntries=app.Estate.chronicle.Count,

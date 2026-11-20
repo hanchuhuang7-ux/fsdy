@@ -158,6 +158,7 @@ namespace Frontline.UnityGame
             foreach(string type in new[]{"barrel","barricade","banner","spikes","spring"})props.Add(type,Load("prop_"+type));
             dust=Load("mist",true);armLeft=Load("arm_left");leg=Load("leg");horse=Load("horse");horseLeg=Load("horse_leg");catapult=Load("catapult");catapultArm=Load("catapult_arm");shield=Load("shield");ring=Load("ring");dot=Load("dot");torso=Load("torso");head=Load("head");limb=Load("limb");wreckHorse=Load("wreck_horse");wreckCart=Load("wreck_catapult");arrow=Load("arrow");bolt=Load("bolt");bomb=Load("bomb");stone=Load("stone");
             weatherPage=new Batch { mesh=Load("snow",true) };
+            InitializeAccents();
 
             // Reserve up to 12 strokes per effect and two marks per health bar before contact.
             const int feedbackInstances=96*12+120*2;
@@ -354,21 +355,6 @@ namespace Frontline.UnityGame
             Ring(at+Vector3.up*.015f,.35f,tint);
         }
 
-        void DrawActiveOrder(OrderEntry order,int tick)
-        {
-            float ground=Data.Height(Config.map,order.x,order.z);
-            if(!Catalog.Finite(ground))return;
-            var at=new Vector3(order.x,ground+.073f,order.z);
-            float radius=order.type=="focus"?4:6;
-            var tint=Color.Lerp(OrderTint(order.type),Team(order.team),.16f);
-            Ring(at,radius,tint);
-            float pulse=(tick-order.tick)/27f;
-            if(pulse<0||pulse>=1)return;
-            Add(dust,Pose(at,Quaternion.identity,new Vector3(radius*2,1,radius*2)),
-                new Color(tint.r,tint.g,tint.b,.29f*(1-pulse)),1);
-            Ring(at+Vector3.up*.022f,radius*(.23f+pulse*.74f),Color.Lerp(White,tint,pulse));
-        }
-
         internal UnitDef Definition(string type){return Model(type).definition;}
         internal float MaxHp(UnitDef def,int id)
         {
@@ -411,9 +397,10 @@ namespace Frontline.UnityGame
             if(block||heavy||e.type=="hit"){
                 int count=block?8:heavy?10:4;for(int i=0;i<count;i++){float a=i*2.39996f+e.id*1.13f;var d=new Vector3(Mathf.Cos(a),.35f+Mathf.Abs(Mathf.Sin(a*2)),Mathf.Sin(a));var q=p+d*f*(heavy?1.6f:1.2f)+Vector3.down*f*f*.65f;float length=(1-f)*(block?.55f:heavy?.48f:.26f),width=(1-f)*(block?.085f:heavy?.095f:.06f);Add(dot,Pose(q,Quaternion.FromToRotation(Vector3.up,d),new Vector3(width,length*50,width)),block?new Color(1,.88f,.46f):heavy?new Color(1,.54f,.18f):new Color(1,.94f,.85f));}
                 if(block||heavy){var face=ViewCamera.transform.rotation;for(int i=0;i<2;i++)Add(dot,Pose(p,face*Quaternion.Euler(0,0,i==0?45:-45),new Vector3(.09f*(1-f),.95f*(1-f)*50,.07f)),block?new Color(1,.96f,.66f):new Color(1,.65f,.27f));}
-                if(!heavy)return;
+                return;
             }
-            Ring(p+Vector3.up*.12f,.3f+f*(e.type=="heal"?1:2.5f),e.type=="heal"?new Color(.37f,.89f,.55f):new Color(1,.49f,.13f));
+            if(e.type!="slam"&&e.type!="explosion")
+                Ring(p+Vector3.up*.12f,.3f+f*(e.type=="heal"?1:2.5f),e.type=="heal"?new Color(.37f,.89f,.55f):new Color(1,.49f,.13f));
         }
         void Prop(string type,string team,float x,float z,float ground,bool active)
         {if(!Catalog.Finite(ground))return;Add(props[type],Pose(new Vector3(x,ground,z),Quaternion.identity,Vector3.one),active&&type=="barrel"?new Color(1,.45f,.12f):Team(team),type=="banner"?.025f:0);}
@@ -461,7 +448,7 @@ namespace Frontline.UnityGame
                 foreach(var part in r.parts){var t=part.t;Add(part.name=="torso"?torso:part.name=="head"?head:limb,Pose(new Vector3(t[0],t[1],t[2]),new Quaternion(t[3],t[4],t[5],t[6]),Vector3.one*scale),part.name=="head"?White:Team(r.team));}
             }
             foreach(var e in Current.effects)Impact(e);
-            foreach(var order in Current.commander.active)if(order.endTick>Current.tick)DrawActiveOrder(order,Current.tick);
+            DrawBattleAccents(Current);
         }
         internal long PerformanceRenderTicks {get;private set;}
         internal bool SupportedDesktopShaders=>material.shader.isSupported&&material.passCount>=2&&

@@ -476,6 +476,25 @@ namespace Frontline.UnityGame
                 dir=leg.direction;
                 p=leg.origin+dir*Mathf.Min(leg.length,travel);
             }
+
+            public float MarketStop()
+            {
+                float distance=0,best=2.3f*2.3f,stop=-1;
+                for(int i=0;i<count;i++)
+                {
+                    var leg=legs[i];
+                    float offset=Mathf.Clamp(Vector3.Dot(MarketSouth-leg.origin,leg.direction),0,leg.length);
+                    float along=distance+offset;
+                    float square=(leg.origin+leg.direction*offset-MarketSouth).sqrMagnitude;
+                    if(square<best&&along>1&&along<total-1)
+                    {
+                        best=square;
+                        stop=along;
+                    }
+                    distance+=leg.length;
+                }
+                return stop;
+            }
         }
 
         void BuildRoutes()
@@ -560,10 +579,12 @@ namespace Frontline.UnityGame
             public readonly WalkRoute route;
             public readonly int id, dest, lane;
             public readonly bool idle;
+            public readonly float marketStop;
 
             public ResidentVisit(WalkRoute route,int id,int dest,int lane,bool idle)
             {
                 this.route=route;this.id=id;this.dest=dest;this.lane=lane;this.idle=idle;
+                marketStop=idle&&id%3!=0?route.MarketStop():-1;
             }
         }
 
@@ -579,20 +600,28 @@ namespace Frontline.UnityGame
             var route=visit.route;
             string kind=dest==Gate?null:manor.slots[dest].kind;
             bool farmer=!visit.idle&&IsFarm(kind);
+            bool nearby=!lowActors&&distance<=43;
+            bool bakery=nearby&&!visit.idle&&kind==Manor.Bakery,loom=nearby&&!visit.idle&&kind==Manor.Weaver,
+                forge=nearby&&!visit.idle&&kind=="smithy";
             float speed=.85f+(id%4)*.09f;
             float travel=route.total/speed;
-            float dwell=farmer?7f:3.7f;
-            float cycle=2*travel+dwell+1.8f;
-            float phase=Mathf.Repeat(manorTime+travel+(farmer?lane*cycle/3f:id*2.19f),cycle);
-            bool atWork=phase>=travel&&phase<travel+dwell;
-            bool returning=phase>=travel+dwell;
-            float along=returning?Mathf.Max(0,route.total-(phase-travel-dwell)*speed):Mathf.Min(route.total,phase*speed);
+            float dwell=farmer?7f:bakery||loom||forge?5.3f:3.7f;
+            float pause=nearby&&visit.marketStop>=0?1.02f+(id%3)*.22f:0;
+            float arriving=travel+pause,stopTime=visit.marketStop/speed;
+            float cycle=arriving+travel+dwell+1.8f;
+            float phase=Mathf.Repeat(manorTime+arriving+(farmer?lane*cycle/3f:id*2.19f),cycle);
+            bool atWork=phase>=arriving&&phase<arriving+dwell;
+            bool returning=phase>=arriving+dwell;
+            bool browsing=pause>0&&phase>=stopTime&&phase<stopTime+pause;
+            float walkingTime=pause>0?phase-Mathf.Clamp(phase-stopTime,0,pause):phase;
+            float along=returning?Mathf.Max(0,route.total-(phase-arriving-dwell)*speed):Mathf.Min(route.total,walkingTime*speed);
             route.Sample(along,out var pos,out var direction);
             if(returning)direction=-direction;
             float spacing=(lane%3-1)*.38f;
             // Keep to the right of the lane in each travel direction, with a small stable offset per resident.
             float roadOffset=(.205f+(id%4)*.045f)*Mathf.Clamp01(Mathf.Min(along,route.total-along)/.8f);
             pos+=new Vector3(direction.z,0,-direction.x)*roadOffset;
+            if(browsing)direction=MarketSouth-pos;
             if(atWork)
             {
                 var door=Door(dest);
@@ -600,29 +629,30 @@ namespace Frontline.UnityGame
                 {
                     var facing=Quaternion.Euler(0,FacadeYaw(dest),0);
                     float row=kind=="farm"?.70f:kind=="pasture"?.83f:.23f;
-                    float blend=Mathf.Clamp01(Mathf.Min(phase-travel,travel+dwell-phase)*2);
+                    float blend=Mathf.Clamp01(Mathf.Min(phase-arriving,arriving+dwell-phase)*2);
                     pos=Vector3.Lerp(pos,Plot(dest)+facing*new Vector3(row+spacing,0,-1.79f),blend);
                     direction=facing*Vector3.forward;
                 }
                 else
                 {
-                    float blend=Mathf.Clamp01(Mathf.Min(phase-travel,travel+dwell-phase)*2);
+                    float blend=Mathf.Clamp01(Mathf.Min(phase-arriving,arriving+dwell-phase)*2);
                     float stop=kind=="tavern"?spacing:(id%2==0?-.36f:.36f)+spacing;
                     var facade=dest==Gate?Quaternion.identity:Quaternion.Euler(0,FacadeYaw(dest),0);
                     pos=Vector3.Lerp(pos,door+facade*new Vector3(stop,0,-.14f),blend);
                     direction=facade*new Vector3(id%2==0?1:-1,0,.25f);
                 }
             }
-            bool walking=!atWork&&!(returning&&along==0);
+            bool walking=!atWork&&!browsing&&!(returning&&along==0);
             if(!InView(ManorOrigin+pos,3))return;
             if(!TryPlaceWalker(pos,direction,out pos))return;
             if(farmer)VisibleFarmers++;else VisibleVillagers++;
             float gait=walking?Mathf.Sin(along*4.6f+id):0;
-            float gesture=atWork?Mathf.Sin(manorTime*(farmer?2.1f:1.3f)+id):0;
+            float gesture=atWork||browsing?Mathf.Sin(manorTime*(forge?4.8f:loom?3.3f:bakery?2.8f:farmer?2.1f:1.3f)+id):0;
+            float nod=browsing?3+gesture*5:atWork&&bakery?7+gesture*6:farmer&&atWork?9+gesture*6:0;
             var tint=Clothes[id%Clothes.Length];
             var root=Pose(ManorOrigin+pos+Vector3.up*(.74f+.025f*Mathf.Abs(gait)),
                 Quaternion.Euler(0,LocalHeading(id,Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg),0)*
-                Quaternion.Euler(farmer&&atWork?9+gesture*6:0,0,0),Vector3.one*.91f);
+                Quaternion.Euler(nod,0,0),Vector3.one*.91f);
             Add(farmer?farmerCoat:villagerCoat,root,tint);
             ContactAt(ManorOrigin+pos,.92f);
             if(lowActors)return;
@@ -636,6 +666,9 @@ namespace Frontline.UnityGame
                 Add(leg,root*Pose(new Vector3(side*.135f,-.51f,0),Quaternion.Euler(gait*side*27,0,0),Vector3.one),White);
                 float swing=gait*side*-19;
                 if(side==1&&atWork)swing=farmer&&prop!=bucket?-48+gesture*38:-17+gesture*13;
+                if(atWork&&loom)swing=-24+gesture*21*side;
+                else if(atWork&&bakery)swing=-38+gesture*18;
+                else if(atWork&&forge&&side==1)swing=-10-68*Mathf.Max(0,gesture);
                 var shoulder=root*Pose(new Vector3(side*.275f,.25f,0),Quaternion.Euler(swing,0,side*9),Vector3.one);
                 Add(sleeve,shoulder,tint);
                 if(side==1&&prop!=null)
@@ -829,6 +862,7 @@ namespace Frontline.UnityGame
                 if(InView(p,radius))Add(ring,Pose(p,Quaternion.identity,new Vector3(radius,1,radius*.86f)),Gold);
             }
             DrawFrontierPatrol();
+            DrawBridgeRipples();
             PrepareWeatherPage(manorTime);
             Draw(weatherPage,false);
             foreach (var b in moving) Draw(b,false);

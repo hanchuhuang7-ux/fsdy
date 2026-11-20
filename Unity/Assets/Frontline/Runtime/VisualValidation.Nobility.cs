@@ -42,7 +42,7 @@ namespace Frontline.UnityGame
             CheckModalSkin("贵族头衔与赐土");
             if(captures)yield return ManorShot("150-nobility");
 
-            void Sound(string cue){if(cue=="milestone")rankSounds++;}
+            void Sound(string cue){if(cue=="coronation")rankSounds++;}
             app.ManorSound+=Sound;
             try
             {
