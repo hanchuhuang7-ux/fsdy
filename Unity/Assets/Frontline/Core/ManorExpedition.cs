@@ -74,7 +74,7 @@ namespace Frontline.Core
             internal Manor owner;
             internal Dictionary<string,int> force;
             internal Dictionary<string,int> gear;
-            internal (string type,int level)[] roster;
+            internal (string type,int level,int armament)[] roster;
             internal bool resolved, contractPaid;
             public int stage { get; internal set; }
             public bool raid { get; internal set; }
@@ -89,7 +89,7 @@ namespace Frontline.Core
                 if (c.map != config.map || c.seed != config.seed || c.budget != config.budget || c.manorHall != config.manorHall ||
                     c.red.Count != roster.Length) return false;
                 for (int i = 0; i < roster.Length; i++)
-                    if (c.red[i].type != roster[i].type || c.red[i].level != roster[i].level) return false;
+                    if (c.red[i].type != roster[i].type || c.red[i].level != roster[i].level || c.red[i].armament != roster[i].armament) return false;
                 var counts = c.props.Where(p => p.team == "red").GroupBy(p => p.type).ToDictionary(g => g.Key,g => g.Count());
                 return counts.Count == gear.Count && gear.All(p => counts.TryGetValue(p.Key,out int n) && n == p.Value);
             }
@@ -216,7 +216,10 @@ namespace Frontline.Core
                 }
             foreach (var id in HeroIds)
                 if (selected.ContainsKey(id))
+                {
                     Add(id,HeroLevel(id),false);
+                    c.red[c.red.Count-1].armament=HeroArmament(id);
+                }
             for (int i = 0; i < support.guards; i++) Add(RetinueRole(i),RetinueBattleLevel,false);
             if (support.mercenaries)
                 for (int i = 0; i < MercenarySize; i++) Add(MercenaryRole(i),MercenaryLevel,false);
@@ -224,7 +227,7 @@ namespace Frontline.Core
                 foreach(var id in EnemyRoster(stage,raid)) PlaceOne(data,c,"blue",id,false);
             c.budget = Math.Max(c.budget,(int)data.Cost(c,"blue"));
             return new Sortie { owner = this, force = selected, gear = gear, stage = stage, raid = raid, Support = support,
-                roster = c.red.Select(u => (u.type,u.level)).ToArray(), Logistics = ExpeditionLogistics(raid), config = data.Validate(c,true) };
+                roster = c.red.Select(u => (u.type,u.level,u.armament)).ToArray(), Logistics = ExpeditionLogistics(raid), config = data.Validate(c,true) };
         }
 
         public sealed class TroopReturn

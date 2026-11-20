@@ -8,20 +8,20 @@ const read = path => readFileSync(url(path),'utf8');
 const sha = path => createHash('sha256').update(read(path).replaceAll('\r\n','\n')).digest('hex');
 const root = 'Unity/Assets/Frontline/';
 
-test('1.6.0 ships the same single Unity scene and matching player, package and model versions', () => {
+test('1.7.0 ships the same single Unity scene and matching player, package and model versions', () => {
   for (const p of ['package.json','package-lock.json',root+'Models/model-manifest.json'])
-    assert.equal(JSON.parse(read(p)).version,'1.6.0',p);
-  assert.match(read(root+'Editor/BuildTools.cs'),/bundleVersion="1\.6\.0"/);
-  assert.match(read('Unity/ProjectSettings/ProjectSettings.asset'),/^  bundleVersion: 1\.6\.0\r?$/m);
+    assert.equal(JSON.parse(read(p)).version,'1.7.0',p);
+  assert.match(read(root+'Editor/BuildTools.cs'),/bundleVersion="1\.7\.0"/);
+  assert.match(read('Unity/ProjectSettings/ProjectSettings.asset'),/^  bundleVersion: 1\.7\.0\r?$/m);
   assert.deepEqual(readdirSync(url('Unity/Assets/Scenes/')).filter(s => s.endsWith('.unity')),['Frontline.unity']);
 });
 test('manor buildings, hero equipment and civilian props all have unique baked mesh pairs', () => {
   const {resources} = JSON.parse(read(root+'Models/model-manifest.json'));
-  assert.equal(resources.length,310);
+  assert.equal(resources.length,316);
   assert.equal(new Set(resources).size,resources.length);
   const heroes=JSON.parse(read(root+'Resources/catalog.json')).heroes;
   assert.equal(heroes.length,3);
-  const heroMeshes=heroes.flatMap(({id})=>['body_'+id,'arm_right_'+id]);
+  const heroMeshes=heroes.flatMap(({id})=>['body_'+id,'arm_right_'+id,'crest_'+id]);
   for (const name of ['manor_hall','cottage','farm','timber_camp','smithy','barracks','stables','civilian_hat','civilian_pack',
     'irrigated_field','pasture','tavern','drill_yard','granary','chapel','bakery','weaver','frontier_gate','bridge_fittings','mill_sails','farmer_clothes','villager_clothes','villager_wrap','resident_sleeve',
     'farm_fallow','farm_rich','irrigated_field_fallow','irrigated_field_rich','retinue_guard',
@@ -48,6 +48,7 @@ test('1.2 preserves historical rule signatures and both expedition replay identi
   assert.match(replay,/Engine="unity-0\.9\.0"/);
   assert.match(replay,/ExpeditionEngine="unity-manor-1\.2\.0"/);
   assert.match(replay,/LegacyExpeditionEngine="unity-manor-1\.1\.0"/);
+  assert.match(replay,/ArmamentExpeditionEngine="unity-manor-1\.7\.0"/);
   assert.match(read(root+'Core/Rules.cs'),/Validate\(Deployment input,bool expedition=false\)/);
 });
 

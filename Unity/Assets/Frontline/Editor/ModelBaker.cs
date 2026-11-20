@@ -46,6 +46,7 @@ namespace Frontline.Editor
                 {
                     Save("body_"+type,lod,lod==0?HeroBody(type,lod):DistantBody(type));
                     Save("arm_right_"+type,lod,lod==0?HeroArm(type,lod):DistantArm(type));
+                    Save("crest_"+type,lod,ArmamentCrest(type,lod));
                 }
             }
             AssetDatabase.SaveAssets();File.WriteAllText("Assets/Frontline/Models/model-manifest.json",JsonUtility.ToJson(new Manifest{generator="Frontline.Editor.ModelBaker",version=PlayerSettings.bundleVersion,vertexColor="rgb=albedo; alpha=faction multiply weight",resources=Written.ToArray()},true));AssetDatabase.Refresh();Debug.Log("FRONTLINE_MODELS_OK "+Written.Count+" prebaked meshes, two LODs, vertex colours and flat normals");
@@ -58,9 +59,9 @@ namespace Frontline.Editor
         static Vector3 V(float x,float y,float z){return new Vector3(x,y,z);}
         static Geometry Body(string type,int lod)
         {
-            var g=new Geometry();Tunic(g,lod,Cloth);g.Cylinder(V(0,.34f,0),V(0,.42f,0),.09f,Skin,6);g.Ellipsoid(V(0,.53f,.015f),V(.185f,.21f,.175f),Skin,lod==0?8:6,3);
-            // A projecting nose and shadowed visor make faces readable without a texture.
-            g.Bevel(V(0,.53f,.19f),V(.065f,.065f,.075f),.015f,Skin);g.Bevel(V(0,.585f,.16f),V(.27f,.045f,.02f),.01f,Dark);
+            var g=new Geometry();Tunic(g,lod,Cloth);
+            bool helmet=type!="militia"&&type!="archer"&&type!="medic";
+            FaceBust(g,V(0,.53f,.015f),V(.185f,.21f,.175f),Array.IndexOf(Types,type),helmet);
             SoldierTrim(g,type,lod);
             if(type=="militia"){g.Cone(V(0,.7f,0),.25f,.15f,WoodLight,8);g.Cylinder(V(0,.64f,0),V(0,.67f,0),.25f,Wood,8);}
             else if(type=="archer"||type=="medic"){g.Ellipsoid(V(0,.66f,-.015f),V(.215f,.16f,.2f),Cloth,8,2);g.Bevel(V(0,.49f,-.14f),V(.42f,.31f,.12f),.04f,Cloth);}
@@ -137,6 +138,7 @@ namespace Frontline.Editor
         }
         static Geometry Catapult(int lod)
         {
+            if(lod==1)return DistantCatapult();
             var g=new Geometry();foreach(float x in new[]{-.43f,.43f})g.Bevel(V(x,-.48f,0),V(.18f,.23f,1.65f),.035f,Wood);foreach(float z in new[]{-.59f,.59f})g.Bevel(V(0,-.47f,z),V(1.25f,.18f,.17f),.03f,WoodLight);foreach(float x in new[]{-.56f,.56f})foreach(float z in new[]{-.55f,.55f}){var wheel=new Geometry();wheel.Torus(Vector3.zero,.29f,.06f,Wood,lod==0?12:8);for(int i=0;i<(lod==0?8:4);i++){float a=i*Mathf.PI/(lod==0?4:2);wheel.Cylinder(Vector3.zero,V(Mathf.Sin(a)*.27f,0,Mathf.Cos(a)*.27f),.025f,WoodLight,4);}wheel.Cylinder(V(0,-.06f,0),V(0,.06f,0),.07f,Steel,6);g.Append(wheel,Matrix4x4.TRS(V(x,-.43f,z),Quaternion.Euler(0,0,90),Vector3.one));}foreach(float x in new[]{-.38f,.38f}){g.Cylinder(V(x,-.4f,-.43f),V(x,.61f,0),.065f,WoodLight,6);g.Cylinder(V(x,-.4f,.53f),V(x,.61f,0),.065f,WoodLight,6);}g.Cylinder(V(-.49f,.59f,0),V(.49f,.59f,0),.08f,Steel,7);g.Bevel(V(0,-.29f,0),V(.54f,.12f,1.03f),.03f,Wood);
             foreach(float z in new[]{-.64f,.64f})
             {
@@ -144,10 +146,27 @@ namespace Frontline.Editor
                 if(lod==0)foreach(float x in new[]{-.42f,.42f})
                     g.Cylinder(V(x,-.35f,z),V(x,-.317f,z),.055f,LightSteel,6);
             }
-            if(lod==0)EngineIronwork(g);
+            EngineIronwork(g);
+            SiegeJoinery(g);
             return g;
         }
-        static Geometry CatapultArm(int lod){var g=new Geometry();g.Bevel(V(0,.0f,-.35f),V(.14f,.17f,1.83f),.035f,WoodLight);g.Bevel(V(0,0,.55f),V(.55f,.42f,.43f),.045f,Wood);g.Bevel(V(0,-.23f,.55f),V(.57f,.07f,.45f),.01f,Steel);g.Ellipsoid(V(0,.08f,-1.2f),V(.23f,.12f,.28f),Wood,8,2);g.Cylinder(V(0,0,-.9f),V(0,.08f,-1.3f),.016f,Dark,3);return g;}
+        static Geometry CatapultArm(int lod)
+        {
+            var g=new Geometry();
+            if(lod==1)
+            {
+                g.Box(V(0,0,-.35f),V(.14f,.17f,1.83f),WoodLight);
+                g.Box(V(0,0,.55f),V(.55f,.47f,.44f),Wood);
+                g.Box(V(0,.08f,-1.2f),V(.40f,.16f,.46f),Dark);
+                return g;
+            }
+            g.Bevel(V(0,0,-.35f),V(.14f,.17f,1.83f),.035f,WoodLight);
+            g.Bevel(V(0,0,.55f),V(.55f,.42f,.43f),.045f,Wood);
+            foreach(float x in new[]{-.185f,.185f})g.Box(V(x,-.026f,.55f),V(.051f,.432f,.445f),Steel);
+            g.Ellipsoid(V(0,.08f,-1.2f),V(.23f,.12f,.28f),Wood,8,2);
+            g.Cylinder(V(0,0,-.9f),V(0,.08f,-1.3f),.016f,Dark,3);
+            return g;
+        }
         static Geometry WreckHorse(int lod){var g=new Geometry();g.Append(Horse(lod),Matrix4x4.TRS(V(0,.12f,0),Quaternion.Euler(0,0,82),Vector3.one));for(int i=0;i<4;i++)g.Append(HorseLeg(lod),Matrix4x4.TRS(V(i%2==0?-.35f:.35f,.12f,i<2?-.45f:.4f),Quaternion.Euler(0,0,i%2==0?65:110),Vector3.one));g.SetAtGrade();return g;}
         static Geometry WreckCatapult(int lod){var g=new Geometry();g.Append(Catapult(lod),Matrix4x4.TRS(V(0,.42f,0),Quaternion.Euler(13,17,54),Vector3.one));g.Append(CatapultArm(lod),Matrix4x4.TRS(V(.6f,.08f,.3f),Quaternion.Euler(0,65,0),Vector3.one));g.Bevel(V(-.6f,.08f,.5f),V(.14f,.14f,.85f),.025f,WoodLight,Quaternion.Euler(0,-42,0));g.SetAtGrade();return g;}
         static Geometry Prop(string name,int lod)
@@ -173,7 +192,7 @@ namespace Frontline.Editor
             {
                 // Frozen PhysX adapters cook this exact six-sided LOD1 hull.
                 g.Rock(Vector3.zero,.5f,Rock,6,4);
-                if(lod==0)return g.SplitStoneFaces();
+                if(lod==0)return g.StoneStrata();
             }
             else if(name=="stone")g.Rock(Vector3.zero,.5f,Rock,n,4);
             else if(name=="wall")WallMasonry(g,lod);
@@ -189,7 +208,11 @@ namespace Frontline.Editor
             else if(name=="snow"){g.Quad(V(-.05f,0,0),V(.05f,0,0),V(.05f,.1f,0),V(-.05f,.1f,0),Snow,true);g.Quad(V(0,0,-.05f),V(0,0,.05f),V(0,.1f,.05f),V(0,.1f,-.05f),Snow,true);}
             else if(name=="arrow"||name=="bolt"){g.Cylinder(V(0,0,-.5f),V(0,0,.35f),name=="arrow"?.014f:.022f,name=="arrow"?WoodLight:Steel,5);g.Spear(V(0,0,.33f),V(0,0,.5f),.05f,LightSteel);g.Quad(V(-.07f,0,-.48f),V(.07f,0,-.48f),V(.035f,0,-.3f),V(-.035f,0,-.3f),Snow,true);}
             else if(name=="bomb"){g.Ellipsoid(Vector3.zero,Vector3.one*.5f,Dark,n,4);g.Cylinder(V(0,.45f,0),V(.07f,.68f,0),.035f,WoodLight,5);g.Ellipsoid(V(.07f,.69f,0),Vector3.one*.05f,Gold,5,2);}
-            else if(name=="head")g.Ellipsoid(Vector3.zero,V(.2f,.22f,.19f),Skin,8,3);
+            else if(name=="head")
+            {
+                if(lod==0)FaceBust(g,Vector3.zero,V(.2f,.22f,.19f),1,false,false);
+                else g.Ellipsoid(Vector3.zero,V(.2f,.22f,.19f),Skin,8,3);
+            }
             else if(name=="torso")g.Bevel(Vector3.zero,V(.46f,.64f,.32f),.06f,Cloth);
             else if(name=="limb")g.Bevel(Vector3.zero,V(.21f,.6f,.23f),.04f,Cloth);
             return g;
@@ -729,18 +752,19 @@ namespace Frontline.Editor
                 for(int i=0;i<vertices.Count;i++)vertices[i]-=Vector3.up*bottom;
             }
 
-            public Geometry SplitStoneFaces()
+            public Geometry StoneStrata()
             {
                 var cut=new Geometry();
                 for(int i=0;i<vertices.Count;i+=3)
                 {
                     var a=vertices[i];var b=vertices[i+1];var c=vertices[i+2];
-                    var ab=(a+b)*.5f;var bc=(b+c)*.5f;var ca=(c+a)*.5f;
+                    // Split each exposed face within the original silhouette and keep all cooked-hull vertices.
+                    float stratum=.31f+.09f*Mathf.Sin(i*.63f);
+                    var seam=Vector3.Lerp(a,b,stratum);
                     var tint=colors[i];
-                    cut.Triangle(a,ab,ca,tint*.96f);
-                    cut.Triangle(ab,b,bc,tint*.88f);
-                    cut.Triangle(ca,bc,c,tint*1.05f);
-                    cut.Triangle(ab,bc,ca,tint);
+                    Color mineral=i%4==0?new Color(.67f,.68f,.60f,0):new Color(.43f,.49f,.46f,0);
+                    cut.Triangle(a,seam,c,Color.Lerp(tint,mineral,.54f));
+                    cut.Triangle(seam,b,c,tint*(i%2==0?1.09f:.88f));
                 }
                 return cut;
             }

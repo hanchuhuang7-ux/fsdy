@@ -100,9 +100,21 @@ namespace Frontline.Editor
             g.Cylinder(V(0,1.092f,0),V(0,1.112f,0),.345f,WoodLight,sides);
             if(lod==0)
             {
-                g.Cylinder(V(.10f,1.111f,.056f),V(.10f,1.13f,.056f),.062f,Dark,6);
-                g.Box(V(0,.46f,-.425f),V(.23f,.22f,.023f),Dark);
-                g.Box(V(0,.47f,-.438f),V(.035f,.15f,.012f),Amber);
+                for(int stave=0;stave<8;stave++)
+                {
+                    float a=stave*Mathf.PI*.25f,x=Mathf.Sin(a),z=Mathf.Cos(a);
+                    var foot=V(x*.396f,.14f,z*.396f);
+                    var shoulder=V(x*.423f,.923f,z*.423f);
+                    var bow=V(x*.459f,.556f,z*.459f);
+                    var span=V(z*.012f,0,-x*.012f);
+                    g.Quad(foot-span,foot+span,bow+span,bow-span,Wood,true);
+                    g.Quad(bow-span,bow+span,shoulder+span,shoulder-span,Wood,true);
+                }
+                g.Frustum(V(0,.303f,0),V(.898f,0,.898f),V(0,.363f,0),V(.919f,0,.919f),Steel,sides);
+                g.Frustum(V(0,.762f,0),V(.909f,0,.909f),V(0,.819f,0),V(.901f,0,.901f),Dark,sides);
+                g.Cylinder(V(.10f,1.106f,.056f),V(.108f,1.128f,.078f),.016f,Dark,5);
+                g.Cylinder(V(.108f,1.126f,.078f),V(.166f,1.142f,.11f),.009f,Linen,4);
+                g.Box(V(.165f,1.143f,.11f),V(.025f,.011f,.022f),Amber);
             }
         }
 
@@ -118,6 +130,13 @@ namespace Frontline.Editor
                 {
                     g.Cylinder(V(side*.41f,.16f,z),V(-side*.28f,1.13f,z),.092f,WoodLight,6);
                     g.Spear(V(-side*.27f,1.10f,z),V(-side*.44f,1.40f,z),.079f,Steel);
+                    if(lod==0)
+                    {
+                        float y=1.02f, x=-side*.21f;
+                        g.Cylinder(V(x+side*.038f,y-.045f,z),V(x-side*.029f,y+.051f,z),.101f,Steel,5);
+                        g.Triangle(V(-side*.30f,1.15f,z+.062f),V(-side*.44f,1.40f,z),
+                            V(-side*.335f,1.168f,z+.035f),LightSteel);
+                    }
                 }
                 if(lod==0)g.Cylinder(V(-.36f,.55f,z),V(.36f,.55f,z),.108f,Dark,6);
             }
@@ -140,6 +159,15 @@ namespace Frontline.Editor
                 g.Quad(V(.82f*a,ya+.057f,za-.005f),V(.82f*b,yb+.057f,zb-.005f),
                     V(.82f*b,yb+.027f,zb-.005f),V(.82f*a,ya+.027f,za-.005f),Gold,true);
             }
+            if(lod==0)
+            {
+                const float z=.052f;
+                g.Quad(V(.343f,2.32f,z),V(.436f,2.32f,z),V(.436f,2.02f,z),V(.343f,2.02f,z),Linen,true);
+                g.Quad(V(.248f,2.20f,z),V(.530f,2.20f,z),V(.530f,2.117f,z),V(.248f,2.117f,z),Linen,true);
+                g.Cylinder(V(.797f,2.42f,-.018f),V(.862f,2.42f,-.018f),.040f,Gold,6);
+                for(int i=0;i<3;i++)g.Triangle(V(.16f+i*.14f,1.90f+i*.037f,0),
+                    V(.197f+i*.14f,1.91f+i*.037f,0),V(.177f+i*.14f,1.83f+i*.037f,.007f),Gold);
+            }
         }
 
         static void WallMasonry(Geometry g,int lod)
@@ -161,6 +189,11 @@ namespace Frontline.Editor
 
         static void CanopyLayers(Geometry g,string name,int lod)
         {
+            if(lod==0&&name!="dead_tree")
+            {
+                FacetedCanopy(g,name=="pine");
+                return;
+            }
             int sides=lod==0?8:6;
             g.Cylinder(Vector3.zero,V(.06f,2.68f,.01f),.13f,Wood,sides);
             if(name=="pine")

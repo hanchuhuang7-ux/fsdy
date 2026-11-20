@@ -100,7 +100,9 @@ namespace Frontline.Core
                 synergyPercent * developmentPercent * fertilityPercent + divisor / 2) / divisor);
         }
 
-        public ManorDay Forecast()
+        public ManorDay Forecast() => Forecast(default);
+
+        ManorDay Forecast(Span<ManorLedgerLine> ledger)
         {
             var hall = slots[0];
             int production = ApprovalProductionPercent, season = Season;
@@ -108,10 +110,16 @@ namespace Frontline.Core
             ManorSynergy synergy=ReadSynergies(out bool hasClinic);
             var balance = new ManorDay {
                 food = (1 - workers) * 100, timber = 100, synergy=synergy,
-                coin = NobleYield(ScaleYield(Yield(8 + 2 * hall.workers,hall.level),production,TaxRevenuePercent,trade ? 120 : 100,
-                    100+StewardBonus(SpecialistRank("steward"))))
+                coin = DailyOutput(ledger,ManorLedgerSource.Hall,ManorLedgerResource.Coin,Yield(8+2*hall.workers,hall.level),
+                    production,TaxRevenuePercent,trade?120:100,100+StewardBonus(SpecialistRank("steward")),specialist:true)
             };
+            Record(ledger,ManorLedgerSource.Settlement,ManorLedgerResource.Food,100);
+            Record(ledger,ManorLedgerSource.Settlement,ManorLedgerResource.Timber,100);
+            Record(ledger,ManorLedgerSource.Rations,ManorLedgerResource.Food,-workers*100);
             string firstFood = AddSectorSupplies(ref balance) ? Sectors[NorthGlade].id : null;
+            Record(ledger,ManorLedgerSource.Frontier,ManorLedgerResource.Food,balance.food-(1-workers)*100);
+            Record(ledger,ManorLedgerSource.Frontier,ManorLedgerResource.Timber,balance.timber-100);
+            Record(ledger,ManorLedgerSource.Frontier,ManorLedgerResource.Arms,balance.arms);
             bool variedDiet = false, poultry=false, staffedChapel=false;
             bool sustainableWoods=HasDevelopment(ManorPerk.SustainableWoods);
             int cropDevelopment=HasDevelopment(ManorPerk.HeavyPlough)?115:100;
@@ -127,7 +135,7 @@ namespace Frontline.Core
                 if (plot.kind == "cottage")
                 {
                     housing += WholeLevelValue(3,plot.level);
-                    AddBackyardYield(plot,ref balance,ref poultry);
+                    AddBackyardYield(plot,ref balance,ref poultry,ledger);
                 }
                 else if (plot.kind == "pasture") housing += WholeLevelValue(2,plot.level);
                 if (plot.workers == 0) continue;
@@ -137,21 +145,22 @@ namespace Frontline.Core
                         bool pasture = plot.kind == "pasture";
                         if (!pasture && IsResting(plot,season)) break;
                         int policy = agrarian ? 120 : trade && !pasture ? 90 : 100;
-                        balance.food += NobleYield(ScaleYield(Yield(Def(plot.kind).harvest,plot.level) * plot.workers,production,policy,pasture ? pastureRate : cropRate,
-                            100+synergy.grainPercent,100+(pasture?0:synergy.cropPercent),pasture?100:cropDevelopment,pasture?100:plot.fertility));
+                        balance.food += DailyOutput(ledger,pasture?ManorLedgerSource.Pasture:ManorLedgerSource.Fields,ManorLedgerResource.Food,
+                            Yield(Def(plot.kind).harvest,plot.level)*plot.workers,production,policy,pasture?pastureRate:cropRate,
+                            100+synergy.grainPercent,100+(pasture?0:synergy.cropPercent),pasture?100:cropDevelopment,pasture?100:plot.fertility);
                         variedDiet |= firstFood != null && firstFood != plot.kind;
                         firstFood ??= plot.kind;
                         break;
                     case "timber_camp":
-                        balance.timber += NobleYield(ScaleYield(Yield(4,plot.level) * plot.workers,production,
-                            supportPercent:100+MasonTimberBonus(mason),developmentPercent:sustainableWoods?115:100));
+                        balance.timber += DailyOutput(ledger,ManorLedgerSource.Timber,ManorLedgerResource.Timber,Yield(4,plot.level)*plot.workers,
+                            production,support:100+MasonTimberBonus(mason),development:sustainableWoods?115:100,specialist:true);
                         break;
                     case Bakery:
                         staffedBakeries[bakeryCount++]=i;
                         break;
                     case Weaver:
-                        balance.coin+=NobleYield(ScaleYield(Yield(WeaverCoin,plot.level)*plot.workers,production,
-                            synergyPercent:100+synergy.weavePercent));
+                        balance.coin+=DailyOutput(ledger,ManorLedgerSource.Weaver,ManorLedgerResource.Coin,
+                            Yield(WeaverCoin,plot.level)*plot.workers,production,synergy:100+synergy.weavePercent);
                         break;
                     case "tavern":
                         tavern = 2;
@@ -166,6 +175,7 @@ namespace Frontline.Core
             }
             int storedTimber = Precise(timber,remainder.timber);
             int timberAvailable = Math.Min(MaxValue * 100,storedTimber + balance.timber);
+            Record(ledger,ManorLedgerSource.Limits,ManorLedgerResource.Timber,timberAvailable-storedTimber-balance.timber);
             if (season == 3)
             {
                 int firewood=(workers+3)/4;
@@ -183,15 +193,17 @@ namespace Frontline.Core
                 int working = Math.Min(timberAvailable / 100,plot.workers);
                 timberAvailable -= working * 100;
                 balance.forgeTimber += working * 100;
-                balance.arms += NobleYield(ScaleYield(Yield(2,plot.level) * working,production,forgePolicy,
-                    supportPercent:100+synergy.forgePercent,developmentPercent:forgeDevelopment));
+                balance.arms += DailyOutput(ledger,ManorLedgerSource.Forge,ManorLedgerResource.Arms,Yield(2,plot.level)*working,
+                    production,forgePolicy,synergy:100+synergy.forgePercent,development:forgeDevelopment);
             }
             balance.timber = timberAvailable - storedTimber;
+            Record(ledger,ManorLedgerSource.Winter,ManorLedgerResource.Timber,-balance.winterTimber);
+            Record(ledger,ManorLedgerSource.ForgeInput,ManorLedgerResource.Timber,-balance.forgeTimber);
 
             int storedFood = Precise(food,remainder.food);
             if(bakeryCount>0)
             {
-                BakeBread(staffedBakeries.Slice(0,bakeryCount),storedFood+balance.food,production,ref balance);
+                BakeBread(staffedBakeries.Slice(0,bakeryCount),storedFood+balance.food,production,ref balance,ledger);
                 if(balance.bakeryGrain>0)
                 {
                     variedDiet|=firstFood!=null;
@@ -223,6 +235,10 @@ namespace Frontline.Core
             balance.newHousehold = approval >= UnrestApproval && workers < housing && foodAvailable >= 200 * (workers + 1);
             if (balance.newHousehold) balance.food -= 200;
             ApplyTithe(ref balance,storedFood,workers+(balance.newHousehold?1:0),minstrel);
+            Record(ledger,ManorLedgerSource.Reserves,ManorLedgerResource.Food,balance.reserveFood);
+            Record(ledger,ManorLedgerSource.Immigration,ManorLedgerResource.Food,balance.newHousehold?-200:0);
+            Record(ledger,ManorLedgerSource.Tithe,ManorLedgerResource.Food,-balance.titheFood*100);
+            FinishLedger(ledger,balance);
             return balance;
         }
 
@@ -246,6 +262,7 @@ namespace Frontline.Core
                 {
                     AdvanceFertility(endingSeason);
                     market = default;
+                    if(seasonalWork)AssignSeasonalWork();
                 }
                 UpdateSeasonEvents();
                 TrackProsperity();
@@ -256,21 +273,24 @@ namespace Frontline.Core
 
         public ManorTradeQuote QuoteTrade(string resource)
         {
+            var offer=SeasonalCaravan;
+            int buyRate=100+(offer.resource==resource?offer.buyPercent:0);
+            int sellRate=100+(offer.resource==resource?offer.sellPercent:0);
             switch (resource)
             {
-                case "food": return Quote(food,remainder.food,market.food,3,2);
-                case "timber": return Quote(timber,remainder.timber,market.timber,4,2);
-                case "arms": return Quote(arms,remainder.arms,market.arms,8,5);
+                case "food": return Quote(food,remainder.food,market.food,3,2,buyRate,sellRate);
+                case "timber": return Quote(timber,remainder.timber,market.timber,4,2,buyRate,sellRate);
+                case "arms": return Quote(arms,remainder.arms,market.arms,8,5,buyRate,sellRate);
                 default: throw new InvalidOperationException("未知集市物资");
             }
         }
 
-        ManorTradeQuote Quote(int inventory,int fraction,ManorTradeVolume volume,int buy,int sell)
+        ManorTradeQuote Quote(int inventory,int fraction,ManorTradeVolume volume,int buy,int sell,int buyRate,int sellRate)
         {
             int merchant=SpecialistLevel("merchant");
-            int sellPrice = sell * (decree == "trade" ? 110 : 100);
+            int sellPrice = (sell * (decree == "trade" ? 110 : 100)*sellRate+50)/100;
             int perkRate=HasDevelopment(ManorPerk.FreeMarket)?95:100;
-            int buyPrice=Math.Max(sellPrice+1,(buy * (decree=="trade"?90:100)*(100-2*merchant)*perkRate+5000)/10000);
+            int buyPrice=Math.Max(sellPrice+1,(int)(((long)buy*(decree=="trade"?90:100)*(100-2*merchant)*perkRate*buyRate+500000)/1000000));
             int quota=MarketQuota(merchant);
             // Demotion closes the remaining quota while keeping this season's completed trades.
             int buyRemaining = Math.Max(0,quota - volume.bought), sellRemaining = Math.Max(0,quota - volume.sold);

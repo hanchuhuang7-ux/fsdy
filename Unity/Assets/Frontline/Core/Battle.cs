@@ -17,13 +17,15 @@ namespace Frontline.Core
         public readonly string stance;
         internal readonly bool isRed,isRanged,isCavalry,canHeal,keepsMedicDistance,isSpear,isGiant,isCrossbow,isCatapult,isHold,isFlank,isHunt,canFortify;
         internal readonly bool isVanguard,isMarksman;
+        internal readonly int armamentReduction,armamentStability,armamentPierce;
         internal readonly float turnRateAtRest,windupDuration;
-        internal Soldier(Entity entity,UnitDef definition,string stance,bool legacyManorMotion)
+        internal Soldier(Entity entity,UnitDef definition,string stance,bool legacyManorMotion,HeroGear gear=default)
         {
             this.entity=entity;this.definition=definition;this.stance=stance;
             string type=entity.type;
             string ability=(definition as HeroDef)?.ability;
             isVanguard=ability=="vanguard";isMarksman=ability=="marksman";
+            armamentReduction=gear.reduction;armamentStability=gear.stability;armamentPierce=gear.pierce;
             isRed=entity.team=="red";isRanged=definition.ranged;isCavalry=type=="cavalry";
             canHeal=type=="medic"||ability=="field_healer";keepsMedicDistance=type=="medic"||legacyManorMotion&&canHeal;
             isSpear=type=="spear";isGiant=type=="giant"||isVanguard;isCrossbow=type=="crossbow"||isMarksman;isCatapult=type=="catapult";
@@ -92,9 +94,13 @@ namespace Frontline.Core
             try{
                 foreach(var team in new[]{"red","blue"})foreach(var p in Config.Army(team))
                 {
-                    var d=catalog.Unit(p.type).AtLevel(p.level);var e=new Entity{id=nextId++,type=p.type,team=team,hp=d.hp,maxHp=d.hp,spawn=new V3(p.x,0,p.z)};e.body=World.Unit(e.id,p,team,d);e.position=e.body.Position;entities.Add(e.id,e);
+                    var d=catalog.Unit(p.type).AtLevel(p.level);
+                    var gear=p.armament>0?Manor.Armament(p.type,p.armament):default;
+                    var stats=p.armament>0?d.WithArmament(gear):d;
+                    var e=new Entity{id=nextId++,type=p.type,team=team,hp=stats.hp,maxHp=stats.hp,spawn=new V3(p.x,0,p.z)};
+                    e.body=World.Unit(e.id,p,team,d);e.position=e.body.Position;entities.Add(e.id,e);
                     if(IsFrontier&&team=="blue"&&!(e.body is IFrontierBody))throw new InvalidOperationException("边疆需要安全区物理约束");
-                    Units.Add(new Soldier(e,d,p.stance,legacyManorMotion){cooldown=Random.Next()*.6f,angle=team=="red"?(float)Math.PI/2:-(float)Math.PI/2,anchor=e.spawn,progress=e.position});
+                    Units.Add(new Soldier(e,stats,p.stance,legacyManorMotion,gear){cooldown=Random.Next()*.6f,angle=team=="red"?(float)Math.PI/2:-(float)Math.PI/2,anchor=e.spawn,progress=e.position});
                 }
                 foreach(var placement in map.props.Concat(Config.props))
                 {
@@ -325,11 +331,14 @@ namespace Frontline.Core
             string type=e.type=="bomber"?"bomb":e.type=="catapult"?"stone":u.isCrossbow?"bolt":"arrow";bool bomb=type=="bomb",stone=type=="stone",bolt=type=="bolt";
             float flight=Math.Max(.22f,dist/(bomb?10:stone?12:bolt?28:19)),gravity=bolt?.2f:1,spread=(Random.Next()-.5f)*(bomb?.9f:stone?1.1f:bolt?.2f:.55f);
             var spawn=CombatMotion.Launch(e.type,p,new V3(delta.x/dist,0,delta.z/dist),d.scale);var tv=target.entity.body.Velocity;var velocity=new V3((t.x+tv.x*flight*.6f-spawn.x+spread)/flight,(t.y+.15f-spawn.y+9*gravity*flight*flight)/flight,(t.z+tv.z*flight*.6f-spawn.z+spread)/flight);
-            var shot=new Shot{id=nextId++,type=type,owner=e,life=bomb?1.8f:6,damage=d.damage,knock=d.knock,pierce=u.isMarksman?.9f:bolt?.6f:0};shot.body=World.Projectile(shot.id,type,spawn,velocity,gravity,e.id);Shots.Add(shot);shotsById.Add(shot.id,shot);Cue(e.type=="archer"?"bow":u.isMarksman?"crossbow":e.type,p);
+            float pierce=u.isMarksman?.9f+u.armamentPierce*.01f:bolt?.6f:0;
+            var shot=new Shot{id=nextId++,type=type,owner=e,life=bomb?1.8f:6,damage=d.damage,knock=d.knock,pierce=pierce};shot.body=World.Projectile(shot.id,type,spawn,velocity,gravity,e.id);Shots.Add(shot);shotsById.Add(shot.id,shot);Cue(e.type=="archer"?"bow":u.isMarksman?"crossbow":e.type,p);
         }
         public void Hit(Soldier target,float damage,Entity source,float knock,V3? origin=null,float pierce=0)
         {
             var e=target.entity;if(!e.alive||IsFrontier&&!FrontierCanHit(e,source))return;var p=e.body.Position;var from=origin??(source==null?p+new V3(-1,0,0):source.alive?source.body.Position:source.position);var diff=p-from;float dist=Math.Max(.01f,diff.Planar);bool block=e.type=="shield"&&((float)Math.Sin(target.angle)*-diff.x+(float)Math.Cos(target.angle)*-diff.z)/dist>.25f;
+            if(target.armamentStability>0)knock*=(100-target.armamentStability)*.01f;
+            if(target.armamentReduction>0)damage*=(100-target.armamentReduction)*.01f;
             int tier=CombatMotion.HitTier(knock,source?.type);if(block){damage*=.4f+.6f*pierce;knock*=CombatMotion.BlockImpulse(pierce);}if(target.isVanguard)damage*=.75f;if(target.fortifyUntil>Tick){damage*=.75f;knock*=.5f;}float actual=Math.Min(e.hp,Math.Max(0,damage));e.stats.damageTaken+=actual;
             if(source!=null){source.stats.damageDealt+=actual;if(source.team==e.team)source.stats.friendlyFire+=actual;target.lastSource=source;target.lastHitTick=Tick;}
             e.hp=Math.Max(0,e.hp-damage);target.stun=Math.Max(target.stun,CombatMotion.Stun(tier,block));

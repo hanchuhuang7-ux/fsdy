@@ -6,7 +6,7 @@ namespace Frontline.Core
 {
     public sealed class ManorHero
     {
-        public int level = 1, restUntil;
+        public int level = 1, restUntil, armament;
     }
 
     public sealed partial class Manor
@@ -99,7 +99,7 @@ namespace Frontline.Core
             training[id] = UnitLevel(id) + 1;
         }
 
-        void ReadProgress(object unitLevels,object heroRoster)
+        void ReadProgress(object unitLevels,object heroRoster,bool upgraded)
         {
             if (!(unitLevels is Dictionary<string,object> units) || !(heroRoster is Dictionary<string,object> roster))
                 throw new FormatException("训练或英雄名册无效");
@@ -111,9 +111,10 @@ namespace Frontline.Core
             foreach (var p in roster)
             {
                 if (!HeroIds.Contains(p.Key)) throw new FormatException("未知英雄");
-                var h = ObjectWith(p.Value,"level","restUntil");
+                var h = upgraded?ObjectWith(p.Value,"level","restUntil","armament"):ObjectWith(p.Value,"level","restUntil");
                 heroes.Add(p.Key,new ManorHero {
-                    level = Number(h["level"],1,HeroMaxLevel), restUntil = Number(h["restUntil"],0,Math.Min(MaxValue,day + HeroRestDays))
+                    level = Number(h["level"],1,HeroMaxLevel), restUntil = Number(h["restUntil"],0,Math.Min(MaxValue,day + HeroRestDays)),
+                    armament = upgraded?Number(h["armament"],0,MaxHeroArmament):0
                 });
             }
         }

@@ -77,7 +77,7 @@ static partial class ManorChecks
             foreach(Dictionary<string,object> entry in (List<object>)fixture["chronicle"])
                 if((string)entry["kind"]=="nobility")entry["choice"]=0;
             var m=Manor.Import(Json.Write(fixture));
-            Expect(m.version==12&&m.GrantedPlots==36&&m.slots.Skip(32).All(plot=>plot.kind==null),"duke migration");
+            Expect(m.version==Manor.SaveVersion&&m.GrantedPlots==36&&m.slots.Skip(32).All(plot=>plot.kind==null),"duke migration");
             var projected=LegacySchema(m,11);
             foreach(var field in fixture)Expect(Json.Write(field.Value)==Json.Write(projected[field.Key]),"v11 lost "+field.Key);
 

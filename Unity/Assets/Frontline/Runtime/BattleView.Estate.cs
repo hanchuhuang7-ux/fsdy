@@ -34,6 +34,7 @@ namespace Frontline.UnityGame
         int manorGuardsAway;
         internal int VisibleRetinue {get;private set;}
         internal static Vector3 RetinuePost(int index) => ManorOrigin+RetinuePosts[index];
+        internal static Vector3 QuayPoint => ManorOrigin+DockOrigin+new Vector3(1.3f*DockScale.x,.12f,-2.27f*DockScale.z);
         internal int VisibleSpecialistMask {get;private set;}
         internal Vector3 SpecialistPoint(int role) => specialistPoints[role];
 

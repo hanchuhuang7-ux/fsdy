@@ -246,6 +246,17 @@ namespace Frontline.Core
             if (Math.Abs((long)delta) != 1 || p.workers + delta < 0 || p.workers + delta > StaffLimit(p.kind) || delta > FreeWorkers)
                 throw new InvalidOperationException("没有空闲户或可用工位");
             p.workers += delta;
+            seasonalWork=false;
+        }
+        public bool CanUpgradePlot(int index)
+        {
+            if((uint)index>=slots.Length||!IsPlotGranted(index))return false;
+            var plot=slots[index];
+            if(plot.kind==null||plot.level>=BuildingMaxLevel||index==0&&cleared<HallRequirement(plot.level))return false;
+            var building=Def(plot.kind);
+            int rank=SpecialistLevel(Mason);
+            return coin>=MasonryCost(UpgradeAmount(building.coin,plot.level),rank)&&
+                timber>=MasonryCost(UpgradeAmount(building.timber,plot.level),rank);
         }
         static int UpgradeRefund(Building b,int level) => (int)LevelScaling.Scale(b.timber * .5,level);
         static int Precise(int whole,int fraction) => whole * 100 + fraction;
@@ -290,7 +301,8 @@ namespace Frontline.Core
         const int FileLimit = 32768;
         const int SpecialistSaveVersion = 5, ExpansionSaveVersion = 6, FrontierSaveVersion = 7, DevelopmentSaveVersion = 8;
         const int RetinueSaveVersion = 9, ClaimsSaveVersion = 10, NobilitySaveVersion = 11, CraftSaveVersion = 12;
-        public const int SaveVersion = CraftSaveVersion;
+        internal const int ArmamentSaveVersion = 13;
+        public const int SaveVersion = ArmamentSaveVersion;
         static readonly string[] LegacySaveFields = { "format","version","coin","food","timber","arms","workers","day","cleared","raidReady","slots","stock" };
         static readonly string[] ProgressSaveFields = LegacySaveFields.Concat(new[] { "remainder","training","heroes" }).ToArray();
         static readonly string[] OperationsSaveFields = ProgressSaveFields.Concat(new[] { "approval","tax","decree","market" }).ToArray();
@@ -301,7 +313,8 @@ namespace Frontline.Core
         static readonly string[] DevelopmentSaveFields = FrontierSaveFields.Concat(new[] { "prosperityPeak","developmentMask","chronicle" }).ToArray();
         static readonly string[] RetinueSaveFields = DevelopmentSaveFields.Concat(new[] { "retinue","influence","tithe" }).ToArray();
         static readonly string[] ClaimSaveFields = RetinueSaveFields.Concat(new[] { "clearedSectors","claimedSectors" }).ToArray();
-        static readonly string[] SaveFields = ClaimSaveFields.Concat(new[] { "nobility" }).ToArray();
+        static readonly string[] NobleSaveFields = ClaimSaveFields.Concat(new[] { "nobility" }).ToArray();
+        static readonly string[] SaveFields = NobleSaveFields.Concat(new[] { "seasonalWork" }).ToArray();
         static readonly string[] LegacyPlotSaveFields = { "kind","level","workers" };
         static readonly string[] BackyardPlotSaveFields = { "kind","level","workers","backyard" };
         static readonly string[] PlotSaveFields = { "kind","level","workers","backyard","fertility","rotation" };
@@ -335,7 +348,8 @@ namespace Frontline.Core
                 1 => LegacySaveFields, 2 => ProgressSaveFields, 3 => OperationsSaveFields, 4 => EventSaveFields,
                 SpecialistSaveVersion => SpecialistSaveFields, ExpansionSaveVersion => EstateSaveFields,
                 FrontierSaveVersion => FrontierSaveFields, DevelopmentSaveVersion => DevelopmentSaveFields,
-                RetinueSaveVersion => RetinueSaveFields, ClaimsSaveVersion => ClaimSaveFields, _ => SaveFields
+                RetinueSaveVersion => RetinueSaveFields, ClaimsSaveVersion => ClaimSaveFields,
+                NobilitySaveVersion or CraftSaveVersion => NobleSaveFields, _ => SaveFields
             });
             if (!(root["format"] is string f) || f != "frontline-manor" || !(root["raidReady"] is bool raid))
                 throw new FormatException("无效的庄园存档标识");
@@ -396,8 +410,10 @@ namespace Frontline.Core
                     coin = Number(parts["coin"],0,m.coin < MaxValue ? 99 : 0), food = Number(parts["food"],0,m.food < MaxValue ? 99 : 0),
                     timber = Number(parts["timber"],0,m.timber < MaxValue ? 99 : 0), arms = Number(parts["arms"],0,m.arms < MaxValue ? 99 : 0)
                 };
-                m.ReadProgress(root["training"],root["heroes"]);
+                m.ReadProgress(root["training"],root["heroes"],schema>=ArmamentSaveVersion);
             }
+            if(schema>=ArmamentSaveVersion)
+                m.seasonalWork=root["seasonalWork"] is bool adaptive?adaptive:throw new FormatException("季候调配状态无效");
             if (schema >= 3) m.ReadOperations(root,schema == 3 ? BaseMarketSeasonLimit : schema == 4 ? TitleMarketSeasonLimit : MaxMarketSeasonLimit + m.DevelopmentMarketBonus);
             if (schema >= 4)
             {

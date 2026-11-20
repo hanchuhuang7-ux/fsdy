@@ -64,14 +64,19 @@ namespace Frontline.UnityGame
             var marketStatus=Label(p,"",w*.59f,27,w*.41f-1,24,portrait?10:13,thriving,TextAnchor.MiddleRight);
             marketStatus.name="Manor.MarketNeeds.Summary";
             EventEntry(p,"Manor.Governance.Event",w-actionWidth,1,actionWidth,26,manorDialogValues,fromGovernance:true);
-            float nav=w/6;
+            float nav=w/7;
             ManorButton(p,"Manor.Specialists",portrait?"专才":"领地专才",0,52,nav-5,28,SpecialistsDialog);
             var development=ManorButton(p,"Manor.Development",portrait?"发展":"领地发展",nav,52,nav-5,28,DevelopmentDialog);
             var milestones=ManorButton(p,"Manor.Milestones",portrait?"宏愿":"领主宏愿",2*nav,52,nav-5,28,MilestonesDialog);
             var claims=ManorButton(p,"Manor.Claims",portrait?"疆域":"边疆疆域",3*nav,52,nav-5,28,TerritoryDialog);
             var nobility=ManorButton(p,"Manor.Nobility",portrait?"爵位":"贵族爵位",4*nav,52,nav-5,28,NobilityDialog);
-            var records=ManorButton(p,"Manor.Chronicle","编年史",5*nav,52,nav-1,28,ChronicleDialog);
-            if(portrait)records.GetComponentInChildren<Text>().fontSize=12;
+            var records=ManorButton(p,"Manor.Chronicle","编年史",5*nav,52,nav-5,28,ChronicleDialog);
+            var ledger=ManorButton(p,"Manor.Ledger.Open",portrait?"账本":"收支账本",6*nav,52,nav-1,28,LedgerDialog);
+            if(portrait)
+            {
+                records.GetComponentInChildren<Text>().fontSize=11;
+                ledger.GetComponentInChildren<Text>().fontSize=11;
+            }
             manorDialogValues.Add(()=>{
                 var todo=app.Estate.Todos;
                 SetTodoLook(development,(todo&ManorTodo.Development)!=0);
@@ -132,19 +137,33 @@ namespace Frontline.UnityGame
             Value(manorDialogValues,Label(p,"",1,y+policyEffect,w-2,portrait?26:21,portrait?11:12,pale,TextAnchor.UpperLeft),()=>DecreeEffect(app.Estate.decree));
             y+=portrait?78:72;
 
-            Label(p,"快捷调配",0,y,w,20,14,gold);
-            float presetWidth=w/3;
-            ManorButton(p,"Manor.Work.food","务农备粮",0,y+22,presetWidth-5,31,()=>app.AssignManorPreset("food"));
-            ManorButton(p,"Manor.Work.smithing","伐木锻造",presetWidth,y+22,presetWidth-5,31,()=>app.AssignManorPreset("smithing"));
-            ManorButton(p,"Manor.Work.balanced","均衡分配",presetWidth*2,y+22,presetWidth-5,31,()=>app.AssignManorPreset("balanced"));
+            Label(p,"快捷调配",0,y,w*.4f,20,14,gold);
+            Value(manorDialogValues,Label(p,"",w*.4f,y,w*.6f-5,20,portrait?10:12,pale,TextAnchor.MiddleRight),
+                ()=>app.Estate.seasonalWork?"季候自适应 · 换季自动调配":"季候方案可在换季自动调配");
+            float presetWidth=w/4;
+            PolicyChoices(p,w-presetWidth,y+22,"Manor.Work.",new[]{"food","smithing","balanced"},
+                new[]{"务农备粮","伐木锻造","均衡分配"},()=>null,app.AssignManorPreset);
+            var seasonal=ManorButton(p,"Manor.Work.seasonal","季候自适应",presetWidth*3,y+22,presetWidth-1,31,
+                ()=>app.AssignManorPreset("seasonal"));
+            if(portrait)seasonal.GetComponentInChildren<Text>().fontSize=11;
+            manorDialogValues.Add(()=>SetButtonTone(seasonal,app.Estate.seasonalWork?HudTone.Selected:HudTone.Secondary));
             y+=portrait?57:60;
             y+=InfluenceActions(p,w,y);
 
             Label(p,"行商集市",0,y,w*.45f,26,16,gold);
             Value(manorDialogValues,Label(p,"",w*.45f,y,w*.55f-5,26,13,white,TextAnchor.MiddleRight),
                 ()=>"金币 "+Manor.FormatHundredths(app.Estate.coin*100+app.Estate.remainder.coin));
-            Value(manorDialogValues,Label(p,"",0,y+22,w,21,portrait?11:12,pale),
-                ()=>"每种物资每季各买卖 "+app.Estate.MarketSeasonLimit+" 份 · 余 "+(Manor.SeasonDays-(app.Estate.day-1)%Manor.SeasonDays)+" 日刷新");
+            float quotaWidth=portrait?w*.46f:w*.54f;
+            Value(manorDialogValues,Label(p,"",0,y+23,quotaWidth-5,19,portrait?10:12,pale),
+                ()=>"各限 "+app.Estate.MarketSeasonLimit+" 份 · "+(Manor.SeasonDays-(app.Estate.day-1)%Manor.SeasonDays)+" 日刷新");
+            var caravan=Badge(p,"",quotaWidth,y+23,w-quotaWidth-1,19,portrait?11:12);
+            caravan.name="Manor.Caravan";
+            manorDialogValues.Add(()=>{
+                var offer=app.Estate.SeasonalCaravan;
+                string deal=offer.buyPercent<0?"购粮 −"+(-offer.buyPercent)+"%":
+                    (offer.resource=="timber"?"售材":"售军械")+" +"+offer.sellPercent+"%";
+                BadgeLook(caravan,caravan.transform.parent.GetComponent<Image>(),offer.title+" · "+deal,active:true);
+            });
             y+=portrait?45:43;
             int rowStep=portrait?53:60;
             MarketRow(p,w,y,"food","粮食");

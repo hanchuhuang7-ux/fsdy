@@ -54,6 +54,7 @@ namespace Frontline.Core
                 case "festival": return "召开领地庆典 · 鼓舞民心";
                 case "claim": return "宣称并筑哨 · "+Sectors[subject].name;
                 case "nobility": return "受封"+NobleRanks[subject].title+" · 赐地 "+NobleGrantPlots(subject,entry.choice==1);
+                case "armament": return "锻成 "+Armament(HeroIds[subject],entry.choice).title+" · 专属武装 "+entry.choice+" 阶";
                 default: throw new InvalidOperationException("未知编年史记录");
             }
         }
@@ -64,6 +65,8 @@ namespace Frontline.Core
         {
             if(chronicle==null||chronicle.Count>ChronicleLimit)return false;
             int previous=1,lastRank=0;
+            Span<int> lastArmament=stackalloc int[HeroIds.Length];
+            lastArmament.Clear();
             foreach(var entry in chronicle)
             {
                 if(entry.day<previous||entry.day>day||!ValidChronicleEntry(entry,schema))return false;
@@ -71,6 +74,11 @@ namespace Frontline.Core
                 {
                     if(entry.subject<=lastRank)return false;
                     lastRank=entry.subject;
+                }
+                if(entry.kind=="armament")
+                {
+                    if(entry.choice<=lastArmament[entry.subject])return false;
+                    lastArmament[entry.subject]=entry.choice;
                 }
                 previous=entry.day;
             }
@@ -90,6 +98,8 @@ namespace Frontline.Core
                 entry.choice>=2&&entry.choice<=SpecialistRank(SpecialistIds[subject]);
             if(entry.kind=="nobility")return schema>=NobilitySaveVersion&&subject>=1&&subject<=nobility&&
                 (entry.choice==0||entry.choice==1&&schema>=CraftSaveVersion);
+            if(entry.kind=="armament")return schema>=ArmamentSaveVersion&&(uint)subject<HeroIds.Length&&
+                entry.choice>=1&&entry.choice<=HeroArmament(HeroIds[subject]);
             if(entry.choice!=0)return false;
             switch(entry.kind)
             {

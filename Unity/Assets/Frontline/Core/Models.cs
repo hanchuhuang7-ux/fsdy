@@ -30,6 +30,16 @@ namespace Frontline.Core
         public string id,name,subtitle,glyph,description;
         public float cost,hp,damage,range,speed,cooldown,mass,scale=1,knock,heal;
         public bool ranged;
+        internal UnitDef WithArmament(HeroGear gear)
+        {
+            var equipped=(UnitDef)MemberwiseClone();
+            equipped.hp=WithLife(gear);
+            equipped.damage=damage*(100+gear.attack)/100;
+            equipped.range=range*(100+gear.reach)/100;
+            equipped.heal=heal*(100+gear.healing)/100;
+            return equipped;
+        }
+        public float WithLife(HeroGear gear) => hp*(100+gear.life)/100;
         public UnitDef AtLevel(int level)
         {
             if(level<=1)return this;
@@ -51,7 +61,7 @@ namespace Frontline.Core
     [Serializable] public class Mission {public string name,description,map,enemy;public int budget;}
     [Serializable] public class FormationDef {public string id;public List<UnitPlacement> red=new List<UnitPlacement>(),blue=new List<UnitPlacement>();}
     [Serializable] public class CatalogData {public string version;public List<UnitDef> units=new List<UnitDef>();public List<HeroDef> heroes=new List<HeroDef>();public List<PropDef> props=new List<PropDef>();public List<MapDef> maps=new List<MapDef>();public List<Mission> missions=new List<Mission>();public List<FormationDef> formations=new List<FormationDef>();}
-    [Serializable] public class UnitPlacement {public string type,stance="advance";public float x,z;[OmitZero] public int level;public UnitPlacement(){}public UnitPlacement(string type,float x,float z,string stance="advance"){this.type=type;this.x=x;this.z=z;this.stance=stance;}}
+    [Serializable] public class UnitPlacement {public string type,stance="advance";public float x,z;[OmitZero] public int level,armament;public UnitPlacement(){}public UnitPlacement(string type,float x,float z,string stance="advance"){this.type=type;this.x=x;this.z=z;this.stance=stance;}}
     [Serializable] public class PropPlacement {public string type,team="neutral";public float x,z;}
     [Serializable] public class CommanderConfig {public bool enabled;public List<string> aiTeams=new List<string>();}
     [Serializable] public class Deployment {public string version="0.6.0",map="meadow";public uint seed=42;public int budget=2200;public List<UnitPlacement> red=new List<UnitPlacement>(),blue=new List<UnitPlacement>();public List<PropPlacement> props=new List<PropPlacement>();public CommanderConfig commander=new CommanderConfig();[OmitZero] public int manorHall;public List<UnitPlacement> Army(string team){return team=="red"?red:blue;}}

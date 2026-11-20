@@ -8,7 +8,16 @@ namespace Frontline.Editor
     {
         static Geometry RetinueGuard(int lod)
         {
-            var model=lod==0?Body("shield",lod):DistantBody("shield");
+            if(lod==1)
+            {
+                var proxy=DistantBody("shield");
+                foreach(float x in new[]{-.15f,.15f})proxy.Box(V(x,-.64f,.025f),V(.16f,.45f,.23f),Dark);
+                proxy.Box(V(-.235f,-.04f,.26f),V(.42f,.64f,.09f),Indigo);
+                proxy.Cylinder(V(.36f,-.76f,.15f),V(.36f,1.22f,.15f),.041f,WoodLight,4);
+                proxy.SetAtGrade();
+                return proxy;
+            }
+            var model=Body("shield",lod);
             foreach(float x in new[]{-.15f,.15f})model.Append(Leg(lod),Matrix4x4.Translate(V(x,-.53f,0)));
             model.Append(Arm("militia",true,lod),Matrix4x4.identity);
             model.Append(Arm("militia",true,lod),Matrix4x4.Translate(V(.70f,0,0)));
@@ -335,6 +344,7 @@ namespace Frontline.Editor
             }
             for(int i=0;i<4;i++)
                 g.Box(V(0,.17f+.13f*i,-.10f+.245f*i),V(1.63f,.16f,.31f),WoodLight);
+            if(lod==0)QuaySkiff(g);
             return g;
         }
 
@@ -435,7 +445,8 @@ namespace Frontline.Editor
                 role==2?new Color(.31f,.47f,.32f,0):role==3?new Color(.28f,.37f,.43f,0):
                 role==4?new Color(.52f,.36f,.22f,0):new Color(.32f,.24f,.54f,0);
             Tunic(g,lod,coat);
-            g.Ellipsoid(V(0,.51f,.025f),V(.167f,.20f,.16f),Skin,n,3);
+            if(lod==0)FaceBust(g,V(0,.51f,.025f),V(.167f,.20f,.16f),role+1,role==3);
+            else g.Ellipsoid(V(0,.51f,.025f),V(.167f,.20f,.16f),Skin,n,3);
             g.Frustum(V(0,-.17f,0),V(.469f,0,.366f),V(0,-.10f,0),V(.475f,0,.372f),Wood,n);
             g.Box(V(0,-.115f,.188f),V(.16f,.083f,.048f),new Color(.74f,.68f,.46f,1));
             g.Quad(V(-.245f,.29f,-.18f),V(.245f,.29f,-.18f),V(.33f,-.38f,-.26f),V(-.31f,-.38f,-.26f),coat*.78f,true);
@@ -483,7 +494,11 @@ namespace Frontline.Editor
             }
             else if(role==4) MasonKit(g,n,lod);
             else MinstrelKit(g,n,lod);
-            if(lod==0)CapePleats(g,coat,.26f,-.34f);
+            if(lod==0)
+            {
+                CapePleats(g,coat,.26f,-.34f);
+                SpecialistRegalia(g,role,coat);
+            }
             return g;
         }
 

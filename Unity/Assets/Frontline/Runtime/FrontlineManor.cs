@@ -257,6 +257,7 @@ namespace Frontline.UnityGame
         public void Recruit(string id) => ManorAction(() => Estate.Recruit(ManorSlot,id),"已加入庄园库存","recruit");
         public void HireHero(string id) => ManorAction(() => Estate.HireHero(ManorSlot,Data.Heroes[id]),Data.Heroes[id].name+"已加入庄园","recruit");
         public void UpgradeHero(string id) => ManorAction(() => Estate.UpgradeHero(ManorSlot,Data.Heroes[id]),Data.Heroes[id].name+"已升级","recruit");
+        internal void ForgeHero(string id) => ManorAction(()=>Estate.ForgeHero(id),"专属武装锻造完成","forge");
         public void TrainUnit(string id) => ManorAction(() => Estate.Train(ManorSlot,id),Data.Units[id].name+"训练等级已提升","recruit");
         internal void SetManorTax(string id) => ManorAction(() => Estate.SetTax(id),"税率已调整",null);
         internal void SetManorDecree(string id) => ManorAction(() => Estate.SetDecree(id),"政令已调整",null);
@@ -297,7 +298,8 @@ namespace Frontline.UnityGame
             int cap=Manor.StaffLimit(plot.kind);
             return title+(cap==0?"":"  ·  派工 "+plot.workers+" / "+cap+(plot.workers==0?"  ·  闲置":""));
         }
-        internal void AssignManorPreset(string id) => ManorAction(() => Estate.AssignPreset(id),"派工已调配",null);
+        internal void AssignManorPreset(string id) => ManorAction(() => Estate.AssignPreset(id),
+            id=="seasonal"?"季候自适应已启用 · 换季自动调配":"派工已调配",null);
         internal void UpgradeSpecialist(string id) => ManorAction(() => Estate.UpgradeSpecialist(id),Manor.SpecialistName(id)+"已升级","recruit");
         internal void ResolveManorEvent(int issuedDay,int choice) => ManorAction(() => Estate.ResolveEvent(issuedDay,choice),"领地急报已结案",null);
         internal void TradeManor(string id,int units) => ManorAction(() => Estate.Trade(id,units),units>0?"已购入物资":"已售出物资","trade");

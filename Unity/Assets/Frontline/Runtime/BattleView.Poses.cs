@@ -65,6 +65,7 @@ namespace Frontline.UnityGame
             public UnitVisual model;
             public string stance;
             public float floor,hitFlash;
+            public int armament;
             public bool inspired,fortified;
         }
 
@@ -152,7 +153,7 @@ namespace Frontline.UnityGame
 
         void Soldier(UnitVisual model,string team,Vector3 p,float angle,float attack,int id,float hp=1,
             bool inspired=false,bool fortified=false,string stance="advance",float speed=0,float direction=0,
-            float gait=0,float hitFlash=0,float hitTiltX=0,float hitTiltZ=0,float charge=0,float guard=0,float floor=float.NaN)
+            float gait=0,float hitFlash=0,float hitTiltX=0,float hitTiltZ=0,float charge=0,float guard=0,float floor=float.NaN,int armament=0)
         {
             float scale=model.definition.scale;
             var input=new PoseInput {
@@ -172,7 +173,7 @@ namespace Frontline.UnityGame
                 RenderHeightSamples+=2;
                 if(Catalog.Finite(front)&&Catalog.Finite(back))input.terrainTilt=Mathf.Atan2(front-back,1.2f*scale)*Mathf.Rad2Deg;
             }
-            var draw=new PoseDraw{model=model,stance=stance,floor=floor,hitFlash=hitFlash,inspired=inspired,fortified=fortified};
+            var draw=new PoseDraw{model=model,stance=stance,floor=floor,hitFlash=hitFlash,armament=armament,inspired=inspired,fortified=fortified};
 #if !UNITY_WEBGL
             if(collectingPoses)
             {
@@ -263,6 +264,11 @@ namespace Frontline.UnityGame
             if(input.useMotionSample)oldMotion[input.id]=pose.motion;
             activeFlash=draw.hitFlash;
             Add(draw.model.body,pose.root,input.color);
+            if(draw.armament!=0&&draw.model.crest!=null)
+            {
+                var dye=draw.armament==3?new Color(1,.91f,.45f):draw.armament==2?Gold:new Color(.73f,.47f,.24f);
+                Add(draw.model.crest,pose.root,dye);
+            }
             if(input.kind==SoldierKind.Catapult)
             {
                 Add(catapult,pose.root,White);

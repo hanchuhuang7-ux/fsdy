@@ -9,6 +9,12 @@ static partial class ManorChecks
     {
         var old = (Dictionary<string,object>)Json.Parse(manor.Export());
         old["version"] = version;
+        if(version<Manor.ArmamentSaveVersion)
+        {
+            old.Remove("seasonalWork");
+            foreach(var hero in ((Dictionary<string,object>)old["heroes"]).Values)
+                ((Dictionary<string,object>)hero).Remove("armament");
+        }
         if(version<11)old.Remove("nobility");
         if(version<10)
         {
@@ -33,7 +39,7 @@ static partial class ManorChecks
         }
         if(version<5)old.Remove("specialists");
         int plots=version==1?10:version<5?Manor.OriginalPlotCount:version==5?Manor.FirstOuterPlot:
-            version==11?Manor.LegacyNoblePlotCount:Manor.FirstNoblePlot;
+            version==11?Manor.LegacyNoblePlotCount:version>=12?Manor.PlotCount:Manor.FirstNoblePlot;
         old["slots"]=LegacyPlots(old["slots"],plots,version>=8,version>=9);
         if (version < 4) old.Remove("eventDay");
         if (version < 3)
@@ -198,7 +204,7 @@ static partial class ManorChecks
         });
         check("market prices prevent arbitrage even across policy switches and preserve fractional balances",() => {
             var m = new Manor { coin = 500, timber = 500, food = 500, arms = 500 };
-            foreach (var price in new[] { ("food",300,200), ("timber",400,200), ("arms",800,500) })
+            foreach (var price in new[] { ("food",300,200), ("timber",400,240), ("arms",800,500) })
             {
                 m.SetDecree("none");
                 var normal = m.QuoteTrade(price.Item1);
@@ -212,7 +218,7 @@ static partial class ManorChecks
                 Expect(Purse(m) == before-discounted.buyPrice+discounted.sellPrice &&
                     m.QuoteTrade(price.Item1).inventory == normal.inventory,"trade changed inventory net or rounded coin");
             }
-            Expect(Purse(m) == 49640 && Manor.Import(m.Export()).Export() == m.Export(),"trade lost change through a save");
+            Expect(Purse(m) == 49684 && Manor.Import(m.Export()).Export() == m.Export(),"trade lost change through a save");
         });
         check("market quotas are independent and reset on exactly the next season",() => {
             var m = new Manor { day = 11, coin = 1000 };

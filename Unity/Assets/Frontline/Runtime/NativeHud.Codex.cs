@@ -72,6 +72,7 @@ namespace Frontline.UnityGame
                     break;
                 default:
                     y=CodexSection(p,w,y,"英雄酒馆",app.Data.Data.heroes.Select(hero=>HeroEntry(hero,estate)));
+                    if(estate!=null)y=CodexSection(p,w,y,"专属武装",app.Data.Data.heroes.Select(hero=>GearEntry(hero,estate)));
                     y=CodexSection(p,w,y,"领地专才",Manor.SpecialistIds.Select(id=>SpecialistEntry(id,estate)));
                     break;
             }
@@ -163,6 +164,16 @@ namespace Frontline.UnityGame
         }
 
         static string NumberText(float value) => value.ToString("0.##");
+        static CodexEntry GearEntry(HeroDef hero,Manor estate)
+        {
+            int tier=estate.HeroArmament(hero.id);
+            string description=string.Join("\n",Enumerable.Range(1,Manor.MaxHeroArmament).Select(stage=>{
+                var gear=Manor.Armament(hero.id,stage);
+                return stage+" 阶 · "+gear.title+"\n"+gear.Effect;
+            }));
+            return new CodexEntry("gear_"+hero.id,hero.name+" · 专属武装",
+                tier==0?"尚未装备":Manor.Armament(hero.id,tier).title,description,tier+" 阶",tier>0);
+        }
         static string UnitAttributes(UnitDef unit) =>
             "军费 "+NumberText(unit.cost)+" · 生命 "+NumberText(unit.hp)+" · 攻击 "+NumberText(unit.damage)+
             (unit.heal>0?" · 治疗 "+NumberText(unit.heal):"")+

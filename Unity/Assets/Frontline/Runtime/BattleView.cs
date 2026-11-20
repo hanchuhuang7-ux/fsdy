@@ -86,12 +86,12 @@ namespace Frontline.UnityGame
         }
         sealed class UnitVisual
         {
-            public readonly MeshSet body,right;
+            public readonly MeshSet body,right,crest;
             public readonly SoldierKind kind;
             public UnitDef definition;
-            public UnitVisual(string type,MeshSet body,MeshSet right)
+            public UnitVisual(string type,MeshSet body,MeshSet right,MeshSet crest=null)
             {
-                this.body=body;this.right=right;
+                this.body=body;this.right=right;this.crest=crest;
                 kind=type=="cavalry"?SoldierKind.Cavalry:type=="catapult"?SoldierKind.Catapult:
                     type=="shield"?SoldierKind.Shield:SoldierKind.Infantry;
             }
@@ -220,7 +220,9 @@ namespace Frontline.UnityGame
         static bool DetailedCaster(string name) =>
             name.StartsWith("body_",StringComparison.Ordinal)||name.StartsWith("arm_right_",StringComparison.Ordinal)||
             name=="leg"||name=="horse"||name=="horse_leg"||name=="wreck_horse"||name=="shield"||
-            name=="catapult"||name=="wreck_catapult"||name=="retinue_guard"||name=="frontier_gate"||name=="manor_hall"||
+            name=="catapult"||name=="catapult_arm"||name=="wreck_catapult"||name=="retinue_guard"||name=="frontier_gate"||name=="manor_hall"||
+            name=="head"||name=="tree"||name=="pine"||name=="rock"||name=="prop_barrel"||name=="prop_barricade"||name=="prop_banner"||
+            name.StartsWith("specialist_",StringComparison.Ordinal)||
             System.Array.IndexOf(Manor.Buildings,name)>=0||name.EndsWith("_wing",StringComparison.Ordinal)||name.EndsWith("_tower",StringComparison.Ordinal);
         Batch Buffer(MeshSet mesh,List<Batch> list,int category)
         {
@@ -240,7 +242,8 @@ namespace Frontline.UnityGame
         {
             if(!units.TryGetValue(type,out var model))
             {
-                model=new UnitVisual(type,Load("body_"+type),Load("arm_right_"+type));
+                var crest=Data.Heroes.ContainsKey(type)?Load("crest_"+type).WithoutShadows():null;
+                model=new UnitVisual(type,Load("body_"+type),Load("arm_right_"+type),crest);
                 units.Add(type,model);
             }
             if(model.definition==null)model.definition=Data.Unit(type);
@@ -378,7 +381,9 @@ namespace Frontline.UnityGame
                 for(int i=0;i<Config.red.Count;i++)
                 {
                     var unit=Config.red[i];
-                    manorMaxHp[i]=(float)LevelScaling.Scale(Data.Unit(unit.type).hp,unit.level);
+                    float health=(float)LevelScaling.Scale(Data.Unit(unit.type).hp,unit.level);
+                    if(unit.armament>0)health=health*(100+Manor.Armament(unit.type,unit.armament).life)/100;
+                    manorMaxHp[i]=health;
                 }
                 if(patrol)
                     for(int i=0;i<Config.blue.Count;i++)
@@ -427,7 +432,7 @@ namespace Frontline.UnityGame
             {
                 var model=Model(u.type);
                 float floor=UnitFloor(id,u.x,u.z);
-                Soldier(model,team,new Vector3(u.x,floor+.8f*model.definition.scale,u.z),angle,0,id++,stance:u.stance,floor:floor);
+                Soldier(model,team,new Vector3(u.x,floor+.8f*model.definition.scale,u.z),angle,0,id++,stance:u.stance,floor:floor,armament:u.armament);
             }
         }
         void DrawLiveFrame()
@@ -442,7 +447,9 @@ namespace Frontline.UnityGame
             foreach(var u in Current.units)if(u.alive&&u.t!=null)
             {
                 var model=Model(u.type);
-                Soldier(model,u.team,new Vector3(u.t[0],u.t[1],u.t[2]),u.angle,u.attack,u.id,u.hp/MaxHp(model.definition,u.id),u.inspired,u.fortified,u.stance,u.moveSpeed,u.moveForward,u.gait,u.hitFlash,u.hitTiltX,u.hitTiltZ,u.charge,u.guard);
+                int index=u.id-1;
+                int armament=Config.manorHall>0&&(uint)index<Config.red.Count?Config.red[index].armament:0;
+                Soldier(model,u.team,new Vector3(u.t[0],u.t[1],u.t[2]),u.angle,u.attack,u.id,u.hp/MaxHp(model.definition,u.id),u.inspired,u.fortified,u.stance,u.moveSpeed,u.moveForward,u.gait,u.hitFlash,u.hitTiltX,u.hitTiltZ,u.charge,u.guard,armament:armament);
             }
             if(jobs)FinishSoldierPoses();
             foreach(var p in Current.props)if(p.alive)Prop(p.type,p.team,p.x,p.z,p.floor,p.active);

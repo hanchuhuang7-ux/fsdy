@@ -232,6 +232,7 @@ namespace Frontline.UnityGame
             CheckButtonHit("Manor.Force.Recommend");CheckButtonHit("Manor.Patrol.Start");
             Require(app.GetComponent<BattleInput>().Shortcut(KeyCode.Escape)&&!app.Modal,"Portrait muster could not close");
             yield return CheckPortraitCodex(captures);
+            yield return CheckEconomy(captures,true);
             app.ImportText(saved);
         }
 
@@ -711,6 +712,7 @@ namespace Frontline.UnityGame
                 "Manor state or weather leaked into the arena");
             yield return CheckArenaCodex(captures);
             yield return CheckHudArena(captures);
+            yield return CheckArenaLandscape(captures);
 
             Require(Screen.width==1280&&Screen.height==800,"Main smoke switched away from the desktop viewport");
             yield return CheckPortrait(captures);
@@ -742,6 +744,7 @@ namespace Frontline.UnityGame
                 nobilityVerified,codexTabsVerified,arenaCodexVerified,portraitCodexVerified,dukePlotsBuilt,rankSounds,nobleDetails,
                 nobleRank=app.Estate.nobility,grantedPlots=app.Estate.GrantedPlots,
                 craftBuildingsVerified,codexLineBreaksVerified,specialistCloseupMask,heroCloseupMask,retinueCloseup,arenaCloseup,
+                forgedTiers,forgeClips,ledgerVerified,plotFiltersVerified,caravanVerified,portraitEconomyVerified,armedPatrolVerified,landscapeVerified,
                 clearedSectors=app.Estate.clearedSectors,claimedSectors=app.Estate.claimedSectors,
                 barnyard=app.Estate.slots[1].backyard,developmentMask=app.Estate.developmentMask,
                 chronicleEntries=app.Estate.chronicle.Count,

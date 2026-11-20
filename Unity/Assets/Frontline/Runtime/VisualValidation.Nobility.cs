@@ -90,7 +90,6 @@ namespace Frontline.UnityGame
                 app.View.Focus(new Vector3(FrontierMap.ManorX-2.10f,1.03f,-.10f),13.9f,35,-7);
                 yield return ManorShot("160-manor-details");
             }
-            yield return CheckResidentCloseups(captures);
             yield return Press("Manor.Governance");
             yield return Press("Manor.Chronicle");
             Require(Displays("受封公爵 · 赐地 "+Manor.NobleGrantPlots(4))&&
@@ -98,6 +97,11 @@ namespace Frontline.UnityGame
                 "Expansion or craft chronicle entry missing");
             yield return Press("关闭");
             nobilityVerified=true;
+            yield return CheckArmaments(captures);
+            yield return CheckResidentCloseups(captures);
+            yield return CaptureArmamentArt(captures);
+            yield return CheckEconomy(captures,false);
+            estate=app.Estate;
 
             yield return Press("Codex.Open");
             CheckModalSkin("游戏图鉴");
@@ -121,7 +125,8 @@ namespace Frontline.UnityGame
                 "Rank, region or development records incomplete");
             if(captures)yield return ManorShot("150-codex-nobility");
             yield return Press("Codex.Tab.3");
-            Require(CountCodexEntries()==9&&HudElement<Image>("Codex.Entry."+Manor.Mason)&&HudElement<Image>("Codex.Entry."+Manor.Minstrel)&&
+            Require(CountCodexEntries()==12&&HudElement<Image>("Codex.Entry."+Manor.Mason)&&HudElement<Image>("Codex.Entry."+Manor.Minstrel)&&
+                Displays(Manor.Armament(Manor.HeroIds[0],3).title)&&
                 Displays("当前 Lv."+estate.SpecialistLevel("watchman"))&&
                 Displays("圣辉 · "+app.Data.Heroes["hero_commander"].subtitle),
                 "Heroes or specialist ranks missing");
@@ -129,6 +134,8 @@ namespace Frontline.UnityGame
             if(captures)
             {
                 yield return ManorShot("160-codex-people");
+                yield return RevealCodexEntry("gear_"+Manor.HeroIds[0]);
+                yield return ManorShot("170-codex-gear");
                 yield return RevealCodexEntry(Manor.Mason);
                 yield return ManorShot("160-codex-specialists");
             }
@@ -162,6 +169,8 @@ namespace Frontline.UnityGame
             Require(CountCodexEntries()==15&&labels.All(label=>!label.text.Contains("库存")&&!label.text.Contains("训练 Lv.")&&
                 !label.text.Contains("靶场 Lv."))&&Json.Write(app.Config)==arena,"Duel codex exposed manor progression");
             if(captures)yield return ManorShot("150-arena-codex");
+            yield return Press("Codex.Tab.3");
+            Require(CountCodexEntries()==9&&!Displays(Manor.Armament(Manor.HeroIds[0],3).title),"Duel codex exposed equipped armament");
             yield return Press("关闭");
             arenaCodexVerified=true;
         }

@@ -14,6 +14,8 @@ namespace Frontline.Editor
             name.StartsWith("villager_",StringComparison.Ordinal)||name=="resident_sleeve"||
             name=="leg"||name=="horse"||name=="wreck_horse"||name=="horse_leg"||name=="shield"||name=="catapult"||
             name=="wreck_catapult"||name=="frontier_gate"||name=="bridge_fittings"||name=="retinue_guard"||
+            name.StartsWith("prop_",StringComparison.Ordinal)&&name!="prop_spring"&&name!="prop_spikes"||
+            name=="head"||name=="rock"||name=="tree"||name=="pine"||name=="catapult_arm"||
             Array.IndexOf(Manor.Buildings,name)>=0||name.EndsWith("_wing",StringComparison.Ordinal)||name.EndsWith("_tower",StringComparison.Ordinal);
 
         static void UniformDetail(Geometry g,string role)

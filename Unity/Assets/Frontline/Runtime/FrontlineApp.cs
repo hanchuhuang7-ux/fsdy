@@ -224,7 +224,19 @@ namespace Frontline.UnityGame
                 }
                 return;
             }
-            if(Battle.Result!=null&&archive!=null){if(recorded[recorded.Count-1].tick!=Battle.Tick)recorded.Add(RecordFrame());ReplayFile=Replay.Create(Data,Config,recorded,Battle.Result,engineVersion:InManor?Replay.RefinedExpeditionEngine:Replay.RefinedEngine);if(Bo3&&Series!=null)Series.Record(Config,Battle.Result);Phase="result";if(InManor)SaveResult();Tell(Battle.Result.winner=="draw"?"本局平局":(Battle.Result.winner=="red"?"红方":"蓝方")+"获胜");Refresh();}
+            if(Battle.Result!=null&&archive!=null)
+            {
+                if(recorded[recorded.Count-1].tick!=Battle.Tick)recorded.Add(RecordFrame());
+                string engine=InManor
+                    ? Config.red.Exists(unit=>unit.armament>0)?Replay.ArmamentExpeditionEngine:Replay.RefinedExpeditionEngine
+                    : Replay.RefinedEngine;
+                ReplayFile=Replay.Create(Data,Config,recorded,Battle.Result,engineVersion:engine);
+                if(Bo3&&Series!=null)Series.Record(Config,Battle.Result);
+                Phase="result";
+                if(InManor)SaveResult();
+                Tell(Battle.Result.winner=="draw"?"本局平局":(Battle.Result.winner=="red"?"红方":"蓝方")+"获胜");
+                Refresh();
+            }
         }
         Frame RecordFrame(){if(archiveIndex>=archive.Length)throw new InvalidOperationException("Replay frame limit exceeded");return Battle.Snapshot(archive[archiveIndex++]);}
         public Frame CurrentFrame {get{return live;}}

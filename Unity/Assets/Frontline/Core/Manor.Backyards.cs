@@ -68,13 +68,17 @@ namespace Frontline.Core
             slots[plot].backyard=id;
         }
 
-        void AddBackyardYield(ManorPlot plot,ref ManorDay balance,ref bool poultry)
+        void AddBackyardYield(ManorPlot plot,ref ManorDay balance,ref bool poultry,Span<ManorLedgerLine> ledger)
         {
             switch(plot.backyard)
             {
-                case "garden": balance.food+=NobleYield(GardenYield(plot.level)); break;
-                case "poultry": balance.food+=NobleYield(80); balance.coin+=NobleYield(60); poultry=true; break;
-                case "workshop": balance.coin+=NobleYield(150); if(plot.level>=2)balance.arms+=NobleYield(30); break;
+                case "garden": balance.food+=BackyardOutput(ledger,ManorLedgerResource.Food,GardenYield(plot.level)); break;
+                case "poultry":
+                    balance.food+=BackyardOutput(ledger,ManorLedgerResource.Food,80);
+                    balance.coin+=BackyardOutput(ledger,ManorLedgerResource.Coin,60); poultry=true; break;
+                case "workshop":
+                    balance.coin+=BackyardOutput(ledger,ManorLedgerResource.Coin,150);
+                    if(plot.level>=2)balance.arms+=BackyardOutput(ledger,ManorLedgerResource.Arms,30); break;
             }
         }
 

@@ -1,6 +1,6 @@
 {
     "generator": "Frontline.Editor.ModelBaker",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "vertexColor": "rgb=albedo; alpha=faction multiply weight",
     "resources": [
         "Models/body_militia",
@@ -218,10 +218,13 @@
         "Models/weaver_tower",
         "Models/body_hero_vanguard",
         "Models/arm_right_hero_vanguard",
+        "Models/crest_hero_vanguard",
         "Models/body_hero_ranger",
         "Models/arm_right_hero_ranger",
+        "Models/crest_hero_ranger",
         "Models/body_hero_commander",
         "Models/arm_right_hero_commander",
+        "Models/crest_hero_commander",
         "Models/manor_hall_lod1",
         "Models/cottage_lod1",
         "Models/farm_lod1",
@@ -309,9 +312,12 @@
         "Models/weaver_tower_lod1",
         "Models/body_hero_vanguard_lod1",
         "Models/arm_right_hero_vanguard_lod1",
+        "Models/crest_hero_vanguard_lod1",
         "Models/body_hero_ranger_lod1",
         "Models/arm_right_hero_ranger_lod1",
+        "Models/crest_hero_ranger_lod1",
         "Models/body_hero_commander_lod1",
-        "Models/arm_right_hero_commander_lod1"
+        "Models/arm_right_hero_commander_lod1",
+        "Models/crest_hero_commander_lod1"
     ]
 }

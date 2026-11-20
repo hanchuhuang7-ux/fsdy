@@ -63,6 +63,8 @@ namespace Frontline.UnityGame
         public int VisibleFarmers {get;private set;}
         public int VisibleVillagers {get;private set;}
         internal int VisibleHeroMask {get;private set;}
+        internal Vector3 ManorHeroPoint(int index) => ManorOrigin+heroBays[index];
+        internal float ManorHeroYaw(int index) => localHeading[HeroFirst+index];
         WalkRoute[] walks;
         readonly System.Collections.Generic.List<Batch> ambient=new System.Collections.Generic.List<Batch>();
         readonly float[] localHeading=new float[SpecialistFirst+Manor.SpecialistIds.Length];
@@ -732,7 +734,8 @@ namespace Frontline.UnityGame
                 var p=heroBays[heroIndex]+Vector3.up*(model.definition.scale*.8f);
                 float desired=(heroIndex==0?-83:81)+(resting?4:13)*Mathf.Sin(pace);
                 float facing=LocalHeading(HeroFirst+heroIndex,desired+FacadeYaw(tavernSlot))*Mathf.Deg2Rad;
-                Soldier(model,"red",p+ManorOrigin,facing,0,200+heroIndex,speed:resting?0:.66f,direction:1,gait:manorTime*.63f);
+                Soldier(model,"red",p+ManorOrigin,facing,0,200+heroIndex,speed:resting?0:.66f,direction:1,gait:manorTime*.63f,
+                    armament:manor.HeroArmament(id));
             }
         }
 

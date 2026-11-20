@@ -65,9 +65,10 @@ namespace Frontline.Core
                     if(u==null||u.type==null||!LegalPosition(c,team,u.x,u.z))throw new FormatException("兵种、半场或坐标无效");
                     if(manorArmy&&Heroes.ContainsKey(u.type))
                     {
-                        if(u.level<1||u.level>Manor.HeroMaxLevel||!deployedHeroes.Add(u.type))throw new FormatException("英雄等级或名册无效");
+                        if(u.level<1||u.level>Manor.HeroMaxLevel||(uint)u.armament>Manor.MaxHeroArmament||!deployedHeroes.Add(u.type))
+                            throw new FormatException("英雄等级、武装或名册无效");
                     }
-                    else if(!Units.ContainsKey(u.type)||(manorArmy?u.level<1||u.level>Manor.UnitMaxLevel:u.level!=guardLevel))
+                    else if(!Units.ContainsKey(u.type)||u.armament!=0||(manorArmy?u.level<1||u.level>Manor.UnitMaxLevel:u.level!=guardLevel))
                         throw new FormatException("兵种或等级无效");
                     if(string.IsNullOrEmpty(u.stance))u.stance="advance";if(!Stances.Contains(u.stance))throw new FormatException("未知姿态");
                 }

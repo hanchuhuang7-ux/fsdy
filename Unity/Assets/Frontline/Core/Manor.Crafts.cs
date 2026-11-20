@@ -13,7 +13,7 @@ namespace Frontline.Core
         static int MasonTimberBonus(int rank) => rank*3;
         static int MasonryCost(int price,int rank) => rank==0?price:Math.Max(1,price*(100-MasonDiscount(rank))/100);
 
-        void BakeBread(ReadOnlySpan<int> bakeries,int grainAvailable,int approval,ref ManorDay balance)
+        void BakeBread(ReadOnlySpan<int> bakeries,int grainAvailable,int approval,ref ManorDay balance,Span<ManorLedgerLine> ledger)
         {
             // Each bakery draws from the remaining primary grain, so today's bread cannot feed another oven.
             foreach(int index in bakeries)
@@ -24,8 +24,9 @@ namespace Frontline.Core
                 int consumed=working*BreadInput*100;
                 grainAvailable-=consumed;
                 balance.bakeryGrain+=consumed;
-                balance.food+=NobleYield(ScaleYield(Yield(BreadOutput,plot.level)*working,approval,
-                    synergyPercent:100+balance.synergy.breadPercent))-consumed;
+                balance.food+=DailyOutput(ledger,ManorLedgerSource.Bakery,ManorLedgerResource.Food,Yield(BreadOutput,plot.level)*working,
+                    approval,synergy:100+balance.synergy.breadPercent)-consumed;
+                Record(ledger,ManorLedgerSource.BakeryInput,ManorLedgerResource.Food,-consumed);
             }
         }
     }

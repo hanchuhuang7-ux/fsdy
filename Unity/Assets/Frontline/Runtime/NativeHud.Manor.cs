@@ -332,9 +332,10 @@ namespace Frontline.UnityGame
                 "建地 "+index+"   "+(ungranted?Manor.NobleRanks[rank].title+"封地":uncleared?"待开垦林地":kind==null?"空置":Manor.Name(kind));
             if(slot!=null&&slot.level>0)title+="   Lv."+slot.level;
             bool recruiting=kind=="barracks"||kind=="stables",heroes=kind=="tavern",training=kind=="drill_yard",cottage=kind=="cottage";
+            bool smithy=kind=="smithy";
             float governanceWidth=portrait?64:82,retinueWidth=portrait?69:84;
             float governanceX=w-85-governanceWidth,retinueX=governanceX-5-retinueWidth;
-            Label(p,title,12,4,index==0?retinueX-16:w-(recruiting||heroes||training||cottage?188:111),27,portrait?16:19,gold);
+            Label(p,title,12,4,index==0?retinueX-16:w-(recruiting||heroes||training||cottage||smithy?188:111),27,portrait?16:19,gold);
             if(cottage)ManorButton(p,"Manor.Backyard","后院副业",w-169,5,84,29,()=>BackyardDialog(index),true);
             if(index==0)
             {
@@ -344,6 +345,7 @@ namespace Frontline.UnityGame
             if(recruiting)
                 ManorButton(p,"Manor.Recruits",kind=="barracks"?"招募":"备军",w-151,5,66,29,Recruitment,true);
             if(heroes)ManorButton(p,"Manor.Heroes","英雄",w-151,5,66,29,HeroTavern,true);
+            if(smithy)ManorButton(p,"Manor.Smithy.Gear","武装",w-151,5,66,29,()=>HeroForgeDialog(null),true);
             if(training)ManorButton(p,"Manor.Training","强化",w-151,5,66,29,BarracksTraining,true);
             ManorButton(p,"Manor.Plots","选地",w-80,5,68,29,PlotList);
             string description=index<0?"点击地块查看建筑、派工或建造。":
@@ -467,29 +469,69 @@ namespace Frontline.UnityGame
             manorValues.Add(()=>SetButtonTone(b,app.ManorSpeed==rate?HudTone.Selected:HudTone.Secondary));
         }
 
-        void PlotList()
+        void PlotList() => PlotList(0);
+
+        static readonly string[] PlotFilters={"全部","闲置未满员","可升级","空地与封地"};
+
+        void PlotList(int filter)
         {
             OpenDialog("建地清单",(p,w)=>{
-                var estate=app.Estate;
                 int columns=portrait?2:3;
                 float cell=w/columns;
                 const int row=51;
-                for(int i=0;i<estate.slots.Length;i++)
+                var buttons=new Button[Manor.PlotCount];
+                var captions=new Text[buttons.Length];
+                for(int i=0;i<buttons.Length;i++)
                 {
                     int index=i;
-                    var plot=estate.slots[i];
-                    string name=(i==0?"中央":"建地 "+i)+"  "+(plot.kind==null?"":Manor.Name(plot.kind));
-                    int capacity=Manor.StaffLimit(plot.kind);
-                    string state=!estate.IsPlotGranted(i)?Manor.NobleRanks[Manor.PlotRank(i)].title+"封地 · 未封授":
-                        plot.kind==null?(estate.IsPlotCleared(i)?"空置":"待开垦"):
-                        "Lv."+plot.level+(capacity>0?"  ·  派工 "+plot.workers+"/"+capacity:"");
-                    var button=ManorButton(p,"Manor.Slot."+i,name.TrimEnd()+"\n"+state,
-                        i%columns*cell,i/columns*row,cell-5,row-5,
+                    buttons[i]=ManorButton(p,"Manor.Slot."+i,"",0,0,cell-5,row-5,
                         ()=>{CloseDialog();app.SelectManorSlot(index,focus:true);},selected:app.ManorSlot==i);
-                    if(portrait)button.GetComponentInChildren<Text>().fontSize=12;
+                    captions[i]=buttons[i].GetComponentInChildren<Text>();
+                    if(portrait)captions[i].fontSize=12;
                 }
-                p.sizeDelta=new Vector2(w,Mathf.Ceil(estate.slots.Length/(float)columns)*row-5);
-            },570,maxWidth:840);
+                var empty=Label(p,"没有匹配的建地",4,0,w-8,44,14,pale);
+                int revision=-1;
+                void UpdatePlots()
+                {
+                    if(revision==app.ManorRevision)return;
+                    revision=app.ManorRevision;
+                    var estate=app.Estate;
+                    int shown=0;
+                    for(int i=0;i<buttons.Length;i++)
+                    {
+                        var plot=estate.slots[i];
+                        int capacity=Manor.StaffLimit(plot.kind);
+                        bool include=filter switch {
+                            1=>plot.workers<capacity, 2=>estate.CanUpgradePlot(i), 3=>plot.kind==null, _=>true
+                        };
+                        buttons[i].gameObject.SetActive(include);
+                        if(!include)continue;
+                        string name=(i==0?"中央":"建地 "+i)+(plot.kind==null?"":"  "+Manor.Name(plot.kind));
+                        string state=!estate.IsPlotGranted(i)?Manor.NobleRanks[Manor.PlotRank(i)].title+"封地 · 未封授":
+                            plot.kind==null?(estate.IsPlotCleared(i)?"空置":"待开垦"):
+                            "Lv."+plot.level+(capacity>0?"  ·  派工 "+plot.workers+"/"+capacity:"");
+                        captions[i].text=name+"\n"+state;
+                        ((RectTransform)buttons[i].transform).anchoredPosition=new Vector2(shown%columns*cell,-(shown/columns*row));
+                        shown++;
+                    }
+                    empty.gameObject.SetActive(shown==0);
+                    p.sizeDelta=new Vector2(w,Mathf.Max(46,Mathf.Ceil(shown/(float)columns)*row-5));
+                }
+                UpdatePlots();
+                manorDialogValues.Add(UpdatePlots);
+            },570,maxWidth:840,wholeRows:true,header:(p,w)=>{
+                float cell=w/PlotFilters.Length;
+                for(int i=0;i<PlotFilters.Length;i++)
+                {
+                    int next=i;
+                    var button=ManorButton(p,"Manor.Plots.Filter."+i,PlotFilters[i],i*cell,0,cell-5,33,()=>{
+                        if(filter==next)return;
+                        if(dialogContent)dialogContent.anchoredPosition=Vector2.zero;
+                        PlotList(next);
+                    },selected:filter==i);
+                    if(portrait)button.GetComponentInChildren<Text>().fontSize=11;
+                }
+            });
         }
 
         void BuildingMenu()
@@ -590,8 +632,11 @@ namespace Frontline.UnityGame
         {
             int index=app.ManorSlot;
             OpenDialog("英雄酒馆 · 招募与培养",(p,w)=>{
-                var supplies=Label(p,"",0,0,w,32,13,gold);
-                Value(manorDialogValues,supplies,()=>"金币 "+app.Estate.coin+" · 粮食 "+app.Estate.food+" · 每级核心数值 ×1.1");
+                float forgeWidth=portrait?91:130;
+                var supplies=Label(p,"",0,0,w-forgeWidth-7,32,portrait?11:13,gold);
+                Value(manorDialogValues,supplies,()=>"金币 "+app.Estate.coin+" · 粮食 "+app.Estate.food+
+                    (portrait?"":" · 每级核心数值 ×1.1"));
+                ManorButton(p,"Manor.Tavern.Gear","武装锻造",w-forgeWidth,0,forgeWidth,30,()=>HeroForgeDialog(HeroTavern));
                 float y=35;
                 foreach(var hero in app.Data.Data.heroes)
                 {
@@ -660,9 +705,9 @@ namespace Frontline.UnityGame
             },680);
         }
 
-        void MarchDialog(bool raid,bool frontier=false)
+        void MarchDialog(bool raid,bool frontier=false,int? stageToKeep=null)
         {
-            chosenStage=app.Estate.RaidStage;
+            chosenStage=stageToKeep??app.Estate.RaidStage;
             OpenDialog(frontier?"边疆巡边 · 集结队伍":raid?"迎敌 · 掠夺者小队":"远征 · 调派驻军",(p,w)=>{
                 float y=0;
                 if(frontier)
@@ -700,6 +745,10 @@ namespace Frontline.UnityGame
                 });
                 y+=portrait?50:32;
                 Label(p,frontier?"巡边名册":"远征名册",0,y,w,29,16,gold);
+                ManorButton(p,"Manor.March.Gear","武装锻造",w-103,y,102,28,()=>{
+                    int stage=chosenStage;
+                    HeroForgeDialog(()=>MarchDialog(raid,frontier,stage));
+                });
                 y+=34;
                 y+=MusterSupport(p,w,y,frontier,raid);
                 int availableItems=0;
@@ -816,13 +865,18 @@ namespace Frontline.UnityGame
             bool hero=app.Data.Heroes.ContainsKey(id),prop=app.Data.Props.ContainsKey(id);
             int cost=(int)(prop?app.Data.Props[id].cost:app.Data.Unit(id).cost);
             int level=hero?app.Estate.HeroLevel(id):app.Estate.UnitLevel(id);
-            Label(row,ItemName(id)+(prop?"":"  Lv."+level),10,1,w-183,25,14,white);
+            var title=Label(row,ItemName(id)+(prop?"":"  Lv."+level),10,1,w-168,25,portrait?12:14,white);
             var reason=Label(row,"",10,24,w-110,h-26,portrait?10:11,pale);
             var count=Badge(row,"",w-165,4,61,20,12);
             var badge=count.transform.parent.GetComponent<Image>();
             var minus=ManorButton(row,"Manor.Force.Minus."+id,"-",w-95,6,43,38,()=>app.SelectForce(id,-1,frontier,raid));
             var plus=ManorButton(row,"Manor.Force.Plus."+id,"＋",w-48,6,43,38,()=>app.SelectForce(id,1,frontier,raid));
             manorDialogValues.Add(()=>{
+                if(hero)
+                {
+                    int tier=app.Estate.HeroArmament(id);
+                    title.text=ItemName(id)+" Lv."+level+(tier==0?"":" · "+tier+" 阶");
+                }
                 string blocked=app.ForceAddBlock(id,frontier,raid);
                 var unit=prop?null:app.Data.Unit(id);
                 reason.text=blocked!=null?cost+" 军费 · "+blocked:unit==null?cost+" 军费":
@@ -1015,6 +1069,10 @@ namespace Frontline.UnityGame
         {
             OpenDialog("领主手册",(p,w)=>{
                 string text="建地与领民\n半岛有 24 块建地。18–23 号外环林地花 8 金币开垦，收回 4 建材。「选地」清单可选中地块并聚焦。农舍和牧场提供住房，有余粮时迎来新户。选择农舍，可花金币和建材启用或切换一项后院副业，每日结算无需派工。\n\n发展与供给\n历次称号晋升和领取三项宏愿共可获得最多四点发展点。在政务按路线解锁专精。口粮、薪柴和精神供给齐备时，市集兴旺每天额外提高 1 点民心。编年史保留最近十二件领地大事。\n\n领主宏愿\n在领地政务查看六项里程碑，达成即可领取一次奖励。完成全部远征，或在一次巡边击退全部守军，可达成「平定四方」。\n\n生产协同\n运转中的谷仓提振产粮，应急时保住粮底。礼拜堂提升民心和伤员救回率。农田搭配牧场或谷仓可增产，伐木营搭配铁匠铺可增产军械。农舍累计 3 级并建有礼拜堂或酒馆可获得安居民心。\n\n领地专才\n在政务中查看管家、掌柜、医者和巡庄队长。四位分别改善税收、贸易、医护与战备。解锁后从 Lv.1 起，可用金币与物资培养到 Lv.3。\n\n领地运营\n低税、食谱丰富与酒馆能提高民心，低于 40 暂停迁入。夏秋田产增加，冬季按每四户一份建材取暖。政务可切换税率和政令，账本预览收支。集市每季刷新额度，急报可自行打开处理。\n\n边疆巡边\n集结后用「推进」点选外域地面。桥头金线外会接战，撤回线内即可脱离追击。可发军令、撤回半岛或结算归营。缺粮时最多带 3 人。一次巡边击退全部 15 名守军后，可在集结时选警戒 2、3 阶，挑战更强守军并获得更多奖励。\n\n培养与远征\n酒馆派工后开放英雄培养。兵营训练兵种，练兵靶场和马厩工坊征召与备货。战前可一键编队，布阵时用「移动」调整兵员或道具。战后可看回放并查看结算。\n\n地力与轮作\n新田地力 100%，产粮按地力缩放，范围 60%–120%。自动轮作冬季或地力低于 80% 时休耕。自动耕作每季减 8，精耕四季生产、每季减 12，休耕不产粮、每季回养 25。牧场派工后，自动轮作和休耕田每季再回养 5。\n\n领主卫队\n在宅邸招募亲兵并强化披甲。宅邸三级分别可养 2、4、6 人。卫队在门前值守，随军占行军名额，战损回营后可用金币整补。\n\n威望与自由兵团\n政务可开启什一赈济。粮食净产为正且留足两日口粮时，捐出约一成净粮（至少一份），每日得 1 威望。远征凯旋、击退掠夺者、清空巡边三营都有战功威望。花 25 威望办庆典，民心 +8。花 20 威望刷新集市额度。出征或巡边可选三人兵团，开战消耗 30 威望和 12 金币，归营解散。\n\n边疆疆域\n一座营地的 5 名守军全灭并归营结算后，在领地政务的「边疆疆域」花威望与建材宣称。西桥前哨每日送 1.5 建材，北林猎场送 2 粮并提供猎物，东岭铁脉送 1 军械。宣称后在地图插起红金旗。再次巡边仍可挑战各营守军。\n\n四季天气\n春夏多晴，偶有细雨。秋日落叶，冬日飘雪。庄园和外域视角的天气随日历变化，微粒密度随画质调整。庄园风声和雨雪音色受环境声音量控制。\n\n日程与视角\n1× 约四秒一日，一季十二日。右键或触屏拖动旋转，滚轮或双指缩放，WASD、方向键、Shift 加左键拖动、中键或双指均可平移。庄园按 1 / 2 / 3 切换全景、半岛和外域，Space 暂停或继续，R 重置，Esc 关闭窗口。庄园按 G 打开政务、P 选地、M 查看宏愿。可在工坊使用 3 个本机存档槽。巡边时 1 / 2 / 3 选择军令。";
+                text=text.Replace("半岛有 24 块建地","男爵起始有 24 块建地，晋爵后最多 36 块")
+                    .Replace("管家、掌柜、医者和巡庄队长。四位分别改善税收、贸易、医护与战备。","管家、掌柜、医者、巡庄队长、石匠和乐师，分别协助税收、贸易、医护、战备、营建与民心。");
+                text+="\n\n专属武装\n招募后可在酒馆、铁匠铺或集结名单打开锻造，逐阶支付金币、军械、建材与高阶威望。武装随领地战斗生效，满阶在盔甲上显示金色纹章。"+
+                    "\n\n季候调配与行商\n启用季候自适应后，每次换季重新调配，冬季优先储备、取暖与口粮，暖季侧重高产农田、面包房、锻造与税收。手动派工可退出自动调配。收支账本分列每日生产与消耗，行商每季有一项特惠，选地清单可筛出缺工、可升级及空地与封地。";
                 var help=Label(p,text,0,0,w,portrait?504:340,14,white,TextAnchor.UpperLeft);
                 help.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,help.preferredHeight+8);
             },portrait?575:430);
