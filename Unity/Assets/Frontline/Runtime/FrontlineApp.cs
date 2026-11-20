@@ -34,6 +34,9 @@ namespace Frontline.UnityGame
             if(qa)PlayerPresentation.ResetQa();
             Presentation=new PlayerPresentation(qa);
             Presentation.ApplyStartup();
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+            StartWindowsCloseRequest(!qa);
+#endif
             Muted=qa;
             Config=Data.Default();try{var favorites=PlayerPrefs.GetString("frontline.unity.favorites","");if(favorites.Length>0)Favorites=Json.Read<List<Favorite>>(favorites,1024*1024);}catch(Exception e){Debug.LogWarning(e.Message);}while(Favorites.Count<5)Favorites.Add(null);if(Favorites.Count>5)Favorites=Favorites.Take(5).ToList();
             View=gameObject.AddComponent<BattleView>();View.Data=Data;gameObject.AddComponent<BattleInput>().Initialize(this);gameObject.AddComponent<NativeHud>().Initialize(this);gameObject.AddComponent<BattleAudio>().Initialize(this);loaded=true;Refresh();if(qa)gameObject.AddComponent<VisualValidation>().Initialize(this);
@@ -197,6 +200,9 @@ namespace Frontline.UnityGame
 
         void Update()
         {
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+            if(FinishWindowsCloseRequest())return;
+#endif
             if(FixedPerformanceStep)PerformanceSimulationTicks=0;
             if(!loaded||Busy||HoldExpedition)return;
             if(Phase=="manor"){UpdateManorClock();return;}

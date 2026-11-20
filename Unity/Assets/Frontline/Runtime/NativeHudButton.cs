@@ -11,6 +11,7 @@ namespace Frontline.UnityGame
         Image background;
         internal HudTone Tone {get;private set;}
         internal Text Caption {get;private set;}
+        internal Image MarkImage {get;set;}
 
         internal void SetTheme(Image image,Text caption,Sprite ready,Sprite disabled,Color ink,Color muted,HudTone tone)
         {
@@ -37,6 +38,7 @@ namespace Frontline.UnityGame
             var color=disabled?disabledText:readyText;
             if(background.sprite!=sprite)background.sprite=sprite;
             if(Caption.color!=color)Caption.color=color;
+            if(MarkImage&&MarkImage.color!=color)MarkImage.color=color;
         }
     }
 }

@@ -19,37 +19,56 @@ namespace Frontline.UnityGame
                 case KeyCode.M: MilestonesDialog();return true;
                 case KeyCode.L: LedgerDialog();return true;
                 case KeyCode.N: NobilityDialog();return true;
+                case KeyCode.Escape when app.ManorSlot>=0: app.SelectManorSlot(-1);return true;
                 default:return false;
             }
         }
 
-        void ManorStatus(RectTransform notice)
+        Text guideToast;
+        Button guideDismiss,territoryToast;
+
+        void BindManorToast(RectTransform notice)
         {
             float w=notice.sizeDelta.x;
-            status=Label(notice,app.Message,12,0,w-24,32,12,pale);
+            status=Label(notice,app.Message,14,0,w-28,34,portrait?11:13,white,TextAnchor.MiddleCenter);
             status.name="Manor.HoverStatus";
-            float guideWidth=portrait?w:231, actionWidth=portrait?78:80;
-            float guideY=portrait?33:0;
-            var guide=Label(notice,"",w-guideWidth+12,guideY,guideWidth-actionWidth-25,30,portrait?11:12,gold);
-            var skip=ManorButton(notice,"Manor.Guide.Dismiss","不再提示",w-actionWidth-5,guideY+3,actionWidth,26,app.DismissManorGuide);
-            skip.GetComponentInChildren<Text>().fontSize=portrait?11:12;
-            var shortcut=ManorButton(notice,"Manor.Claim.Focus","边疆疆域",0,3,88,26,()=>TerritoryDialog(app.ManorSector));
-            shortcut.GetComponentInChildren<Text>().fontSize=12;
+            guideToast=Label(notice,"",14,0,w-110,34,portrait?11:12,gold);
+            guideDismiss=ManorButton(notice,"Manor.Guide.Dismiss","不再提示",w-81,4,74,26,app.DismissManorGuide);
+            guideDismiss.GetComponentInChildren<Text>().fontSize=11;
+            territoryToast=ManorButton(notice,"Manor.Claim.Focus","边疆疆域",w-91,4,84,26,()=>TerritoryDialog(app.ManorSector));
+            territoryToast.GetComponentInChildren<Text>().fontSize=12;
+            guideToast.gameObject.SetActive(false);guideDismiss.gameObject.SetActive(false);territoryToast.gameObject.SetActive(false);
             manorValues.Add(()=>{
                 var estate=app.Estate;
-                bool active=estate.GuideActive;
-                guide.gameObject.SetActive(active);
-                skip.gameObject.SetActive(active);
-                if(active)guide.text=GuideText[estate.guideStep];
-                if(portrait)Rect(notice,14,rh-(active?74:48),w,active?64:38);
+                if(estate.GuideActive)
+                {
+                    guideToast.text=GuideText[estate.guideStep];
+                    if(lastGuidedEstate!=estate||lastGuideStep!=estate.guideStep)
+                    {
+                        lastGuidedEstate=estate;
+                        lastGuideStep=estate.guideStep;
+                        guideUntil=Time.unscaledTime+9;
+                    }
+                }
                 int sector=app.ManorSector;
                 sectorStatus=sector<0?null:app.ManorSectorStatus(sector);
-                bool available=sector>=0&&estate.ClearedSector(sector);
-                float right=w-(active&&!portrait?guideWidth:0);
-                if(available)Rect((RectTransform)shortcut.transform,right-94,portrait?4:3,88,26);
-                Rect(status.rectTransform,12,0,right-(available?111:24),portrait?(active?33:38):32);
-                shortcut.gameObject.SetActive(available);
+                bool claim=sector>=0&&estate.ClearedSector(sector);
+                Rect(status.rectTransform,14,0,w-(claim?106:28),34);
             });
+        }
+
+        void ApplyManorToastMode(bool guide,bool visible)
+        {
+            bool claim=visible&&!guide&&app.ManorSector>=0&&app.Estate.ClearedSector(app.ManorSector);
+            SetToastChild(status.gameObject,!guide);
+            SetToastChild(guideToast.gameObject,guide);
+            SetToastChild(guideDismiss.gameObject,guide);
+            SetToastChild(territoryToast.gameObject,claim);
+        }
+
+        static void SetToastChild(GameObject child,bool active)
+        {
+            if(child.activeSelf!=active)child.SetActive(active);
         }
 
         void ManorSaves()

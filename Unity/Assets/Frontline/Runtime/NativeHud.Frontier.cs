@@ -27,17 +27,17 @@ namespace Frontline.UnityGame
         }
         void FrontierCameraBar(bool estate)
         {
-            float w=portrait?374:312;
-            float x=portrait?8:rw-w-20;
-            float y=portrait?(estate?225:94):80;
-            var bar=Panel(baseRoot,"Frontier camera",x,y,w,37,manorPanel);
+            const float w=217;
+            float x=portrait?(rw-w)*.5f:rw-w-15;
+            float y=portrait?(estate?106:51):63;
+            var bar=Float(baseRoot,"Frontier camera",x,y,w,35,Slice.Rail);
             string[] names={"全景","半岛","外域"};
             float cell=(w-10)/3;
             for(int i=0;i<names.Length;i++)
             {
                 int focus=i;
                 bool shown=app.View.FrontierFocus==focus;
-                var button=ManorButton(bar,"Frontier.View."+focus,names[i],5+cell*i,3,cell-4,31,
+                var button=ManorButton(bar,"Frontier.View."+focus,names[i],5+cell*i,4,cell-4,27,
                     ()=>app.View.FrameFrontier(focus,true),selected:shown);
                 frontierValues.Add(()=>SetButtonTone(button,app.View.FrontierFocus==focus?HudTone.Selected:HudTone.Secondary));
             }
@@ -48,9 +48,9 @@ namespace Frontline.UnityGame
             FrontierCameraBar(false);
             float x=portrait?8:20;
             float w=portrait?374:848;
-            float y=portrait?137:80;
+            float y=portrait?96:64;
             float readoutW=portrait?w:310;
-            var readout=Panel(baseRoot,"Frontier readout",x,y,readoutW,56,manorPanel);
+            var readout=Float(baseRoot,"Frontier readout",x,y,readoutW,56,Slice.Rail);
             readout.GetComponent<UnityEngine.UI.Image>().raycastTarget=false;
             clock=Label(readout,"",10,2,readoutW-(portrait?122:17),26,16,gold);
             power=Label(readout,"",10,27,readoutW-20,25,12,pale);
@@ -60,7 +60,8 @@ namespace Frontline.UnityGame
                     ()=>{app.TouchCamera=!app.TouchCamera;app.Refresh();});
                 BindFrontier(touch,()=>app.TouchCamera,()=>app.TouchCamera?"切到点选":"切到拖视角",navigation:true);
             }
-            var controls=Panel(baseRoot,"Frontier controls",portrait?x:(rw-w)/2,rh-(portrait?158:98),w,portrait?145:78,manorPanel);
+            float dockTop=rh-(portrait?127:84);
+            var controls=Float(baseRoot,"Frontier controls",portrait?x:(rw-w)/2,dockTop,w,portrait?115:70,Slice.Rail);
             float part=(w-16)/(portrait?4:8);
             float orderX=portrait?8:8+part*4,orderY=portrait?48:7;
             var advance=ManorButton(controls,"Frontier.Advance","推进",8,7,part-4,35,()=>{
@@ -86,7 +87,7 @@ namespace Frontline.UnityGame
                 ()=>{app.Speed=app.Speed==1?2:app.Speed==2?4:1;app.Refresh();});
             BindFrontier(speed,caption:()=>app.Speed==1?"1×":app.Speed==2?"2×":"4×");
             commandStatus=Label(controls,"",11,portrait?82:46,portrait?w-22:241,24,12,pale);
-            status=Label(controls,app.Message,portrait?11:254,portrait?107:44,portrait?w-22:w-268,portrait?33:29,12,gold);
+            BuildToast(false,dockTop-40);
         }
     }
 }

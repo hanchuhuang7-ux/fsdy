@@ -42,7 +42,7 @@ namespace Frontline.UnityGame
                     var stats=row.Value;
                     if(stats==null)continue;
                     string separator=portrait?"\n":"   ";
-                    var band=Panel(p,"Unit contribution",0,y,w,portrait?43:34,app.InManor?manorInset:panel,Slice.Inset);
+                    var band=Panel(p,"Unit contribution",0,y,w,portrait?43:34,manorInset,Slice.Inset);
                     Label(band,ItemName(row.Key)+"  "+stats.survived+" / "+stats.initial+separator+
                         "伤害 "+stats.damageDealt.ToString("0")+" · 治疗 "+stats.healing.ToString("0")+
                         " · 误伤 "+stats.friendlyFire.ToString("0")+" · 击杀 "+stats.kills,9,1,w-18,band.sizeDelta.y-2,portrait?11:13,pale);
@@ -57,7 +57,7 @@ namespace Frontline.UnityGame
         {
             var (red,blue)=BattleHighlights.Leaders(report);
             float line=portrait?40:33,left=portrait?82:145,side=(w-left-13)/2;
-            var card=Panel(p,"Report leaders",0,y,w,52+line*3,app.InManor?manorInset:panel,Slice.Inset);
+            var card=Panel(p,"Report leaders",0,y,w,52+line*3,manorInset,Slice.Inset);
             Label(card,"全场亮点",11,3,w-22,26,portrait?16:18,gold);
             Label(card,"红方",left,27,side,21,13,ReportRed);
             Label(card,"蓝方",left+side,27,side,21,13,ReportBlue);

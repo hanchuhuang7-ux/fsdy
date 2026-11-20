@@ -10,7 +10,7 @@ namespace Frontline.UnityGame
     {
         void EventEntry(Transform parent,string id,float x,float y,float w,float h,List<Action> changes,bool fromGovernance=false)
         {
-            var button=ManorButton(parent,id,"领地急报",x,y,w,h,()=>EventDialog(fromGovernance),true);
+            var button=ManorButton(parent,id,w<65?"急报":"领地急报",x,y,w,h,()=>EventDialog(fromGovernance),true);
             changes.Add(()=>{
                 button.gameObject.SetActive(app.Estate.eventDay!=0);
                 if(fromGovernance)SetTodoLook(button,app.Estate.CanResolveDispatch);

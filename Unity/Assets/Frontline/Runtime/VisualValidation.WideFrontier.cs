@@ -13,25 +13,7 @@ namespace Frontline.UnityGame
             string arena=Json.Write(app.Config);
             yield return Press("Mode.Manor");
             yield return Press("Manor.Speed.0");
-            var estate=new Manor {coin=10000,timber=10000,arms=1000,food=1000,influence=999,
-                cleared=6,clearedSectors=Manor.SectorMask,prosperityPeak=3,day=2};
-            for(int i=0;i<Manor.Sectors.Count;i++)estate.ClaimSector(i);
-            for(int rank=1;rank<Manor.NobleRanks.Count;rank++)estate.PromoteNobility(rank);
-            for(int i=18;i<24;i++)estate.ReclaimPlot(i);
-            string[] city={"cottage","farm","tavern","cottage","smithy","barracks","cottage","chapel","pasture",
-                Manor.Bakery,Manor.Weaver,"granary","timber_camp","cottage","stables","drill_yard","cottage",null,
-                "farm","timber_camp","irrigated_field",null,"pasture","chapel","cottage",null,"farm",null,"weaver",null,
-                "cottage",null,"timber_camp",null,"barracks"};
-            for(int i=0;i<city.Length;i++)
-            {
-                if(city[i]==null)continue;
-                estate.Build(i+1,city[i]);
-                if(i<17){estate.Upgrade(i+1);estate.Upgrade(i+1);}
-            }
-            estate.stock["militia"]=16;
-            estate.workers=14;
-            for(int i=1;i<=9;i++)
-                if(i!=1&&i!=4&&i!=7)estate.Assign(i,1);
+            var estate=WideEstateFixture();
 
             var keep=new Vector3(FrontierMap.ManorX,0,0);
             for(int level=1;level<=3;level++)
@@ -128,6 +110,30 @@ namespace Frontline.UnityGame
                 terrainChunks=total,culledDecorations=culled,contactTick,duelUnchanged=true};
             yield return Save("wide-frontier-smoke.json",Encoding.UTF8.GetBytes(Json.Write(proof)),"application/json");
             Debug.Log("FRONTLINE_WIDE_WORLD_SMOKE_OK "+Json.Write(proof));
+        }
+
+        static Manor WideEstateFixture()
+        {
+            var estate=new Manor {coin=10000,timber=10000,arms=1000,food=1000,influence=999,
+                cleared=6,clearedSectors=Manor.SectorMask,prosperityPeak=3,day=2};
+            for(int i=0;i<Manor.Sectors.Count;i++)estate.ClaimSector(i);
+            for(int rank=1;rank<Manor.NobleRanks.Count;rank++)estate.PromoteNobility(rank);
+            for(int i=18;i<24;i++)estate.ReclaimPlot(i);
+            string[] city={"cottage","farm","tavern","cottage","smithy","barracks","cottage","chapel","pasture",
+                Manor.Bakery,Manor.Weaver,"granary","timber_camp","cottage","stables","drill_yard","cottage",null,
+                "farm","timber_camp","irrigated_field",null,"pasture","chapel","cottage",null,"farm",null,"weaver",null,
+                "cottage",null,"timber_camp",null,"barracks"};
+            for(int i=0;i<city.Length;i++)
+            {
+                if(city[i]==null)continue;
+                estate.Build(i+1,city[i]);
+                if(i<17){estate.Upgrade(i+1);estate.Upgrade(i+1);}
+            }
+            estate.stock["militia"]=16;
+            estate.workers=14;
+            for(int i=1;i<=9;i++)
+                if(i!=1&&i!=4&&i!=7)estate.Assign(i,1);
+            return estate;
         }
 
         void CheckWorldOutline(System.Collections.Generic.IReadOnlyList<FrontierMap.ShoreSlice> shore)

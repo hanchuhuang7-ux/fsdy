@@ -11,7 +11,52 @@ namespace Frontline.UnityGame
         long shutdownStarted;
         static readonly bool TraceShutdown=Array.IndexOf(Environment.GetCommandLineArgs(),"--trace-shutdown")>=0;
 
-        void OnApplicationQuit() => Shutdown();
+        void OnApplicationQuit()
+        {
+            Shutdown();
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+            StopWindowsCloseRequest();
+#endif
+        }
+
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+        bool observeWindowsClose,interactiveWindowsPlayer;
+
+        void StartWindowsCloseRequest(bool interactive)
+        {
+            interactiveWindowsPlayer=interactive;
+            observeWindowsClose=true;
+            Application.wantsToQuit+=WindowsWantsToQuit;
+            bool attached=WindowsCloseRequest.Attach();
+            if(TraceShutdown)Debug.Log("FRONTLINE_WINDOW_CLOSE_READY subclass="+attached);
+        }
+
+        bool WindowsWantsToQuit() => WindowsCloseRequest.CanQuit(interactiveWindowsPlayer);
+
+        void OnApplicationFocus(bool focused)
+        {
+            if(focused&&observeWindowsClose)WindowsCloseRequest.Attach();
+        }
+
+        bool FinishWindowsCloseRequest()
+        {
+            uint message=WindowsCloseRequest.TakeOnMainLoop();
+            if(message==0)return false;
+            if(TraceShutdown)Debug.Log($"FRONTLINE_WINDOW_CLOSE dispatched=0x{message:X} on player loop");
+            Shutdown();
+            WindowsCloseRequest.Commit();
+            Application.Quit(0);
+            return true;
+        }
+
+        void StopWindowsCloseRequest()
+        {
+            if(!observeWindowsClose)return;
+            observeWindowsClose=false;
+            Application.wantsToQuit-=WindowsWantsToQuit;
+            WindowsCloseRequest.Detach();
+        }
+#endif
 
         void Shutdown()
         {
@@ -51,6 +96,9 @@ namespace Frontline.UnityGame
 
         void OnDestroy()
         {
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+            StopWindowsCloseRequest();
+#endif
             Shutdown();
             MarkShutdown("destroy");
         }

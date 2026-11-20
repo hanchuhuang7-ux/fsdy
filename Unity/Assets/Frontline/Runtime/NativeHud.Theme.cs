@@ -7,35 +7,50 @@ namespace Frontline.UnityGame
 
     public sealed partial class NativeHud
     {
-        enum Slice { Frame, Inset, Shadow, Secondary, Primary, Selected, Danger, Disabled, Badge, Rule }
+        enum Slice { Frame, Inset, Shadow, Secondary, Primary, Selected, Danger, Disabled, Badge, Rule, Rail, Sheet, Count }
 
-        const int TileSize=24, TileStride=TileSize+2, TileColumns=5;
-        readonly Sprite[] slices=new Sprite[10];
+        const int TileSize=48, TileStride=TileSize+2, TileColumns=6;
+        readonly Sprite[] slices=new Sprite[(int)Slice.Count];
+        readonly Sprite[] glyphs=new Sprite[(int)Glyph.Count];
         Texture2D themeTexture;
-        static readonly Color titleGold=new Color(.96f,.77f,.45f);
-        static readonly Color buttonInk=new Color(.15f,.106f,.063f);
-        static readonly Color mutedButtonText=new Color(.58f,.56f,.51f);
-        static readonly Color quietBadge=new Color(.25f,.26f,.25f);
-        static readonly Color warmBadge=new Color(.43f,.32f,.17f);
-        static readonly Color goodBadge=new Color(.23f,.37f,.29f);
-        static readonly Color blockedBadge=new Color(.39f,.23f,.19f);
+        static readonly Color titleGold=new Color(.97f,.86f,.66f);
+        static readonly Color buttonInk=new Color(.16f,.127f,.087f);
+        static readonly Color mutedButtonText=new Color(.64f,.66f,.63f);
+        static readonly Color quietBadge=new Color(.32f,.39f,.38f);
+        static readonly Color warmBadge=new Color(.53f,.40f,.22f);
+        static readonly Color goodBadge=new Color(.29f,.48f,.39f);
+        static readonly Color blockedBadge=new Color(.52f,.31f,.28f);
 
         void InitializeTheme()
         {
-            const int width=TileColumns*TileStride, height=2*TileStride;
+            const int count=(int)Slice.Count+(int)Glyph.Count;
+            const int width=TileColumns*TileStride,height=(count+TileColumns-1)/TileColumns*TileStride;
             var pixels=new Color32[width*height];
-            Paint(Slice.Frame,0xcac4b0,0xa4a49a,0xffdd9b,0xece9dd,6);
-            Paint(Slice.Inset,0xc4ba9f,0xaba693,0xe8cc94,0xdfd7bc,5);
-            Paint(Slice.Secondary,0x414846,0x292e2d,0x756b57,0x535a53,5);
-            Paint(Slice.Primary,0xf3ce83,0xc69752,0xffdfa0,0xffdfa5,5);
-            Paint(Slice.Selected,0x725e3b,0x493b28,0xddae61,0x9d8150,5);
-            Paint(Slice.Danger,0x743e36,0x502925,0xad6859,0x925246,5);
-            Paint(Slice.Disabled,0x3c3c38,0x30302d,0x56544b,0x494840,5);
-            Paint(Slice.Badge,0xddd9c8,0xc2c0b2,0xece6d2,0xeee7d3,10);
+            Paint(Slice.Frame,0x3b4c48,0x172524,0xd2e0d1,15,199,214,68);
+            Paint(Slice.Inset,0x65746a,0x3a4842,0xe4dbc1,12,110,130,41);
+            Paint(Slice.Secondary,0x647773,0x3a4a48,0xc6d6cb,17,65,110,40);
+            Paint(Slice.Primary,0xf6e6bb,0xd1b182,0xfff6da,17,245,242,210);
+            Paint(Slice.Selected,0x9a8870,0x5a4b37,0xefd7aa,17,215,218,143);
+            Paint(Slice.Danger,0xa06b62,0x593734,0xffc4ad,17,149,170,78);
+            Paint(Slice.Disabled,0x54615d,0x414a47,0x999e92,17,60,86,35);
+            Paint(Slice.Badge,0xf4eee3,0xd8d9ce,0xf5e8cc,18,224,218,205);
+            Paint(Slice.Rail,0x405654,0x152625,0xd4eddf,20,180,204,89);
+            Paint(Slice.Sheet,0x384944,0x192625,0xf2e1be,17,234,246,108);
             PaintShadow();
-            var rule=TileOrigin(Slice.Rule);
+            var rule=TileOrigin((int)Slice.Rule);
             for(int x=0;x<TileSize;x++)
-                pixels[rule.x+x+rule.y*width]=new Color32(222,177,100,(byte)Mathf.Min(235,48+37*Mathf.Min(x,TileSize-1-x)));
+                pixels[rule.x+x+rule.y*width]=new Color32(222,196,154,(byte)Mathf.Min(118,16+14*Mathf.Min(x,TileSize-1-x)));
+            for(int i=0;i<glyphs.Length;i++)
+            {
+                var origin=TileOrigin(slices.Length+i);
+                for(int y=0;y<TileSize;y++)
+                    for(int x=0;x<TileSize;x++)
+                    {
+                        var point=new Vector2((x+.5f)*24/TileSize,(y+.5f)*24/TileSize);
+                        float coverage=Mathf.Clamp01(.5f-GlyphDistance((Glyph)i,point)*2);
+                        pixels[origin.x+x+(origin.y+y)*width]=new Color32(255,255,255,Opacity(coverage));
+                    }
+            }
 
             themeTexture=new Texture2D(width,height,TextureFormat.RGBA32,false)
             {
@@ -48,48 +63,57 @@ namespace Frontline.UnityGame
             for(int i=0;i<slices.Length;i++)
             {
                 var kind=(Slice)i;
-                var origin=TileOrigin(kind);
                 bool thin=kind==Slice.Rule;
-                float edge=kind==Slice.Badge||kind==Slice.Shadow?11:7;
+                float edge=kind is Slice.Frame or Slice.Inset?17:22;
                 var border=thin?new Vector4(6,0,6,0):new Vector4(edge,edge,edge,edge);
-                var sprite=Sprite.Create(themeTexture,new Rect(origin.x,origin.y,TileSize,thin?1:TileSize),
+                slices[i]=MakeSprite(i,thin?1:TileSize,border,"HUD "+kind);
+            }
+            for(int i=0;i<glyphs.Length;i++)
+                glyphs[i]=MakeSprite(slices.Length+i,TileSize,Vector4.zero,"HUD glyph "+(Glyph)i);
+
+            Sprite MakeSprite(int index,int heightPixels,Vector4 border,string name)
+            {
+                var origin=TileOrigin(index);
+                var sprite=Sprite.Create(themeTexture,new Rect(origin.x,origin.y,TileSize,heightPixels),
                     new Vector2(.5f,.5f),100,0,SpriteMeshType.FullRect,border);
-                sprite.name="HUD "+kind;
-                slices[i]=sprite;
+                sprite.name=name;
+                return sprite;
             }
 
-            void Paint(Slice kind,int top,int bottom,int rim,int glint,float radius)
+            void Paint(Slice kind,int top,int bottom,int rim,float radius,byte highAlpha,byte lowAlpha,byte rimAlpha)
             {
-                Vector2Int origin=TileOrigin(kind);
-                Color32 upper=Rgb(top), lower=Rgb(bottom), outline=Rgb(rim), light=Rgb(glint);
+                var origin=TileOrigin((int)kind);
+                Color32 upper=Rgb(top,highAlpha),lower=Rgb(bottom,lowAlpha),outline=Rgb(rim,rimAlpha);
                 for(int y=0;y<TileSize;y++)
                     for(int x=0;x<TileSize;x++)
                     {
                         float distance=RoundedDistance(x,y,radius,0);
-                        float brightness=Mathf.Clamp01((y-2f)/(TileSize-5));
-                        Color32 fill=distance> -1.25f?outline:y==TileSize-3?light:Color32.Lerp(lower,upper,brightness);
-                        fill.a=(byte)Mathf.RoundToInt(255*Mathf.Clamp01(.5f-distance));
+                        float brightness=(float)y/(TileSize-1);
+                        Color32 fill=Color32.Lerp(lower,upper,brightness);
+                        if(distance> -1.45f)
+                            fill=Color32.Lerp(fill,outline,Mathf.Clamp01((distance+1.45f)*.86f)*(.48f+.52f*brightness));
+                        fill.a=(byte)Mathf.RoundToInt(fill.a*Mathf.Clamp01(.5f-distance));
                         pixels[origin.x+x+(origin.y+y)*width]=fill;
                     }
             }
 
             void PaintShadow()
             {
-                var shadow=TileOrigin(Slice.Shadow);
+                var shadow=TileOrigin((int)Slice.Shadow);
                 for(int y=0;y<TileSize;y++)
                     for(int x=0;x<TileSize;x++)
                     {
-                        float distance=RoundedDistance(x,y,6,4);
-                        byte alpha=(byte)Mathf.RoundToInt(165*Mathf.SmoothStep(0,1,Mathf.Clamp01((4-distance)/7)));
+                        float distance=RoundedDistance(x,y,15,10);
+                        byte alpha=Opacity(.44f*Mathf.SmoothStep(0,1,Mathf.Clamp01((9f-distance)/14)));
                         pixels[shadow.x+x+(shadow.y+y)*width]=new Color32(0,0,0,alpha);
                     }
             }
         }
 
-        static Vector2Int TileOrigin(Slice kind) =>
-            new Vector2Int((int)kind%TileColumns*TileStride+1,(int)kind/TileColumns*TileStride+1);
+        static Vector2Int TileOrigin(int index) => new Vector2Int(index%TileColumns*TileStride+1,index/TileColumns*TileStride+1);
 
-        static Color32 Rgb(int rgb) => new Color32((byte)(rgb>>16),(byte)(rgb>>8),(byte)rgb,255);
+        static byte Opacity(float coverage) => (byte)Mathf.RoundToInt(255*coverage);
+        static Color32 Rgb(int rgb,byte a) => new Color32((byte)(rgb>>16),(byte)(rgb>>8),(byte)rgb,a);
 
         static float RoundedDistance(int x,int y,float radius,float inset)
         {
@@ -102,7 +126,15 @@ namespace Frontline.UnityGame
         void ReleaseTheme()
         {
             foreach(var sprite in slices)if(sprite)Destroy(sprite);
+            foreach(var sprite in glyphs)if(sprite)Destroy(sprite);
             if(themeTexture)Destroy(themeTexture);
+        }
+
+        RectTransform Float(Transform parent,string name,float x,float y,float w,float h,Slice slice=Slice.Frame)
+        {
+            var shadow=Panel(parent,name+" shadow",x-7,y-4,w+14,h+15,Color.white,Slice.Shadow);
+            shadow.GetComponent<Image>().raycastTarget=false;
+            return Panel(parent,name,x,y,w,h,Color.white,slice);
         }
 
         void Rule(Transform parent,float x,float y,float width)

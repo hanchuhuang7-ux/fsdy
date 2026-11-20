@@ -9,9 +9,9 @@ namespace Frontline.UnityGame
 {
     public sealed partial class NativeHud
     {
-        readonly Color manorPanel = new Color(.25f,.29f,.25f,.975f);
-        readonly Color manorInset = new Color(.27f,.30f,.265f,.99f);
-        readonly Color pale = new Color(.81f,.82f,.75f);
+        readonly Color manorPanel = Color.white;
+        readonly Color manorInset = new Color(.96f,.96f,.90f);
+        readonly Color pale = new Color(.86f,.88f,.81f);
         readonly Color danger = new Color(1f,.51f,.43f);
         readonly List<Action> manorValues = new List<Action>();
         readonly List<Action> manorDialogValues = new List<Action>();
@@ -53,69 +53,10 @@ namespace Frontline.UnityGame
             return button;
         }
 
-        void TopBar()
-        {
-            float barHeight=portrait?89:68;
-            var bar=Panel(baseRoot,"Top bar",0,0,rw,barHeight,new Color(.086f,.092f,.077f,.975f),null);
-            Rule(bar,0,barHeight-1,rw);
-            if(portrait)
-            {
-                Label(bar,"阵线实验室",10,3,76,32,14,gold);
-                bool estate=app.Phase=="manor";
-                CodexEntryButton(bar,89,3,44,34);
-                QualityEntry(bar,138,3,estate?43:68,34);
-                if(estate)
-                {
-                    Button(bar,"手册",186,3,42,34,ManorHelp);
-                    Button(bar,"工坊",233,3,42,34,Workshop);
-                    GovernanceEntry(bar,280,3,99,34);
-                }
-                else if(app.InManor)
-                {
-                    Button(bar,"手册",214,3,75,34,ManorHelp);
-                    if(app.Phase=="deploy")Button(bar,"驻军",295,3,84,34,ExpeditionRoster);
-                    else Button(bar,"战报",295,3,84,34,ReportDialog);
-                }
-                else
-                {
-                    Button(bar,"策略",214,3,75,34,Strategy);
-                    Button(bar,"工坊",295,3,84,34,Workshop);
-                }
-                ModeTab(bar,false,10,43,182,40);
-                ModeTab(bar,true,198,43,182,40);
-            }
-            else
-            {
-                Label(bar,"阵线实验室",20,5,325,37,23,gold);
-                Label(bar,"FRONTLINE LAB   ·   "+Application.version,21,41,280,20,11,muted);
-                ModeTab(bar,false,365,12,144,44);
-                ModeTab(bar,true,517,12,144,44);
-                CodexEntryButton(bar,671,15,53,38);
-                QualityEntry(bar,730,15,110,38);
-                if(app.InManor)
-                {
-                    if(app.Phase=="manor")
-                    {
-                        GovernanceEntry(bar,850,17,123,38);
-                        Button(bar,"庄园工坊",985,17,145,38,Workshop);
-                    }
-                    else if(app.Phase=="deploy")Button(bar,"出征名册",985,17,145,38,ExpeditionRoster);
-                    else Button(bar,"战报",985,17,145,38,ReportDialog);
-                    Button(bar,"领主手册",1140,17,118,38,ManorHelp);
-                }
-                else
-                {
-                    Button(bar,"策略与演武擂台",850,17,160,38,Strategy);
-                    Button(bar,"工坊 / 回放",1020,17,130,38,Workshop);
-                    Button(bar,"说明",1160,17,100,38,Help);
-                }
-            }
-        }
-
         void ModeTab(Transform parent,bool manor,float x,float y,float w,float h)
         {
             bool active=app.InManor==manor;
-            var b=Button(parent,manor?"领地庄园":"演武斗蛐蛐",x,y,w,h,
+            var b=Button(parent,manor?"庄园":"演武",x,y,w,h,
                 ()=>RequestMode(manor),selected:active);
             b.name=manor?"Mode.Manor":"Mode.Duel";
         }
@@ -154,6 +95,7 @@ namespace Frontline.UnityGame
             }
             RefreshBindings(manorDialogValues);
             ShowNotice(app.Message);
+            UpdateToast();
         }
 
         void StateChanged()
@@ -194,29 +136,18 @@ namespace Frontline.UnityGame
             shownPlotLevel=slot?.level??0;
             shownPlotCleared=shownEstate.IsPlotCleared(shownPlot);
 
-            float ledgerW=portrait?374:650, resourcesW=portrait?278:510;
-            var ledger=Panel(baseRoot,"Manor ledger",portrait?8:20,portrait?96:80,ledgerW,portrait?49:52,manorPanel);
-            ledger.GetComponent<Image>().raycastTarget=false;
-            Meter(ledger,0,resourcesW,"金币",gold,()=>app.Estate.coin,fraction:()=>app.Estate.remainder.coin);
-            var grain=Meter(ledger,1,resourcesW,"粮食",new Color(.75f,.81f,.4f),()=>app.Estate.food);
-            manorValues.Add(()=>grain.color=app.Estate.food==0?danger:white);
-            Meter(ledger,2,resourcesW,"建材",new Color(.85f,.65f,.49f),()=>app.Estate.timber);
-            Meter(ledger,3,resourcesW,"军械",new Color(.67f,.79f,.83f),()=>app.Estate.arms);
-            Meter(ledger,4,resourcesW,portrait?"闲 / 总户":"闲户 / 总户",pale,()=>app.Estate.FreeWorkers,()=>app.Estate.workers);
-            ApprovalMeter(ledger,resourcesW,ledgerW-resourcesW);
-            SupplyForecast(ledgerW);
+            BuildLedger();
             FrontierCameraBar(true);
-
-            int cropRow=Manor.IsCrop(shownPlotKind)?39:0;
-            var card=Panel(baseRoot,"Manor plot card",portrait?8:20,rh-(portrait?339:181)-cropRow,
-                portrait?374:532,132+cropRow,manorPanel);
+            BuildManorDock();
+            int cropRow=Manor.IsCrop(shownPlotKind)?38:0;
+            float dockHeight=portrait?96:64;
+            float cardHeight=139+cropRow;
+            float top=rh-dockHeight-cardHeight-12;
+            BuildToast(true,shownPlot<0?(float?)null:top-39);
+            if(shownPlot<0)return;
+            var card=Float(baseRoot,"Manor plot card",portrait?8:16,top,
+                portrait?374:458,cardHeight);
             PlotCard(card,card.sizeDelta.x);
-            var schedule=Panel(baseRoot,"Manor calendar",portrait?8:rw-456,rh-(portrait?199:171),
-                portrait?374:436,portrait?116:122,manorPanel);
-            Schedule(schedule,schedule.sizeDelta.x);
-            var notice=Panel(baseRoot,"Manor status",portrait?14:208,rh-(portrait?74:40),portrait?362:864,portrait?64:32,ink);
-            notice.GetComponent<Image>().raycastTarget=false;
-            ManorStatus(notice);
         }
 
         internal void UpdateManorHover()
@@ -237,88 +168,6 @@ namespace Frontline.UnityGame
             if(status.text!=hoverText)status.text=hoverText;
         }
 
-        Text Meter(RectTransform strip,int i,float w,string name,Color color,Func<int> value,Func<int> total=null,Func<int> fraction=null)
-        {
-            float cell=w/5,x=i*cell;
-            LedgerMark(strip,x,color);
-            Label(strip,name,x+11,3,cell-12,18,portrait?10:12,pale);
-            var label=Label(strip,"",x+11,20,cell-12,strip.sizeDelta.y-21,portrait?15:20,white);
-            label.name="Manor.Ledger."+i;
-            if(portrait)
-            {
-                label.resizeTextForBestFit=true;
-                label.resizeTextMaxSize=15;
-                label.resizeTextMinSize=9;
-            }
-            int shown=-1,shownTotal=-1,shownFraction=-1;
-            manorValues.Add(()=>{
-                int quantity=value(),capacity=total?.Invoke()??-1,hundredths=fraction?.Invoke()??0;
-                if(quantity==shown&&capacity==shownTotal&&hundredths==shownFraction)return;
-                shown=quantity;shownTotal=capacity;shownFraction=hundredths;
-                readoutText.Clear();Number(quantity);
-                if(total!=null){readoutText.Append(" / ");Number(capacity);}
-                if(hundredths>0)
-                {
-                    readoutText.Append('.');
-                    if(hundredths<10)readoutText.Append('0');
-                    Number(hundredths%10==0?hundredths/10:hundredths);
-                }
-                if(portrait)label.fontSize=readoutText.Length>7?9:readoutText.Length>5?12:15;
-                ApplyReadout(label);
-            });
-            return label;
-        }
-
-        void LedgerMark(RectTransform strip,float x,Color color)
-        {
-            var tick=Panel(strip,"Resource mark",x+5,10,2,strip.sizeDelta.y-20,color,null);
-            tick.GetComponent<Image>().raycastTarget=false;
-        }
-
-        void Net(string resource,int value)
-        {
-            readoutText.Append(resource);
-            if(value!=0)
-                readoutText.Append(value>0?"<color=#A4D8A6>":value<=-300?"<color=#FF9782>":"<color=#F0BB78>");
-            if((value/100d).TryFormat(digits,out int length,"+0.##;-0.##;0".AsSpan()))
-                readoutText.Append(digits,0,length);
-            if(value!=0)readoutText.Append("</color>");
-        }
-        void SupplyForecast(float w)
-        {
-            var panel=Panel(baseRoot,"Manor supply",portrait?8:20,portrait?149:136,w,portrait?72:79,ink);
-            panel.GetComponent<Image>().raycastTarget=false;
-            var net=Label(panel,"",11,3,w-22,22,portrait?11:14,white);
-            net.name="Manor.Forecast";
-            var limits=Label(panel,"",11,25,w-22,17,portrait?10:11,muted);
-            var factors=Label(panel,"",11,41,w-22,17,portrait?10:11,pale);
-            factors.name="Manor.Forecast.Factors";
-            var synergy=Label(panel,"",11,56,w-22,portrait?15:19,portrait?9:11,thriving);
-            synergy.name="Manor.Forecast.Synergy";
-            int revision=-1;
-            manorValues.Add(()=>{
-                var m=app.Estate;
-                if(revision==app.ManorRevision)return;
-                revision=app.ManorRevision;
-                bool shortage=m.food==0;
-                limits.color=shortage?danger:muted;
-                limits.text="常备军 "+m.ArmySize+"/"+m.ArmyLimit+"  ·  行军上限 "+m.FieldLimit+"  ·  巡边 "+m.FrontierLimit+(shortage?"  ·  缺粮":"");
-                var f=PreviewForecast();
-                readoutText.Clear();
-                readoutText.Append("日净收支  ");
-                Net("金 ",f.coin);
-                Net("  ·  粮 ",f.food);
-                Net("  ·  建材 ",f.timber);
-                Net("  ·  军械 ",f.arms);
-                net.text=readoutText.ToString();
-                bool heatingShortage=f.winterTimber<f.winterTimberRequired;
-                factors.color=heatingShortage||m.approval<Manor.UnrestApproval?danger:pale;
-                factors.text=ForecastFactors(m,f,heatingShortage);
-                string links=EstateSynergyText(f.synergy,portrait);
-                synergy.text=f.marketNeeds.Prosperous?(portrait?"市集 +1":"市集兴旺 +1 民心")+(links.Length==0?"":"  ·  "+links):links;
-            });
-        }
-
         void PlotCard(RectTransform p,float w)
         {
             var estate=app.Estate;
@@ -328,28 +177,29 @@ namespace Frontline.UnityGame
             bool ungranted=index>=0&&!estate.IsPlotGranted(index);
             bool uncleared=index>=0&&!ungranted&&!estate.IsPlotCleared(index);
             int rank=Manor.PlotRank(index);
-            string title=index<0?"主基地":index==0?"领主宅邸":
+            string title=index==0?"领主宅邸":
                 "建地 "+index+"   "+(ungranted?Manor.NobleRanks[rank].title+"封地":uncleared?"待开垦林地":kind==null?"空置":Manor.Name(kind));
             if(slot!=null&&slot.level>0)title+="   Lv."+slot.level;
             bool recruiting=kind=="barracks"||kind=="stables",heroes=kind=="tavern",training=kind=="drill_yard",cottage=kind=="cottage";
             bool smithy=kind=="smithy";
-            float governanceWidth=portrait?64:82,retinueWidth=portrait?69:84;
-            float governanceX=w-85-governanceWidth,retinueX=governanceX-5-retinueWidth;
-            Label(p,title,12,4,index==0?retinueX-16:w-(recruiting||heroes||training||cottage||smithy?188:111),27,portrait?16:19,gold);
-            if(cottage)ManorButton(p,"Manor.Backyard","后院副业",w-169,5,84,29,()=>BackyardDialog(index),true);
+            float closeX=w-42;
+            const float governanceWidth=72,retinueWidth=72;
+            float governanceX=closeX-7-governanceWidth,retinueX=governanceX-5-retinueWidth;
+            Label(p,title,14,6,index==0?retinueX-20:closeX-(recruiting||heroes||training||cottage||smithy?104:22),28,portrait?16:19,gold);
+            var dismiss=ManorButton(p,"Manor.Inspector.Close","×",closeX,6,33,29,()=>app.SelectManorSlot(-1));
+            dismiss.GetComponentInChildren<Text>().fontSize=20;
+            if(cottage)ManorButton(p,"Manor.Backyard","后院副业",closeX-87,6,80,29,()=>BackyardDialog(index),true);
             if(index==0)
             {
-                ManorButton(p,"Manor.Hall.Governance","领地政务",governanceX,5,governanceWidth,29,GovernanceDialog);
-                ManorButton(p,"Manor.Retinue.Open","领主卫队",retinueX,5,retinueWidth,29,RetinueDialog,true);
+                ManorButton(p,"Manor.Hall.Governance","领地政务",governanceX,6,governanceWidth,29,GovernanceDialog);
+                ManorButton(p,"Manor.Retinue.Open","领主卫队",retinueX,6,retinueWidth,29,RetinueDialog,true);
             }
             if(recruiting)
-                ManorButton(p,"Manor.Recruits",kind=="barracks"?"招募":"备军",w-151,5,66,29,Recruitment,true);
-            if(heroes)ManorButton(p,"Manor.Heroes","英雄",w-151,5,66,29,HeroTavern,true);
-            if(smithy)ManorButton(p,"Manor.Smithy.Gear","武装",w-151,5,66,29,()=>HeroForgeDialog(null),true);
-            if(training)ManorButton(p,"Manor.Training","强化",w-151,5,66,29,BarracksTraining,true);
-            ManorButton(p,"Manor.Plots","选地",w-80,5,68,29,PlotList);
-            string description=index<0?"点击地块查看建筑、派工或建造。":
-                ungranted?"晋升"+Manor.NobleRanks[rank].title+"后，此处即为可建造地块。":uncleared?"清理林地后即可建造。":"";
+                ManorButton(p,"Manor.Recruits",kind=="barracks"?"招募":"备军",closeX-74,6,66,29,Recruitment,true);
+            if(heroes)ManorButton(p,"Manor.Heroes","英雄",closeX-74,6,66,29,HeroTavern,true);
+            if(smithy)ManorButton(p,"Manor.Smithy.Gear","武装",closeX-74,6,66,29,()=>HeroForgeDialog(null),true);
+            if(training)ManorButton(p,"Manor.Training","强化",closeX-74,6,66,29,BarracksTraining,true);
+            string description=ungranted?"晋升"+Manor.NobleRanks[rank].title+"后，此处即为可建造地块。":uncleared?"清理林地后即可建造。":"";
             if(index>=0&&!ungranted&&!uncleared)description=kind==null?"挑选一种建筑，查看所需金币与建材。":Manor.Description(kind);
             Label(p,description,12,33,w-24,34,portrait?12:14,pale);
             string production=kind==null?"":Manor.BuildingOutput(kind,slot.level);
@@ -375,12 +225,6 @@ namespace Frontline.UnityGame
             if(crop)RotationControls(p,w,index);
             float rowY=crop?129:90,h=portrait?33:38;
 
-            if(index<0)
-            {
-                ManorButton(p,"Manor.Hall","查看宅邸",12,rowY,(w-30)/2,h,()=>app.SelectManorSlot(0));
-                ManorButton(p,"Manor.FindLand","选择建地",18+(w-30)/2,rowY,(w-30)/2,h,PlotList,true);
-                return;
-            }
             if(ungranted)
             {
                 ManorButton(p,"Manor.Nobility.Plot","查看爵位",12,rowY,w-24,h,NobilityDialog);
@@ -446,33 +290,6 @@ namespace Frontline.UnityGame
         {
             int day=app.Estate.day;
             return Seasons[app.Estate.Season]+"季 · 第 "+day+" 日";
-        }
-
-        void Schedule(RectTransform p,float w)
-        {
-            float top=portrait?5:8;
-            float x=w*.30f,buttonW=(w-20-x)/3;
-            Value(manorValues,Label(p,"",10,top,x-13,32,portrait?13:17,gold),CalendarText);
-            ManorButton(p,"Manor.Patrol","边疆巡边",x,top,buttonW,32,()=>MarchDialog(false,true),true);
-            ManorButton(p,"Manor.Expedition","领地远征",x+buttonW+5,top,buttonW,32,()=>MarchDialog(false));
-            var raid=ManorButton(p,"Manor.Raid","迎战掠夺者",x+(buttonW+5)*2,top,buttonW,32,()=>MarchDialog(true),destructive:true);
-            if(portrait)raid.GetComponentInChildren<Text>().fontSize=11;
-            float noticeY=portrait?80:43;
-            Value(manorValues,Label(p,"",10,noticeY,w-126,30,13,pale),
-                ()=>"远征 "+app.Estate.cleared+" / "+Manor.Route.Length+"   ·   "+(app.Estate.raidReady?"掠夺者已抵达":"边境巡守中"));
-            EventEntry(p,"Manor.Event",w-114,noticeY,104,30,manorValues);
-            float y=portrait?42:78,cell=(w-16)/7;
-            ClockButton(p,0,"暂停",8,y,cell-4);
-            ClockButton(p,1,"1×",8+cell,y,cell-4);
-            ClockButton(p,2,"2×",8+cell*2,y,cell-4);
-            ManorButton(p,"Manor.Day","推进一日",8+cell*3,y,cell*2-4,32,()=>app.AdvanceDays(1));
-            ManorButton(p,"Manor.Season","推进一季",8+cell*5,y,cell*2-4,32,()=>app.AdvanceDays(Manor.SeasonDays));
-        }
-
-        void ClockButton(Transform p,int rate,string caption,float x,float y,float w)
-        {
-            var b=ManorButton(p,"Manor.Speed."+rate,caption,x,y,w,32,()=>app.SetManorSpeed(rate));
-            manorValues.Add(()=>SetButtonTone(b,app.ManorSpeed==rate?HudTone.Selected:HudTone.Secondary));
         }
 
         void PlotList() => PlotList(0);

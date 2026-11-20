@@ -8,11 +8,11 @@ const read = path => readFileSync(url(path),'utf8');
 const sha = path => createHash('sha256').update(read(path).replaceAll('\r\n','\n')).digest('hex');
 const root = 'Unity/Assets/Frontline/';
 
-test('1.9.0 ships the same single Unity scene and matching player, package and model versions', () => {
+test('2.0.0 ships the same single Unity scene and matching player, package and model versions', () => {
   for (const p of ['package.json','package-lock.json',root+'Models/model-manifest.json'])
-    assert.equal(JSON.parse(read(p)).version,'1.9.0',p);
-  assert.match(read(root+'Editor/BuildTools.cs'),/bundleVersion="1\.9\.0"/);
-  assert.match(read('Unity/ProjectSettings/ProjectSettings.asset'),/^  bundleVersion: 1\.9\.0\r?$/m);
+    assert.equal(JSON.parse(read(p)).version,'2.0.0',p);
+  assert.match(read(root+'Editor/BuildTools.cs'),/bundleVersion="2\.0\.0"/);
+  assert.match(read('Unity/ProjectSettings/ProjectSettings.asset'),/^  bundleVersion: 2\.0\.0\r?$/m);
   assert.deepEqual(readdirSync(url('Unity/Assets/Scenes/')).filter(s => s.endsWith('.unity')),['Frontline.unity']);
 });
 test('manor buildings, hero equipment and civilian props all have unique baked mesh pairs', () => {

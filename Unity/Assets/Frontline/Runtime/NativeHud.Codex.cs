@@ -29,6 +29,7 @@ namespace Frontline.UnityGame
         {
             var button=Button(parent,"图鉴",x,y,w,h,CodexDialog);
             button.name="Codex.Open";
+            MarkButton(button,Glyph.Codex,portrait?12:16,portrait?4:9,portrait?11:13);
         }
 
         internal void CodexDialog() => OpenDialog("游戏图鉴",BuildCodex,maxHeight:740,maxWidth:970,wholeRows:true,header:CodexHeader);

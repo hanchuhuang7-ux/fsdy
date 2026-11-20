@@ -16,10 +16,10 @@ namespace Frontline.UnityGame
         {
             var estate=app.Estate;
             int timber=estate.timber,influence=estate.influence,forecastTimber=estate.Forecast().timber;
-            string forecastText=ManorReadout("Manor.Forecast").text;
+            string forecastText=ManorReadout("Manor.Ledger.2.Net").text;
             var governance=(NativeHudButton)VisibleButton("Manor.Governance");
             Require((estate.Todos&ManorTodo.Claim)!=0&&governance.Tone==HudTone.Primary&&
-                governance.GetComponentInChildren<Text>().text=="领地政务 · 待办","The territorial opportunity did not reach the top bar");
+                HudElement<Image>("Manor.Governance.Todo").gameObject.activeInHierarchy,"The territorial opportunity did not reach the top bar");
             yield return Press("Manor.Governance");
             CheckGovernanceViewport();
             CheckButtonHit("Manor.Claims");
@@ -39,7 +39,7 @@ namespace Frontline.UnityGame
             int rebuilds=app.View.StaticRebuilds;
             yield return Press("Manor.Claim.west_outpost");
             Require(estate.claimedSectors==1&&estate.timber==timber-16&&estate.influence==influence-35&&
-                estate.Forecast().timber==forecastTimber+150&&ManorReadout("Manor.Forecast").text!=forecastText&&
+                estate.Forecast().timber==forecastTimber+150&&ManorReadout("Manor.Ledger.2.Net").text!=forecastText&&
                 ManorReadout("Manor.Claim.Status.west_outpost").text=="已筑哨"&&
                 !VisibleButton("Manor.Claim.west_outpost").IsInteractable()&&
                 estate.chronicle.Any(row=>row.kind=="claim"&&row.subject==0)&&

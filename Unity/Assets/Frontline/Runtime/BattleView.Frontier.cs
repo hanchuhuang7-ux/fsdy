@@ -42,8 +42,8 @@ namespace Frontline.UnityGame
             float aspect=Screen.width/(float)Mathf.Max(1,Screen.height);
             float virtualHeight=(compact?390:1280)/aspect;
             bool patrol=Config?.map==FrontierMap.Id;
-            float top=compact?(patrol?192:264):(patrol?132:178);
-            float bottom=compact?(patrol?172:340):(patrol?112:focus==0?163:148);
+            float top=compact?(patrol?154:151):(patrol?113:96);
+            float bottom=compact?(patrol?140:108):(patrol?89:69);
             ViewCamera.fieldOfView=FrontierFov;
             float tangent=Mathf.Tan(FrontierFov*.5f*Mathf.Deg2Rad);
             float tanX=tangent*aspect*(compact?.975f:.965f);

@@ -8,12 +8,15 @@ namespace Frontline.UnityGame
     {
         void GovernanceEntry(Transform parent,float x,float y,float w,float h)
         {
-            var button=ManorButton(parent,"Manor.Governance","领地政务",x,y,w,h,GovernanceDialog);
-            var caption=button.GetComponentInChildren<Text>();
+            var button=ManorButton(parent,"Manor.Governance",portrait?"政务":"领地政务",x,y,w,h,GovernanceDialog);
+            MarkButton(button,Glyph.Council,portrait?12:15,portrait?4:10,portrait?11:13);
+            var corner=Panel(button.transform,"Manor.Governance.Todo",w-(portrait?7:13),3,6,6,
+                new Color(.95f,.58f,.29f),Slice.Badge).GetComponent<Image>();
+            corner.raycastTarget=false;
             manorValues.Add(()=>{
                 bool pending=app.Estate.Todos!=ManorTodo.None;
                 SetTodoLook(button,pending);
-                caption.text=pending?(portrait?"政务 · 待办":"领地政务 · 待办"):"领地政务";
+                corner.gameObject.SetActive(pending);
             });
         }
 

@@ -18,17 +18,6 @@ namespace Frontline.UnityGame
             approval<Manor.UnrestApproval?"怨声载道":approval>=Manor.FlourishingApproval?"安居乐业":"平稳运转";
         static string Change(int points) => points>0?"+"+points:points.ToString();
 
-        void ApprovalMeter(RectTransform ledger,float x,float w)
-        {
-            LedgerMark(ledger,x,new Color(.84f,.67f,.70f));
-            var title=Label(ledger,"",x+11,3,w-17,18,portrait?10:12,pale);
-            title.name="Manor.Nobility.Ledger";
-            var score=Label(ledger,"",x+11,20,w-18,ledger.sizeDelta.y-21,portrait?14:17,gold);
-            Value(manorValues,title,()=>app.Estate.NobleTitle+" · "+app.Estate.ProsperityTitle);
-            Value(manorValues,score,()=>"民心 "+app.Estate.approval);
-            manorValues.Add(()=>score.color=ApprovalColor(app.Estate.approval));
-        }
-
         string ForecastFactors(Manor m,ManorDay forecast,bool heatingShortage)
         {
             string season;

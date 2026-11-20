@@ -24,8 +24,8 @@ namespace Frontline.UnityGame
         static readonly string[] QualityNames={"流畅","均衡","精细"};
         float shownReplayTime;
         bool shownPaused,readoutsDirty;
-        readonly Color ink=new Color(.21f,.22f,.20f,.98f),panel=new Color(.25f,.28f,.27f,.98f);
-        readonly Color muted=new Color(.70f,.72f,.68f),gold=titleGold,white=new Color(.94f,.92f,.86f),line=new Color(.29f,.30f,.27f);
+        readonly Color ink=Color.white;
+        readonly Color muted=new Color(.79f,.82f,.77f),gold=titleGold,white=new Color(.985f,.957f,.886f),line=new Color(.52f,.59f,.56f,.65f);
         readonly bool[] arenaStyles={true,true,true,false};readonly HashSet<int> arenaFavorites=new HashSet<int>(),arenaImports=new HashSet<int>();readonly HashSet<string> arenaMaps=new HashSet<string>();string seedText="42,77";
         public void Initialize(FrontlineApp value)
         {
@@ -86,10 +86,10 @@ namespace Frontline.UnityGame
             b.targetGraphic=rect.GetComponent<Image>();
             b.colors=new ColorBlock
             {
-                normalColor=new Color(.88f,.88f,.88f),
+                normalColor=new Color(.94f,.94f,.94f),
                 highlightedColor=Color.white,
                 selectedColor=Color.white,
-                pressedColor=new Color(.70f,.69f,.67f),
+                pressedColor=new Color(.78f,.78f,.75f),
                 disabledColor=Color.white,
                 colorMultiplier=1,
                 fadeDuration=.075f
@@ -113,18 +113,21 @@ namespace Frontline.UnityGame
             if(overlay&&(builtManorMode!=app.InManor||builtInBase!=(app.Phase=="manor")))CloseDialog();
             width=Screen.width;height=Screen.height;portrait=Viewport.Compact;rw=portrait?390:1280;rh=height/(float)Math.Max(1,width)*rw;canvas.GetComponent<CanvasScaler>().scaleFactor=width/rw;Stretch(baseRoot);Clear(baseRoot);status=clock=power=progress=commandStatus=brief=pauseLabel=null;timeline=null;redPower=null;
             builtManorMode=app.InManor;builtInBase=app.Phase=="manor";builtFrontier=app.InFrontier;manorValues.Clear();frontierValues.Clear();
+            toast=null;supplyHint=null;
             TopBar();
             if(builtInBase)ManorHud();else if(app.InFrontier)FrontierHud();else if(app.Phase=="deploy"){if(app.InManor)ExpeditionDeploy();else Deploy();}else BattleHud();
-            if(!status){var notice=Panel(baseRoot,"Status",portrait?10:302,rh-36,portrait?370:Mathf.Min(680,rw-320),28,ink);notice.GetComponent<Image>().raycastTarget=false;status=Label(notice,app.Message,10,1,notice.sizeDelta.x-20,26,12,gold);}if(app.Busy){var p=Panel(baseRoot,"Calculation",portrait?12:335,portrait?100:90,portrait?366:610,83,ink);progress=Label(p,app.Progress??"准备计算",14,8,portrait?230:460,35,14,gold);Button(p,"停止",portrait?270:500,20,74,42,app.CancelJob);Label(p,"分片推演中，可随时停止",14,44,230,25,11,muted);}
+            if(!status)BuildToast(false);
+            if(app.Busy){var p=Float(baseRoot,"Calculation",portrait?12:335,portrait?145:72,portrait?366:610,83);progress=Label(p,app.Progress??"准备计算",14,8,portrait?230:460,35,14,gold);Button(p,"停止",portrait?270:500,20,74,42,app.CancelJob);Label(p,"分片推演中，可随时停止",14,44,230,25,11,muted);}
             readoutsDirty=true;UpdateReadouts();
             if(overlay&&(resized||!builtInBase)&&dialogBuilder!=null)
                 OpenDialog(dialogTitle,dialogBuilder,dialogHeight,dialogFooter,true,dialogWidth,dialogWholeRows,dialogHeader);
             RefreshManorValues();
+            if(!builtInBase)UpdateToast();
         }
         void Deploy()
         {
             var publicConfig=app.PublicConfig;string team=app.EditingTeam;
-            var side=Panel(baseRoot,"Deployment",portrait?10:16,portrait?rh-(deckOpen?354:105):90,portrait?370:268,portrait?(deckOpen?316:67):rh-138,panel);float sw=portrait?370:268;
+            var side=Float(baseRoot,"Deployment",portrait?10:16,portrait?rh-(deckOpen?343:105):71,portrait?370:268,portrait?(deckOpen?306:67):rh-119);float sw=portrait?370:268;
             Label(side,(app.EditingTeam=="red"?"红方":"蓝方")+" · 战前布阵",14,7,sw-120,28,17,gold);Button(side,portrait?(deckOpen?"收起":"展开"):"撤销",sw-94,8,80,30,()=>{if(portrait){deckOpen=!deckOpen;Build();}else app.Undo();});
             if(portrait&&!deckOpen){Label(side,app.Data.Cost(publicConfig,team).ToString("0")+" / "+app.PlayerLimit+" 军费",14,36,200,25,12,muted);TouchSwitch();return;}
             float footerY=portrait?265:side.rect.height-52;float stanceY=footerY-86;float visible=portrait?202:Mathf.Max(40,stanceY-52);var scroll=Scroll(side,10,48,sw-20,visible);float y=4,w=sw-42;
@@ -143,14 +146,14 @@ namespace Frontline.UnityGame
             if(!portrait)
             {
                 var map=app.Data.Maps[app.Config.map];
-                var mapTitle=Panel(baseRoot,"Map title",298,87,418,78,panel);
+                var mapTitle=Float(baseRoot,"Map title",299,71,336,58,Slice.Rail);
                 mapTitle.GetComponent<Image>().raycastTarget=false;
-                Label(mapTitle,map.name,13,4,392,34,22,gold);
-                Rule(mapTitle,13,39,392);
-                Label(mapTitle,map.hint??"",13,46,392,28,13,white,TextAnchor.UpperLeft);
+                Label(mapTitle,map.name,15,3,307,29,19,gold);
+                Rule(mapTitle,15,33,304);
+                Label(mapTitle,map.hint??"",15,35,307,20,12,white);
                 Button(baseRoot,"视角 · "+CameraName(),rw-170,rh-84,150,38,()=>{app.View.CameraMode=(app.View.CameraMode+1)%3;app.Refresh();});
             }
-            else {TouchSwitch();Label(baseRoot,diagnosis,14,146,362,50,12,gold,TextAnchor.UpperLeft);}
+            else {TouchSwitch();Label(baseRoot,diagnosis,14,91,362,47,12,gold,TextAnchor.UpperLeft);}
         }
         static void FitDeploymentViewport(RectTransform content,float available)
         {
@@ -170,16 +173,17 @@ namespace Frontline.UnityGame
         }
         string StartText(){if(app.Mode=="hotseat"&&app.Hotseat!="revealed")return app.Hotseat=="red"?"封存红方":app.Hotseat=="handoff"?"蓝方接手":"封存蓝方";return "开 战";}
         string CameraName(){return app.View.CameraMode==0?"全景":app.View.CameraMode==1?"俯瞰":"追踪";}
-        void TouchSwitch(){Button(baseRoot,app.TouchCamera?"拖动视角  ⇄  切换点选":"点选布阵 / 军令  ⇄  切换视角",10,98,280,40,()=>{app.TouchCamera=!app.TouchCamera;app.Refresh();},selected:!app.TouchCamera);Button(baseRoot,"视角",300,98,80,40,()=>{app.View.CameraMode=(app.View.CameraMode+1)%3;app.Refresh();});}
+        void TouchSwitch(){Button(baseRoot,app.TouchCamera?"拖动视角  ⇄  切换点选":"点选布阵 / 军令  ⇄  切换视角",10,52,280,32,()=>{app.TouchCamera=!app.TouchCamera;app.Refresh();},selected:!app.TouchCamera);Button(baseRoot,"视角",300,52,80,32,()=>{app.View.CameraMode=(app.View.CameraMode+1)%3;app.Refresh();});}
         void BattleHud()
         {
 
-            var score=Panel(baseRoot,"Live power",portrait?10:16,portrait?146:90,portrait?370:344,110,panel);
+            var score=Float(baseRoot,"Live power",portrait?10:16,portrait?91:69,portrait?370:300,73,Slice.Rail);
             score.GetComponent<Image>().raycastTarget=false;
-            clock=Label(score,"",12,5,score.sizeDelta.x-24,38,portrait?19:22,gold);power=Label(score,"",12,43,score.sizeDelta.x-24,28,13,white);
-            powerWidth=score.sizeDelta.x-24;var blueBar=Panel(score,"Blue power",12,82,powerWidth,10,new Color(.27f,.51f,.72f),null);blueBar.GetComponent<Image>().raycastTarget=false;redPower=Panel(blueBar,"Red power",0,0,powerWidth/2,10,new Color(.83f,.33f,.26f),null);redPower.GetComponent<Image>().raycastTarget=false;if(portrait)TouchSwitch();
-            bool commands=app.Phase=="battle"&&app.Config.commander.enabled,results=app.Phase=="result";float controlsHeight=commands?(portrait?158:126):results?126:88;
-            float x=portrait?10:24,y=rh-controlsHeight-14,w=portrait?370:commands?680:416;var p=Panel(baseRoot,"Battle controls",x,y,w,controlsHeight,panel);
+            clock=Label(score,"",14,3,score.sizeDelta.x-28,31,portrait?18:19,gold);power=Label(score,"",14,31,score.sizeDelta.x-28,22,12,white);
+            powerWidth=score.sizeDelta.x-28;var blueBar=Panel(score,"Blue power",14,57,powerWidth,6,new Color(.47f,.66f,.84f),Slice.Badge);blueBar.GetComponent<Image>().raycastTarget=false;redPower=Panel(blueBar,"Red power",0,0,powerWidth/2,6,new Color(.94f,.52f,.43f),Slice.Badge);redPower.GetComponent<Image>().raycastTarget=false;if(portrait)TouchSwitch();
+            bool commands=app.Phase=="battle"&&app.Config.commander.enabled,results=app.Phase=="result";float controlsHeight=commands?(portrait?130:100):results?104:57;
+            float w=portrait?370:commands?690:416,x=(rw-w)*.5f,y=rh-controlsHeight-14;
+            var p=Float(baseRoot,"Battle controls",x,y,w,controlsHeight,Slice.Rail);
             var pause=Button(p,app.Paused?"继续":"暂停",10,10,portrait?70:90,38,app.TogglePause);pauseLabel=pause.GetComponentInChildren<Text>();pause.interactable=app.Phase!="result";Button(p,app.Speed+"×",portrait?86:110,10,60,38,()=>{app.Speed=app.Speed==.5f?1:app.Speed==1?2:app.Speed==2?4:.5f;app.Refresh();});
             if(app.InManor)
             {
@@ -216,10 +220,10 @@ namespace Frontline.UnityGame
                 commandStatus=Label(p,"",10,94,w-20,32,12,muted);
                 if(!portrait){commandStatus.rectTransform.anchoredPosition=new Vector2(375,-53);commandStatus.rectTransform.sizeDelta=new Vector2(280,34);}
             }
-            status=Label(p,app.Message,10,controlsHeight-30,w-20,24,12,gold);
+            BuildToast(false,y-(app.Phase=="replay"?87:40));
             if(app.Phase=="replay"&&app.ReplayFile?.kind=="trajectory"){var tp=Panel(baseRoot,"Timeline",x,y-48,w,40,ink);timeline=Slider(tp,10,9,w-20,22,app.ReplayFile.result.time,v=>app.Seek(v));foreach(var h in app.ReplayFile.highlights){var captured=h;float hx=10+(w-40)*h.tick/60f/Mathf.Max(.01f,app.ReplayFile.result.time);var mark=Button(tp,"",hx-9,0,22,40,()=>app.SeekHighlight(captured));mark.GetComponent<Image>().color=new Color(0,0,0,0);Panel(mark.transform,"High point",9,1,3,12,gold);}}
-            if(!portrait){Button(baseRoot,"视角 · "+CameraName(),rw-180,92,156,38,()=>{app.View.CameraMode=(app.View.CameraMode+1)%3;app.Refresh();});Button(baseRoot,app.BriefOpen?"收起战况":"战况快报",rw-232,rh-78,210,36,()=>{app.BriefOpen=!app.BriefOpen;app.Refresh();});if(app.BriefOpen)brief=Label(Panel(baseRoot,"Brief",rw-270,rh-300,248,210,panel),"",12,12,224,188,13,muted,TextAnchor.UpperLeft);}
-            if(app.Series!=null)Label(baseRoot,"Bo3  "+app.Series.Archive.wins["red"]+" : "+app.Series.Archive.wins["blue"]+"  ·  "+(app.Series.Complete?"系列结束":"第 "+(app.Series.Archive.rounds.Count+(app.Phase=="result"?0:1))+" 局"),portrait?12:650,portrait?260:94,340,30,14,white);
+            if(!portrait){Button(baseRoot,"视角 · "+CameraName(),rw-175,69,156,34,()=>{app.View.CameraMode=(app.View.CameraMode+1)%3;app.Refresh();});Button(baseRoot,app.BriefOpen?"收起战况":"战况快报",rw-171,rh-56,153,33,()=>{app.BriefOpen=!app.BriefOpen;app.Refresh();});if(app.BriefOpen)brief=Label(Float(baseRoot,"Brief",rw-267,rh-285,248,211),"",12,12,224,188,13,muted,TextAnchor.UpperLeft);}
+            if(app.Series!=null)Label(baseRoot,"Bo3  "+app.Series.Archive.wins["red"]+" : "+app.Series.Archive.wins["blue"]+"  ·  "+(app.Series.Complete?"系列结束":"第 "+(app.Series.Archive.rounds.Count+(app.Phase=="result"?0:1))+" 局"),portrait?12:650,portrait?168:69,340,30,14,white);
         }
         Slider Slider(Transform parent,float x,float y,float w,float h,float max,Action<float> change)
         {
@@ -233,7 +237,7 @@ namespace Frontline.UnityGame
             view.gameObject.AddComponent<RectMask2D>();
             var content=Node(view,"Content");
             Rect(content,0,0,w-12,h);
-            var track=Panel(view,"Scroll track",0,0,8,h,new Color(.16f,.17f,.15f),Slice.Badge);
+            var track=Panel(view,"Scroll track",0,0,7,h,new Color(.31f,.38f,.35f,.56f),Slice.Badge);
             track.anchorMin=new Vector2(1,0);
             track.anchorMax=Vector2.one;
             track.offsetMin=new Vector2(-8,3);
@@ -242,7 +246,7 @@ namespace Frontline.UnityGame
             Stretch(slider);
             slider.offsetMin=Vector2.one;
             slider.offsetMax=-Vector2.one;
-            var grip=Panel(slider,"Scroll thumb",0,0,6,h,new Color(.78f,.62f,.36f),Slice.Badge);
+            var grip=Panel(slider,"Scroll thumb",0,0,5,h,new Color(.88f,.79f,.61f,.85f),Slice.Badge);
             var bar=track.gameObject.AddComponent<Scrollbar>();
             bar.handleRect=grip;
             bar.targetGraphic=grip.GetComponent<Image>();
@@ -266,23 +270,28 @@ namespace Frontline.UnityGame
             if(overlay){overlay.gameObject.SetActive(false);Destroy(overlay.gameObject);}
             manorDialogValues.Clear();dialogNotice=null;
             app.Modal=true;dialogTitle=title;dialogBuilder=builder;dialogFooter=footer;dialogHeight=maxHeight;dialogWidth=maxWidth;
+            SetLedgerHover(false);
             dialogWholeRows=wholeRows;
             dialogHeader=header;
             app.View.HoveredPlot=-1;
-            overlay=Panel(canvas.transform,"Dialog overlay",0,0,rw,rh,new Color(.025f,.025f,.022f,.73f),null);
-            float w=Mathf.Min(rw-24,maxWidth),h=Mathf.Min(rh-40,maxHeight);
+            overlay=Panel(canvas.transform,"Dialog overlay",0,0,rw,rh,new Color(.04f,.072f,.063f,.51f),null);
+            float w=Mathf.Min(rw-(portrait?20:36),maxWidth),h=Mathf.Min(rh-32,maxHeight);
             var shadow=Panel(overlay,"Dialog shadow",0,0,0,0,Color.white,Slice.Shadow);
             shadow.GetComponent<Image>().raycastTarget=false;
-            var shell=Panel(overlay,title,(rw-w)/2,(rh-h)/2,w,h,app.InManor?manorPanel:panel);
-            Label(shell,title,18,9,w-113,43,portrait?18:21,gold);dismissDialog=Button(shell,"关闭",w-84,14,66,34,CloseDialog);
-            Rule(shell,18,54,w-36);
+            var shell=Panel(overlay,title,(rw-w)/2,(rh-h)/2,w,h,Color.white,Slice.Sheet);
+            Label(shell,title,22,9,w-82,43,portrait?18:23,white);
+            dismissDialog=Button(shell,"关闭",w-55,13,35,33,CloseDialog);
+            var closeCaption=((NativeHudButton)dismissDialog).Caption;
+            closeCaption.text="×";closeCaption.fontSize=22;
+            Rule(shell,20,54,w-40);
             float noticeSpace=app.InManor?32:0,footerSpace=footer==null?0:52;
             float headerSpace=header==null?0:42;
             if(header!=null)
             {
-                var tabs=Node(shell,"Dialog tabs");
-                Rect(tabs,18,62,w-60,35);
-                header(tabs,w-60);
+                var tabs=Panel(shell,"Dialog tabs",18,59,w-36,38,Color.white,Slice.Rail);
+                var contents=Node(tabs,"Segmented choices");
+                Rect(contents,4,2,w-44,34);
+                header(contents,w-44);
             }
             float chrome=80+noticeSpace+footerSpace+headerSpace;
             dialogContent=Scroll(shell,18,62+headerSpace,w-36,0);
@@ -299,10 +308,10 @@ namespace Frontline.UnityGame
                 if(bottom>0){visible=bottom+4;h=visible+chrome;}
             }
             Rect(shell,(rw-w)/2,(rh-h)/2,w,h);
-            Rect(shadow,(rw-w)/2-9,(rh-h)/2-5,w+18,h+17);
+            Rect(shadow,(rw-w)/2-14,(rh-h)/2-8,w+28,h+27);
             ((RectTransform)dialogContent.parent).SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,visible);
             dialogContent.anchoredPosition=new Vector2(0,Mathf.Clamp(scrollY,0,Mathf.Max(0,dialogContent.sizeDelta.y-visible)));
-            if(footer!=null){var bar=Panel(shell,"Footer",18,h-58-noticeSpace,w-36,46,app.InManor?manorInset:ink,Slice.Inset);footer(bar,w-36);}
+            if(footer!=null){var bar=Panel(shell,"Footer",18,h-58-noticeSpace,w-36,46,Color.white,Slice.Inset);footer(bar,w-36);}
             if(app.InManor)dialogNotice=Label(shell,notice,18,h-38,w-36,32,12,gold);
             RefreshBindings(manorDialogValues);
         }
@@ -317,6 +326,7 @@ namespace Frontline.UnityGame
             var entry=Button(bar,portrait?"设置":"显示 · "+QualityNames[app.View.QualityLevel],x,y,w,h,QualityDialog);
             entry.name="Settings.Quality";
             qualityLabel=entry.GetComponentInChildren<Text>();
+            MarkButton(entry,Glyph.Settings,portrait?12:15,portrait?4:7,portrait?11:12);
         }
         void QualityChoices(RectTransform p,float w,float y,Action redraw)
         {
@@ -373,6 +383,7 @@ namespace Frontline.UnityGame
         }
         void ReceiveNotice(string message)
         {
+            toastUntil=Time.unscaledTime+3.4f;
             ShowNotice(message);
             if(dialogNotice&&dialogNotice.text!=message)dialogNotice.text=message;
         }
@@ -424,7 +435,7 @@ namespace Frontline.UnityGame
                 ApplyReadout(power);shownRedValue=rp;shownBlueValue=bp;
             }
             float redWidth=powerWidth*(redValue+blueValue>0?redValue/(redValue+blueValue):.5f);
-            if(redPower&&Mathf.Abs(redPower.sizeDelta.x-redWidth)>.25f)redPower.sizeDelta=new Vector2(redWidth,12);
+            if(redPower&&Mathf.Abs(redPower.sizeDelta.x-redWidth)>.25f)redPower.sizeDelta=new Vector2(redWidth,6);
         }
         void UpdateReadouts()
         {
@@ -478,10 +489,11 @@ namespace Frontline.UnityGame
         {
             if(!app||app.Config==null)return;
             if(width!=Screen.width||height!=Screen.height){Build();return;}
-            if(Time.unscaledTime<nextRefresh)return;
+            if(Time.unscaledTime<nextRefresh){UpdateToast();return;}
             nextRefresh=Time.unscaledTime+.1f;
             UpdateReadouts();
             UpdateManorHover();
+            UpdateToast();
         }
     }
 }

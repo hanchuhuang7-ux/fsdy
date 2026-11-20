@@ -22,8 +22,8 @@ namespace Frontline.UnityGame
             var shade=HudElement<Image>("Dialog overlay");
             var shadow=HudElement<Image>("Dialog shadow");
             var shell=HudElement<Image>(title);
-            var rule=shell.GetComponentsInChildren<Image>().Single(image=>image.name=="Gold rule");
-            Require(shade.raycastTarget&&shade.color.a>=.6f&&!shadow.raycastTarget&&
+            var rule=shell.GetComponentsInChildren<Image>().Single(image=>image.name=="Gold rule"&&image.transform.parent==shell.transform);
+            Require(shade.raycastTarget&&shade.color.a>=.45f&&!shadow.raycastTarget&&
                 shadow.sprite.texture==sharedHudAtlas&&shell.sprite.texture==sharedHudAtlas&&shell.type==Image.Type.Sliced&&
                 rule.sprite.texture==sharedHudAtlas&&rule.rectTransform.rect.height==1,"Modal chrome lost the shared HUD texture");
             modalSkinVerified=true;
@@ -41,16 +41,20 @@ namespace Frontline.UnityGame
             Canvas.ForceUpdateCanvases();
             var notice=HudElement<RectTransform>("Manor status");
             var statusRect=ScreenRect(notice);
-            var plot=ScreenRect(HudElement<RectTransform>("Manor plot card"));
             var calendar=ScreenRect(HudElement<RectTransform>("Manor calendar"));
-            var dismiss=VisibleButton("Manor.Guide.Dismiss");
-            var skip=ScreenRect((RectTransform)dismiss.transform);
-            Require(!statusRect.Overlaps(plot)&&!statusRect.Overlaps(calendar)&&statusRect.xMin>=8&&
-                statusRect.xMax<=Screen.width-8&&statusRect.yMin>=6&&statusRect.Contains(skip.min)&&statusRect.Contains(skip.max),
+            var plot=app.GetComponentsInChildren<RectTransform>().SingleOrDefault(rect=>rect.name=="Manor plot card");
+            Require((!plot||!statusRect.Overlaps(ScreenRect(plot)))&&!statusRect.Overlaps(calendar)&&statusRect.xMin>=8&&
+                statusRect.xMax<=Screen.width-8&&statusRect.yMin>=6,
                 "Floating status or guide overlapped a manor card or the screen edge");
             foreach(var label in notice.GetComponentsInChildren<Text>())
                 Require(label.preferredHeight<=label.rectTransform.rect.height+.6f,"Floating status clipped text: "+label.text);
-            CheckButtonHit("Manor.Guide.Dismiss");
+            var dismiss=notice.GetComponentsInChildren<Button>().SingleOrDefault(button=>button.name=="Manor.Guide.Dismiss");
+            if(dismiss)
+            {
+                var skip=ScreenRect((RectTransform)dismiss.transform);
+                Require(statusRect.Contains(skip.min)&&statusRect.Contains(skip.max),"Guide action is clipped");
+                CheckButtonHit("Manor.Guide.Dismiss");
+            }
             if(Viewport.Compact)portraitStatusVerified=true;
         }
 

@@ -40,7 +40,8 @@ namespace Frontline.UnityGame
             var point=Center((RectTransform)button.transform);
             var hits=UiHits(point);
             Require(point.x>=0&&point.x<Screen.width&&point.y>=0&&point.y<Screen.height&&hits.Count>0&&
-                hits[0].gameObject.GetComponentInParent<Button>()==button,"Control is outside its usable area: "+name);
+                hits[0].gameObject.GetComponentInParent<Button>()==button,"Control is outside its usable area: "+name+
+                " at "+point+" (top hit "+(hits.Count>0?hits[0].gameObject.name:"none")+")");
         }
 
         IEnumerator CheckDesktopControls()
@@ -243,13 +244,15 @@ namespace Frontline.UnityGame
         {
             var estate=app.Estate;
             var input=app.GetComponent<BattleInput>();
-            var forecast=ManorReadout("Manor.Forecast");
+            var forecast=ManorReadout("Manor.Ledger.0.Net");var hud=app.GetComponent<NativeHud>();
+            hud.SetLedgerHover(true);
             Require(ManorReadout("Manor.Forecast.Factors").text.Contains("耗柴 2"),"Winter heating was missing from the ledger");
+            hud.SetLedgerHover(false);
             int staticBuilds=app.View.StaticRebuilds;
             string standard=forecast.text;
             yield return Press("Manor.Governance");
             Require(app.Modal&&Displays("领地政务与集市")&&Displays("民心 "+estate.approval)&&
-                ManorReadout("Manor.Nobility.Ledger").text.Contains(estate.ProsperityTitle)&&Displays("冬柴足额 0"),
+                ManorReadout("Manor.Nobility.Ledger").text==estate.NobleTitle&&Displays("冬柴足额 0"),
                 "Governance did not bind approval and winter forecast");
             var marketControl=VisibleButton("Manor.Trade.Buy.food");
             yield return Press("Manor.Tax.high");
@@ -348,9 +351,11 @@ namespace Frontline.UnityGame
             yield return PickPlot(14);yield return Press("Manor.Worker.Plus");
             var estate=app.Estate;
             var f=estate.Forecast();
+            app.GetComponent<NativeHud>().SetLedgerHover(true);
             Require(estate.slots[14].level==3&&estate.slots[16].level==3&&f.synergy.grainPercent==12&&
                 f.synergy.cropPercent==8&&f.synergy.forgePercent==10&&f.synergy.settledApproval==1&&
                 ManorReadout("Manor.Forecast.Synergy").text.Contains("谷仓产粮 +12%"),"Expanded estate links did not reach the ledger");
+            app.GetComponent<NativeHud>().SetLedgerHover(false);
 
             yield return Press("Manor.Governance");
             if(captures)yield return ManorShot("145-governance");
@@ -498,6 +503,14 @@ namespace Frontline.UnityGame
                     SystemInfo.renderingThreadingMode==UnityEngine.Rendering.RenderingThreadingMode.LegacyJobified,
                     "The Windows smoke test did not start with D3D11 Legacy Graphics Jobs");
                 Require(app.View.SupportedDesktopShaders,"The D3D11 instanced, shadow or atmosphere passes are missing");
+            }
+            if(Array.IndexOf(Environment.GetCommandLineArgs(),"--glass-hud-only")>=0)
+            {
+                yield return CheckGlassHud();
+#if !UNITY_WEBGL && !UNITY_EDITOR
+                Application.Quit(0);
+#endif
+                yield break;
             }
             if(Array.IndexOf(Environment.GetCommandLineArgs(),"--wide-world-only")>=0)
             {

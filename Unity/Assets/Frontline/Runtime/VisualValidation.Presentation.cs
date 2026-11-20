@@ -61,15 +61,15 @@ namespace Frontline.UnityGame
         IEnumerator CheckGuideAndSlots()
         {
             var input=app.GetComponent<BattleInput>();
-            Require(app.Estate.GuideActive&&Displays("① 建一块麦田并派工"),"Founding guide missing");
+            yield return WaitForState(()=>app.Estate.GuideActive&&Displays("① 建一块麦田并派工"),"Founding guide missing");
             yield return CheckFrontierPreset(1);
             yield return BuildPlot(2,"farm");yield return Press("Manor.Worker.Plus");
-            Require(app.Estate.guideStep==1&&Displays("② 打开领地政务"),"Staffing did not advance the guide");
+            yield return WaitForState(()=>app.Estate.guideStep==1&&Displays("② 打开领地政务"),"Staffing did not advance the guide");
             Require(input.Shortcut(KeyCode.G)&&app.Modal&&Displays("领地政务与集市")&&app.Estate.guideStep==2&&
                 !input.Shortcut(KeyCode.P)&&!input.Shortcut(KeyCode.M)&&input.Shortcut(KeyCode.Escape),"G or modal shortcut guard failed");
             Require(input.Shortcut(KeyCode.P)&&app.Modal&&Displays("建地清单")&&input.Shortcut(KeyCode.Escape),"P did not open the plot list");
             Require(input.Shortcut(KeyCode.M)&&app.Modal&&Displays("领主宏愿")&&input.Shortcut(KeyCode.Escape),"M did not open milestones");
-            Require(Displays("③ 集结巡边或远征"),"Guide did not expose its third step");
+            yield return WaitForState(()=>Displays("③ 集结巡边或远征"),"Guide did not expose its third step");
             yield return Press("Manor.Patrol");
             Require(!VisibleButton("Manor.FrontierTier.2").IsInteractable()&&!VisibleButton("Manor.FrontierTier.3").IsInteractable(),
                 "Elite patrol ranks were initially available");
@@ -97,6 +97,7 @@ namespace Frontline.UnityGame
 
             var founding=new Manor();
             app.ImportText(founding.Export());
+            yield return WaitForState(()=>Displays("① 建一块麦田并派工"),"Founding guide did not appear after the import notice");
             yield return Press("Manor.Guide.Dismiss");
             Require(app.Estate.guideDismissed&&Manor.Import(PlayerPrefs.GetString(FrontierSaveKey)).guideDismissed,"Guide skip was not saved");
             guideVerified=true;
