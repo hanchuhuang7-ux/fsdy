@@ -51,32 +51,34 @@ namespace Frontline.Core
                 case "frontier": return "击退警戒 "+subject+" 阶全部守军"+MeritText(entry.choice);
                 case "raid": return "击退掠夺者"+MeritText(entry.choice);
                 case "festival": return "召开领地庆典 · 鼓舞民心";
+                case "claim": return "宣称并筑哨 · "+Sectors[subject].name;
                 default: throw new InvalidOperationException("未知编年史记录");
             }
         }
 
         static string MeritText(int amount) => amount > 0 ? " · 威望 +"+amount : "";
 
-        bool ValidChronicle(bool current)
+        bool ValidChronicle(int schema)
         {
             if(chronicle==null||chronicle.Count>ChronicleLimit)return false;
             int previous=1;
             foreach(var entry in chronicle)
             {
-                if(entry.day<previous||entry.day>day||!ValidChronicleEntry(entry,current))return false;
+                if(entry.day<previous||entry.day>day||!ValidChronicleEntry(entry,schema))return false;
                 previous=entry.day;
             }
             return true;
         }
 
-        bool ValidChronicleEntry(ManorChronicleEntry entry,bool current)
+        bool ValidChronicleEntry(ManorChronicleEntry entry,int schema)
         {
             int subject=entry.subject;
+            bool merit=schema>=RetinueSaveVersion;
             if(entry.kind=="dispatch")return (uint)subject<SeasonalEvents.Length&&(uint)entry.choice<=2;
-            if(entry.kind=="expedition")return (uint)subject<Route.Length&&(uint)entry.choice<=(current?ExpeditionInfluence:0);
-            if(entry.kind=="frontier")return frontierSwept&&subject>=(current?1:2)&&subject<=FrontierMap.MaxTier&&
-                (uint)entry.choice<=(current?FrontierInfluence:0);
-            if(entry.kind=="raid")return current&&(uint)subject<Route.Length&&(uint)entry.choice<=RaidInfluence;
+            if(entry.kind=="expedition")return (uint)subject<Route.Length&&(uint)entry.choice<=(merit?ExpeditionInfluence:0);
+            if(entry.kind=="frontier")return frontierSwept&&subject>=(merit?1:2)&&subject<=FrontierMap.MaxTier&&
+                (uint)entry.choice<=(merit?FrontierInfluence:0);
+            if(entry.kind=="raid")return merit&&(uint)subject<Route.Length&&(uint)entry.choice<=RaidInfluence;
             if(entry.choice!=0)return false;
             switch(entry.kind)
             {
@@ -84,21 +86,22 @@ namespace Frontline.Core
                 case "reclaim": return subject>=FirstOuterPlot&&IsPlotCleared(subject);
                 case "granary": case "chapel": return subject>0&&subject<PlotCount;
                 case "development": return HasDevelopment((ManorPerk)subject);
-                case "festival": return current&&subject==0;
+                case "festival": return merit&&subject==0;
+                case "claim": return schema>=ClaimsSaveVersion&&ClaimedSector(subject);
                 default: return false;
             }
         }
 
-        void ReadChronicle(object value,bool current)
+        void ReadChronicle(object value,int schema)
         {
             if(!(value is List<object> entries)||entries.Count>ChronicleLimit)throw new FormatException("领地编年史无效");
             foreach(var item in entries)
             {
                 var row=ObjectWith(item,"day","kind","subject","choice");
                 chronicle.Add(new ManorChronicleEntry(Number(row["day"],1,day),row["kind"] as string,
-                    Number(row["subject"],0,PlotCount-1),Number(row["choice"],0,current?FrontierInfluence:2)));
+                    Number(row["subject"],0,PlotCount-1),Number(row["choice"],0,schema>=RetinueSaveVersion?FrontierInfluence:2)));
             }
-            if(!ValidChronicle(current))throw new FormatException("领地编年史条目无效或日期乱序");
+            if(!ValidChronicle(schema))throw new FormatException("领地编年史条目无效或日期乱序");
         }
     }
 }

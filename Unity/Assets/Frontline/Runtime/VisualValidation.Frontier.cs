@@ -290,6 +290,7 @@ namespace Frontline.UnityGame
             Require(!app.Modal&&estate.eventDay==42&&estate.ActiveEvent?.title=="寒潮来袭","Dispatch did not arrive silently on day six");
             CheckButtonHit("Manor.Event");
             yield return Press("Manor.Governance");
+            Require(ManorReadout("Manor.Todos.Priority").text=="待办 · 领地急报","Pending dispatch did not outrank other actions");
             yield return Press("Manor.Governance.Event");
             Require(app.Modal&&Displays("领地急报 · 寒潮来袭")&&Displays("建材 -4 · 民心 +6"),"Winter dispatch options did not describe the costs");
             if(captures)yield return ManorShot("142-dispatch");
@@ -502,7 +503,7 @@ namespace Frontline.UnityGame
             bool artOnly=Array.IndexOf(Environment.GetCommandLineArgs(),"--art-framing-only")>=0;
             bool captures=Array.IndexOf(Environment.GetCommandLineArgs(),"--no-smoke-images")<0;
             if(!artOnly)yield return CheckGuideAndSlots();
-            var starting=new Manor {coin=3000,timber=1200,food=120,cleared=3,day=36,guideDismissed=true};
+            var starting=new Manor {coin=3000,timber=1200,food=120,influence=90,cleared=3,day=36,guideDismissed=true};
             starting.Upgrade(0);starting.Upgrade(0);
             starting.stock["militia"]=16;
             starting.Build(8,"irrigated_field");starting.SetRotation(8,"intensive");starting.Build(9,"pasture");
@@ -664,6 +665,7 @@ namespace Frontline.UnityGame
             int beforeReturn=app.Estate.approval;
             int defeated=battle.Units.Skip(displayLimit).Count(u=>!u.entity.alive);
             int approvalGain=Math.Min(6,defeated/5*2);
+            Require(app.Estate.clearedSectors==0,"A live camp defeat already modified the estate");
             yield return Press("Frontier.Settle");
             Require(app.Phase=="manor" && app.Modal && Displays("巡边结算清单") &&
                 app.Estate.Export()==PlayerPrefs.GetString(FrontierSaveKey) && app.Estate.cleared==3,"Withdrawal did not settle and save");
@@ -672,14 +674,18 @@ namespace Frontline.UnityGame
             Require(approvalGain>0&&app.Estate.approval==beforeReturn+approvalGain&&
                 ManorReadout("Manor.Settlement.Approval").text=="民心 "+beforeReturn+" → "+app.Estate.approval+"（+"+approvalGain+"）",
                 "Patrol report did not display the approval gain");
+            Require(app.Estate.clearedSectors==1&&app.Estate.claimedSectors==0&&
+                ManorReadout("Manor.Settlement.Claims").text=="新开放宣称 · 西桥前哨","The settled first camp did not unlock its territory");
             if(captures)yield return ManorShot("142-settlement");
             yield return Press("Manor.Settlement.Done");
             Require(app.View.AlertCampMask==7,"Manor preview did not restore all patrol markers");
+            yield return CheckClaimsAndWeather(captures);
             yield return Press("Manor.Expedition");
             Require(Displays("1  风起草甸"),"Six-mission expedition is no longer accessible");
             yield return Press("关闭");
             yield return Press("Mode.Duel");
-            Require(Json.Write(app.Config)==arena,"Arena formation leaked across modes");
+            Require(Json.Write(app.Config)==arena&&app.View.Weather==ManorWeather.Clear&&app.View.WeatherParticles==0,
+                "Manor state or weather leaked into the arena");
 
             Require(Screen.width==1280&&Screen.height==800,"Main smoke switched away from the desktop viewport");
             yield return CheckPortrait();
@@ -705,6 +711,8 @@ namespace Frontline.UnityGame
                 tierSelectionVerified,seasonalLightingVerified,qaSilent=app.Muted,
                 backyardVerified,developmentVerified,marketNeedsVerified,chronicleVerified,
                 fertilityVerified,retinueVerified,influenceVerified,mercenaryVerified,governanceBottomMargin,
+                claimsVerified,todosVerified,hoverDetailsVerified,weatherVerified,weatherAllocationBytes,weatherBudgets,
+                clearedSectors=app.Estate.clearedSectors,claimedSectors=app.Estate.claimedSectors,
                 barnyard=app.Estate.slots[1].backyard,developmentMask=app.Estate.developmentMask,
                 chronicleEntries=app.Estate.chronicle.Count,
                 beforeReturn,defeated,approvalGain,approval=app.Estate.approval,tax=app.Estate.tax,decree=app.Estate.decree,

@@ -55,28 +55,26 @@ namespace Frontline.UnityGame
         void BuildGovernance(RectTransform p,float w)
         {
             float actionWidth=portrait?80:100;
-            var title=Label(p,"",0,0,w-actionWidth-8,28,portrait?14:18,gold);
+            float todoWidth=portrait?0:184;
+            var title=Label(p,"",0,0,w-actionWidth-8-todoWidth,28,portrait?14:18,gold);
+            Text next=portrait?null:Label(p,"",w-actionWidth-todoWidth-9,0,todoWidth,28,12,gold,TextAnchor.MiddleRight);
+            if(next)next.name="Manor.Todos.Priority";
             var status=Label(p,"",0,27,w*.59f,24,portrait?10:13,pale);
             var marketStatus=Label(p,"",w*.59f,27,w*.41f-1,24,portrait?10:13,thriving,TextAnchor.MiddleRight);
             marketStatus.name="Manor.MarketNeeds.Summary";
             EventEntry(p,"Manor.Governance.Event",w-actionWidth,1,actionWidth,26,manorDialogValues,fromGovernance:true);
-            float nav=w/4;
-            ManorButton(p,"Manor.Specialists","领地专才",0,52,nav-5,28,SpecialistsDialog);
-            var milestones=ManorButton(p,"Manor.Milestones","领主宏愿",nav,52,nav-5,28,MilestonesDialog);
-            var development=ManorButton(p,"Manor.Development","领地发展",2*nav,52,nav-5,28,DevelopmentDialog);
-            var developmentImage=development.GetComponent<Image>();
-            var developmentTitle=development.GetComponentInChildren<Text>();
-            ManorButton(p,"Manor.Chronicle","编年史",3*nav,52,nav-1,28,ChronicleDialog);
-            var milestoneImage=milestones.GetComponent<Image>();
-            var milestoneTitle=milestones.GetComponentInChildren<Text>();
-            var milestoneColor=milestoneTitle.color;
+            float nav=w/5;
+            ManorButton(p,"Manor.Specialists",portrait?"专才":"领地专才",0,52,nav-5,28,SpecialistsDialog);
+            var development=ManorButton(p,"Manor.Development",portrait?"发展":"领地发展",nav,52,nav-5,28,DevelopmentDialog);
+            var milestones=ManorButton(p,"Manor.Milestones",portrait?"宏愿":"领主宏愿",2*nav,52,nav-5,28,MilestonesDialog);
+            var claims=ManorButton(p,"Manor.Claims",portrait?"疆域":"边疆疆域",3*nav,52,nav-5,28,TerritoryDialog);
+            ManorButton(p,"Manor.Chronicle","编年史",4*nav,52,nav-1,28,ChronicleDialog);
             manorDialogValues.Add(()=>{
-                bool ready=app.Estate.ReadyMilestones!=0;
-                milestoneImage.color=ready?gold:manorButton;
-                milestoneTitle.color=ready?ink:milestoneColor;
-                bool hasPoint=app.Estate.DevelopmentPointsAvailable>0;
-                developmentImage.color=hasPoint?gold:manorButton;
-                developmentTitle.color=hasPoint?ink:white;
+                var todo=app.Estate.Todos;
+                SetTodoLook(development,(todo&ManorTodo.Development)!=0);
+                SetTodoLook(milestones,(todo&ManorTodo.Milestone)!=0);
+                SetTodoLook(claims,(todo&ManorTodo.Claim)!=0);
+                if(next)next.text=NextTodoText(todo);
             });
             var rations=MarketNeed(p,w,0,"Rations");
             var fuel=MarketNeed(p,w,1,"Fuel");

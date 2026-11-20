@@ -111,7 +111,7 @@ namespace Frontline.Core
                 coin = ScaleYield(Yield(8 + 2 * hall.workers,hall.level),production,TaxRevenuePercent,trade ? 120 : 100,
                     100+StewardBonus(SpecialistRank("steward")))
             };
-            string firstFood = null;
+            string firstFood = AddSectorSupplies(ref balance) ? Sectors[NorthGlade].id : null;
             bool variedDiet = false, poultry=false, staffedChapel=false;
             bool sustainableWoods=HasDevelopment(ManorPerk.SustainableWoods);
             int cropDevelopment=HasDevelopment(ManorPerk.HeavyPlough)?115:100;

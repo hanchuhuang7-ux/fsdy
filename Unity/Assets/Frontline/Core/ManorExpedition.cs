@@ -237,6 +237,7 @@ namespace Frontline.Core
             public string winner;
             public int stage, clearedBefore, clearedAfter, coin, timber, arms, defeated, approvalBefore, approvalAfter, frontierTier;
             public int influence, guards, guardLosses, mercenaries, mercenaryLosses;
+            public int newSectors;
             public ManorLogistics logistics;
             public bool raid, frontier, withdrew;
             public readonly Dictionary<string,TroopReturn> troops = new Dictionary<string,TroopReturn>();
@@ -273,12 +274,11 @@ namespace Frontline.Core
                 frontier = sortie.IsFrontier, frontierTier=sortie.FrontierTier, withdrew = result.reason == "withdraw",
                 logistics = sortie.Logistics, approvalBefore = approval, guards = sortie.Support.guards,
                 mercenaries = sortie.Support.mercenaries ? MercenarySize : 0 };
+            int clearedCamps=0;
             if(receipt.frontier)
             {
-                var enemies=result.report.units.Where(u=>u.team=="blue").ToArray();
-                if(enemies.Length!=sortie.config.blue.Count || enemies.Select(u=>u.id).Distinct().Count()!=enemies.Length)
-                    throw new InvalidOperationException("战报与边疆敌情不一致");
-                receipt.defeated=enemies.Count(u=>!u.alive);
+                clearedCamps=PatrolClearances(sortie,result.report.units,out receipt.defeated);
+                receipt.newSectors=clearedCamps&~clearedSectors;
             }
             int casualties = 0, regulars = report.Count - sortie.Support.Count;
             int guardEnd = regulars + receipt.guards;
@@ -335,6 +335,7 @@ namespace Frontline.Core
             {
                 approvalChange = receipt.defeated / FrontierMap.GroupSize * FrontierMap.ApprovalPerGroup(receipt.frontierTier);
                 frontierSwept |= receipt.defeated == FrontierMap.Guards.Count;
+                clearedSectors |= clearedCamps;
             }
             else if (victory) approvalChange = receipt.clearedAfter > receipt.clearedBefore ? 8 : 4;
             else approvalChange = !receipt.raid && result.winner == "blue" ? -4 : 0;

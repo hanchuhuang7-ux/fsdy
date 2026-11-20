@@ -24,6 +24,7 @@ namespace Frontline.UnityGame
         {
             float w=notice.sizeDelta.x,h=notice.sizeDelta.y;
             status=Label(notice,app.Message,9,0,w-18,h,12,pale);
+            status.name="Manor.HoverStatus";
             float guideWidth=portrait?194:269, actionWidth=portrait?60:80;
             var guide=Label(notice,"",w-guideWidth,0,guideWidth-actionWidth-10,h,portrait?10:12,gold);
             var skip=ManorButton(notice,"Manor.Guide.Dismiss","不再提示",w-actionWidth-4,1,actionWidth,h-2,app.DismissManorGuide);

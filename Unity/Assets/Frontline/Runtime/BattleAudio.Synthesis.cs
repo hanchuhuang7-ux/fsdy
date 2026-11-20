@@ -89,12 +89,13 @@ namespace Frontline.UnityGame
         {
             const int rate=11025, length=rate*8, overlap=rate/14;
             var samples=new float[length];
-            uint state=703459u+(uint)kind*91u;
-            float wind=0,water=0;
+            int source=kind==DrizzleBed?1:kind;
+            uint state=703459u+(uint)source*91u;
+            float wind=0,water=0,filtered=0;
             for(int i=0;i<length+overlap;i++)
             {
                 float t=i/(float)rate, noise=Noise(ref state);
-                wind+=(noise-wind)*(kind==2?.052f:.024f);
+                wind+=(noise-wind)*(source==2?.052f:.024f);
                 water+=(noise-water)*.17f;
                 float gust=.54f+.24f*Wave(.25f,t)+.16f*Wave(.375f,t);
                 float sample;
@@ -106,7 +107,18 @@ namespace Frontline.UnityGame
                 else
                 {
                     float tide=.41f+.25f*Wave(.375f,t)+.12f*Wave(.625f,t);
-                    sample=wind*gust*(kind==2?1.12f:.66f)+(water-wind)*tide*(kind==2?.24f:.39f);
+                    sample=wind*gust*(source==2?1.12f:.66f)+(water-wind)*tide*(source==2?.24f:.39f);
+                    // Prefilter the two seasonal loops so the same crossfade works in both players.
+                    if(kind==DrizzleBed)
+                    {
+                        filtered+=(sample+.17f*(noise-water)-filtered)*.29f;
+                        sample=.86f*filtered+.14f*sample;
+                    }
+                    else if(kind==2)
+                    {
+                        filtered+=(sample-filtered)*.15f;
+                        sample=.78f*filtered+.22f*sample;
+                    }
                 }
                 // Generate across the seam and crossfade the continuation into the head of the loop.
                 if(i<length)samples[i]=sample*.62f;
@@ -116,7 +128,7 @@ namespace Frontline.UnityGame
                     samples[head]=Mathf.Lerp(sample*.62f,samples[head],head/(float)overlap);
                 }
             }
-            return Clip(kind==1?"Shore and wind":kind==2?"Winter shore":"Distant war drums",samples,rate);
+            return Clip(kind==DrizzleBed?"Shore and drizzle":kind==1?"Shore and wind":kind==2?"Winter shore":"Distant war drums",samples,rate);
         }
 
         static AudioClip Clip(string name,float[] samples,int rate)
@@ -128,7 +140,7 @@ namespace Frontline.UnityGame
 
         internal static int VerifyClips()
         {
-            for(int i=0;i<CueKeys.Length+3;i++)
+            for(int i=0;i<CueKeys.Length+BedCount-1;i++)
             {
                 var clip=i<CueKeys.Length?MakeCue(CueKeys[i]):MakeSoundscape(i-CueKeys.Length+1);
                 var samples=new float[clip.samples];
@@ -141,7 +153,7 @@ namespace Frontline.UnityGame
                 if(i>=CueKeys.Length&&Mathf.Abs(samples[0]-samples[samples.Length-1])>.06f)
                     throw new System.InvalidOperationException("Audible discontinuity in ambient loop: "+i);
             }
-            return CueKeys.Length+3;
+            return CueKeys.Length+BedCount-1;
         }
     }
 }

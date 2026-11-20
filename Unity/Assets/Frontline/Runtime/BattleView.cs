@@ -157,6 +157,7 @@ namespace Frontline.UnityGame
             foreach(string type in new[]{"militia","shield","spear","archer","crossbow","bomber","medic","giant","cavalry","catapult"})units.Add(type,new UnitVisual(type,Load("body_"+type),Load("arm_right_"+type)));
             foreach(string type in new[]{"barrel","barricade","banner","spikes","spring"})props.Add(type,Load("prop_"+type));
             dust=Load("mist",true);armLeft=Load("arm_left");leg=Load("leg");horse=Load("horse");horseLeg=Load("horse_leg");catapult=Load("catapult");catapultArm=Load("catapult_arm");shield=Load("shield");ring=Load("ring");dot=Load("dot");torso=Load("torso");head=Load("head");limb=Load("limb");wreckHorse=Load("wreck_horse");wreckCart=Load("wreck_catapult");arrow=Load("arrow");bolt=Load("bolt");bomb=Load("bomb");stone=Load("stone");
+            weatherPage=new Batch { mesh=Load("snow",true) };
 
             // Reserve up to 12 strokes per effect and two marks per health bar before contact.
             const int feedbackInstances=96*12+120*2;

@@ -251,6 +251,29 @@ namespace Frontline.UnityGame
         internal void ToggleManorTithe() => ManorAction(() => Estate.SetTithe(Estate.tithe==0?Manor.TitheRate:0),null,null);
         internal void HoldManorFestival() => ManorAction(Estate.HoldFestival,"领地庆典已召开","milestone");
         internal void CallManorMerchant() => ManorAction(Estate.CallMerchant,"本季集市额度已刷新","trade");
+        internal void ClaimManorSector(int index) => ManorAction(()=>Estate.ClaimSector(index),
+            "已在"+Manor.Sectors[index].name+"筑哨","milestone");
+
+        internal string ManorHoverStatus(int index)
+        {
+            if(!Estate.IsPlotCleared(index))return "建地 "+index+"  ·  待开垦林地";
+            var plot=Estate.slots[index];
+            string title=index==0?"领主宅邸":"建地 "+index+"  "+Manor.Name(plot.kind);
+            if(plot.kind==null)return title+"  ·  可建造";
+            title+="  Lv."+plot.level;
+            if(index==0)
+                return title+"  ·  卫队 "+Estate.RetinueReady+" / "+Estate.RetinueLimit+"  ·  披甲 Lv."+Estate.retinue.level;
+            if(plot.kind=="cottage")return title+"  ·  后院 "+(plot.backyard==null?"未启用":Manor.BackyardTitle(plot.backyard));
+            if(Manor.IsCrop(plot.kind))
+            {
+                string rotation=plot.rotation=="intensive"?"精耕":plot.rotation=="fallow"?"休耕":
+                    Estate.IsRestingField(index)?"自动轮作（休耕）":"自动轮作";
+                title+="  ·  地力 "+plot.fertility+"%  ·  "+rotation;
+            }
+            else if(plot.level>=Manor.BuildingMaxLevel)title+="  ·  已满级";
+            int cap=Manor.StaffLimit(plot.kind);
+            return title+(cap==0?"":"  ·  派工 "+plot.workers+" / "+cap+(plot.workers==0?"  ·  闲置":""));
+        }
         internal void AssignManorPreset(string id) => ManorAction(() => Estate.AssignPreset(id),"派工已调配",null);
         internal void UpgradeSpecialist(string id) => ManorAction(() => Estate.UpgradeSpecialist(id),Manor.SpecialistName(id)+"已升级","recruit");
         internal void ResolveManorEvent(int issuedDay,int choice) => ManorAction(() => Estate.ResolveEvent(issuedDay,choice),"领地急报已结案",null);

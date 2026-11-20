@@ -105,7 +105,7 @@ namespace Frontline.UnityGame
 #endif
             foreach(int count in sizes)yield return MeasureArena(count,count+"v"+count);
             app.SetManorMode(true);app.SetManorSpeed(0);
-            var estate=new Manor {coin=5000,timber=5000,arms=200,food=500,cleared=3,raidReady=true};
+            var estate=new Manor {coin=5000,timber=5000,arms=200,food=500,day=4,cleared=3,raidReady=true};
             estate.Upgrade(0);estate.Upgrade(0);
             string[] layout={"cottage","farm","tavern","cottage","smithy","timber_camp","cottage","irrigated_field","pasture","drill_yard","chapel","cottage",null,"granary"};
             for(int i=0;i<layout.Length;i++)
@@ -240,7 +240,11 @@ namespace Frontline.UnityGame
                 Require(world==null||world.ProjectilePoolMisses==0&&world.CorpsePoolMisses==0,"Unexpected physics pool miss in "+scene);
                 gpuMilliseconds.Sort();
                 int gpuCount=gpuMilliseconds.Count;
+                int weatherParticles=app.View.WeatherParticles;
+                if(app.View.ViewingFrontier)Require(app.View.Weather==ManorWeather.Drizzle&&
+                    weatherParticles==app.View.WeatherBudget&&!app.View.WeatherCastsShadows,"Drizzle fixture did not exercise the manor weather");
                 rows.Add(new {scene,quality=app.View.QualityLevel,width=Screen.width,height=Screen.height,
+                    weather=app.View.Weather.ToString(),weatherParticles,
                     samples=count,warmupFrames=72,startTick,endTick=app.Battle?.Tick??0,
                     gpuFrameTimeMs=gpuCount==0?(double?)null:gpuMilliseconds[gpuCount/2],
                     p95GpuFrameTimeMs=gpuCount==0?(double?)null:gpuMilliseconds[(int)(gpuCount*.95)],

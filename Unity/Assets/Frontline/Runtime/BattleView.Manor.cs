@@ -115,7 +115,7 @@ namespace Frontline.UnityGame
             }
             manor = state;
             manorGuardsAway = guardsAway;
-            SetSeasonLight(manor?.Season??-1,sameEstate);
+            SetSeasonLight(manor?.Season??-1,manor?.day??0,sameEstate);
             manorSelection = selected;
             manorPace = Mathf.Clamp(pace, 0, 2);
             if (changingMode)
@@ -809,6 +809,8 @@ namespace Frontline.UnityGame
                 if(InView(p,radius))Add(ring,Pose(p,Quaternion.identity,new Vector3(radius,1,radius*.86f)),Gold);
             }
             DrawFrontierPatrol();
+            PrepareWeatherPage(manorTime);
+            Draw(weatherPage,false);
             foreach (var b in moving) Draw(b,false);
         }
     }

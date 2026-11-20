@@ -9,6 +9,7 @@ namespace Frontline.UnityGame
     public sealed partial class BattleAudio:MonoBehaviour
     {
         const int VoiceCount=12;
+        const int DrizzleBed=4, BedCount=5;
         static readonly string[] CueKeys={
             "melee","heavy","wall","block","bow","crossbow","bomber","catapult","explosion","order","heal",
             "charge","slam","build","harvest","recruit","forge","trade","milestone","dispatch","patrol"
@@ -16,7 +17,7 @@ namespace Frontline.UnityGame
 
         readonly Dictionary<string,AudioClip> clips=new Dictionary<string,AudioClip>(CueKeys.Length);
         readonly AudioSource[] voices=new AudioSource[VoiceCount], beds=new AudioSource[2];
-        readonly AudioClip[] soundscapes=new AudioClip[4];
+        readonly AudioClip[] soundscapes=new AudioClip[BedCount];
         readonly float[] voiceLevels=new float[VoiceCount], bedLevels=new float[2];
         FrontlineApp app;
         BattleCameraShake shake;
@@ -115,7 +116,7 @@ namespace Frontline.UnityGame
         void UpdateSoundscape(bool battle)
         {
             float gain=app.Muted?0:app.Presentation.AmbienceGain;
-            int wanted=gain==0?0:app.Phase=="manor"?(app.Estate.Season==3?2:1):battle?3:0;
+            int wanted=gain==0?0:app.Phase=="manor"?ManorBed(app.View.Weather):battle?3:0;
             if(wanted!=desiredBed)
             {
                 if(wanted!=0)
@@ -138,6 +139,13 @@ namespace Frontline.UnityGame
                 if(next==0)beds[i].Stop();
             }
         }
+
+        static int ManorBed(ManorWeather weather) => weather switch
+        {
+            ManorWeather.Drizzle => DrizzleBed,
+            ManorWeather.Flurry => 2,
+            _ => 1
+        };
 
         static bool HammerStrike(Frame frame,Cue cue)
         {

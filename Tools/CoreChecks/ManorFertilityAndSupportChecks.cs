@@ -179,7 +179,7 @@ static partial class ManorChecks
             Expect(Manor.Import(manor.Export()).chronicle.Count==4,"merit chronology roundtrip");
         });
 
-        check("all eight old schemas preserve their projected payload with canonical v9 defaults",()=>{
+        check("v1-v8 preserve their projected payload with default crop, retinue and tithe state",()=>{
             var manor=new Manor { coin=1000,timber=600,food=200,cleared=3,day=41,workers=4 };
             manor.Build(1,"farm"); manor.Assign(1,1); manor.Upgrade(1);
             manor.Build(2,"cottage"); manor.Upgrade(2); manor.SetBackyard(2,"poultry");
@@ -193,14 +193,14 @@ static partial class ManorChecks
                 var migrated=Manor.Import(Json.Write(old));
                 var projected=LegacySchema(migrated,version);
                 foreach(var item in old)Expect(Json.Write(item.Value)==Json.Write(projected[item.Key]),"v"+version+" lost "+item.Key);
-                Expect(migrated.version==9&&migrated.slots[1].fertility==100&&migrated.slots[1].rotation=="auto"&&
-                    migrated.retinue.count==0&&migrated.retinue.level==1&&migrated.retinue.wounded==0&&migrated.influence==0&&migrated.tithe==0,"v9 defaults");
+                Expect(migrated.version==Manor.SaveVersion&&migrated.slots[1].fertility==100&&migrated.slots[1].rotation=="auto"&&
+                    migrated.retinue.count==0&&migrated.retinue.level==1&&migrated.retinue.wounded==0&&migrated.influence==0&&migrated.tithe==0,"crop and retinue defaults");
                 string save=migrated.Export();
-                Expect(Manor.Import(save).Export()==save,"v9 roundtrip after v"+version);
+                Expect(Manor.Import(save).Export()==save,"current roundtrip after v"+version);
             }
         });
 
-        check("v9 export and import reject malformed crop, tithe, influence and retinue state",()=>{
+        check("current export and import reject malformed crop, tithe, influence and retinue state",()=>{
             var manor=new Manor();
             manor.Build(1,"farm");
             string valid=manor.Export();

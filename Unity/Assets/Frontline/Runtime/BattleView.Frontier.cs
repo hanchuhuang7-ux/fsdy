@@ -18,6 +18,7 @@ namespace Frontline.UnityGame
         MeshSet campRings,campFlags;
         int campTier;
         internal int AlertCampMask {get;private set;}=-1;
+        internal int ClaimedFlagMask {get;private set;}
         public bool CameraMoving => cameraBlending;
 
         public void FrameFrontier(int focus,bool animate=false)
@@ -267,29 +268,32 @@ namespace Frontline.UnityGame
         void SyncCampMarkers()
         {
             var guards=FrontierMap.Guards;
-            int camps=guards.Count/FrontierMap.GroupSize;
-            int mask=(1<<camps)-1;
-            if(Config.map==FrontierMap.Id&&Current!=null)
+            bool live=Config.map==FrontierMap.Id&&Current!=null;
+            int claimed=live?0:manor.claimedSectors;
+            int mask=Manor.SectorMask&~claimed;
+            if(live)
             {
                 mask=0;
                 int blueStart=Config.red.Count;
                 for(int i=blueStart;i<Current.units.Count;i++)
                     if(Current.units[i].alive)mask|=1<<((i-blueStart)/FrontierMap.GroupSize);
             }
-            int tier=manor.frontierTier;
-            if(mask==AlertCampMask&&tier==campTier)return;
+            int tier=live?manor.frontierTier:1;
+            if(mask==AlertCampMask&&tier==campTier&&claimed==ClaimedFlagMask)return;
             Color alert=tier==1?Blue:tier==2?new Color(.79f,.61f,.25f):new Color(.66f,.37f,.80f);
             campRings.still?.Clear();campFlags.still?.Clear();
-            for(int i=0;i<camps;i++)
+            for(int i=0;i<Manor.Sectors.Count;i++)
             {
                 var camp=UnityWorld.Vector(guards[i*FrontierMap.GroupSize].camp);
                 bool active=(mask&(1<<i))!=0;
+                bool owned=(claimed&(1<<i))!=0;
                 if(active)Still(campRings,camp+Vector3.up*.034f,Quaternion.identity,
                     new Vector3(FrontierMap.AlertRadius,.8f,FrontierMap.AlertRadius),new Color(.52f,.62f,.50f));
                 Still(campFlags,camp+new Vector3(-4.50f,0,4.35f),Quaternion.Euler(0,17,0),
-                    Vector3.one*(active?1.45f:1.18f),active?alert:new Color(.35f,.82f,.55f),.04f);
+                    Vector3.one*(owned?1.92f:active?1.45f:1.18f),
+                    owned?new Color(.94f,.23f,.13f):active?alert:new Color(.35f,.82f,.55f),.04f);
             }
-            AlertCampMask=mask;campTier=tier;
+            AlertCampMask=mask;campTier=tier;ClaimedFlagMask=claimed;
         }
 
         bool HeroOnPatrol(string type)
@@ -305,6 +309,7 @@ namespace Frontline.UnityGame
             var roster=FrontierMap.Roster(manor.frontierTier);
             for(int i=0;i<guards.Count;i+=FrontierMap.GroupSize)
             {
+                if(manor.ClaimedSector(i/FrontierMap.GroupSize))continue;
                 if(!InView(UnityWorld.Vector(guards[i].camp),9))continue;
                 var offset=guards[i].PatrolOffset(manorTime,out var heading);
                 for(int j=i;j<i+FrontierMap.GroupSize;j++)

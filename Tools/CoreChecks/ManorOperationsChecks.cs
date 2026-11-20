@@ -9,7 +9,10 @@ static partial class ManorChecks
     {
         var old = (Dictionary<string,object>)Json.Parse(manor.Export());
         old["version"] = version;
-        foreach(string key in new[]{"retinue","influence","tithe"})old.Remove(key);
+        old.Remove("clearedSectors");
+        old.Remove("claimedSectors");
+        if(version<9)
+            foreach(string key in new[]{"retinue","influence","tithe"})old.Remove(key);
         if(version<8)
             foreach(string key in new[]{"prosperityPeak","developmentMask","chronicle"})old.Remove(key);
         if(version<7)
@@ -26,7 +29,7 @@ static partial class ManorChecks
         }
         if(version<5)old.Remove("specialists");
         int plots=version==1?10:version<5?Manor.OriginalPlotCount:version==5?Manor.FirstOuterPlot:Manor.PlotCount;
-        old["slots"]=LegacyPlots(old["slots"],plots,version>=8);
+        old["slots"]=LegacyPlots(old["slots"],plots,version>=8,version>=9);
         if (version < 4) old.Remove("eventDay");
         if (version < 3)
             foreach (string key in new[] { "approval","tax","decree","market" }) old.Remove(key);
@@ -37,12 +40,11 @@ static partial class ManorChecks
         return old;
     }
 
-    static object[] LegacyPlots(object slots,int count,bool backyards=false) =>
+    static object[] LegacyPlots(object slots,int count,bool backyards=false,bool fertility=false) =>
         ((List<object>)slots).Take(count).Select(item=>{
             var plot=(Dictionary<string,object>)item;
             if(!backyards)plot.Remove("backyard");
-            plot.Remove("fertility");
-            plot.Remove("rotation");
+            if(!fertility){plot.Remove("fertility");plot.Remove("rotation");}
             return (object)plot;
         }).ToArray();
 
