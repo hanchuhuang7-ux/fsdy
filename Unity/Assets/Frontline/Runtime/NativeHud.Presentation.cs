@@ -51,7 +51,7 @@ namespace Frontline.UnityGame
         {
             var button=Button(p,name+(enabled?" 开":" 关"),x,y,w-5,34,()=>{
                 toggle();QualityDialog();
-            },accent:enabled);
+            },selected:enabled);
             button.name=id;
         }
 
@@ -66,7 +66,7 @@ namespace Frontline.UnityGame
                 int index=i;
                 var option=Button(p,choices[i],i%columns*span,y+i/columns*38,span-5,34,()=>{
                     apply(index);QualityDialog();
-                },accent:i==selected);
+                },selected:i==selected);
                 option.name=prefix+i;
             }
             return y+(choices.Length+columns-1)/columns*38+7;

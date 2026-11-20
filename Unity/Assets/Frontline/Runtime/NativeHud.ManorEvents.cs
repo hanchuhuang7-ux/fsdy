@@ -37,11 +37,13 @@ namespace Frontline.UnityGame
 
         void EventOption(RectTransform p,float w,float y,int issueDay,int index,ManorEventChoice choice,bool fromGovernance)
         {
-            var row=Panel(p,"Event option "+index,0,y,w,72,manorInset);
+            var row=Panel(p,"Event option "+index,0,y,w,72,manorInset,Slice.Inset);
             Label(row,choice.title,8,2,w-103,23,15,white);
             var effects=Label(row,"",8,26,w-103,23,12,pale);
             var blocked=Label(row,"",8,48,w-103,21,12,danger);
-            var button=ManorButton(row,"Manor.Event.Choose."+index,"选择",w-86,17,78,35,()=>{
+            var state=Badge(row,"",w-86,4,78,21);
+            var badge=state.transform.parent.GetComponent<Image>();
+            var button=ManorButton(row,"Manor.Event.Choose."+index,"选择",w-86,28,78,35,()=>{
                 var estate=app.Estate;
                 app.ResolveManorEvent(issueDay,index);
                 if(estate==app.Estate&&estate.eventDay!=0)return;
@@ -53,6 +55,7 @@ namespace Frontline.UnityGame
                 string reason=m.EventChoiceBlock(issueDay,index);
                 effects.text=EventEffects(m,choice);
                 blocked.text=reason??"";
+                BadgeLook(state,badge,reason==null?"可处理":"暂不可选",active:reason==null);
                 button.interactable=reason==null;
             });
         }

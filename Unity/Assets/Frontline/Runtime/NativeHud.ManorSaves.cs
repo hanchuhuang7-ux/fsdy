@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Frontline.UnityGame
 {
@@ -22,23 +23,30 @@ namespace Frontline.UnityGame
 
         void ManorStatus(RectTransform notice)
         {
-            float w=notice.sizeDelta.x,h=notice.sizeDelta.y;
-            status=Label(notice,app.Message,9,0,w-18,h,12,pale);
+            float w=notice.sizeDelta.x;
+            status=Label(notice,app.Message,12,0,w-24,32,12,pale);
             status.name="Manor.HoverStatus";
-            float guideWidth=portrait?194:269, actionWidth=portrait?60:80;
-            var guide=Label(notice,"",w-guideWidth,0,guideWidth-actionWidth-10,h,portrait?10:12,gold);
-            var skip=ManorButton(notice,"Manor.Guide.Dismiss","不再提示",w-actionWidth-4,1,actionWidth,h-2,app.DismissManorGuide);
-            if(portrait)skip.GetComponentInChildren<UnityEngine.UI.Text>().fontSize=10;
+            float guideWidth=portrait?w:231, actionWidth=portrait?78:80;
+            float guideY=portrait?33:0;
+            var guide=Label(notice,"",w-guideWidth+12,guideY,guideWidth-actionWidth-25,30,portrait?11:12,gold);
+            var skip=ManorButton(notice,"Manor.Guide.Dismiss","不再提示",w-actionWidth-5,guideY+3,actionWidth,26,app.DismissManorGuide);
+            skip.GetComponentInChildren<Text>().fontSize=portrait?11:12;
+            var shortcut=ManorButton(notice,"Manor.Claim.Focus","边疆疆域",0,3,88,26,()=>TerritoryDialog(app.ManorSector));
+            shortcut.GetComponentInChildren<Text>().fontSize=12;
             manorValues.Add(()=>{
                 var estate=app.Estate;
                 bool active=estate.GuideActive;
-                var rect=status.rectTransform;
-                var size=rect.sizeDelta;
-                float textWidth=w-(active?guideWidth+15:18);
-                if(size.x!=textWidth)rect.sizeDelta=new Vector2(textWidth,size.y);
                 guide.gameObject.SetActive(active);
                 skip.gameObject.SetActive(active);
                 if(active)guide.text=GuideText[estate.guideStep];
+                if(portrait)Rect(notice,14,rh-(active?74:48),w,active?64:38);
+                int sector=app.ManorSector;
+                sectorStatus=sector<0?null:app.ManorSectorStatus(sector);
+                bool available=sector>=0&&estate.ClearedSector(sector);
+                float right=w-(active&&!portrait?guideWidth:0);
+                if(available)Rect((RectTransform)shortcut.transform,right-94,portrait?4:3,88,26);
+                Rect(status.rectTransform,12,0,right-(available?111:24),portrait?(active?33:38):32);
+                shortcut.gameObject.SetActive(available);
             });
         }
 
@@ -86,7 +94,7 @@ namespace Frontline.UnityGame
                 ManorButton(bar,save?"Manor.Slot.Overwrite":"Manor.Slot.Load",save?"确认覆盖":"确认载入",w/2+4,3,w/2-4,40,()=>{
                     if(save){app.SaveManorSlot(slot,true);ManorSaves();}
                     else{app.LoadManorSlot(slot);CloseDialog();}
-                },true);
+                },accent:!save,destructive:save);
             },maxWidth:540);
         }
     }

@@ -149,7 +149,21 @@ namespace Frontline.UnityGame
             if(t.phase==TouchPhase.Moved&&!blocked&&(app.TouchCamera||app.Phase=="manor"))app.View.Orbit(t.position-last);last=t.position;
             if(t.phase==TouchPhase.Ended){if(!blocked&&!multi&&!dragging&&(!app.TouchCamera||app.Phase=="manor"))Click(t.position);down=false;finger=-1;}else if(t.phase==TouchPhase.Canceled){down=false;finger=-1;}
         }
-        internal void Click(Vector2 p){if(!app.View.Ground(p,out var hit))return;if(app.Phase=="manor")app.SelectManorSlot(Manor.PickSlot(hit.x-FrontierMap.ManorX,hit.z));else if(app.InFrontier)app.ClickFrontier(hit);else if(app.Phase=="battle")app.CommandAt(hit);else if(app.CanEdit)app.PlaceAt(hit);}
+        internal void Click(Vector2 point)
+        {
+            bool hasGround=app.View.Ground(point,out var hit);
+            if(app.Phase=="manor")
+            {
+                int sector=app.View.PickManorSector(point,hasGround,hit);
+                if(sector>=0)app.SelectManorSector(sector);
+                else if(hasGround)app.SelectManorSlot(Manor.PickSlot(hit.x-FrontierMap.ManorX,hit.z));
+                return;
+            }
+            if(!hasGround)return;
+            if(app.InFrontier)app.ClickFrontier(hit);
+            else if(app.Phase=="battle")app.CommandAt(hit);
+            else if(app.CanEdit)app.PlaceAt(hit);
+        }
     }
 }
 

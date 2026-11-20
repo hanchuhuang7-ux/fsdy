@@ -49,7 +49,7 @@ namespace Frontline.UnityGame
             Require(estate.HasDevelopment(ManorPerk.HeavyPlough)&&estate.DevelopmentPointsAvailable==available-1&&
                 estate.Forecast().food>before&&PlayerPrefs.GetString(FrontierSaveKey)==estate.Export(),"Development purchase did not settle");
             developmentVerified=true;
-            if(captures)yield return ManorShot("142-development");
+            if(captures)yield return ManorShot("145-development");
             yield return Press("Manor.Development.Back");
             yield return Press("Manor.Chronicle");
             Require(Displays("解锁专精 · 重犁深耕")&&Displays("开垦外环建地 18")&&estate.chronicle.Count<=Manor.ChronicleLimit,

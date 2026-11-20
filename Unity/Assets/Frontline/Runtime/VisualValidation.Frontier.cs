@@ -136,11 +136,11 @@ namespace Frontline.UnityGame
             Require(!input.Shortcut(KeyCode.R)&&!input.Shortcut(KeyCode.Space)&&app.Modal,"Modal allowed a world shortcut");
             Require(input.Shortcut(KeyCode.Escape)&&!app.Modal,"Workshop did not close with Escape");
             Require(input.Shortcut(KeyCode.Space)&&app.ManorSpeed==1&&input.Shortcut(KeyCode.Space)&&app.ManorSpeed==0,"Estate pause or resume failed");
-            var accent=VisibleButton("Frontier.View.0").GetComponent<Image>().color;
+            var accent=VisibleButton("Frontier.View.0").image.sprite;
             foreach(int index in new[]{2,0,1})
             {
                 Require(input.Shortcut((KeyCode)((int)KeyCode.Alpha1+index))&&app.View.FrontierFocus==index&&
-                    VisibleButton("Frontier.View."+index).GetComponent<Image>().color==accent,"Camera shortcut or tab highlight failed");
+                    VisibleButton("Frontier.View."+index).image.sprite==accent,"Camera shortcut or tab highlight failed");
             }
             yield return WaitForState(()=>!app.View.CameraMoving,"Half-island focus incomplete");
             yield return new WaitForEndOfFrame();
@@ -156,14 +156,14 @@ namespace Frontline.UnityGame
                 Require(app.View.HoveredPlot==-1,"Camera gesture kept the hover hint");
                 input.EndMouse(point,false);
             }
-            Require(input.Shortcut(KeyCode.R)&&app.View.FrontierFocus==0&&VisibleButton("Frontier.View.0").GetComponent<Image>().color==accent,"R did not reset the preset");
+            Require(input.Shortcut(KeyCode.R)&&app.View.FrontierFocus==0&&VisibleButton("Frontier.View.0").image.sprite==accent,"R did not reset the preset");
         }
 
         IEnumerator CheckCameraState()
         {
-            var selected=VisibleButton("Frontier.View.0").GetComponent<Image>().color;
+            var selected=VisibleButton("Frontier.View.0").image.sprite;
             app.View.FrameFrontier(1);
-            Require(VisibleButton("Frontier.View.1").GetComponent<Image>().color==selected,"Programmatic focus did not update tabs");
+            Require(VisibleButton("Frontier.View.1").image.sprite==selected,"Programmatic focus did not update tabs");
             yield return new WaitForEndOfFrame();
             app.View.FocusManorPlot(0);
             yield return WaitForState(()=>!app.View.CameraMoving,"Plot focus did not settle");
@@ -192,10 +192,10 @@ namespace Frontline.UnityGame
             app.View.FrameFrontier(1);yield return new WaitForEndOfFrame();
             Require(app.View.CachedAmbientInstances==0,"Near view retained old far matrices");
             app.View.ResetCamera();
-            Require(VisibleButton("Frontier.View.0").GetComponent<Image>().color==selected,"Reset did not restore the overview highlight");
+            Require(VisibleButton("Frontier.View.0").image.sprite==selected,"Reset did not restore the overview highlight");
         }
 
-        IEnumerator CheckPortrait()
+        IEnumerator CheckPortrait(bool captures)
         {
             Screen.SetResolution(390,844,FullScreenMode.Windowed);
             yield return WaitForState(()=>Screen.width==390&&Screen.height==844,"Portrait viewport not applied");
@@ -204,14 +204,19 @@ namespace Frontline.UnityGame
             yield return Press(touchCamera?"拖动视角  ⇄  切换点选":"点选布阵 / 军令  ⇄  切换视角");
             Require(app.TouchCamera!=touchCamera,"Compact input toggle failed");
             yield return Press("Mode.Manor");
-            yield return CheckFrontierPreset(0);
+            string saved=app.Estate.Export();
+            var guide=Manor.Import(saved);
+            guide.guideDismissed=false;
+            guide.guideStep=1;
+            app.ImportText(guide.Export());
+            yield return CheckFrontierPreset(1);
             CheckButtonHit("Settings.Quality");CheckButtonHit("Frontier.View.1");CheckButtonHit("Frontier.View.2");CheckButtonHit("Manor.Patrol");
+            CheckFloatingStatus();
+            if(captures)yield return ManorShot("145-portrait-manor");
             yield return Press("Manor.Governance");
             CheckButtonHit("Manor.Decree.mobilize");CheckButtonHit("Manor.Work.balanced");
-            var marketScroll=VisibleButton("Manor.Trade.Sell5.arms").GetComponentInParent<ScrollRect>();
-            marketScroll.verticalNormalizedPosition=0;
-            yield return null;
-            CheckButtonHit("Manor.Trade.Sell5.arms");
+            CheckGovernanceViewport();
+            if(captures)yield return ManorShot("145-portrait-governance");
             yield return Press("Manor.Milestones");
             CheckButtonHit("Manor.Milestones.Back");
             yield return Press("Manor.Milestones.Back");
@@ -221,6 +226,7 @@ namespace Frontline.UnityGame
             yield return Press("Manor.Patrol");
             CheckButtonHit("Manor.Force.Recommend");CheckButtonHit("Manor.Patrol.Start");
             Require(app.GetComponent<BattleInput>().Shortcut(KeyCode.Escape)&&!app.Modal,"Portrait muster could not close");
+            app.ImportText(saved);
         }
 
         Text ManorReadout(string name) => app.GetComponentsInChildren<Text>().Single(label=>label.name==name);
@@ -338,7 +344,7 @@ namespace Frontline.UnityGame
                 ManorReadout("Manor.Forecast.Synergy").text.Contains("谷仓产粮 +12%"),"Expanded estate links did not reach the ledger");
 
             yield return Press("Manor.Governance");
-            if(captures)yield return ManorShot("142-governance");
+            if(captures)yield return ManorShot("145-governance");
             int tax=estate.Forecast().coin;
             yield return Press("Manor.Specialists");
             foreach(string id in Manor.SpecialistIds)
@@ -442,7 +448,7 @@ namespace Frontline.UnityGame
                 ManorReadout("Manor.March.Logistics").text.Contains("士气 +8%")&&ManorReadout("Manor.March.Logistics").text.Contains("伤员救回 65%"),
                 "Muster did not explain the counter or logistics");
             CheckButtonHit(frontier?"Manor.Patrol.Start":"Manor.March");
-            if(captures)yield return ManorShot(frontier?"142-patrol-roster":"142-expedition-roster");
+            if(captures)yield return ManorShot(frontier?"145-patrol-roster":"142-expedition-roster");
             Debug.Log("FRONTLINE_RECOMMEND_SMOKE_OK "+(frontier?"patrol":"expedition")+" units="+app.PartyUnits(frontier)+
                 " budget="+app.PartyCost(frontier)+"/"+app.Estate.Budget);
         }
@@ -483,6 +489,7 @@ namespace Frontline.UnityGame
                     "The Windows smoke test did not start with D3D11 Legacy Graphics Jobs");
                 Require(app.View.SupportedDesktopShaders,"The D3D11 instanced, shadow or atmosphere passes are missing");
             }
+            sharedHudAtlas=VisibleButton("Mode.Manor").image.sprite.texture;
             yield return CheckQualityMenu();
             yield return CheckPresentationSettings();
             if(Array.IndexOf(Environment.GetCommandLineArgs(),"--presentation-only")>=0)
@@ -499,9 +506,14 @@ namespace Frontline.UnityGame
 
             yield return Press("Mode.Manor");
             yield return Press("Manor.Speed.0");
-            yield return Press("Settings.Quality");CheckButtonHit("Quality.2");yield return Press("关闭");
             bool artOnly=Array.IndexOf(Environment.GetCommandLineArgs(),"--art-framing-only")>=0;
             bool captures=Array.IndexOf(Environment.GetCommandLineArgs(),"--no-smoke-images")<0;
+            CheckFloatingStatus();
+            yield return Press("Settings.Quality");
+            CheckButtonHit("Quality.2");
+            CheckModalSkin("显示与声音");
+            if(captures)yield return ManorShot("145-settings");
+            yield return Press("关闭");
             if(!artOnly)yield return CheckGuideAndSlots();
             var starting=new Manor {coin=3000,timber=1200,food=120,influence=90,cleared=3,day=36,guideDismissed=true};
             starting.Upgrade(0);starting.Upgrade(0);
@@ -556,7 +568,7 @@ namespace Frontline.UnityGame
                 app.GetComponent<NativeHud>().UpdateManorHover();
                 Require(Displays("建地 3  英雄酒馆  Lv.3  ·  已满级  ·  派工 1 / 1"),"Manor hover status omitted level or assignment");
                 Require(app.View.StaticRebuilds==builds,"Hover triggered a static batch rebuild");
-                yield return ManorShot("142-desktop-estate");
+                yield return ManorShot("145-manor");
                 app.View.Focus(new Vector3(FrontierMap.ManorX+Manor.SlotX(5),.66f,Manor.SlotZ(5)),9.5f,35,-29);
                 yield return ManorShot("142-desktop-forge");
             }
@@ -586,6 +598,7 @@ namespace Frontline.UnityGame
             yield return Press("关闭");
             yield return Press("Manor.Patrol");
             yield return CheckRecommendedParty(true,captures);
+            yield return CheckRosterScroll();
             // Keep the established contact fixture after verifying the player can edit the recommendation.
             foreach(string id in Manor.HeroIds.Concat(new[]{"archer"}))
                 while(app.ForceCount(id,true)>0)yield return Press("Manor.Force.Minus."+id);
@@ -676,7 +689,7 @@ namespace Frontline.UnityGame
                 "Patrol report did not display the approval gain");
             Require(app.Estate.clearedSectors==1&&app.Estate.claimedSectors==0&&
                 ManorReadout("Manor.Settlement.Claims").text=="新开放宣称 · 西桥前哨","The settled first camp did not unlock its territory");
-            if(captures)yield return ManorShot("142-settlement");
+            if(captures)yield return ManorShot("145-settlement");
             yield return Press("Manor.Settlement.Done");
             Require(app.View.AlertCampMask==7,"Manor preview did not restore all patrol markers");
             yield return CheckClaimsAndWeather(captures);
@@ -686,9 +699,10 @@ namespace Frontline.UnityGame
             yield return Press("Mode.Duel");
             Require(Json.Write(app.Config)==arena&&app.View.Weather==ManorWeather.Clear&&app.View.WeatherParticles==0,
                 "Manor state or weather leaked into the arena");
+            yield return CheckHudArena(captures);
 
             Require(Screen.width==1280&&Screen.height==800,"Main smoke switched away from the desktop viewport");
-            yield return CheckPortrait();
+            yield return CheckPortrait(captures);
             int portraitWidth=Screen.width,portraitHeight=Screen.height;
             Screen.SetResolution(1280,800,FullScreenMode.Windowed);
             yield return WaitForState(()=>Screen.width==1280&&Screen.height==800,"Desktop viewport did not restore");
@@ -712,6 +726,8 @@ namespace Frontline.UnityGame
                 backyardVerified,developmentVerified,marketNeedsVerified,chronicleVerified,
                 fertilityVerified,retinueVerified,influenceVerified,mercenaryVerified,governanceBottomMargin,
                 claimsVerified,todosVerified,hoverDetailsVerified,weatherVerified,weatherAllocationBytes,weatherBudgets,
+                modalSkinVerified,rosterScrollVerified,portraitStatusVerified,portraitGovernanceBottomMargin,
+                outpostPickingVerified,verifiedGarrisons,flurryAllocationBytes,
                 clearedSectors=app.Estate.clearedSectors,claimedSectors=app.Estate.claimedSectors,
                 barnyard=app.Estate.slots[1].backyard,developmentMask=app.Estate.developmentMask,
                 chronicleEntries=app.Estate.chronicle.Count,

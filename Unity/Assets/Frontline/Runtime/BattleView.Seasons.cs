@@ -42,7 +42,7 @@ namespace Frontline.UnityGame
         static readonly Quaternion RainSlant=Quaternion.Euler(0,-18,18);
         static readonly Color RainTint=new Color(.72f,.85f,.94f,.49f);
         static readonly Color LeafTint=new Color(.97f,.65f,.17f,.82f);
-        static readonly Color SnowTint=new Color(.90f,.96f,1f,.76f);
+        static readonly Color SnowTint=new Color(.90f,.96f,1f,.68f);
         internal ManorWeather Weather {get;private set;}
         internal int WeatherBudget => QualityLevel==0?12:QualityLevel==1?28:52;
         internal int WeatherParticles => manor==null?0:weatherPage.count;
@@ -109,7 +109,7 @@ namespace Frontline.UnityGame
             float zCenter=Mathf.Clamp(target.z,-FrontierMap.HalfDepth,FrontierMap.HalfDepth);
             float height=Mathf.Clamp(distance*.27f,3.7f,10f);
             float phase=time*(rain?1.22f:leaves?.32f:.28f)+manor.day*.267f;
-            float visibilityScale=1+Mathf.Clamp01((distance-16)/65)*.68f;
+            float visibilityScale=1+Mathf.Clamp01((distance-16)/65)*(rain||leaves?.68f:.90f);
             int count=WeatherBudget;
             for(int i=0;i<count;i++)
             {
@@ -120,8 +120,9 @@ namespace Frontline.UnityGame
                     .22f+height*(1-flight),zCenter+depth*(2*Mathf.Repeat(.35f+i*.377f,1)-1));
                 float size=(.70f+.53f*Mathf.Repeat(i*.481f,1))*visibilityScale*
                     Mathf.Min(1,Mathf.Min(flight*10,(1-flight)*10));
-                var rotation=rain?RainSlant:leaves?Quaternion.Euler(42+time*57+i*21,i*37+time*33,23+i*5):Quaternion.identity;
-                var scale=rain?new Vector3(.39f,5.4f,.39f):leaves?new Vector3(1.87f,.90f,.30f):Vector3.one*1.32f;
+                var rotation=rain?RainSlant:leaves?Quaternion.Euler(42+time*57+i*21,i*37+time*33,23+i*5):
+                    Quaternion.Euler(11+i*47, i*137.5f+time*4, i*81+time*(i%2==0?7+3*speed:-8-2*speed));
+                var scale=rain?new Vector3(.39f,5.4f,.39f):leaves?new Vector3(1.87f,.90f,.30f):Vector3.one*.96f;
                 weatherPage.Add(Pose(position,rotation,scale*size),tint,0);
             }
         }

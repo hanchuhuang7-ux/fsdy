@@ -18,12 +18,13 @@ namespace Frontline.UnityGame
             var buttons=new Button[Manor.Milestones.Count];
             var captions=new Text[buttons.Length];
             var badges=new Text[buttons.Length];
+            var badgeBackings=new Image[buttons.Length];
             float h=portrait?82:72, actionWidth=portrait?69:93;
             for(int i=0;i<buttons.Length;i++)
             {
                 int index=i;
                 var entry=Manor.Milestones[i];
-                var row=Panel(p,entry.title,0,i*(h+5),w,h,manorInset);
+                var row=Panel(p,entry.title,0,i*(h+5),w,h,manorInset,Slice.Inset);
                 float detailWidth=w-actionWidth-22;
                 Label(row,entry.title,9,1,detailWidth,29,portrait?14:16,gold);
                 Label(row,entry.condition,9,28,detailWidth,portrait?30:22,portrait?11:13,pale);
@@ -31,7 +32,8 @@ namespace Frontline.UnityGame
                 var button=buttons[i]=ManorButton(row,"Manor.Milestone."+i,"领取",w-actionWidth-7,h-34,actionWidth,27,()=>
                     app.ClaimManorMilestone(index),true);
                 captions[i]=button.GetComponentInChildren<Text>();
-                badges[i]=Label(row,"",w-actionWidth-7,5,actionWidth,24,portrait?11:12,pale,TextAnchor.MiddleCenter);
+                badges[i]=Badge(row,"",w-actionWidth-7,6,actionWidth,23,portrait?11:12);
+                badgeBackings[i]=badges[i].transform.parent.GetComponent<Image>();
             }
             p.sizeDelta=new Vector2(w,buttons.Length*(h+5)-5);
 
@@ -45,11 +47,8 @@ namespace Frontline.UnityGame
                 {
                     bool claimed=estate.MilestoneClaimed(i),available=(ready&(1<<i))!=0;
                     buttons[i].interactable=available;
-                    buttons[i].image.color=available?gold:manorButton;
-                    captions[i].color=available?ink:pale;
                     captions[i].text=claimed?"已领取":"领取";
-                    badges[i].text=claimed?"已完成":available?"可领取":"进行中";
-                    badges[i].color=available?thriving:pale;
+                    BadgeLook(badges[i],badgeBackings[i],claimed?"已完成":available?"可领取":"进行中",good:claimed,active:available);
                 }
             });
         }

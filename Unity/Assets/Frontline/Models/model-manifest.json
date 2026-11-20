@@ -1,6 +1,6 @@
 {
     "generator": "Frontline.Editor.ModelBaker",
-    "version": "1.4.4",
+    "version": "1.4.5",
     "vertexColor": "rgb=albedo; alpha=faction multiply weight",
     "resources": [
         "Models/body_militia",

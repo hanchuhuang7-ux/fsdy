@@ -25,7 +25,7 @@ test('0.9.5 HUD updates only dirty readouts and shades the desktop map title wit
   assert.match(updates,/shownTick!=tick/);
   assert.match(updates,/shownHighlightCount!=highlights.Count/);
   assert.match(updates,/shownReplayTime!=app.ReplayTime/);
-  assert.match(hud,/Panel\(baseRoot,"Map title",[^\n]+new Color\(\.035f,\.065f,\.09f,\.76f\)\);\s*mapTitle.GetComponent<Image>\(\).raycastTarget=false/);
+  assert.match(hud,/Panel\(baseRoot,"Map title",[^\n]+,panel\);\s*mapTitle.GetComponent<Image>\(\).raycastTarget=false/);
 });
 
 test('0.9.5 static pages upload only when dirty and spear streaks use the weapon height',()=>{

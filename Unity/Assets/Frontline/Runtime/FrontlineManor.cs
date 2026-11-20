@@ -13,6 +13,7 @@ namespace Frontline.UnityGame
         public Manor Estate { get; private set; }
         public bool InManor { get; private set; }
         public int ManorSlot { get; private set; } = -1;
+        internal int ManorSector { get; private set; } = -1;
         public int ManorSpeed { get; private set; } = 1;
         public int ManorRevision {get;private set;}
         public int SelectedProp { get; private set; } = -1;
@@ -117,7 +118,7 @@ namespace Frontline.UnityGame
                 Mirror = false; BriefOpen = false; TouchCamera = true; Series = null; ReplayFile = null;
                 Config = new Deployment(); OrderType = "inspire"; Speed = 1; Phase = "manor";
                 if (Estate == null) LoadManor();
-                ManorSlot = -1; manorClock = 0; SelectDefaultForce();
+                ManorSlot = ManorSector = -1; manorClock = 0; SelectDefaultForce();
                 Tell("领地庄园 · 点选建地，指派领民");
             }
             else
@@ -185,9 +186,24 @@ namespace Frontline.UnityGame
         public void SelectManorSlot(int index,bool focus=false)
         {
             if (Phase != "manor" || index < -1 || index >= Estate.slots.Length) return;
+            ManorSector = -1;
             ManorSlot = index;
             Refresh();
             if(focus&&index>=0)View.FocusManorPlot(index);
+        }
+        internal void SelectManorSector(int index)
+        {
+            if(Phase!="manor"||(uint)index>=Manor.Sectors.Count||ManorSector==index)return;
+            ManorSector=index;
+            View.HoveredPlot=-1;
+            Changed?.Invoke();
+        }
+
+        internal string ManorSectorStatus(int index)
+        {
+            var sector=Manor.Sectors[index];
+            string state=Estate.ClaimedSector(index)?"已筑哨":Estate.ClearedSector(index)?"可宣称":"未清剿";
+            return sector.name+"  ·  每日 +"+Manor.FormatHundredths(sector.daily)+" "+sector.resource+"  ·  "+state;
         }
         void ManorAction(Action operation,string message,string sound)
         {
@@ -409,7 +425,7 @@ namespace Frontline.UnityGame
             var receipt = CollectReturn();
             var message = receipt != null ? receipt.frontier?"巡边已结算":"远征已结算" : sortie == null ? "已返回庄园" : "部队已撤回庄园";
             CloseSession(); sortie = null; Phase = "manor";
-            Config = new Deployment(); ReplayFile = null; ManorSlot = -1; TouchCamera = true;
+            Config = new Deployment(); ReplayFile = null; ManorSlot = ManorSector = -1; TouchCamera = true;
             SelectDefaultForce(); manorClock = 0;
             Tell(message); Refresh();
             if (receipt != null) ExpeditionReturned?.Invoke(receipt);
@@ -433,7 +449,7 @@ namespace Frontline.UnityGame
             var imported = Manor.Import(text);
             if (InManor && Phase != "manor") throw new InvalidOperationException("请先返回庄园再导入存档");
             if (!InManor) SetManorMode(true);
-            Estate = imported; ManorRevision++; ManorSlot = -1; manorClock = 0; SelectDefaultForce();
+            Estate = imported; ManorRevision++; ManorSlot = ManorSector = -1; manorClock = 0; SelectDefaultForce();
             SaveManor(); Tell("庄园存档已导入"); Refresh();
         }
     }

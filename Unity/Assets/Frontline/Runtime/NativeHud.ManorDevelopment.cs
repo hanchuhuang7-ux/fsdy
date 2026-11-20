@@ -14,7 +14,7 @@ namespace Frontline.UnityGame
                 for(int i=0;i<Manor.Backyards.Count;i++)
                 {
                     var item=Manor.Backyards[i];
-                    var row=Panel(p,item.title,0,34+i*82,w,77,manorInset);
+                    var row=Panel(p,item.title,0,34+i*82,w,77,manorInset,Slice.Inset);
                     Label(row,item.title,9,2,w-action-22,27,portrait?14:17,gold);
                     Label(row,Manor.BackyardEffect(item.id,app.Estate.slots[plot].level),9,30,w-action-22,
                         portrait?24:21,portrait?10:13,white);
@@ -27,8 +27,6 @@ namespace Frontline.UnityGame
                         var estate=app.Estate;
                         string blocked=estate.BackyardBlock(plot,item.id);
                         button.interactable=blocked==null;
-                        button.image.color=blocked==null?gold:manorButton;
-                        caption.color=blocked==null?ink:pale;
                         caption.text=blocked==null?(estate.slots[plot].backyard==null?"启用":"切换"):
                             blocked=="已启用"?"已启用":"物资不足";
                     });
@@ -54,18 +52,22 @@ namespace Frontline.UnityGame
                     {
                         var perk=(ManorPerk)(2*line+tier);
                         var definition=Manor.Developments[(int)perk];
-                        var card=Panel(p,definition.title,tier*cell,y+29,cell-5,109,manorInset);
-                        Label(card,(tier==0?"一阶  ":"二阶  ")+definition.title,8,2,cell-20,27,portrait?12:15,gold);
-                        Label(card,definition.effect,8,30,cell-20,43,portrait?10:12,pale,TextAnchor.UpperLeft);
-                        var button=ManorButton(card,"Manor.Development."+(int)perk,"解锁",8,75,cell-21,27,
+                        var card=Panel(p,definition.title,tier*cell,y+29,cell-5,111,manorInset,Slice.Inset);
+                        Label(card,definition.title,9,2,cell-22,28,portrait?14:16,gold);
+                        Label(card,definition.effect,9,32,cell-23,38,portrait?10:12,pale,TextAnchor.UpperLeft);
+                        float badgeWidth=portrait?53:80;
+                        var state=Badge(card,"",9,78,badgeWidth,23,portrait?10:12);
+                        var badge=state.transform.parent.GetComponent<Image>();
+                        var button=ManorButton(card,"Manor.Development."+(int)perk,"解锁",badgeWidth+15,75,cell-badgeWidth-28,29,
                             ()=>app.UnlockManorDevelopment(perk),true);
                         var caption=button.GetComponentInChildren<Text>();
                         manorDialogValues.Add(()=>{
                             string blocked=app.Estate.DevelopmentBlock(perk);
+                            bool learned=app.Estate.HasDevelopment(perk);
+                            BadgeLook(state,badge,learned?"已解锁":blocked==null?"可解锁":"未解锁",good:learned,active:blocked==null);
                             button.interactable=blocked==null;
-                            button.image.color=blocked==null?gold:manorButton;
-                            caption.text=blocked??"解锁";
-                            caption.color=blocked==null?ink:pale;
+                            caption.text=learned?"已研习":blocked??"解锁";
+                            caption.fontSize=portrait?10:13;
                         });
                     }
                     y+=147;

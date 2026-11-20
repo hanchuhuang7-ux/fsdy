@@ -15,10 +15,17 @@ namespace Frontline.UnityGame
         CameraBookmark blendFrom,blendTo;
         bool cameraBlending;
         float blendElapsed;
-        MeshSet campRings,campFlags;
+        MeshSet campRings,campFlags,campSentries,campSupplies;
+        readonly Bounds[] campFlagPickBounds=new Bounds[Manor.Sectors.Count];
+        static readonly Color OutpostRed=new Color(.86f,.22f,.14f);
+        static readonly Quaternion CampFlagTurn=Quaternion.Euler(0,17,0);
+        static readonly Quaternion CampSupplyTurn=Quaternion.Euler(0,-17,0);
+        const float CampSupplyScale=1.96f;
         int campTier;
         internal int AlertCampMask {get;private set;}=-1;
         internal int ClaimedFlagMask {get;private set;}
+        internal int OutpostSentries => campSentries?.still?.count??0;
+        internal int OutpostSupplies => campSupplies?.still?.count??0;
         public bool CameraMoving => cameraBlending;
 
         public void FrameFrontier(int focus,bool animate=false)
@@ -32,8 +39,8 @@ namespace Frontline.UnityGame
             float aspect=Screen.width/(float)Mathf.Max(1,Screen.height);
             float virtualHeight=(compact?390:1280)/aspect;
             bool patrol=Config?.map==FrontierMap.Id;
-            float top=compact?(patrol?192:249):(patrol?132:178);
-            float bottom=compact?(patrol?172:284):(patrol?112:focus==0?163:148);
+            float top=compact?(patrol?192:264):(patrol?132:178);
+            float bottom=compact?(patrol?172:340):(patrol?112:focus==0?163:148);
             ViewCamera.fieldOfView=FrontierFov;
             float tangent=Mathf.Tan(FrontierFov*.5f*Mathf.Deg2Rad);
             float tanX=tangent*aspect*(compact?.975f:.965f);
@@ -149,6 +156,55 @@ namespace Frontline.UnityGame
             Still(surveyBlock,at+Vector3.up*.012f,direction,new Vector3(width*.71f,.013f,span.magnitude+.12f),new Color(.61f,.52f,.34f));
         }
 
+        internal static Vector3 CampCenter(int sector) =>
+            UnityWorld.Vector(FrontierMap.Guards[sector*FrontierMap.GroupSize].camp);
+        internal static Vector3 CampFlagAt(int sector) =>
+            CampCenter(sector)+new Vector3(sector==1?-1.8f:-4.5f,0,4.35f);
+        internal static Vector3 CampSentryAt(int sector) =>
+            CampFlagAt(sector)+new Vector3(2.42f,0,.45f);
+        static Vector3 CampSupplyAt(int sector) =>
+            CampFlagAt(sector)+new Vector3(.45f,0,1.57f);
+        static Quaternion CampSentryTurn(int sector) => Quaternion.Euler(0,201+sector*7,0);
+        static Vector3 CampYardAt(int sector) => CampCenter(sector)+
+            (sector==0?new Vector3(5.05f,0,4.40f):sector==1?new Vector3(-4.91f,0,4.78f):new Vector3(6f,0,-4.6f));
+        static string CampYardModel(int sector) => sector==0?"barracks":sector==1?"timber_camp":"smithy";
+        static Quaternion CampYardTurn(int sector) => Quaternion.Euler(0,sector==1?-24:sector==2?32:8,0);
+        static Vector3 WithGroundedSupply(Bounds local,int sector) =>
+            CampSupplyAt(sector)+Vector3.up*(.014f-local.min.y*CampSupplyScale);
+
+        static Bounds PlacedBounds(Bounds local,Vector3 point,Quaternion rotation,float scale)
+        {
+            var x=rotation*Vector3.right*(local.extents.x*scale);
+            var y=rotation*Vector3.up*(local.extents.y*scale);
+            var z=rotation*Vector3.forward*(local.extents.z*scale);
+            return new Bounds(point+rotation*(local.center*scale),2*new Vector3(
+                Mathf.Abs(x.x)+Mathf.Abs(y.x)+Mathf.Abs(z.x),
+                Mathf.Abs(x.y)+Mathf.Abs(y.y)+Mathf.Abs(z.y),
+                Mathf.Abs(x.z)+Mathf.Abs(y.z)+Mathf.Abs(z.z)));
+        }
+
+        internal int PickManorSector(Vector2 screen,bool hasGround,Vector3 point)
+        {
+            if(manor==null||Config.map==FrontierMap.Id||campFlags==null)return -1;
+            var ray=ViewCamera.ScreenPointToRay(screen);
+            int sector=-1;
+            float nearest=float.PositiveInfinity;
+            for(int i=0;i<campFlagPickBounds.Length;i++)
+                if(campFlagPickBounds[i].IntersectRay(ray,out float distance)&&distance<nearest)
+                {
+                    nearest=distance;
+                    sector=i;
+                }
+            if(sector>=0||!hasGround||point.x<FrontierMap.Boundary)return sector;
+            for(int i=0;i<Manor.Sectors.Count;i++)
+            {
+                var offset=point-CampCenter(i);
+                if(Mathf.Abs(offset.x)<=4.3f&&Mathf.Abs(offset.z)<=3.6f||
+                    (point-CampYardAt(i)).sqrMagnitude<=7.3f)return i;
+            }
+            return -1;
+        }
+
         void BuildFrontierLand()
         {
             var coast=Data.Frontier.platforms[2];
@@ -228,21 +284,18 @@ namespace Frontline.UnityGame
             {
                 campRings=ring.Variant(false,false);
                 campFlags=props["banner"].Variant(true,true);
+                campSentries=Load("retinue_guard").Variant(true,true);
+                campSupplies=crate.Variant(false,true);
             }
             AlertCampMask=-1;
-            int sector=0;
             var wave=Load("water_ripple");
-            V3? previous=null;
-            foreach(var guard in FrontierMap.Guards)
+            for(int sector=0;sector<Manor.Sectors.Count;sector++)
             {
-                if(previous.HasValue&&previous.Value.x==guard.camp.x)continue;
-                previous=guard.camp;
-                var camp=UnityWorld.Vector(guard.camp);
+                var camp=CampCenter(sector);
                 var plan=sector==0?new Color(.60f,.49f,.34f):sector==1?new Color(.50f,.50f,.32f):new Color(.53f,.45f,.38f);
                 FrontierTile(camp+new Vector3(0,.018f,0),new Vector3(8,.028f,6.7f),plan);
-                var campMesh=Load(sector==0?"barracks":sector==1?"timber_camp":"smithy");
-                var yard=camp+(sector==0?new Vector3(5.05f,0,4.40f):sector==1?new Vector3(-4.91f,0,4.78f):new Vector3(6.0f,0,-4.6f));
-                Still(campMesh,yard,Quaternion.Euler(0,sector==1?-24:sector==2?32:8,0),Vector3.one*1.10f,White);
+                var yard=CampYardAt(sector);
+                Still(Load(CampYardModel(sector)),yard,CampYardTurn(sector),Vector3.one*1.10f,White);
                 StillShade(yard,4.1f,3.0f);
                 if(sector==0)
                 {
@@ -254,7 +307,6 @@ namespace Frontline.UnityGame
                     Still(Load("timber_camp_tower"),yard+new Vector3(-1.25f,0,.53f),Quaternion.Euler(0,-24,0),Vector3.one*.9f,White);
                 else
                     Still(props["barricade"],yard+new Vector3(2.55f,0,1.22f),Quaternion.Euler(0,60,0),Vector3.one*.85f,White);
-                sector++;
             }
             for(int i=0;i<35;i++)
             {
@@ -267,7 +319,6 @@ namespace Frontline.UnityGame
 
         void SyncCampMarkers()
         {
-            var guards=FrontierMap.Guards;
             bool live=Config.map==FrontierMap.Id&&Current!=null;
             int claimed=live?0:manor.claimedSectors;
             int mask=Manor.SectorMask&~claimed;
@@ -282,18 +333,60 @@ namespace Frontline.UnityGame
             if(mask==AlertCampMask&&tier==campTier&&claimed==ClaimedFlagMask)return;
             Color alert=tier==1?Blue:tier==2?new Color(.79f,.61f,.25f):new Color(.66f,.37f,.80f);
             campRings.still?.Clear();campFlags.still?.Clear();
+            campSentries.still?.Clear();campSupplies.still?.Clear();
             for(int i=0;i<Manor.Sectors.Count;i++)
             {
-                var camp=UnityWorld.Vector(guards[i*FrontierMap.GroupSize].camp);
+                var camp=CampCenter(i);
                 bool active=(mask&(1<<i))!=0;
                 bool owned=(claimed&(1<<i))!=0;
                 if(active)Still(campRings,camp+Vector3.up*.034f,Quaternion.identity,
                     new Vector3(FrontierMap.AlertRadius,.8f,FrontierMap.AlertRadius),new Color(.52f,.62f,.50f));
-                Still(campFlags,camp+new Vector3(-4.50f,0,4.35f),Quaternion.Euler(0,17,0),
-                    Vector3.one*(owned?1.92f:active?1.45f:1.18f),
-                    owned?new Color(.94f,.23f,.13f):active?alert:new Color(.35f,.82f,.55f),.04f);
+                var flag=CampFlagAt(i);
+                float flagScale=owned?1.92f:active?1.45f:1.18f;
+                Still(campFlags,flag,CampFlagTurn,Vector3.one*flagScale,owned?OutpostRed:active?alert:new Color(.35f,.82f,.55f),.04f);
+                campFlagPickBounds[i]=PlacedBounds(campFlags.localBounds,flag,CampFlagTurn,flagScale);
+                campFlagPickBounds[i].Expand(.40f);
+                if(owned)
+                {
+                    var post=CampSentryAt(i);
+                    Still(campSentries,post,CampSentryTurn(i),Vector3.one,OutpostRed);
+                    var cargo=WithGroundedSupply(campSupplies.localBounds,i);
+                    Still(campSupplies,cargo,CampSupplyTurn,Vector3.one*CampSupplyScale,White);
+                }
             }
             AlertCampMask=mask;campTier=tier;ClaimedFlagMask=claimed;
+        }
+
+        internal static int CheckOutpostClearance(Catalog data)
+        {
+            var sentry=Resources.Load<Mesh>("Models/retinue_guard").bounds;
+            var supply=Resources.Load<Mesh>("Models/carry_crate").bounds;
+            var banner=Resources.Load<Mesh>("Models/prop_banner").bounds;
+            for(int i=0;i<Manor.Sectors.Count;i++)
+            {
+                var flag=PlacedBounds(banner,CampFlagAt(i),CampFlagTurn,1.92f);
+                var guard=PlacedBounds(sentry,CampSentryAt(i),CampSentryTurn(i),1);
+                var cargo=PlacedBounds(supply,WithGroundedSupply(supply,i),CampSupplyTurn,CampSupplyScale);
+                var yard=PlacedBounds(Resources.Load<Mesh>("Models/"+CampYardModel(i)).bounds,CampYardAt(i),CampYardTurn(i),1.10f);
+                if(flag.Intersects(guard)||flag.Intersects(cargo)||guard.Intersects(cargo)||
+                    guard.Intersects(yard)||cargo.Intersects(yard))
+                    throw new System.InvalidOperationException("Outpost props overlap at sector "+i);
+                CheckFootprint(guard,i);
+                CheckFootprint(cargo,i);
+            }
+            return Manor.Sectors.Count;
+
+            void CheckFootprint(Bounds box,int sector)
+            {
+                if(!FrontierMap.HasGround(box.min.x,box.min.z)||!FrontierMap.HasGround(box.max.x,box.max.z)||box.min.y<-.025f)
+                    throw new System.InvalidOperationException("Outpost prop is off the coast or below ground at sector "+sector);
+                foreach(var rock in data.Frontier.rocks)
+                    if(Mathf.Abs(rock.x-box.center.x)<rock.r+box.extents.x&&Mathf.Abs(rock.z-box.center.z)<rock.r+box.extents.z)
+                        throw new System.InvalidOperationException("Outpost prop intersects a rock at sector "+sector);
+                foreach(var wall in data.Frontier.walls)
+                    if(Mathf.Abs(wall.x-box.center.x)<wall.hx+box.extents.x&&Mathf.Abs(wall.z-box.center.z)<wall.hz+box.extents.z)
+                        throw new System.InvalidOperationException("Outpost prop intersects a wall at sector "+sector);
+            }
         }
 
         bool HeroOnPatrol(string type)

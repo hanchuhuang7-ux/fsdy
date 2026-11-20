@@ -17,11 +17,7 @@ namespace Frontline.UnityGame
             });
         }
 
-        void SetTodoLook(Button button,bool pending)
-        {
-            button.image.color=pending?gold:manorButton;
-            button.GetComponentInChildren<Text>().color=pending?ink:white;
-        }
+        void SetTodoLook(Button button,bool pending) => SetButtonTone(button,pending?HudTone.Primary:HudTone.Secondary);
 
         static string NextTodoText(ManorTodo todo)
         {
@@ -31,7 +27,9 @@ namespace Frontline.UnityGame
             return (todo&ManorTodo.Claim)!=0?"待办 · 可宣称疆域":"";
         }
 
-        void TerritoryDialog()
+        void TerritoryDialog() => TerritoryDialog(-1);
+
+        void TerritoryDialog(int focused)
         {
             OpenDialog("边疆疆域",(panel,width)=>{
                 Value(manorDialogValues,Label(panel,"",0,0,width,28,16,gold),
@@ -40,36 +38,39 @@ namespace Frontline.UnityGame
                 float y=portrait?77:64;
                 for(int index=0;index<Manor.Sectors.Count;index++)
                 {
-                    TerritoryRow(panel,width,y,index);
+                    TerritoryRow(panel,width,y,index,focused==index);
                     y+=98;
                 }
                 panel.sizeDelta=new Vector2(width,y);
-            },520,(bar,w)=>ManorButton(bar,"Manor.Claims.Back","返回政务",0,3,w,40,GovernanceDialog),maxWidth:660);
+            },550,(bar,w)=>ManorButton(bar,"Manor.Claims.Back","返回政务",0,3,w,40,GovernanceDialog),maxWidth:660);
         }
 
-        void TerritoryRow(RectTransform parent,float width,float y,int index)
+        void TerritoryRow(RectTransform parent,float width,float y,int index,bool focused)
         {
             var sector=Manor.Sectors[index];
-            var row=Panel(parent,sector.id,0,y,width,92,manorInset);
+            var row=Panel(parent,sector.id,0,y,width,92,focused?warmBadge:manorInset,Slice.Inset);
             float actionWidth=portrait?96:132, textWidth=width-actionWidth-24;
             Label(row,sector.name,10,2,textWidth,28,16,white);
             Label(row,"每日 +"+Manor.FormatHundredths(sector.daily)+" "+sector.resource+
                 (sector.id=="north_glade"?" · 猎物":""),
                 10,29,textWidth,21,12,thriving);
             Label(row,sector.influence+" 威望 + "+sector.timber+" 建材",10,50,textWidth,19,12,pale);
-            var state=Label(row,"",10,70,textWidth,19,12,pale);
+            var state=Badge(row,"",width-actionWidth-8,7,actionWidth,21,12);
             state.name="Manor.Claim.Status."+sector.id;
-            var claim=ManorButton(row,"Manor.Claim."+sector.id,"宣称并筑哨",width-actionWidth-8,24,actionWidth,37,
-                ()=>app.ClaimManorSector(index));
+            var badge=state.transform.parent.GetComponent<Image>();
+            var reason=Label(row,"",10,69,textWidth,19,12,danger);
+            var claim=ManorButton(row,"Manor.Claim."+sector.id,"宣称并筑哨",width-actionWidth-8,35,actionWidth,36,
+                ()=>app.ClaimManorSector(index),true);
+            var caption=claim.GetComponentInChildren<Text>();
             manorDialogValues.Add(()=>{
                 var estate=app.Estate;
                 bool owned=estate.ClaimedSector(index);
+                bool cleared=estate.ClearedSector(index);
                 var block=estate.SectorClaimBlock(index);
-                state.text=block??"可宣称";
-                state.color=owned?thriving:block==null?gold:pale;
+                BadgeLook(state,badge,owned?"已筑哨":cleared?"可宣称":"未清剿",good:owned,active:cleared&&!owned);
+                reason.text=cleared&&!owned?block??"":"";
                 claim.interactable=block==null;
-                SetTodoLook(claim,block==null);
-                claim.GetComponentInChildren<Text>().text=owned?"已筑哨":"宣称并筑哨";
+                caption.text=owned?"已筑哨":"宣称并筑哨";
             });
         }
     }

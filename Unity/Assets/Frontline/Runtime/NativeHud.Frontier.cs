@@ -16,14 +16,11 @@ namespace Frontline.UnityGame
         }
         void BindFrontier(Button button,Func<bool> selected=null,Func<string> caption=null,bool allowed=true,bool navigation=false)
         {
-            var background=button.GetComponent<Image>();var label=button.GetComponentInChildren<Text>();
+            var label=button.GetComponentInChildren<Text>();
             void RefreshControl()
             {
                 button.interactable=allowed&&(navigation||app.Battle.Result==null);
-                if(selected!=null)
-                {
-                    bool on=selected();background.color=on?gold:manorButton;label.color=on?ink:white;
-                }
+                if(selected!=null)SetButtonTone(button,selected()?HudTone.Selected:HudTone.Secondary);
                 if(caption!=null){var value=caption();if(label.text!=value)label.text=value;}
             }
             RefreshControl();frontierValues.Add(RefreshControl);
@@ -32,7 +29,7 @@ namespace Frontline.UnityGame
         {
             float w=portrait?374:312;
             float x=portrait?8:rw-w-20;
-            float y=portrait?(estate?227:94):80;
+            float y=portrait?(estate?225:94):80;
             var bar=Panel(baseRoot,"Frontier camera",x,y,w,37,manorPanel);
             string[] names={"全景","半岛","外域"};
             float cell=(w-10)/3;
@@ -41,14 +38,8 @@ namespace Frontline.UnityGame
                 int focus=i;
                 bool shown=app.View.FrontierFocus==focus;
                 var button=ManorButton(bar,"Frontier.View."+focus,names[i],5+cell*i,3,cell-4,31,
-                    ()=>app.View.FrameFrontier(focus,true),shown);
-                var background=button.GetComponent<Image>();var label=button.GetComponentInChildren<Text>();
-                frontierValues.Add(()=>{
-                    bool active=app.View.FrontierFocus==focus;
-                    if(active==shown)return;
-                    background.color=active?gold:manorButton;label.color=active?ink:white;
-                    shown=active;
-                });
+                    ()=>app.View.FrameFrontier(focus,true),selected:shown);
+                frontierValues.Add(()=>SetButtonTone(button,app.View.FrontierFocus==focus?HudTone.Selected:HudTone.Secondary));
             }
         }
 
@@ -87,7 +78,7 @@ namespace Frontline.UnityGame
                 bool allowed=app.AllowsOrder(type);
                 string caption=orders[i]+(allowed?"":" Lv."+Manor.OrderLevel(type));
                 var order=ManorButton(controls,"Frontier.Order."+type,caption,orderX+part*i,orderY,part-4,portrait?32:35,
-                    ()=>app.ChooseOrder(type),app.Tool=="order"&&app.OrderType==type);
+                    ()=>app.ChooseOrder(type),selected:app.Tool=="order"&&app.OrderType==type);
                 BindFrontier(order,()=>app.Tool=="order"&&app.OrderType==type,allowed:allowed);
                 if(!allowed)order.GetComponentInChildren<UnityEngine.UI.Text>().fontSize=11;
             }

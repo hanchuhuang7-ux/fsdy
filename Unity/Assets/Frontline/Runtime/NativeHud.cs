@@ -24,21 +24,32 @@ namespace Frontline.UnityGame
         static readonly string[] QualityNames={"流畅","均衡","精细"};
         float shownReplayTime;
         bool shownPaused,readoutsDirty;
-        readonly Color ink=new Color(.055f,.09f,.125f,.97f),panel=new Color(.08f,.125f,.165f,.97f),muted=new Color(.61f,.7f,.73f),gold=new Color(.96f,.73f,.36f),white=new Color(.9f,.94f,.94f),line=new Color(.2f,.29f,.33f);
+        readonly Color ink=new Color(.21f,.22f,.20f,.98f),panel=new Color(.25f,.28f,.27f,.98f);
+        readonly Color muted=new Color(.70f,.72f,.68f),gold=titleGold,white=new Color(.94f,.92f,.86f),line=new Color(.29f,.30f,.27f);
         readonly bool[] arenaStyles={true,true,true,false};readonly HashSet<int> arenaFavorites=new HashSet<int>(),arenaImports=new HashSet<int>();readonly HashSet<string> arenaMaps=new HashSet<string>();string seedText="42,77";
         public void Initialize(FrontlineApp value)
         {
-            app=value;font=Resources.Load<Font>("NotoSansCJKsc-Regular");var go=new GameObject("Native UI",typeof(RectTransform),typeof(Canvas),typeof(CanvasScaler),typeof(GraphicRaycaster));go.transform.SetParent(transform,false);canvas=go.GetComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceOverlay;canvas.sortingOrder=20;canvas.GetComponent<CanvasScaler>().uiScaleMode=CanvasScaler.ScaleMode.ConstantPixelSize;
+            app=value;font=Resources.Load<Font>("NotoSansCJKsc-Regular");InitializeTheme();var go=new GameObject("Native UI",typeof(RectTransform),typeof(Canvas),typeof(CanvasScaler),typeof(GraphicRaycaster));go.transform.SetParent(transform,false);canvas=go.GetComponent<Canvas>();canvas.renderMode=RenderMode.ScreenSpaceOverlay;canvas.sortingOrder=20;canvas.GetComponent<CanvasScaler>().uiScaleMode=CanvasScaler.ScaleMode.ConstantPixelSize;
             if(EventSystem.current==null)new GameObject("Event System",typeof(EventSystem),typeof(StandaloneInputModule));baseRoot=Node(canvas.transform,"Game HUD");app.Changed+=StateChanged;app.Notice+=ReceiveNotice;app.ExpeditionReturned+=SettlementDialog;
             app.View.FrontierFocusChanged+=SyncCameraBindings;
         }
-        void OnDestroy(){if(app&&app.View)app.View.FrontierFocusChanged-=SyncCameraBindings;}
+        void OnDestroy()
+        {
+            if(app)
+            {
+                app.Changed-=StateChanged;
+                app.Notice-=ReceiveNotice;
+                app.ExpeditionReturned-=SettlementDialog;
+                if(app.View)app.View.FrontierFocusChanged-=SyncCameraBindings;
+            }
+            ReleaseTheme();
+        }
         internal void SelectionBox(Vector2 a,Vector2 b,bool show)
         {
             if(!show){if(selectionBox)selectionBox.gameObject.SetActive(false);return;}
             if(!selectionBox)
             {
-                selectionBox=Panel(canvas.transform,"Selection rectangle",0,0,0,0,new Color(.42f,.77f,.94f,.18f));
+                selectionBox=Panel(canvas.transform,"Selection rectangle",0,0,0,0,new Color(.42f,.77f,.94f,.18f),null);
                 selectionBox.GetComponent<Image>().raycastTarget=false;
                 var outline=selectionBox.gameObject.AddComponent<Outline>();
                 outline.effectColor=new Color(.69f,.90f,1,.9f);outline.effectDistance=new Vector2(1,-1);
@@ -51,17 +62,44 @@ namespace Frontline.UnityGame
         RectTransform Node(Transform parent,string name){var go=new GameObject(name,typeof(RectTransform));go.transform.SetParent(parent,false);return go.GetComponent<RectTransform>();}
         void Rect(RectTransform t,float x,float y,float w,float h){t.anchorMin=t.anchorMax=new Vector2(0,1);t.pivot=new Vector2(0,1);t.anchoredPosition=new Vector2(x,-y);t.sizeDelta=new Vector2(w,h);}
         void Stretch(RectTransform t){t.anchorMin=Vector2.zero;t.anchorMax=Vector2.one;t.offsetMin=t.offsetMax=Vector2.zero;}
-        RectTransform Panel(Transform parent,string name,float x,float y,float w,float h,Color color){var t=Node(parent,name);Rect(t,x,y,w,h);var image=t.gameObject.AddComponent<Image>();image.color=color;return t;}
+        RectTransform Panel(Transform parent,string name,float x,float y,float w,float h,Color color,Slice? slice=Slice.Frame)
+        {
+            var rect=Node(parent,name);
+            Rect(rect,x,y,w,h);
+            var image=rect.gameObject.AddComponent<Image>();
+            image.color=color;
+            if(slice.HasValue)
+            {
+                image.sprite=slices[(int)slice.Value];
+                image.type=Image.Type.Sliced;
+            }
+            return rect;
+        }
         Text Label(Transform parent,string text,float x,float y,float w,float h,int size=14,Color? color=null,TextAnchor align=TextAnchor.MiddleLeft)
         {
             var t=Node(parent,"Text "+text.Substring(0,Math.Min(18,text.Length)));Rect(t,x,y,w,h);var label=t.gameObject.AddComponent<Text>();label.font=font;label.fontSize=size;label.text=text;label.color=color??white;label.alignment=align;label.horizontalOverflow=HorizontalWrapMode.Wrap;label.verticalOverflow=VerticalWrapMode.Truncate;label.raycastTarget=false;return label;
         }
-        Button Button(Transform parent,string text,float x,float y,float w,float h,Action action,bool accent=false,bool selected=false)
+        Button Button(Transform parent,string text,float x,float y,float w,float h,Action action,bool accent=false,bool selected=false,bool destructive=false)
         {
-            var rect=Panel(parent,text,x,y,w,h,accent?gold:selected?new Color(.18f,.3f,.35f):new Color(.13f,.2f,.25f));var b=rect.gameObject.AddComponent<Button>();var c=b.colors;c.highlightedColor=new Color(.8f,.9f,.95f);c.pressedColor=new Color(.6f,.7f,.74f);b.colors=c;
+            var rect=Panel(parent,text,x,y,w,h,Color.white,Slice.Secondary);
+            var b=rect.gameObject.AddComponent<NativeHudButton>();
+            b.targetGraphic=rect.GetComponent<Image>();
+            b.colors=new ColorBlock
+            {
+                normalColor=new Color(.88f,.88f,.88f),
+                highlightedColor=Color.white,
+                selectedColor=Color.white,
+                pressedColor=new Color(.70f,.69f,.67f),
+                disabledColor=Color.white,
+                colorMultiplier=1,
+                fadeDuration=.075f
+            };
             // Space belongs to the game while the HUD is open. Dialogs retain keyboard navigation.
             if(!overlay||!rect.IsChildOf(overlay))b.navigation=new Navigation{mode=Navigation.Mode.None};
-            Label(rect,text,6,0,w-12,h,portrait?13:14,accent?ink:white,TextAnchor.MiddleCenter);b.onClick.AddListener(()=>app.Try(action));return b;
+            var label=Label(rect,text,5,0,w-10,h,portrait?13:14,white,TextAnchor.MiddleCenter);
+            ApplyButtonLook(b,label,destructive?HudTone.Danger:accent?HudTone.Primary:selected?HudTone.Selected:HudTone.Secondary);
+            b.onClick.AddListener(()=>app.Try(action));
+            return b;
         }
         InputField InputBox(Transform parent,string value,float x,float y,float w,float h,Action<string> changed=null,bool multiline=false)
         {
@@ -79,7 +117,7 @@ namespace Frontline.UnityGame
             if(builtInBase)ManorHud();else if(app.InFrontier)FrontierHud();else if(app.Phase=="deploy"){if(app.InManor)ExpeditionDeploy();else Deploy();}else BattleHud();
             if(!status){var notice=Panel(baseRoot,"Status",portrait?10:302,rh-36,portrait?370:Mathf.Min(680,rw-320),28,ink);notice.GetComponent<Image>().raycastTarget=false;status=Label(notice,app.Message,10,1,notice.sizeDelta.x-20,26,12,gold);}if(app.Busy){var p=Panel(baseRoot,"Calculation",portrait?12:335,portrait?100:90,portrait?366:610,83,ink);progress=Label(p,app.Progress??"准备计算",14,8,portrait?230:460,35,14,gold);Button(p,"停止",portrait?270:500,20,74,42,app.CancelJob);Label(p,"分片推演中，可随时停止",14,44,230,25,11,muted);}
             readoutsDirty=true;UpdateReadouts();
-            if(overlay&&(resized||!builtInBase)&&dialogBuilder!=null)OpenDialog(dialogTitle,dialogBuilder,dialogHeight,dialogFooter,true,dialogWidth);
+            if(overlay&&(resized||!builtInBase)&&dialogBuilder!=null)OpenDialog(dialogTitle,dialogBuilder,dialogHeight,dialogFooter,true,dialogWidth,dialogWholeRows);
             RefreshManorValues();
         }
         void Deploy()
@@ -94,25 +132,32 @@ namespace Frontline.UnityGame
             Label(scroll,"战场道具",0,y,w,28,13,muted);y+=32;index=0;foreach(var d in app.Data.Props.Values){string type=d.id;Button(scroll,d.name+" "+d.cost,index%2*(w/2+3),y+index/2*40,w/2-3,34,()=>app.SelectTool(type,true),selected:app.PropType==type);index++;}y+=3*40+8;
             Transform stanceParent=portrait?scroll:side;float stanceTop=portrait?y:stanceY;float stanceLeft=portrait?0:12;float stanceWidth=portrait?w:sw-24;
             Label(stanceParent,"兵种姿态 / 选中 "+app.Selected.Count,stanceLeft,stanceTop,stanceWidth,28,13,muted);var stances=new[]{"推进","坚守","迂回","猎杀"};for(int i=0;i<4;i++){string stance=Catalog.Stances[i];Button(stanceParent,stances[i],stanceLeft+i*(stanceWidth/4+1),stanceTop+32,stanceWidth/4-2,36,()=>app.SetStance(stance),selected:app.Stance==stance);}if(portrait)y+=77;
-            Button(scroll,"选择",0,y,w/3-3,36,()=>{app.Tool="select";app.Refresh();},selected:app.Tool=="select");Button(scroll,"移动",w/3+1,y,w/3-3,36,()=>{app.Tool="move";app.Refresh();},selected:app.Tool=="move");Button(scroll,"删除",w*2/3+2,y,w/3-3,36,app.DeleteSelection);y+=44;
+            Button(scroll,"选择",0,y,w/3-3,36,()=>{app.Tool="select";app.Refresh();},selected:app.Tool=="select");Button(scroll,"移动",w/3+1,y,w/3-3,36,()=>{app.Tool="move";app.Refresh();},selected:app.Tool=="move");Button(scroll,"删除",w*2/3+2,y,w/3-3,36,app.DeleteSelection,destructive:true);y+=44;
             Button(scroll,"方阵",0,y,w/3-3,36,()=>app.Arrange("square"));Button(scroll,"横列",w/3+1,y,w/3-3,36,()=>app.Arrange("line"));Button(scroll,"楔形",w*2/3+2,y,w/3-3,36,()=>app.Arrange("wedge"));y+=44;
             Button(scroll,app.Mirror?"镜像布兵：开":"镜像布兵：关",0,y,w,36,()=>{app.Mirror=!app.Mirror;app.Refresh();});y+=48;
             string diagnosis=app.Data.Diagnose(publicConfig,team);
             Label(scroll,diagnosis,0,y,w,70,12,gold,TextAnchor.UpperLeft);y+=78;Button(scroll,"预设 / 收藏 / 关卡",0,y,w,40,Presets);y+=50;Label(scroll,"左键点选布兵 · 右键拖动视角\n选择工具支持拖框，再切换移动。",0,y,w,54,11,muted,TextAnchor.UpperLeft);y+=81;scroll.sizeDelta=new Vector2(w,y);
             if(!portrait)FitDeploymentViewport(scroll,visible);
-            Button(side,"清空",12,footerY,(sw-34)*.33f,38,app.ClearTeam);Button(side,StartText(),20+(sw-34)*.33f,footerY,(sw-34)*.67f-8,38,app.RequestStart,true);
+            Button(side,"清空",12,footerY,(sw-34)*.33f,38,app.ClearTeam,destructive:true);Button(side,StartText(),20+(sw-34)*.33f,footerY,(sw-34)*.67f-8,38,app.RequestStart,true);
             if(!portrait)
             {
                 var map=app.Data.Maps[app.Config.map];
-                var mapTitle=Panel(baseRoot,"Map title",298,87,418,78,new Color(.035f,.065f,.09f,.76f));
+                var mapTitle=Panel(baseRoot,"Map title",298,87,418,78,panel);
                 mapTitle.GetComponent<Image>().raycastTarget=false;
-                Label(mapTitle,map.name,12,4,394,34,22,white);
-                Label(mapTitle,map.hint??"",12,39,394,35,13,new Color(.76f,.81f,.82f),TextAnchor.UpperLeft);
+                Label(mapTitle,map.name,13,4,392,34,22,gold);
+                Rule(mapTitle,13,39,392);
+                Label(mapTitle,map.hint??"",13,46,392,28,13,white,TextAnchor.UpperLeft);
                 Button(baseRoot,"视角 · "+CameraName(),rw-170,rh-84,150,38,()=>{app.View.CameraMode=(app.View.CameraMode+1)%3;app.Refresh();});
             }
             else {TouchSwitch();Label(baseRoot,diagnosis,14,146,362,50,12,gold,TextAnchor.UpperLeft);}
         }
         static void FitDeploymentViewport(RectTransform content,float available)
+        {
+            float last=LastFullRow(content,available-4);
+            if(last>0)((RectTransform)content.parent).SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,last+4);
+        }
+
+        static float LastFullRow(RectTransform content,float available)
         {
             float last=0;
             foreach(RectTransform row in content)
@@ -120,7 +165,7 @@ namespace Frontline.UnityGame
                 float bottom=-row.anchoredPosition.y+row.sizeDelta.y;
                 if(bottom<=available)last=Mathf.Max(last,bottom);
             }
-            if(last>0)((RectTransform)content.parent).SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,last);
+            return last;
         }
         string StartText(){if(app.Mode=="hotseat"&&app.Hotseat!="revealed")return app.Hotseat=="red"?"封存红方":app.Hotseat=="handoff"?"蓝方接手":"封存蓝方";return "开 战";}
         string CameraName(){return app.View.CameraMode==0?"全景":app.View.CameraMode==1?"俯瞰":"追踪";}
@@ -128,9 +173,10 @@ namespace Frontline.UnityGame
         void BattleHud()
         {
 
-var score=Panel(baseRoot,"Live power",portrait?10:16,portrait?146:90,portrait?370:344,110,new Color(.035f,.065f,.09f,.86f));score.GetComponent<Image>().raycastTarget=false;
+            var score=Panel(baseRoot,"Live power",portrait?10:16,portrait?146:90,portrait?370:344,110,panel);
+            score.GetComponent<Image>().raycastTarget=false;
             clock=Label(score,"",12,5,score.sizeDelta.x-24,38,portrait?19:22,gold);power=Label(score,"",12,43,score.sizeDelta.x-24,28,13,white);
-            powerWidth=score.sizeDelta.x-24;var blueBar=Panel(score,"Blue power",12,82,powerWidth,12,new Color(.19f,.47f,.85f));blueBar.GetComponent<Image>().raycastTarget=false;redPower=Panel(blueBar,"Red power",0,0,powerWidth/2,12,new Color(.88f,.26f,.2f));redPower.GetComponent<Image>().raycastTarget=false;if(portrait)TouchSwitch();
+            powerWidth=score.sizeDelta.x-24;var blueBar=Panel(score,"Blue power",12,82,powerWidth,10,new Color(.27f,.51f,.72f),null);blueBar.GetComponent<Image>().raycastTarget=false;redPower=Panel(blueBar,"Red power",0,0,powerWidth/2,10,new Color(.83f,.33f,.26f),null);redPower.GetComponent<Image>().raycastTarget=false;if(portrait)TouchSwitch();
             bool commands=app.Phase=="battle"&&app.Config.commander.enabled,results=app.Phase=="result";float controlsHeight=commands?(portrait?158:126):results?126:88;
             float x=portrait?10:24,y=rh-controlsHeight-14,w=portrait?370:commands?680:416;var p=Panel(baseRoot,"Battle controls",x,y,w,controlsHeight,panel);
             var pause=Button(p,app.Paused?"继续":"暂停",10,10,portrait?70:90,38,app.TogglePause);pauseLabel=pause.GetComponentInChildren<Text>();pause.interactable=app.Phase!="result";Button(p,app.Speed+"×",portrait?86:110,10,60,38,()=>{app.Speed=app.Speed==.5f?1:app.Speed==1?2:app.Speed==2?4:.5f;app.Refresh();});
@@ -165,7 +211,6 @@ var score=Panel(baseRoot,"Live power",portrait?10:16,portrait?146:90,portrait?37
                     string caption=enabled?names[i]:names[i]+" · Lv."+Manor.OrderLevel(type);
                     var order=Button(p,caption,10+i*116,56,108,32,()=>{app.OrderType=type;app.Refresh();},selected:app.OrderType==type);
                     order.interactable=enabled;
-                    if(!enabled)order.GetComponentInChildren<Text>().color=new Color(.98f,.75f,.60f);
                 }
                 commandStatus=Label(p,"",10,94,w-20,32,12,muted);
                 if(!portrait){commandStatus.rectTransform.anchoredPosition=new Vector2(375,-53);commandStatus.rectTransform.sizeDelta=new Vector2(280,34);}
@@ -177,37 +222,78 @@ var score=Panel(baseRoot,"Live power",portrait?10:16,portrait?146:90,portrait?37
         }
         Slider Slider(Transform parent,float x,float y,float w,float h,float max,Action<float> change)
         {
-            var rect=Panel(parent,"Replay seek",x,y,w,h,line);var s=rect.gameObject.AddComponent<Slider>();s.minValue=0;s.maxValue=max;var fill=Panel(rect,"Fill",0,0,w,h,gold);Stretch(fill);s.fillRect=fill;s.targetGraphic=fill.GetComponent<Image>();s.direction=UnityEngine.UI.Slider.Direction.LeftToRight;s.onValueChanged.AddListener(v=>change(v));return s;
+            var rect=Panel(parent,"Replay seek",x,y,w,h,line,null);var s=rect.gameObject.AddComponent<Slider>();s.minValue=0;s.maxValue=max;var fill=Panel(rect,"Fill",0,0,w,h,gold,null);Stretch(fill);s.fillRect=fill;s.targetGraphic=fill.GetComponent<Image>();s.direction=UnityEngine.UI.Slider.Direction.LeftToRight;s.onValueChanged.AddListener(v=>change(v));return s;
         }
         RectTransform Scroll(Transform parent,float x,float y,float w,float h)
         {
-            var view=Node(parent,"Scroll viewport");Rect(view,x,y,w,h);view.gameObject.AddComponent<Image>().color=new Color(0,0,0,.01f);view.gameObject.AddComponent<RectMask2D>();var content=Node(view,"Content");Rect(content,0,0,w-12,h);var scroll=view.gameObject.AddComponent<ScrollRect>();scroll.viewport=view;scroll.content=content;scroll.horizontal=false;scroll.movementType=ScrollRect.MovementType.Clamped;scroll.scrollSensitivity=24;return content;
+            var view=Node(parent,"Scroll viewport");
+            Rect(view,x,y,w,h);
+            view.gameObject.AddComponent<Image>().color=Color.clear;
+            view.gameObject.AddComponent<RectMask2D>();
+            var content=Node(view,"Content");
+            Rect(content,0,0,w-12,h);
+            var track=Panel(view,"Scroll track",0,0,8,h,new Color(.16f,.17f,.15f),Slice.Badge);
+            track.anchorMin=new Vector2(1,0);
+            track.anchorMax=Vector2.one;
+            track.offsetMin=new Vector2(-8,3);
+            track.offsetMax=new Vector2(-1,-3);
+            var slider=Node(track,"Scroll sliding area");
+            Stretch(slider);
+            slider.offsetMin=Vector2.one;
+            slider.offsetMax=-Vector2.one;
+            var grip=Panel(slider,"Scroll thumb",0,0,6,h,new Color(.78f,.62f,.36f),Slice.Badge);
+            var bar=track.gameObject.AddComponent<Scrollbar>();
+            bar.handleRect=grip;
+            bar.targetGraphic=grip.GetComponent<Image>();
+            bar.direction=Scrollbar.Direction.BottomToTop;
+            bar.navigation=new Navigation{mode=Navigation.Mode.None};
+            var scroll=view.gameObject.AddComponent<ScrollRect>();
+            scroll.viewport=view;
+            scroll.content=content;
+            scroll.horizontal=false;
+            scroll.movementType=ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity=27;
+            scroll.verticalScrollbar=bar;
+            scroll.verticalScrollbarVisibility=ScrollRect.ScrollbarVisibility.AutoHide;
+            return content;
         }
-        void OpenDialog(string title,Action<RectTransform,float> builder,float maxHeight=760,Action<RectTransform,float> footer=null,bool rebuild=false,float maxWidth=880)
+        void OpenDialog(string title,Action<RectTransform,float> builder,float maxHeight=760,Action<RectTransform,float> footer=null,
+            bool rebuild=false,float maxWidth=880,bool wholeRows=false)
         {
             float scrollY=overlay&&dialogTitle==title&&dialogContent?dialogContent.anchoredPosition.y:0;
             string notice=rebuild&&dialogNotice?dialogNotice.text:"";
             if(overlay){overlay.gameObject.SetActive(false);Destroy(overlay.gameObject);}
             manorDialogValues.Clear();dialogNotice=null;
             app.Modal=true;dialogTitle=title;dialogBuilder=builder;dialogFooter=footer;dialogHeight=maxHeight;dialogWidth=maxWidth;
+            dialogWholeRows=wholeRows;
             app.View.HoveredPlot=-1;
-            overlay=Panel(canvas.transform,"Dialog overlay",0,0,rw,rh,new Color(0,0,0,.6f));
+            overlay=Panel(canvas.transform,"Dialog overlay",0,0,rw,rh,new Color(.025f,.025f,.022f,.73f),null);
             float w=Mathf.Min(rw-24,maxWidth),h=Mathf.Min(rh-40,maxHeight);
+            var shadow=Panel(overlay,"Dialog shadow",0,0,0,0,Color.white,Slice.Shadow);
+            shadow.GetComponent<Image>().raycastTarget=false;
             var shell=Panel(overlay,title,(rw-w)/2,(rh-h)/2,w,h,app.InManor?manorPanel:panel);
-            Label(shell,title,18,12,w-110,38,20,gold);dismissDialog=Button(shell,"关闭",w-84,14,66,34,CloseDialog);
+            Label(shell,title,18,9,w-113,43,portrait?18:21,gold);dismissDialog=Button(shell,"关闭",w-84,14,66,34,CloseDialog);
+            Rule(shell,18,54,w-36);
             float noticeSpace=app.InManor?32:0,footerSpace=footer==null?0:52;
             float chrome=80+noticeSpace+footerSpace;
             dialogContent=Scroll(shell,18,62,w-36,0);
             builder(dialogContent,w-60);
             float contentHeight=dialogContent.sizeDelta.y;
             foreach(RectTransform child in dialogContent)contentHeight=Mathf.Max(contentHeight,-child.anchoredPosition.y+child.sizeDelta.y);
+            contentHeight+=6;
             dialogContent.sizeDelta=new Vector2(w-60,contentHeight);
             h=Mathf.Min(h,contentHeight+chrome);
-            Rect(shell,(rw-w)/2,(rh-h)/2,w,h);
             float visible=Mathf.Max(0,h-chrome);
+            if(wholeRows&&visible<contentHeight)
+            {
+                float bottom=LastFullRow(dialogContent,visible-4);
+                if(bottom>0){visible=bottom+4;h=visible+chrome;}
+            }
+            Rect(shell,(rw-w)/2,(rh-h)/2,w,h);
+            Rect(shadow,(rw-w)/2-9,(rh-h)/2-5,w+18,h+17);
             ((RectTransform)dialogContent.parent).SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical,visible);
             dialogContent.anchoredPosition=new Vector2(0,Mathf.Clamp(scrollY,0,Mathf.Max(0,dialogContent.sizeDelta.y-visible)));
-            if(footer!=null){var bar=Panel(shell,"Footer",18,h-58-noticeSpace,w-36,46,app.InManor?manorInset:ink);footer(bar,w-36);}
+            if(footer!=null){var bar=Panel(shell,"Footer",18,h-58-noticeSpace,w-36,46,app.InManor?manorInset:ink,Slice.Inset);footer(bar,w-36);}
             if(app.InManor)dialogNotice=Label(shell,notice,18,h-38,w-36,32,12,gold);
             RefreshBindings(manorDialogValues);
         }
@@ -232,7 +318,7 @@ var score=Panel(baseRoot,"Live power",portrait?10:16,portrait?146:90,portrait?37
                     app.View.SetQuality(level);
                     if(qualityLabel&&!portrait)qualityLabel.text="显示 · "+QualityNames[level];
                     redraw();
-                },accent:app.View.QualityLevel==level);
+                },selected:app.View.QualityLevel==level);
                 option.name="Quality."+level;
             }
         }
@@ -309,7 +395,8 @@ var score=Panel(baseRoot,"Live power",portrait?10:16,portrait?146:90,portrait?37
         void Help(){OpenDialog("阵线手册",(p,w)=>{string text="布阵\n选择兵种后点击己方半场放置。右键拖动视角、滚轮缩放；选择工具拖框，多选后切到移动工具点选新中心。Ctrl/Cmd+Z 撤销，Delete 删除所选。\n\n对战\nSpace 暂停或继续；Tab 依次切换全景、俯瞰、追踪。R 重置视角，Esc 关闭窗口。军令开启时，1 / 2 / 3 选择鼓舞、集火、盾阵，点击地面释放。每方 3 点，冷却 8 秒。输入框或弹窗打开时会屏蔽快捷键。\n\n触屏\n“拖动视角”用于单手转动镜头，切到“点选布阵 / 军令”后才接受落点。超过拖动阈值、双指缩放、取消触摸均不会放兵。\n\n兵种\n游勇：便宜近战；盾卫：正面减伤；长枪：克制骑兵；弓手：高台射程；弩手：穿盾；爆破手：范围误伤；巨人：击退；骑兵：冲锋；军医：治疗；投石车：远程范围打击。\n\n规则\n每局最多 90 秒，按残余战力判定。Bo3 率先两胜或打满三局；小局间可调整布阵。热座封存阶段只显示己方。道具也计入军费。\n\n外部智能体\nWindows 版可用命令行启动两个 stdio 子进程 Bot。每 60 步接收公开观察，合法军令才入战斗；网页平台可导入 Bot 对战回放。详见随包 docs/UNITY_MIGRATION.md 和 AGENT_PROTOCOL.md。\n\n兼容\n原有布阵可导入。旧版本完整轨迹回放直接播放；旧 Rapier 种子回放用 Node 转换工具生成完整轨迹。Unity 版本使用原生 PhysX，跨平台复盘以完整轨迹为准。";Label(p,text,0,0,w,1180,14,white,TextAnchor.UpperLeft);p.sizeDelta=new Vector2(w,1200);});}
         void ShowNotice(string message)
         {
-            if(status&&status.text!=message)status.text=message;
+            string visible=builtInBase&&sectorStatus!=null?sectorStatus:message;
+            if(status&&status.text!=visible)status.text=visible;
             shownMessage=message;
         }
         void ReceiveNotice(string message)

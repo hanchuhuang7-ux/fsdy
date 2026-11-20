@@ -23,8 +23,9 @@ namespace Frontline.UnityGame
             var bridge=Measure(()=>CheckBridge(data),failures);
             var remains=Measure(()=>CheckRemains(data),failures);
             var plots=Measure(CheckPlotFits,failures);
+            var outposts=Measure(()=>new {validated=BattleView.CheckOutpostClearance(data)},failures);
             if(failures.Count>0)throw new AggregateException("Collision fixtures failed",failures);
-            return new {hull,crowd,bridge,remains,plots};
+            return new {hull,crowd,bridge,remains,plots,outposts};
         }
 
         static object Measure(Func<object> run,List<Exception> failures)

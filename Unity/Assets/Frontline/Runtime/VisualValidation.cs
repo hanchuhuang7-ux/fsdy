@@ -90,7 +90,8 @@ namespace Frontline.UnityGame
                 Image title=null;
                 foreach(var image in app.GetComponentsInChildren<Image>())if(image.name=="Map title")title=image;
                 bool desktopBacking=title;
-                Require(Viewport.Compact?!desktopBacking:desktopBacking&&!title.raycastTarget&&title.color==new Color(.035f,.065f,.09f,.76f),"incorrect map title backing");
+                Require(Viewport.Compact?!desktopBacking:desktopBacking&&!title.raycastTarget&&title.type==Image.Type.Sliced&&title.sprite,
+                    "incorrect map title backing");
                 yield return Capture(map,"deploy");
                 app.RequestStart();
                 Require(app.Message=="战斗进行中"&&Displays(app.Message),"battle notice is missing");

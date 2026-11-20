@@ -25,14 +25,9 @@ namespace Frontline.UnityGame
                 var control = ManorButton(panel,"Manor.Rotation."+id,RotationLabels[i],left+i*cell,90,cell-5,31,()=>{
                     if (app.Estate.slots[plot].rotation!=id) app.SetManorRotation(plot,id);
                 });
-                var background = control.GetComponent<Image>();
                 var caption = control.GetComponentInChildren<Text>();
                 if (portrait) caption.fontSize = 12;
-                manorValues.Add(()=>{
-                    bool active = app.Estate.slots[plot].rotation==id;
-                    background.color = active ? gold : manorButton;
-                    caption.color = active ? ink : white;
-                });
+                manorValues.Add(()=>SetButtonTone(control,app.Estate.slots[plot].rotation==id?HudTone.Selected:HudTone.Secondary));
             }
         }
 

@@ -15,8 +15,8 @@ namespace Frontline.UnityGame
             Canvas.ForceUpdateCanvases();
             var scroll=VisibleButton("Manor.Trade.Buy.food").GetComponentInParent<ScrollRect>();
             Require(scroll.content.anchoredPosition.y<.5f&&scroll.content.rect.height<=scroll.viewport.rect.height+.5f,
-                "Governance requires scrolling at 1280×800");
-            governanceBottomMargin=float.PositiveInfinity;
+                "Governance requires scrolling at "+Screen.width+"×"+Screen.height);
+            float bottomMargin=float.PositiveInfinity;
             var corners=new Vector3[4];
             foreach(var resource in new[]{"food","timber","arms"})
                 foreach(var action in new[]{"Buy","Buy5","Sell","Sell5"})
@@ -28,10 +28,12 @@ namespace Frontline.UnityGame
                     {
                         var point=scroll.viewport.InverseTransformPoint(corner);
                         Require(scroll.viewport.rect.Contains(point),"Market button clipped: "+name);
-                        governanceBottomMargin=Mathf.Min(governanceBottomMargin,point.y-scroll.viewport.rect.yMin);
+                        bottomMargin=Mathf.Min(bottomMargin,point.y-scroll.viewport.rect.yMin);
                     }
                 }
-            Require(governanceBottomMargin>=5,"Market needs an inset below the last trade row");
+            Require(bottomMargin>=5,"Market needs an inset below the last trade row");
+            if(Viewport.Compact)portraitGovernanceBottomMargin=bottomMargin;
+            else governanceBottomMargin=bottomMargin;
         }
 
         IEnumerator CheckFertilityAndSupport(bool captures)

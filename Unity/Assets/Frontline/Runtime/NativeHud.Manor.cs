@@ -9,10 +9,9 @@ namespace Frontline.UnityGame
 {
     public sealed partial class NativeHud
     {
-        readonly Color manorPanel = new Color(.075f,.145f,.13f,.97f);
-        readonly Color manorInset = new Color(.105f,.19f,.17f,.98f);
-        readonly Color manorButton = new Color(.16f,.27f,.23f);
-        readonly Color pale = new Color(.76f,.83f,.75f);
+        readonly Color manorPanel = new Color(.25f,.29f,.25f,.975f);
+        readonly Color manorInset = new Color(.27f,.30f,.265f,.99f);
+        readonly Color pale = new Color(.81f,.82f,.75f);
         readonly Color danger = new Color(1f,.51f,.43f);
         readonly List<Action> manorValues = new List<Action>();
         readonly List<Action> manorDialogValues = new List<Action>();
@@ -23,10 +22,12 @@ namespace Frontline.UnityGame
         RectTransform dialogContent;
         Action<RectTransform,float> dialogFooter;
         float dialogHeight = 760, dialogWidth = 880;
+        bool dialogWholeRows;
         bool builtManorMode,builtInBase;
         Manor shownEstate;
         int shownPlot,shownPlotLevel,chosenStage;
-        int boundRevision=-1,boundSpeed=-1;
+        int boundRevision=-1,boundSpeed=-1,boundSector=-1;
+        string sectorStatus;
         string shownPlotKind,manorDraft = "";
         Manor forecastEstate;
         ManorDay forecastDay;
@@ -45,17 +46,18 @@ namespace Frontline.UnityGame
         static readonly string[] Seasons = {"春","夏","秋","冬"};
 
         Button ManorButton(Transform parent,string id,string caption,float x,float y,float w,float h,
-            Action action,bool accent=false)
+            Action action,bool accent=false,bool selected=false,bool destructive=false)
         {
-            var button=Button(parent,caption,x,y,w,h,action,accent);
+            var button=Button(parent,caption,x,y,w,h,action,accent,selected,destructive);
             button.name=id;
-            if(!accent)button.GetComponent<Image>().color=manorButton;
             return button;
         }
 
         void TopBar()
         {
-            var bar=Panel(baseRoot,"Top bar",0,0,rw,portrait?90:68,app.InManor?manorPanel:ink);
+            float barHeight=portrait?89:68;
+            var bar=Panel(baseRoot,"Top bar",0,0,rw,barHeight,new Color(.086f,.092f,.077f,.975f),null);
+            Rule(bar,0,barHeight-1,rw);
             if(portrait)
             {
                 Label(bar,"阵线实验室",12,3,112,32,16,gold);
@@ -83,8 +85,8 @@ namespace Frontline.UnityGame
             }
             else
             {
-                Label(bar,"FRONTLINE LAB   /   阵线实验室",18,6,344,37,21,gold);
-                Label(bar,"UNITY EDITION  ·  "+Application.version,18,41,270,20,11,muted);
+                Label(bar,"阵线实验室",20,5,325,37,23,gold);
+                Label(bar,"FRONTLINE LAB   ·   "+Application.version,21,41,280,20,11,muted);
                 ModeTab(bar,false,365,12,144,44);
                 ModeTab(bar,true,517,12,144,44);
                 QualityEntry(bar,710,15,116,38);
@@ -112,7 +114,7 @@ namespace Frontline.UnityGame
         {
             bool active=app.InManor==manor;
             var b=Button(parent,manor?"领地庄园":"演武斗蛐蛐",x,y,w,h,
-                ()=>RequestMode(manor),accent:active);
+                ()=>RequestMode(manor),selected:active);
             b.name=manor?"Mode.Manor":"Mode.Duel";
         }
         void RequestMode(bool manor)
@@ -143,9 +145,10 @@ namespace Frontline.UnityGame
         void RefreshManorValues()
         {
             if(!builtInBase)return;
-            if(boundRevision!=app.ManorRevision||boundSpeed!=app.ManorSpeed)
+            if(boundRevision!=app.ManorRevision||boundSpeed!=app.ManorSpeed||boundSector!=app.ManorSector)
             {
                 RefreshBindings(manorValues);boundRevision=app.ManorRevision;boundSpeed=app.ManorSpeed;
+                boundSector=app.ManorSector;
             }
             RefreshBindings(manorDialogValues);
             ShowNotice(app.Message);
@@ -181,6 +184,7 @@ namespace Frontline.UnityGame
         {
             boundRevision=-1;
             shownHover=-1;
+            sectorStatus=null;
             shownEstate=app.Estate;
             shownPlot=app.ManorSlot;
             var slot=shownPlot>=0?shownEstate.slots[shownPlot]:null;
@@ -189,7 +193,7 @@ namespace Frontline.UnityGame
             shownPlotCleared=shownEstate.IsPlotCleared(shownPlot);
 
             float ledgerW=portrait?374:650, resourcesW=portrait?278:510;
-            var ledger=Panel(baseRoot,"Manor ledger",portrait?8:20,portrait?94:80,ledgerW,portrait?48:51,manorPanel);
+            var ledger=Panel(baseRoot,"Manor ledger",portrait?8:20,portrait?96:80,ledgerW,portrait?49:52,manorPanel);
             ledger.GetComponent<Image>().raycastTarget=false;
             Meter(ledger,0,resourcesW,"金币",gold,()=>app.Estate.coin,fraction:()=>app.Estate.remainder.coin);
             var grain=Meter(ledger,1,resourcesW,"粮食",new Color(.75f,.81f,.4f),()=>app.Estate.food);
@@ -202,20 +206,20 @@ namespace Frontline.UnityGame
             FrontierCameraBar(true);
 
             int cropRow=Manor.IsCrop(shownPlotKind)?39:0;
-            var card=Panel(baseRoot,"Manor plot card",portrait?8:20,rh-(portrait?284:178)-cropRow,
+            var card=Panel(baseRoot,"Manor plot card",portrait?8:20,rh-(portrait?339:181)-cropRow,
                 portrait?374:532,132+cropRow,manorPanel);
             PlotCard(card,card.sizeDelta.x);
-            var schedule=Panel(baseRoot,"Manor calendar",portrait?8:rw-456,rh-(portrait?148:168),
+            var schedule=Panel(baseRoot,"Manor calendar",portrait?8:rw-456,rh-(portrait?199:171),
                 portrait?374:436,portrait?116:122,manorPanel);
             Schedule(schedule,schedule.sizeDelta.x);
-            var notice=Panel(baseRoot,"Manor status",portrait?8:20,rh-(portrait?29:37),rw-(portrait?16:40),portrait?25:28,manorPanel);
+            var notice=Panel(baseRoot,"Manor status",portrait?14:208,rh-(portrait?74:40),portrait?362:864,portrait?64:32,ink);
             notice.GetComponent<Image>().raycastTarget=false;
             ManorStatus(notice);
         }
 
         internal void UpdateManorHover()
         {
-            int index=!portrait&&app.Phase=="manor"&&!app.Modal?app.View.HoveredPlot:-1;
+            int index=!portrait&&app.Phase=="manor"&&!app.Modal&&app.ManorSector<0?app.View.HoveredPlot:-1;
             if(index<0||!status)
             {
                 if(shownHover>=0)ShowNotice(app.Message);
@@ -234,10 +238,16 @@ namespace Frontline.UnityGame
         Text Meter(RectTransform strip,int i,float w,string name,Color color,Func<int> value,Func<int> total=null,Func<int> fraction=null)
         {
             float cell=w/5,x=i*cell;
-            if(i>0)Panel(strip,"Divider",x,8,1,strip.sizeDelta.y-16,manorButton).GetComponent<Image>().raycastTarget=false;
-            Label(strip,name,x+9,2,cell-11,18,portrait?10:12,color);
-            var label=Label(strip,"",x+9,20,cell-12,strip.sizeDelta.y-21,portrait?15:19,white);
+            LedgerMark(strip,x,color);
+            Label(strip,name,x+11,3,cell-12,18,portrait?10:12,pale);
+            var label=Label(strip,"",x+11,20,cell-12,strip.sizeDelta.y-21,portrait?15:20,white);
             label.name="Manor.Ledger."+i;
+            if(portrait)
+            {
+                label.resizeTextForBestFit=true;
+                label.resizeTextMaxSize=15;
+                label.resizeTextMinSize=9;
+            }
             int shown=-1,shownTotal=-1,shownFraction=-1;
             manorValues.Add(()=>{
                 int quantity=value(),capacity=total?.Invoke()??-1,hundredths=fraction?.Invoke()??0;
@@ -257,17 +267,31 @@ namespace Frontline.UnityGame
             return label;
         }
 
-        static string Net(int value) => (value/100d).ToString("+0.##;-0.##;0");
+        void LedgerMark(RectTransform strip,float x,Color color)
+        {
+            var tick=Panel(strip,"Resource mark",x+5,10,2,strip.sizeDelta.y-20,color,null);
+            tick.GetComponent<Image>().raycastTarget=false;
+        }
+
+        void Net(string resource,int value)
+        {
+            readoutText.Append(resource);
+            if(value!=0)
+                readoutText.Append(value>0?"<color=#A4D8A6>":value<=-300?"<color=#FF9782>":"<color=#F0BB78>");
+            if((value/100d).TryFormat(digits,out int length,"+0.##;-0.##;0".AsSpan()))
+                readoutText.Append(digits,0,length);
+            if(value!=0)readoutText.Append("</color>");
+        }
         void SupplyForecast(float w)
         {
-            var panel=Panel(baseRoot,"Manor supply",portrait?8:20,portrait?146:135,w,portrait?77:85,manorPanel);
+            var panel=Panel(baseRoot,"Manor supply",portrait?8:20,portrait?149:136,w,portrait?72:79,ink);
             panel.GetComponent<Image>().raycastTarget=false;
-            var limits=Label(panel,"",9,2,w-18,20,portrait?11:14,pale);
-            var net=Label(panel,"",9,22,w-18,20,portrait?11:13,white);
+            var net=Label(panel,"",11,3,w-22,22,portrait?11:14,white);
             net.name="Manor.Forecast";
-            var factors=Label(panel,"",9,42,w-18,portrait?18:23,portrait?10:12,pale);
+            var limits=Label(panel,"",11,25,w-22,17,portrait?10:11,muted);
+            var factors=Label(panel,"",11,41,w-22,17,portrait?10:11,pale);
             factors.name="Manor.Forecast.Factors";
-            var synergy=Label(panel,"",9,portrait?59:62,w-18,portrait?16:20,portrait?9:11,thriving);
+            var synergy=Label(panel,"",11,56,w-22,portrait?15:19,portrait?9:11,thriving);
             synergy.name="Manor.Forecast.Synergy";
             int revision=-1;
             manorValues.Add(()=>{
@@ -275,10 +299,16 @@ namespace Frontline.UnityGame
                 if(revision==app.ManorRevision)return;
                 revision=app.ManorRevision;
                 bool shortage=m.food==0;
-                limits.color=shortage?danger:white;
+                limits.color=shortage?danger:muted;
                 limits.text="常备军 "+m.ArmySize+"/"+m.ArmyLimit+"  ·  行军上限 "+m.FieldLimit+"  ·  巡边 "+m.FrontierLimit+(shortage?"  ·  缺粮":"");
                 var f=PreviewForecast();
-                net.text="日净收支  金 "+Net(f.coin)+" · 粮 "+Net(f.food)+" · 建材 "+Net(f.timber)+" · 军械 "+Net(f.arms);
+                readoutText.Clear();
+                readoutText.Append("日净收支  ");
+                Net("金 ",f.coin);
+                Net("  ·  粮 ",f.food);
+                Net("  ·  建材 ",f.timber);
+                Net("  ·  军械 ",f.arms);
+                net.text=readoutText.ToString();
                 bool heatingShortage=f.winterTimber<f.winterTimberRequired;
                 factors.color=heatingShortage||m.approval<Manor.UnrestApproval?danger:pale;
                 factors.text=ForecastFactors(m,f,heatingShortage);
@@ -357,7 +387,7 @@ namespace Frontline.UnityGame
             if(index>0)
             {
                 right-=52;
-                ManorButton(p,"Manor.Demolish","拆除",right,rowY,52,h,Demolition);
+                ManorButton(p,"Manor.Demolish","拆除",right,rowY,52,h,Demolition,destructive:true);
                 right-=5;
             }
             right-=portrait?68:98;
@@ -397,9 +427,8 @@ namespace Frontline.UnityGame
             Value(manorValues,Label(p,"",10,top,x-13,32,portrait?13:17,gold),CalendarText);
             ManorButton(p,"Manor.Patrol","边疆巡边",x,top,buttonW,32,()=>MarchDialog(false,true),true);
             ManorButton(p,"Manor.Expedition","领地远征",x+buttonW+5,top,buttonW,32,()=>MarchDialog(false));
-            var raid=ManorButton(p,"Manor.Raid","迎战掠夺者",x+(buttonW+5)*2,top,buttonW,32,()=>MarchDialog(true));
+            var raid=ManorButton(p,"Manor.Raid","迎战掠夺者",x+(buttonW+5)*2,top,buttonW,32,()=>MarchDialog(true),destructive:true);
             if(portrait)raid.GetComponentInChildren<Text>().fontSize=11;
-            manorValues.Add(()=>raid.GetComponent<Image>().color=app.Estate.raidReady?new Color(.5f,.28f,.17f):manorButton);
             float noticeY=portrait?80:43;
             Value(manorValues,Label(p,"",10,noticeY,w-126,30,13,pale),
                 ()=>"远征 "+app.Estate.cleared+" / "+Manor.Route.Length+"   ·   "+(app.Estate.raidReady?"掠夺者已抵达":"边境巡守中"));
@@ -415,13 +444,7 @@ namespace Frontline.UnityGame
         void ClockButton(Transform p,int rate,string caption,float x,float y,float w)
         {
             var b=ManorButton(p,"Manor.Speed."+rate,caption,x,y,w,32,()=>app.SetManorSpeed(rate));
-            var image=b.GetComponent<Image>();
-            var label=b.GetComponentInChildren<Text>();
-            manorValues.Add(()=>{
-                bool on=app.ManorSpeed==rate;
-                image.color=on?pale:manorButton;
-                label.color=on?ink:white;
-            });
+            manorValues.Add(()=>SetButtonTone(b,app.ManorSpeed==rate?HudTone.Selected:HudTone.Secondary));
         }
 
         void PlotList()
@@ -441,7 +464,7 @@ namespace Frontline.UnityGame
                         "Lv."+plot.level+(capacity>0?"  ·  派工 "+plot.workers+"/"+capacity:"");
                     var button=ManorButton(p,"Manor.Slot."+i,name.TrimEnd()+"\n"+state,
                         i%columns*cell,i/columns*row,cell-5,row-5,
-                        ()=>{CloseDialog();app.SelectManorSlot(index,focus:true);},app.ManorSlot==i);
+                        ()=>{CloseDialog();app.SelectManorSlot(index,focus:true);},selected:app.ManorSlot==i);
                     if(portrait)button.GetComponentInChildren<Text>().fontSize=12;
                 }
                 p.sizeDelta=new Vector2(w,Mathf.Ceil(estate.slots.Length/(float)columns)*row-5);
@@ -502,7 +525,7 @@ namespace Frontline.UnityGame
             },230,(bar,w)=>ManorButton(bar,"Manor.ConfirmDemolish","拆除建筑",0,3,w,40,()=>{
                 app.DemolishSlot();
                 if(app.Estate.slots[index].kind==null)CloseDialog();
-            }));
+            },destructive:true));
         }
 
         string ItemName(string id)
@@ -636,8 +659,7 @@ namespace Frontline.UnityGame
                         int columns=portrait?2:3;
                         var stageButton=ManorButton(p,"Manor.Stage."+i,caption,(i%columns)*cell,(i/columns)*41,
                             cell-5,36,()=>{chosenStage=stage;RefreshBindings(manorDialogValues);});
-                        var background=stageButton.GetComponent<Image>();
-                        manorDialogValues.Add(()=>background.color=chosenStage==stage?new Color(.3f,.43f,.28f):manorButton);
+                        manorDialogValues.Add(()=>SetButtonTone(stageButton,chosenStage==stage?HudTone.Selected:HudTone.Secondary));
                     }
                     y=portrait?129:88;
                 }
@@ -661,18 +683,18 @@ namespace Frontline.UnityGame
                 y+=MusterSupport(p,w,y,frontier,raid);
                 int availableItems=0;
                 foreach(var hero in app.Data.Data.heroes)
-                    if(app.Estate.HeroLevel(hero.id)>0){ForceRow(p,w,y,hero.id,frontier,raid);y+=55;availableItems++;}
+                    if(app.Estate.HeroLevel(hero.id)>0){y+=ForceRow(p,w,y,hero.id,frontier,raid);availableItems++;}
                 foreach(var unit in app.Data.Units.Values)
-                    if(app.Estate.Stock(unit.id)>0){ForceRow(p,w,y,unit.id,frontier,raid);y+=55;availableItems++;}
+                    if(app.Estate.Stock(unit.id)>0){y+=ForceRow(p,w,y,unit.id,frontier,raid);availableItems++;}
                 if(!frontier)
                     foreach(var prop in app.Data.Props.Values)
-                        if(app.Estate.Stock(prop.id)>0){ForceRow(p,w,y,prop.id,false,raid);y+=55;availableItems++;}
+                        if(app.Estate.Stock(prop.id)>0){y+=ForceRow(p,w,y,prop.id,false,raid);availableItems++;}
                 if(availableItems==0)
                 {
                     Label(p,"常备军尚未集结，可征召兵员或在上方调派增援。",0,y,w,60,14,pale);
                     y+=66;
                 }
-                p.sizeDelta=new Vector2(w,y+4);
+                p.sizeDelta=new Vector2(w,y+9);
             },portrait?686:627,(bar,w)=>{
                 int Limit()=>frontier?app.Estate.FrontierLimit:app.Estate.FieldLimit;
                 float actionWidth=portrait?85:115;
@@ -683,10 +705,10 @@ namespace Frontline.UnityGame
                     ()=>app.RecommendManorForce(chosenStage,raid,frontier));
                 manorDialogValues.Add(()=>recommend.interactable=app.Estate.ArmySize>0||Manor.HeroIds.Any(id=>app.Estate.Available(id)>0));
                 var march=ManorButton(bar,frontier?"Manor.Patrol.Start":"Manor.March",frontier?"集结巡边":raid?"迎敌布阵":"出征布阵",w-actionWidth-4,3,actionWidth,40,
-                    ()=>{if(frontier)app.PrepareFrontier();else app.PrepareExpedition(chosenStage,raid);},true);
+                    ()=>{if(frontier)app.PrepareFrontier();else app.PrepareExpedition(chosenStage,raid);},accent:!raid,destructive:raid);
                 manorDialogValues.Add(()=>march.interactable=(frontier||raid||chosenStage<=app.Estate.cleared)&&app.PartyUnits(frontier,raid)>0&&
                     app.PartyCost(frontier,raid)<=app.Estate.ExpeditionLogistics(raid).Budget&&app.PartyUnits(frontier,raid)<=Limit());
-            });
+            },wholeRows:true);
         }
 
         float FrontierEnemyPreview(RectTransform p,float w)
@@ -698,13 +720,9 @@ namespace Frontline.UnityGame
             {
                 int tier=i+1;
                 var button=ManorButton(p,"Manor.FrontierTier."+tier,labels[i],i*span,31,span-5,33,()=>app.SetFrontierTier(tier));
-                var background=button.GetComponent<Image>();
-                var caption=button.GetComponentInChildren<Text>();
                 manorDialogValues.Add(()=>{
                     button.interactable=tier<=app.Estate.MaxFrontierTier;
-                    bool active=tier==app.Estate.frontierTier;
-                    background.color=active?gold:manorButton;
-                    caption.color=active?ink:white;
+                    SetButtonTone(button,tier==app.Estate.frontierTier?HudTone.Selected:HudTone.Secondary);
                 });
             }
             var rewards=Label(p,"",0,67,w,portrait?35:25,12,pale,TextAnchor.UpperLeft);
@@ -769,16 +787,17 @@ namespace Frontline.UnityGame
             return budget+(portrait?"\n":"   ·   ")+"伤员救回 "+recovery+" · 重伤英雄休整 "+rules.heroRestDays+" 日";
         }
 
-        void ForceRow(RectTransform p,float w,float y,string id,bool frontier,bool raid)
+        float ForceRow(RectTransform p,float w,float y,string id,bool frontier,bool raid)
         {
-            var row=Panel(p,id,0,y,w,50,manorInset);
+            float h=portrait?54:50;
+            var row=Panel(p,id,0,y,w,h,manorInset,Slice.Inset);
             bool hero=app.Data.Heroes.ContainsKey(id),prop=app.Data.Props.ContainsKey(id);
             int cost=(int)(prop?app.Data.Props[id].cost:app.Data.Unit(id).cost);
             int level=hero?app.Estate.HeroLevel(id):app.Estate.UnitLevel(id);
-            Label(row,ItemName(id)+(prop?"":"  Lv."+level),8,1,w-173,25,14,white);
-            var reason=Label(row,"",8,26,w-105,20,11,pale);
-            var count=Label(row,"",w-166,0,64,50,14,pale,TextAnchor.MiddleCenter);
-            Value(manorDialogValues,count,()=>app.ForceCount(id,frontier,raid)+" / "+(hero?1:app.Estate.Stock(id)));
+            Label(row,ItemName(id)+(prop?"":"  Lv."+level),10,1,w-183,25,14,white);
+            var reason=Label(row,"",10,24,w-110,h-26,portrait?10:11,pale);
+            var count=Badge(row,"",w-165,4,61,20,12);
+            var badge=count.transform.parent.GetComponent<Image>();
             var minus=ManorButton(row,"Manor.Force.Minus."+id,"-",w-95,6,43,38,()=>app.SelectForce(id,-1,frontier,raid));
             var plus=ManorButton(row,"Manor.Force.Plus."+id,"＋",w-48,6,43,38,()=>app.SelectForce(id,1,frontier,raid));
             manorDialogValues.Add(()=>{
@@ -787,9 +806,12 @@ namespace Frontline.UnityGame
                 reason.text=blocked!=null?cost+" 军费 · "+blocked:unit==null?cost+" 军费":
                     cost+" 军费 · "+CombatStats(unit,Math.Max(1,level),Math.Max(1,level));
                 reason.color=blocked==null?pale:danger;
-                minus.interactable=app.ForceCount(id,frontier,raid)>0;
+                int selected=app.ForceCount(id,frontier,raid);
+                BadgeLook(count,badge,selected+" / "+(hero?1:app.Estate.Stock(id)),active:selected>0);
+                minus.interactable=selected>0;
                 plus.interactable=blocked==null;
             });
+            return h+5;
         }
 
         void ExpeditionDeploy()
@@ -802,8 +824,8 @@ namespace Frontline.UnityGame
             string selected=app.SelectedProp>=0?" · 已选 "+ItemName(app.Config.props[app.SelectedProp].type):" · 已选 "+app.Selected.Count+" 名";
             Label(p,app.Config.red.Count+" 名兵员 · "+app.Config.props.Count+" 件道具"+selected,12,33,w-24,22,12,pale);
             float y=portrait?58:65,step=(w-18)/4;
-            ManorButton(p,"Manor.Select","选择",9,y,step-4,32,()=>{app.Tool="select";app.Refresh();},app.Tool=="select");
-            ManorButton(p,"Manor.Move","移动",9+step,y,step-4,32,()=>{app.Tool="move";app.Refresh();},app.Tool=="move");
+            ManorButton(p,"Manor.Select","选择",9,y,step-4,32,()=>{app.Tool="select";app.Refresh();},selected:app.Tool=="select");
+            ManorButton(p,"Manor.Move","移动",9+step,y,step-4,32,()=>{app.Tool="move";app.Refresh();},selected:app.Tool=="move");
             var undo=ManorButton(p,"Manor.Undo","撤销",9+step*3,y,step-4,32,app.Undo);
             undo.interactable=app.CanUndo;
             ManorButton(p,"Manor.Formation","队形",9+step*2,y,step-4,32,()=>{

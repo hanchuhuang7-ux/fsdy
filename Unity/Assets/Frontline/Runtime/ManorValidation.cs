@@ -41,6 +41,8 @@ namespace Frontline.UnityGame
         // Drive the shipping layout: hit-testing must reach the rendered button at its actual screen position.
         IEnumerator Press(string name)
         {
+            // A fixture may replace the HUD at end of frame. Raycast only after the new canvas has rendered.
+            yield return new WaitForEndOfFrame();
             yield return null;
             Canvas.ForceUpdateCanvases();
             var button = app.GetComponentsInChildren<Button>().LastOrDefault(b => b.name == name && b.gameObject.activeInHierarchy);
