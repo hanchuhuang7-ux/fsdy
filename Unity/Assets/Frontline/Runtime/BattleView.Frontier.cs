@@ -5,6 +5,7 @@ namespace Frontline.UnityGame
 {
     public sealed partial class BattleView
     {
+        MeshSet bridgeFittings;
         static readonly Vector3 ManorOrigin=new Vector3(FrontierMap.ManorX,0,0);
         static float FrontierFov => Viewport.Compact?72:48;
         public int FrontierFocus { get; private set; }
@@ -222,6 +223,8 @@ namespace Frontline.UnityGame
             FrontierTile(new Vector3(FrontierMap.Boundary-.11f,.044f,0),new Vector3(.085f,.028f,bridge.hz*2),new Color(.66f,.42f,.17f));
             FrontierTile(new Vector3(FrontierMap.Boundary,.05f,0),new Vector3(.17f,.033f,bridge.hz*2),Gold);
             FrontierTile(new Vector3(FrontierMap.Boundary+.105f,.041f,0),new Vector3(.07f,.027f,bridge.hz*2),Survey);
+            bridgeFittings??=Load("bridge_fittings").Variant(false,true,near:true);
+            Still(bridgeFittings,new Vector3(bridge.x,0,0),Quaternion.identity,Vector3.one,White);
             Still(Load("frontier_gate"),new Vector3(FrontierMap.Boundary,0,0),Quaternion.identity,Vector3.one,White);
             var bedrock=Load("rock");
             var erodedRim=bedrock.WithoutShadows();

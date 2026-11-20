@@ -22,7 +22,7 @@ namespace Frontline.UnityGame
             app.ImportText(estate.Export());
             estate=app.Estate;
             yield return CheckFrontierPreset(1);
-            Require(app.View.NobleBoundaryCount==8&&app.View.NobleDetailCount==0&&estate.nobility==0&&
+            Require(app.View.NobleBoundaryCount==Manor.PlotCount-Manor.FirstNoblePlot&&app.View.NobleDetailCount==0&&estate.nobility==0&&
                 ManorReadout("Manor.Nobility.Ledger").text.StartsWith("男爵",StringComparison.Ordinal),"Baron did not show unsealed plots");
             app.View.FocusManorPlot(Manor.FirstNoblePlot);
             yield return WaitForState(()=>!app.View.CameraMoving,"Crown boundary camera did not settle");
@@ -67,7 +67,8 @@ namespace Frontline.UnityGame
             Require(nobleDetails>=6,"Duke's civic details were missing");
             yield return Press("关闭");
 
-            string[] newBuildings={"smithy","cottage","farm","pasture","cottage","timber_camp","granary","farm"};
+            string[] newBuildings={"smithy","cottage","farm","pasture","cottage","timber_camp","granary","farm",
+                Manor.Bakery,Manor.Weaver,"cottage","timber_camp"};
             for(int index=Manor.FirstNoblePlot;index<Manor.PlotCount;index++)
             {
                 app.SelectManorSlot(index,focus:true);
@@ -78,18 +79,23 @@ namespace Frontline.UnityGame
                 Require(estate.slots[index].kind==kind,"Granted estate could not build on "+index);
                 dukePlotsBuilt++;
             }
+            yield return CheckCraftBuildings(captures);
+            estate=app.Estate;
             app.SelectManorSlot(0);
             Require(ManorReadout("Manor.Nobility.Hall").text=="公爵","Lord's hall is missing its ranked badge");
             yield return CheckFrontierPreset(1);
             if(captures)
             {
-                yield return ManorShot("150-duke-overview");
+                yield return ManorShot("160-duke-coast");
                 app.View.Focus(new Vector3(FrontierMap.ManorX-2.10f,1.03f,-.10f),13.9f,35,-7);
-                yield return ManorShot("150-manor-details");
+                yield return ManorShot("160-manor-details");
             }
+            yield return CheckResidentCloseups(captures);
             yield return Press("Manor.Governance");
             yield return Press("Manor.Chronicle");
-            Require(Displays("受封公爵 · 赐地 30–31"),"Duke ceremony missing from chronicle UI");
+            Require(Displays("受封公爵 · 赐地 "+Manor.NobleGrantPlots(4))&&
+                Displays("建地 32 建成"+Manor.Name(Manor.Bakery))&&Displays("建地 33 建成"+Manor.Name(Manor.Weaver)),
+                "Expansion or craft chronicle entry missing");
             yield return Press("关闭");
             nobilityVerified=true;
 
@@ -101,19 +107,31 @@ namespace Frontline.UnityGame
             if(captures)yield return ManorShot("150-codex-troops");
             yield return CheckCodexBottom(app.Data.Data.props.Last().id);
             yield return Press("Codex.Tab.1");
-            Require(CountCodexEntries()==21&&HudElement<Image>("Codex.Entry.market")&&HudElement<Image>("Codex.Entry.manor_hall"),
+            Require(CountCodexEntries()==25&&HudElement<Image>("Codex.Entry.market")&&HudElement<Image>("Codex.Entry.manor_hall"),
                 "Building, backyard or synergy entry missing");
-            if(captures)yield return ManorShot("150-codex-buildings");
+            CheckCodexReading();
+            if(captures)
+            {
+                yield return ManorShot("160-codex-buildings");
+                yield return RevealCodexEntry(Manor.Bakery);
+                yield return ManorShot("160-codex-crafts");
+            }
             yield return Press("Codex.Tab.2");
             Require(CountCodexEntries()==14&&Displays("当前爵位")&&Displays("每日 +2 粮食"),
                 "Rank, region or development records incomplete");
             if(captures)yield return ManorShot("150-codex-nobility");
             yield return Press("Codex.Tab.3");
-            Require(CountCodexEntries()==7&&HudElement<Image>("Codex.Entry.watchman")&&
+            Require(CountCodexEntries()==9&&HudElement<Image>("Codex.Entry."+Manor.Mason)&&HudElement<Image>("Codex.Entry."+Manor.Minstrel)&&
                 Displays("当前 Lv."+estate.SpecialistLevel("watchman"))&&
                 Displays("圣辉 · "+app.Data.Heroes["hero_commander"].subtitle),
                 "Heroes or specialist ranks missing");
-            if(captures)yield return ManorShot("150-codex-heroes");
+            CheckCodexReading();
+            if(captures)
+            {
+                yield return ManorShot("160-codex-people");
+                yield return RevealCodexEntry(Manor.Mason);
+                yield return ManorShot("160-codex-specialists");
+            }
             yield return Press("关闭");
             codexTabsVerified=true;
             Debug.Log("FRONTLINE_NOBILITY_CODEX_OK dukePlots="+dukePlotsBuilt+" details="+nobleDetails+" sounds="+rankSounds);
@@ -151,7 +169,7 @@ namespace Frontline.UnityGame
         IEnumerator CheckPortraitCodex(bool captures)
         {
             yield return Press("Codex.Open");
-            yield return Press("Codex.Tab.2");
+            yield return Press("Codex.Tab.3");
             yield return new WaitForEndOfFrame();
             var modal=HudElement<RectTransform>("游戏图鉴");
             var rect=ScreenRect(modal);
@@ -162,7 +180,12 @@ namespace Frontline.UnityGame
             var labels=scroll.content.GetComponentsInChildren<Text>();
             foreach(var label in labels)
                 Require(label.preferredHeight<=label.rectTransform.rect.height+1,"Portrait codex clipped text: "+label.text);
-            if(captures)yield return ManorShot("150-portrait-codex");
+            CheckCodexReading();
+            if(captures)
+            {
+                yield return RevealCodexEntry(Manor.Mason);
+                yield return ManorShot("160-portrait-codex");
+            }
             yield return Press("关闭");
             portraitCodexVerified=true;
         }

@@ -15,9 +15,9 @@ static partial class ManorChecks
 
     public static void RunNobility(Catalog data,Action<string,Action> check)
     {
-        check("baron keeps the original 24 grants and locks all eight crown survey plots",()=>{
+        check("baron keeps the original 24 grants and locks all twelve crown survey plots",()=>{
             var manor=new Manor();
-            Expect(manor.NobleTitle=="男爵"&&manor.GrantedPlots==24&&manor.slots.Length==32&&manor.ArmyLimit==13&&
+            Expect(manor.NobleTitle=="男爵"&&manor.GrantedPlots==24&&manor.slots.Length==Manor.PlotCount&&manor.ArmyLimit==13&&
                 manor.FieldLimit==8&&manor.Budget==620,"baron baseline");
             string before=manor.Export();
             for(int index=Manor.FirstNoblePlot;index<Manor.PlotCount;index++)
@@ -29,7 +29,7 @@ static partial class ManorChecks
             Expect((manor.Todos&ManorTodo.Nobility)==0&&manor.Export()==before,"blocked grant changed estate");
         });
 
-        check("promotion is sequential and atomic, grants two surveyed plots and writes the chronicle",()=>{
+        check("promotion is sequential and atomic, grants three surveyed plots and writes the chronicle",()=>{
             var manor=PromotionEstate();
             int influence=manor.influence,coins=manor.coin;
             Reject(()=>manor.PromoteNobility(2));
@@ -52,19 +52,20 @@ static partial class ManorChecks
                 int coin=manor.coin,influenceBefore=manor.influence;
                 Expect((manor.Todos&ManorTodo.Nobility)!=0,"eligible promotion missing todo");
                 manor.PromoteNobility(rank);
-                Expect(manor.GrantedPlots==start+2&&manor.influence==influenceBefore-row.influence&&
+                Expect(manor.GrantedPlots==start+Manor.NoblePlotsPerRank&&manor.influence==influenceBefore-row.influence&&
                     manor.coin==coin-row.coin&&manor.nobility==rank&&manor.chronicle.Last().kind=="nobility","promotion settlement");
-                for(int index=start;index<start+2;index++)
+                for(int index=Manor.FirstNoblePlot;index<Manor.PlotCount;index++)
                 {
-                    Expect(Manor.PlotRank(index)==rank&&manor.IsPlotCleared(index),"survey not unlocked");
-                    manor.Build(index,index%2==0?"farm":"granary");
+                    if(Manor.PlotRank(index)!=rank)continue;
+                    Expect(manor.IsPlotCleared(index),"survey not unlocked");
+                    manor.Build(index,"farm");
                 }
                 Reject(()=>manor.PromoteNobility(rank));
             }
             Expect((manor.Todos&ManorTodo.Nobility)==0&&manor.slots.Skip(24).All(plot=>plot.kind!=null)&&
                 manor.chronicle.Count(entry=>entry.kind=="nobility")==4,"duchy did not complete");
             var exported=manor.Export();
-            Expect(Manor.Import(exported).Export()==exported,"v11 round trip with all eight grants");
+            Expect(Manor.Import(exported).Export()==exported,"v12 round trip with all twelve grants");
         });
 
         check("rank progression enforces lasting achievements and applies exact estate-only bonuses",()=>{
@@ -92,12 +93,12 @@ static partial class ManorChecks
             manor.PromoteNobility(4);
             var after=manor.Forecast();
             Expect(after.coin-baseline.coin==46&&after.food-baseline.food==29&&
-                after.timber-baseline.timber==20&&after.arms-baseline.arms==11&&after.forgeTimber==baseline.forgeTimber,"duke production");
+                after.timber-baseline.timber==21&&after.arms-baseline.arms==11&&after.forgeTimber==baseline.forgeTimber,"duke production");
             manor.approval=32;
             Expect(Manor.Import(manor.Export()).nobility==4&&Json.Write(data.Validate(arena))==duel,"rank permanence or duel isolation");
         });
 
-        check("v1–v10 project losslessly into v11, with baron and eight empty unsealed plots",()=>{
+        check("v1–v10 project losslessly into v12, with baron and twelve empty unsealed plots",()=>{
             var estate=new Manor {coin=400,timber=250,food=80,day=42,cleared=3,influence=200};
             estate.Build(1,"farm");estate.Assign(1,1);
             estate.Build(2,"cottage");estate.SetBackyard(2,"poultry");
@@ -111,13 +112,13 @@ static partial class ManorChecks
                 var projection=LegacySchema(imported,version);
                 foreach(var field in old)
                     Expect(Json.Write(field.Value)==Json.Write(projection[field.Key]),"v"+version+" lost "+field.Key);
-                Expect(imported.version==11&&imported.nobility==0&&imported.GrantedPlots==24&&
+                Expect(imported.version==Manor.SaveVersion&&imported.nobility==0&&imported.GrantedPlots==24&&
                     imported.slots.Skip(24).All(plot=>plot.kind==null&&plot.level==0&&plot.workers==0&&
-                    plot.backyard==null&&plot.rotation==null&&plot.fertility==0),"v11 defaults");
+                    plot.backyard==null&&plot.rotation==null&&plot.fertility==0),"v12 defaults");
             }
         });
 
-        check("strict v11 rejects forged nobility, past-schema extras and buildings on unsealed land",()=>{
+        check("strict v12 rejects forged nobility, past-schema extras and buildings on unsealed land",()=>{
             var estate=PromotionEstate();
             string valid=estate.Export();
             Dictionary<string,object> Raw() => (Dictionary<string,object>)Json.Parse(valid);

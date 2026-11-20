@@ -42,7 +42,8 @@ namespace Frontline.Core
             {
                 case "title": return "晋升 · "+ProsperityTitles[subject];
                 case "reclaim": return "开垦外环建地 "+subject;
-                case "granary": case "chapel": return "建地 "+subject+" 建成"+Name(entry.kind);
+                case "granary": case "chapel": case Bakery: case Weaver: return "建地 "+subject+" 建成"+Name(entry.kind);
+                case "specialist": return SpecialistNames[subject]+" · 晋升 Lv."+entry.choice;
                 case "development": return "解锁专精 · "+Developments[subject].title;
                 case "dispatch":
                     var report=SeasonalEvents[subject];
@@ -52,8 +53,7 @@ namespace Frontline.Core
                 case "raid": return "击退掠夺者"+MeritText(entry.choice);
                 case "festival": return "召开领地庆典 · 鼓舞民心";
                 case "claim": return "宣称并筑哨 · "+Sectors[subject].name;
-                case "nobility": return "受封"+NobleRanks[subject].title+" · 赐地 "+
-                    GrantedPlotCount(subject-1)+"–"+(GrantedPlotCount(subject)-1);
+                case "nobility": return "受封"+NobleRanks[subject].title+" · 赐地 "+NobleGrantPlots(subject,entry.choice==1);
                 default: throw new InvalidOperationException("未知编年史记录");
             }
         }
@@ -86,16 +86,21 @@ namespace Frontline.Core
             if(entry.kind=="frontier")return frontierSwept&&subject>=(merit?1:2)&&subject<=FrontierMap.MaxTier&&
                 (uint)entry.choice<=(merit?FrontierInfluence:0);
             if(entry.kind=="raid")return merit&&(uint)subject<Route.Length&&(uint)entry.choice<=RaidInfluence;
+            if(entry.kind=="specialist")return schema>=CraftSaveVersion&&(uint)subject<SpecialistIds.Length&&
+                entry.choice>=2&&entry.choice<=SpecialistRank(SpecialistIds[subject]);
+            if(entry.kind=="nobility")return schema>=NobilitySaveVersion&&subject>=1&&subject<=nobility&&
+                (entry.choice==0||entry.choice==1&&schema>=CraftSaveVersion);
             if(entry.choice!=0)return false;
             switch(entry.kind)
             {
                 case "title": return subject>=1&&subject<=prosperityPeak;
                 case "reclaim": return subject>=FirstOuterPlot&&subject<FirstNoblePlot&&IsPlotCleared(subject);
-                case "granary": case "chapel": return subject>0&&IsPlotGranted(subject);
+                case "granary": case "chapel": return subject>0&&IsPlotGranted(subject)&&
+                    (subject<LegacyNoblePlotCount||schema>=CraftSaveVersion);
+                case Bakery: case Weaver: return schema>=CraftSaveVersion&&subject>0&&IsPlotGranted(subject);
                 case "development": return HasDevelopment((ManorPerk)subject);
                 case "festival": return merit&&subject==0;
                 case "claim": return schema>=ClaimsSaveVersion&&ClaimedSector(subject);
-                case "nobility": return schema>=NobilitySaveVersion&&subject>=1&&subject<=nobility;
                 default: return false;
             }
         }

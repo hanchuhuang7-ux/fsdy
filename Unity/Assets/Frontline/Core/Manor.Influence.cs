@@ -19,13 +19,13 @@ namespace Frontline.Core
             tithe = percent;
         }
 
-        void ApplyTithe(ref ManorDay forecast,int storedFood,int households)
+        void ApplyTithe(ref ManorDay forecast,int storedFood,int households,int minstrel)
         {
             if (tithe == 0 || influence == InfluenceMax || forecast.food <= 0) return;
             int donated = Math.Max(1,forecast.food * tithe / 10000);
             if (storedFood + forecast.food - donated * 100 < households * 200) return;
             forecast.titheFood = donated;
-            forecast.influence = 1;
+            forecast.influence = Math.Min(InfluenceMax-influence,1+minstrel);
             forecast.food -= donated * 100;
         }
 

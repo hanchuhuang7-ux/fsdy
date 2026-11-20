@@ -9,12 +9,12 @@ namespace Frontline.UnityGame
     {
         static readonly Vector3 WellOrigin=new Vector3(-5.02f,.046f,-.30f);
         static readonly Vector3 MarketNorth=new Vector3(5.44f,.046f,.91f), MarketSouth=new Vector3(5.50f,.046f,-1.37f);
-        static readonly Vector3 DockOrigin=new Vector3(-5.45f,-.67f,-17.46f);
-        static readonly Vector3 DockApproach=new Vector3(DockOrigin.x,0,-17.18f);
+        static readonly Vector3 DockOrigin=new Vector3(-5.45f,-.67f,-Manor.PlateauHalfDepth+.54f);
+        static readonly Vector3 DockApproach=new Vector3(DockOrigin.x,0,-Manor.PlateauHalfDepth+.82f);
         static readonly Vector3 DockScale=new Vector3(1.32f,1,1.21f);
         static readonly Vector3 GatehouseOrigin=new Vector3(BridgeLocalX-1.44f,.021f,0);
-        static readonly Vector3 CargoWest=new Vector3(DockOrigin.x-1.95f,.034f,-16.92f);
-        static readonly Vector3 CargoEast=new Vector3(DockOrigin.x+1.98f,.032f,-17.06f);
+        static readonly Vector3 CargoWest=new Vector3(DockOrigin.x-1.95f,.034f,DockOrigin.z+.54f);
+        static readonly Vector3 CargoEast=new Vector3(DockOrigin.x+1.98f,.032f,DockOrigin.z+.40f);
         static readonly Vector3 YardOrigin=new Vector3(-1.51f,0,-1.63f);
         static readonly Color[] SpecialistTrim={Color.white,new Color(.72f,.86f,.97f),new Color(1f,.79f,.39f)};
         static readonly Color RetinueCloth=new Color(.33f,.40f,.58f);
@@ -24,10 +24,10 @@ namespace Frontline.UnityGame
             new Vector3(-1.22f,0,-3.77f),new Vector3(3.76f,0,-3.77f),
             new Vector3(-4.89f,0,-3.77f),new Vector3(5.02f,0,-3.77f)
         };
-        readonly MeshSet[] specialistMeshes=new MeshSet[4];
-        readonly WalkRoute[] specialistRoutes=new WalkRoute[4];
-        readonly int[] specialistLevels=new int[4];
-        readonly Vector3[] specialistPoints=new Vector3[4];
+        readonly MeshSet[] specialistMeshes=new MeshSet[Manor.SpecialistIds.Length];
+        readonly WalkRoute[] specialistRoutes=new WalkRoute[Manor.SpecialistIds.Length];
+        readonly int[] specialistLevels=new int[Manor.SpecialistIds.Length];
+        readonly Vector3[] specialistPoints=new Vector3[Manor.SpecialistIds.Length];
         readonly bool[] heroBayClear=new bool[3];
         MeshSet specialistLeg;
         MeshSet retinueGuard;
@@ -96,21 +96,21 @@ namespace Frontline.UnityGame
             var hedge=Load("shrub").WithoutShadows();
             for(int i=0;i<6;i++)
             {
-                float x=-22.8f+i*8.55f, z=-14.7f+i*5.85f;
-                ManorStill(fence,new Vector3(x,0,17.46f),Quaternion.Euler(0,i%2==0?3:-5,0),Vector3.one*.98f,White);
-                ManorStill(fence,new Vector3(-27.38f,0,z),Quaternion.Euler(0,i%2==0?87:92,0),Vector3.one*.94f,White);
+                float x=-25.8f+i*9.5f, z=-16.7f+i*6.6f;
+                ManorStill(fence,new Vector3(x,0,Manor.PlateauHalfDepth-.54f),Quaternion.Euler(0,i%2==0?3:-5,0),Vector3.one*.98f,White);
+                ManorStill(fence,new Vector3(-Manor.PlateauHalfWidth+.62f,0,z),Quaternion.Euler(0,i%2==0?87:92,0),Vector3.one*.94f,White);
                 if(Mathf.Abs(x-DockOrigin.x)>4.4f)
-                    ManorStill(fence,new Vector3(x,0,-17.42f),Quaternion.Euler(0,i%2==0?-8:5,0),Vector3.one,White);
-                ManorStill(hedge,new Vector3(x+2.46f,0,17.30f),Quaternion.Euler(0,i*51,0),
+                    ManorStill(fence,new Vector3(x,0,-Manor.PlateauHalfDepth+.58f),Quaternion.Euler(0,i%2==0?-8:5,0),Vector3.one,White);
+                ManorStill(hedge,new Vector3(x+2.46f,0,Manor.PlateauHalfDepth-.7f),Quaternion.Euler(0,i*51,0),
                     new Vector3(1.44f,.53f,.66f),new Color(.72f,.84f,.60f),.016f);
             }
             var reed=Load("reeds").WithoutShadows();
             for(int i=0;i<9;i++)
             {
-                float x=-22.3f+i*5.04f, z=-15.65f+i*3.91f;
-                ManorStill(reed,new Vector3(-27.95f,-.27f,z),Quaternion.Euler(0,i*47,0),Vector3.one*(.64f+i%3*.13f),White,.029f);
+                float x=-25.3f+i*5.61f, z=-17.65f+i*4.41f;
+                ManorStill(reed,new Vector3(-Manor.PlateauHalfWidth+.05f,-.27f,z),Quaternion.Euler(0,i*47,0),Vector3.one*(.64f+i%3*.13f),White,.029f);
                 if(i%3!=1&&Mathf.Abs(x-DockOrigin.x)>2.8f)
-                    ManorStill(reed,new Vector3(x,-.35f,-17.83f),Quaternion.Euler(0,i*31,0),Vector3.one*.75f,White,.026f);
+                    ManorStill(reed,new Vector3(x,-.35f,-Manor.PlateauHalfDepth+.17f),Quaternion.Euler(0,i*31,0),Vector3.one*.75f,White,.026f);
             }
             for(int i=0;i<specialistMeshes.Length;i++)
                 specialistMeshes[i]=Load("specialist_"+Manor.SpecialistIds[i]).WithoutShadows();
@@ -158,7 +158,10 @@ namespace Frontline.UnityGame
             Trace(new Vector3(-3.12f,0,1.38f),new Vector3(-3.12f,0,-LaneZ),Door(0)),
             Trace(new Vector3(BridgeLocalX-5.65f,0,-LaneZ),new Vector3(BridgeLocalX-2.90f,0,-2.0f),
                 new Vector3(BridgeLocalX-.60f,0,-1.50f),new Vector3(BridgeLocalX-.60f,0,1.54f),
-                new Vector3(BridgeLocalX-3.96f,0,1.50f))
+                new Vector3(BridgeLocalX-3.96f,0,1.50f)),
+            WalkBetween(Manor.LegacyNoblePlotCount+1,5),
+            Trace(new Vector3(-3.12f,0,1.38f),new Vector3(-CrossX,0,-LaneZ),new Vector3(CrossX,0,-LaneZ),
+                new Vector3(CrossX,0,LaneZ),LaneMouth(3),Door(3))
         };
 
         void BuildSpecialistRoutes()
@@ -194,6 +197,8 @@ namespace Frontline.UnityGame
                 VisibleSpecialistMask|=1<<role;
                 float gait=Mathf.Sin(along*4.8f+role);
                 var rotation=Quaternion.Euler(0,LocalHeading(SpecialistFirst+role,Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg),0);
+                if(Manor.SpecialistIds[role]==Manor.Minstrel)
+                    rotation*=Quaternion.Euler(0,0,Mathf.Sin(manorTime*4)*3);
                 var root=Pose(specialistPoints[role]+Vector3.up*(.735f+.028f*Mathf.Abs(gait)),rotation,Vector3.one*.96f);
                 Add(specialistMeshes[role],root,SpecialistTrim[rank-1]);
                 ContactAt(specialistPoints[role],.90f);
@@ -295,7 +300,7 @@ namespace Frontline.UnityGame
                 Check(Trace(new Vector3(WestLaneX,0,side*OuterLaneZ),new Vector3(OuterLaneEast,0,side*OuterLaneZ)),
                     side>0?"north fields":"south workshops");
             return new {checkedRoutes,checkedPoints,retinuePosts=RetinuePosts.Length,outerPlots=Manor.FirstNoblePlot-Manor.FirstOuterPlot,
-                noblePlots=Manor.PlotCount-Manor.FirstNoblePlot,civicDetails=CivicDetails.Length};
+                noblePlots=Manor.PlotCount-Manor.FirstNoblePlot,civicDetails=CivicDetails.Length,specialistRoutes=specialists.Length};
         }
     }
 }

@@ -212,16 +212,21 @@ namespace Frontline.UnityGame
             yield return CheckFrontierPreset(1);
             CheckButtonHit("Settings.Quality");CheckButtonHit("Frontier.View.1");CheckButtonHit("Frontier.View.2");CheckButtonHit("Manor.Patrol");
             CheckFloatingStatus();
-            if(captures)yield return ManorShot("150-portrait-manor");
+            if(captures)yield return ManorShot("160-portrait-manor");
             yield return Press("Manor.Governance");
             CheckButtonHit("Manor.Decree.mobilize");CheckButtonHit("Manor.Work.balanced");
             CheckGovernanceViewport();
-            if(captures)yield return ManorShot("150-portrait-governance");
+            if(captures)yield return ManorShot("160-portrait-governance");
             yield return Press("Manor.Milestones");
             CheckButtonHit("Manor.Milestones.Back");
             yield return Press("Manor.Milestones.Back");
             yield return Press("Manor.Specialists");
-            CheckButtonHit("Manor.Specialist.Upgrade.steward");CheckButtonHit("Manor.Specialist.Upgrade.watchman");
+            CheckButtonHit("Manor.Specialist.Upgrade.steward");
+            var specialists=HudElement<RectTransform>("领地专才").GetComponentInChildren<ScrollRect>();
+            specialists.verticalScrollbar.value=0;
+            yield return new WaitForEndOfFrame();
+            CheckButtonHit("Manor.Specialist.Upgrade."+Manor.Minstrel);
+            if(captures)yield return ManorShot("160-portrait-specialists");
             Require(app.GetComponent<BattleInput>().Shortcut(KeyCode.Escape)&&!app.Modal,"Portrait governance could not close");
             yield return Press("Manor.Patrol");
             CheckButtonHit("Manor.Force.Recommend");CheckButtonHit("Manor.Patrol.Start");
@@ -360,7 +365,8 @@ namespace Frontline.UnityGame
             if(captures)yield return ManorShot("142-specialists");
             yield return Press("Manor.Specialists.Back");yield return Press("关闭");
             int seen=0;
-            yield return WaitForState(()=>{seen|=app.View.VisibleSpecialistMask;return seen==15;},"One or more specialists never appeared on the estate paths");
+            int allSpecialists=(1<<Manor.SpecialistIds.Length)-1;
+            yield return WaitForState(()=>{seen|=app.View.VisibleSpecialistMask;return seen==allSpecialists;},"One or more specialists never appeared on the estate paths");
             if(captures)
             {
                 yield return ManorShot("142-estate-overview");
@@ -543,7 +549,8 @@ namespace Frontline.UnityGame
                 Require(screen.x>0 && screen.x<1 && screen.y>0 && screen.y<1,"Overview clipped a region");
             }
             Require(app.View.RenderInstances>100,"Frontier scene was not rendered");
-            Require(app.View.VisibleFarmers>=2 && app.View.VisibleFarmers+app.View.VisibleVillagers>=6,"Overview is missing households");
+            yield return WaitForState(()=>app.View.VisibleFarmers>=2&&app.View.VisibleFarmers+app.View.VisibleVillagers>=6,
+                "Overview is missing households on its resident routes");
             yield return CheckManorShortcutsAndHover();
             yield return CheckCameraState();
             yield return CheckFrontierPreset(2);
@@ -557,7 +564,7 @@ namespace Frontline.UnityGame
             yield return Press("Manor.ConfirmUpgrade");
             yield return Press("Manor.Upgrade");yield return Press("Manor.ConfirmUpgrade");
             yield return CheckAutumnWinterLight(captures);
-            Require(app.Estate.Season==3&&app.Estate.approval==65&&app.Estate.Forecast().winterTimber==200,
+            Require(app.Estate.Season==3&&app.Estate.approval==66&&app.Estate.Forecast().winterTimber==200,
                 "Autumn settlement did not transition the winter ledger");
             app.View.Focus(new Vector3(FrontierMap.ManorX+3.0f,1.02f,4.9f),15.5f,35,-14);
             if(captures)
@@ -734,6 +741,7 @@ namespace Frontline.UnityGame
                 outpostPickingVerified,verifiedGarrisons,flurryAllocationBytes,
                 nobilityVerified,codexTabsVerified,arenaCodexVerified,portraitCodexVerified,dukePlotsBuilt,rankSounds,nobleDetails,
                 nobleRank=app.Estate.nobility,grantedPlots=app.Estate.GrantedPlots,
+                craftBuildingsVerified,codexLineBreaksVerified,specialistCloseupMask,heroCloseupMask,retinueCloseup,arenaCloseup,
                 clearedSectors=app.Estate.clearedSectors,claimedSectors=app.Estate.claimedSectors,
                 barnyard=app.Estate.slots[1].backyard,developmentMask=app.Estate.developmentMask,
                 chronicleEntries=app.Estate.chronicle.Count,

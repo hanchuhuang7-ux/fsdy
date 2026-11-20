@@ -6,8 +6,8 @@ namespace Frontline.Core
 {
     public struct ManorApprovalFactors
     {
-        public int tax, food, tavern, heating, decree, chapel, settled, herbalist, market;
-        public int Total => tax + food + tavern + heating + decree + chapel + settled + herbalist + market;
+        public int tax, food, tavern, heating, decree, chapel, settled, herbalist, market, minstrel;
+        public int Total => tax + food + tavern + heating + decree + chapel + settled + herbalist + market + minstrel;
     }
 
     public readonly struct ManorMarketNeeds
@@ -116,9 +116,11 @@ namespace Frontline.Core
             bool sustainableWoods=HasDevelopment(ManorPerk.SustainableWoods);
             int cropDevelopment=HasDevelopment(ManorPerk.HeavyPlough)?115:100;
             int forgeDevelopment=HasDevelopment(ManorPerk.GuildSmiths)?120:100;
-            int tavern = 0, housing = 2, forgeCount = 0;
+            int tavern = 0, housing = 2, forgeCount = 0,bakeryCount=0;
+            int mason=SpecialistLevel(Mason),minstrel=SpecialistLevel(Minstrel);
             int cropRate = CropSeasonRates[season], pastureRate = season == 3 ? 80 : 100;
             Span<int> staffedForges = stackalloc int[PlotCount];
+            Span<int> staffedBakeries = stackalloc int[PlotCount];
             for (int i = 0; i < slots.Length; i++)
             {
                 var plot = slots[i];
@@ -141,7 +143,15 @@ namespace Frontline.Core
                         firstFood ??= plot.kind;
                         break;
                     case "timber_camp":
-                        balance.timber += NobleYield(ScaleYield(Yield(4,plot.level) * plot.workers,production,developmentPercent:sustainableWoods?115:100));
+                        balance.timber += NobleYield(ScaleYield(Yield(4,plot.level) * plot.workers,production,
+                            supportPercent:100+MasonTimberBonus(mason),developmentPercent:sustainableWoods?115:100));
+                        break;
+                    case Bakery:
+                        staffedBakeries[bakeryCount++]=i;
+                        break;
+                    case Weaver:
+                        balance.coin+=NobleYield(ScaleYield(Yield(WeaverCoin,plot.level)*plot.workers,production,
+                            synergyPercent:100+synergy.weavePercent));
                         break;
                     case "tavern":
                         tavern = 2;
@@ -160,6 +170,7 @@ namespace Frontline.Core
             {
                 int firewood=(workers+3)/4;
                 if(sustainableWoods)firewood=Math.Max(1,firewood*65/100);
+                firewood=Math.Max(1,firewood-synergy.winterClothing);
                 balance.winterTimberRequired=firewood*100;
                 balance.winterTimber = Math.Min(timberAvailable,balance.winterTimberRequired);
                 timberAvailable -= balance.winterTimber;
@@ -178,6 +189,15 @@ namespace Frontline.Core
             balance.timber = timberAvailable - storedTimber;
 
             int storedFood = Precise(food,remainder.food);
+            if(bakeryCount>0)
+            {
+                BakeBread(staffedBakeries.Slice(0,bakeryCount),storedFood+balance.food,production,ref balance);
+                if(balance.bakeryGrain>0)
+                {
+                    variedDiet|=firstFood!=null;
+                    firstFood??=Bakery;
+                }
+            }
             int foodAvailable = storedFood + balance.food;
             // Preserve up to the last stored ration. Emergency reserves do not create new stock for the market.
             int reserveDeficit=Math.Min(100,storedFood)-foodAvailable;
@@ -195,13 +215,14 @@ namespace Frontline.Core
                 tax = TaxApprovalChange, food = !hasRations ? -5+synergy.granaryLevel : diet ? 2 : 0,
                 tavern = tavern, heating = balance.winterTimber < balance.winterTimberRequired ? -3+synergy.granaryLevel : 0,
                 decree = mobilize ? -1 : 0, chapel=synergy.chapelApproval, settled=synergy.settledApproval,
-                herbalist=hasClinic ? SpecialistRank("herbalist") : 0, market=balance.marketNeeds.Prosperous?ProsperousMarketApproval:0
+                herbalist=hasClinic ? SpecialistRank("herbalist") : 0, market=balance.marketNeeds.Prosperous?ProsperousMarketApproval:0,
+                minstrel=minstrel
             };
             balance.approvalAfter = ClampApproval(approval + balance.approvalFactors.Total);
             // Production and immigration read the morning's approval. Today's changes take effect tomorrow.
             balance.newHousehold = approval >= UnrestApproval && workers < housing && foodAvailable >= 200 * (workers + 1);
             if (balance.newHousehold) balance.food -= 200;
-            ApplyTithe(ref balance,storedFood,workers+(balance.newHousehold?1:0));
+            ApplyTithe(ref balance,storedFood,workers+(balance.newHousehold?1:0),minstrel);
             return balance;
         }
 

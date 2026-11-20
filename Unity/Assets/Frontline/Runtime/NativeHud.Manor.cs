@@ -314,8 +314,8 @@ namespace Frontline.UnityGame
                 bool heatingShortage=f.winterTimber<f.winterTimberRequired;
                 factors.color=heatingShortage||m.approval<Manor.UnrestApproval?danger:pale;
                 factors.text=ForecastFactors(m,f,heatingShortage);
-                string links=EstateSynergyText(f.synergy);
-                synergy.text=f.marketNeeds.Prosperous?"市集兴旺 +1 民心"+(links.Length==0?"":"  ·  "+links):links;
+                string links=EstateSynergyText(f.synergy,portrait);
+                synergy.text=f.marketNeeds.Prosperous?(portrait?"市集 +1":"市集兴旺 +1 民心")+(links.Length==0?"":"  ·  "+links):links;
             });
         }
 

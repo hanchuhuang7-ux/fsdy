@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using Frontline.Core;
 using UnityEngine;
 using UnityEngine.UI;
@@ -129,9 +130,36 @@ namespace Frontline.UnityGame
         float ReadingLine(Transform parent,string text,float x,float y,float width,int size,Color color)
         {
             var label=Label(parent,text,x,y,width,1,size,color,TextAnchor.UpperLeft);
+            KeepClosingMarks(label,width);
             float height=Mathf.Ceil(Mathf.Max(label.preferredHeight,size+3));
             Rect(label.rectTransform,x,y,width,height+1);
             return height+1;
+        }
+
+        static bool IsClosingMark(char ch) => "。、，；：！？）》】」』％…".IndexOf(ch)>=0;
+
+        static void KeepClosingMarks(Text label,float width)
+        {
+            string text=label.text;
+            if(!text.Any(IsClosingMark))return;
+            var settings=label.GetGenerationSettings(new Vector2(width,0));
+            settings.verticalOverflow=VerticalWrapMode.Overflow;
+            using var generator=new TextGenerator(text.Length);
+            generator.Populate(text,settings);
+            var lines=generator.lines;
+            StringBuilder adjusted=null;
+            for(int row=lines.Count-1;row>0;row--)
+            {
+                int start=lines[row].startCharIdx;
+                if(start<=0||start>=text.Length||text[start-1]=='\n'||!IsClosingMark(text[start]))continue;
+                int run=start-1;
+                int previous=lines[row-1].startCharIdx;
+                while(run>previous&&IsClosingMark(text[run]))run--;
+                if(run<=previous)continue;
+                if(adjusted==null)adjusted=new StringBuilder(text);
+                adjusted.Insert(run,'\n');
+            }
+            if(adjusted!=null)label.text=adjusted.ToString();
         }
 
         static string NumberText(float value) => value.ToString("0.##");
@@ -177,6 +205,10 @@ namespace Frontline.UnityGame
                 "伐木营与铁匠铺同时派工。冬季建材先保暖，再供锻造。");
             yield return new CodexEntry("market","市集三需","三项齐全时每日民心 +"+Manor.ProsperousMarketApproval,
                 "备足口粮、冬季薪柴，并由酒馆或派工礼拜堂提供精神供给。");
+            yield return new CodexEntry("bread","麦香联动","面包产量 +"+Manor.BreadCompanionPercent+"%",
+                "面包房派工后，可由派工的麦田或谷仓增产。出炉的面包计作独立副食。");
+            yield return new CodexEntry("wool","牧织联动","织坊收入 +"+Manor.PastureWeavePercent+"%",
+                "牧场与织坊同时派工。冬衣每日最多节省 "+Manor.WeaverHeatCap+" 份薪柴，最低仍需一份。");
         }
 
         static CodexEntry NobleEntry(int rank,Manor estate)

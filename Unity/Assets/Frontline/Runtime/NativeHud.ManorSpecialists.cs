@@ -7,13 +7,15 @@ namespace Frontline.UnityGame
 {
     public sealed partial class NativeHud
     {
-        static string EstateSynergyText(ManorSynergy link)
+        static string EstateSynergyText(ManorSynergy link,bool compact=false)
         {
-            var parts=new List<string>(4);
-            if(link.cropPercent>0)parts.Add("耕牧互补 +"+link.cropPercent+"%");
-            if(link.grainPercent>0)parts.Add("谷仓产粮 +"+link.grainPercent+"%");
-            if(link.forgePercent>0)parts.Add("林铁联动 +"+link.forgePercent+"%");
-            if(link.settledApproval>0)parts.Add("安居民心 +"+link.settledApproval);
+            var parts=new List<string>(6);
+            if(link.cropPercent>0)parts.Add((compact?"耕牧 +":"耕牧互补 +")+link.cropPercent+"%");
+            if(link.grainPercent>0)parts.Add((compact?"谷仓 +":"谷仓产粮 +")+link.grainPercent+"%");
+            if(link.forgePercent>0)parts.Add((compact?"林铁 +":"林铁联动 +")+link.forgePercent+"%");
+            if(link.settledApproval>0)parts.Add((compact?"安居 +":"安居民心 +")+link.settledApproval);
+            if(link.breadPercent>0)parts.Add((compact?"麦香 +":"麦香联动 +")+link.breadPercent+"%");
+            if(link.weavePercent>0)parts.Add((compact?"牧织 +":"牧织联动 +")+link.weavePercent+"%");
             return string.Join(" · ",parts);
         }
 
@@ -24,6 +26,8 @@ namespace Frontline.UnityGame
                 case "farm":case "irrigated_field":return link.cropPercent>0?" · 耕牧 +"+link.cropPercent+"%":"";
                 case "timber_camp":case "smithy":return link.forgePercent>0?" · 林铁 +"+link.forgePercent+"%":"";
                 case "chapel":case "tavern":case "cottage":return link.settledApproval>0?" · 安居民心 +"+link.settledApproval:"";
+                case Manor.Bakery:return link.breadPercent>0?" · 麦香联动 +"+link.breadPercent+"%":"";
+                case Manor.Weaver:return link.weavePercent>0?" · 牧织联动 +"+link.weavePercent+"%":"";
                 default:return "";
             }
         }
@@ -57,7 +61,7 @@ namespace Frontline.UnityGame
                     y+=row.sizeDelta.y+7;
                 }
                 p.sizeDelta=new Vector2(w,y);
-            },720,(bar,w)=>ManorButton(bar,"Manor.Specialists.Back","返回政务",0,3,w,40,GovernanceDialog),maxWidth:650);
+            },720,(bar,w)=>ManorButton(bar,"Manor.Specialists.Back","返回政务",0,3,w,40,GovernanceDialog),maxWidth:650,wholeRows:true);
         }
     }
 }

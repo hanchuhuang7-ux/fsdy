@@ -42,11 +42,11 @@ namespace Frontline.UnityGame
             public int highVertices,lowVertices;
             public Batch moving,still,grid,ambient;
             MeshSet shadowless;
-            public bool atmosphere,castShadow=true,receiveShadow=true,nearDetail;
+            public bool atmosphere,castShadow=true,receiveShadow=true,nearDetail,detailProxy;
             public Bounds localBounds;
             public MeshSet Variant(bool cast,bool receive,bool near=false) => new MeshSet {
                 high=high,low=low,highVertices=highVertices,lowVertices=lowVertices,atmosphere=atmosphere,
-                localBounds=localBounds,castShadow=cast,receiveShadow=receive,nearDetail=near
+                localBounds=localBounds,castShadow=cast,receiveShadow=receive,nearDetail=near,detailProxy=detailProxy
             };
             public MeshSet WithoutShadows()=>castShadow?(shadowless??=Variant(false,receiveShadow,nearDetail)):this;
         }
@@ -214,8 +214,14 @@ namespace Frontline.UnityGame
             set.castShadow=!transparent&&!small&&!secondary&&name!="platform";
             set.receiveShadow=!transparent&&!small;
             set.nearDetail=name=="flowers"||name=="grass";
+            set.detailProxy=set.castShadow&&set.high!=set.low&&DetailedCaster(name);
             meshes.Add(key,set);return set;
         }
+        static bool DetailedCaster(string name) =>
+            name.StartsWith("body_",StringComparison.Ordinal)||name.StartsWith("arm_right_",StringComparison.Ordinal)||
+            name=="leg"||name=="horse"||name=="horse_leg"||name=="wreck_horse"||name=="shield"||
+            name=="catapult"||name=="wreck_catapult"||name=="retinue_guard"||name=="frontier_gate"||name=="manor_hall"||
+            System.Array.IndexOf(Manor.Buildings,name)>=0||name.EndsWith("_wing",StringComparison.Ordinal)||name.EndsWith("_tower",StringComparison.Ordinal);
         Batch Buffer(MeshSet mesh,List<Batch> list,int category)
         {
             var b=category==0?mesh.moving:category==1?mesh.still:mesh.grid;
@@ -247,6 +253,7 @@ namespace Frontline.UnityGame
             bool showLow=isStatic?lowScenery:lowActors;
             var mesh=showLow?set.low:set.high;
             int mainVertexCount=showLow?set.lowVertices:set.highVertices;
+            bool detailProxy=!showLow&&set.castShadow&&set.detailProxy;
             bool eligible=splitFineShadows&&QualityLevel==2&&!showLow&&set.castShadow&&set.lowVertices<set.highVertices;
             for(var source=b;source!=null;source=source.next)if(source.count>0)
             {
@@ -260,7 +267,7 @@ namespace Frontline.UnityGame
                 if(page.flashDirty&&!set.atmosphere){page.properties.SetFloatArray(HitId,page.flashes);page.flashDirty=false;}
                 if(page.windDirty){page.properties.SetFloatArray(set.atmosphere?SoftnessId:WindId,page.winds);page.windDirty=false;}
                 var surface=set==contactShade?groundingMaterial:set.atmosphere?atmosphere:material;
-                bool split=eligible&&(set.highVertices-set.lowVertices)*page.count>=MinShadowVertexSavings;
+                bool split=detailProxy||eligible&&(set.highVertices-set.lowVertices)*page.count>=MinShadowVertexSavings;
                 Graphics.DrawMeshInstanced(mesh,0,surface,page.matrices,page.count,page.properties,
                     set.castShadow&&!split?ShadowCastingMode.On:ShadowCastingMode.Off,set.receiveShadow,0,ViewCamera,LightProbeUsage.Off);
                 RenderSubmissions++;RenderInstances+=page.count;

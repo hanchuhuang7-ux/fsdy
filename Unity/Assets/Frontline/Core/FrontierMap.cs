@@ -7,7 +7,7 @@ namespace Frontline.Core
     public static class FrontierMap
     {
         public const string Id = "frontier";
-        public const float ManorX = -50, BridgeStart = ManorX + Manor.PlateauHalfWidth, Boundary = -10, BridgeHalfWidth = 3.6f;
+        public const float ManorX = -53, BridgeStart = ManorX + Manor.PlateauHalfWidth, Boundary = -10, BridgeHalfWidth = 3.6f;
         public const float West = ManorX - Manor.PlateauHalfWidth, East = 64, HalfDepth = 24, EnemyStop = Boundary + 1.15f;
         public const int MaxParty = 16, GroupSize = 5, MaxTier = 3;
         public const float AlertRadius = 13;

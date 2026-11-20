@@ -114,9 +114,9 @@ namespace Frontline.UnityGame
                 Factor(notes[2],factors.tavern>0?"酒馆运转":"酒馆",factors.tavern);
                 Factor(notes[3],forecast.winterTimber<forecast.winterTimberRequired?"冬柴不足":forecast.winterTimberRequired>0?"冬柴足额":"冬柴",factors.heating);
                 Factor(notes[4],"政令",factors.decree);
-                string links=EstateSynergyText(forecast.synergy);
+                string links=EstateSynergyText(forecast.synergy,portrait);
                 support.text=(links.Length==0?"":links+"\n")+"每日民心  礼拜堂 "+Change(factors.chapel)+" · 安居 "+
-                    Change(factors.settled)+" · 医者 "+Change(factors.herbalist)+
+                    Change(factors.settled)+" · 医者 "+Change(factors.herbalist)+(factors.minstrel>0?" · 乐师 "+Change(factors.minstrel):"")+
                     (forecast.reserveFood>0?" · 储备 "+Manor.FormatHundredths(forecast.reserveFood)+" 粮":"");
             });
 

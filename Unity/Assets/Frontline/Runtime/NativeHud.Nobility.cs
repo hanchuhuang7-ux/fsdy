@@ -9,7 +9,7 @@ namespace Frontline.UnityGame
         static string NobleGrantText(int rank)
         {
             int end=Manor.GrantedPlotCount(rank);
-            return rank==0?"原领地 "+end+" 块":"赐地 "+(end-Manor.NoblePlotsPerRank)+"–"+(end-1)+"（+"+Manor.NoblePlotsPerRank+" 块）";
+            return rank==0?"原领地 "+end+" 块":"赐地 "+Manor.NobleGrantPlots(rank)+"（+"+Manor.NoblePlotsPerRank+" 块）";
         }
 
         static string NoblePrice(ManorNobleRank rank) => rank.coin+" 金币 · "+rank.influence+" 威望";

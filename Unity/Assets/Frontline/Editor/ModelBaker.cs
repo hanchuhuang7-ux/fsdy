@@ -40,6 +40,7 @@ namespace Frontline.Editor
                 Save("civilian_hat",lod,CivilianHat(lod));
                 Save("civilian_pack",lod,CivilianPack(lod));
                 Save("frontier_gate",lod,FrontierGate(lod));
+                Save("bridge_fittings",lod,BridgeFittings(lod));
                 BakeManorArt(lod);
                 foreach(string type in Manor.HeroIds)
                 {
@@ -52,7 +53,7 @@ namespace Frontline.Editor
         [Serializable] sealed class Manifest{public string generator,version,vertexColor;public string[] resources;}
         static void Save(string name,int lod,Geometry g)
         {
-            string key=name+(lod==1?"_lod1":""),path=Folder+"/"+key+".asset";var mesh=g.Build(key);if(mesh.vertexCount==0||mesh.normals.Length!=mesh.vertexCount||mesh.colors.Length!=mesh.vertexCount)throw new InvalidDataException("Incomplete baked mesh "+key);foreach(var v in mesh.vertices)if(float.IsNaN(v.x)||float.IsNaN(v.y)||float.IsNaN(v.z)||float.IsInfinity(v.x)||float.IsInfinity(v.y)||float.IsInfinity(v.z))throw new InvalidDataException("Non-finite baked vertex "+key);foreach(var n in mesh.normals)if(n.sqrMagnitude<.98f)throw new InvalidDataException("Invalid baked normal "+key);var old=AssetDatabase.LoadAssetAtPath<Mesh>(path);if(old){EditorUtility.CopySerialized(mesh,old);UnityEngine.Object.DestroyImmediate(mesh);EditorUtility.SetDirty(old);}else AssetDatabase.CreateAsset(mesh,path);Written.Add("Models/"+key);
+            string key=name+(lod==1?"_lod1":""),path=Folder+"/"+key+".asset";var mesh=g.Build(key,lod==0&&CompactDetail(name));if(mesh.vertexCount==0||mesh.normals.Length!=mesh.vertexCount||mesh.colors.Length!=mesh.vertexCount)throw new InvalidDataException("Incomplete baked mesh "+key);foreach(var v in mesh.vertices)if(float.IsNaN(v.x)||float.IsNaN(v.y)||float.IsNaN(v.z)||float.IsInfinity(v.x)||float.IsInfinity(v.y)||float.IsInfinity(v.z))throw new InvalidDataException("Non-finite baked vertex "+key);foreach(var n in mesh.normals)if(n.sqrMagnitude<.98f)throw new InvalidDataException("Invalid baked normal "+key);var old=AssetDatabase.LoadAssetAtPath<Mesh>(path);if(old){EditorUtility.CopySerialized(mesh,old);UnityEngine.Object.DestroyImmediate(mesh);EditorUtility.SetDirty(old);}else AssetDatabase.CreateAsset(mesh,path);Written.Add("Models/"+key);
         }
         static Vector3 V(float x,float y,float z){return new Vector3(x,y,z);}
         static Geometry Body(string type,int lod)
@@ -69,14 +70,33 @@ namespace Frontline.Editor
             if(type=="archer"||type=="crossbow"){g.Cylinder(V(-.16f,-.23f,-.26f),V(-.08f,.34f,-.22f),.105f,Wood,7);if(lod==0)for(int i=0;i<4;i++)g.Cylinder(V(-.16f+i*.045f,.27f,-.27f),V(-.13f+i*.045f,.5f,-.29f),.012f,WoodLight,4);}
             if(type=="bomber"){g.Bevel(V(0,.04f,-.28f),V(.39f,.42f,.19f),.045f,Wood);for(int i=-1;i<=1;i++)g.Cylinder(V(i*.105f,-.1f,-.4f),V(i*.105f,.17f,-.4f),.043f,Red,6);g.Cylinder(V(-.18f,-.22f,0),V(.18f,.26f,.19f),.035f,Dark,4);}
             if(type=="medic"){g.Bevel(V(-.32f,-.12f,-.04f),V(.25f,.35f,.28f),.035f,new Color(.85f,.84f,.72f,0));g.Bevel(V(-.32f,-.12f,.11f),V(.055f,.22f,.018f),.005f,Red);g.Bevel(V(-.32f,-.12f,.12f),V(.17f,.055f,.018f),.005f,Red);g.Quad(V(-.19f,.25f,.19f),V(.19f,.25f,.19f),V(.19f,-.32f,.21f),V(-.19f,-.32f,.21f),new Color(.85f,.87f,.77f,0),true);}
-            g.Bevel(V(0,-.19f,.18f),V(.5f,.07f,.06f),.012f,Wood);g.Bevel(V(0,-.19f,.22f),V(.09f,.08f,.03f),.012f,Gold);return g;
+            g.Bevel(V(0,-.19f,.18f),V(.5f,.07f,.06f),.012f,Wood);
+            g.Bevel(V(0,-.19f,.22f),V(.09f,.08f,.03f),.012f,Gold);
+            if(lod==0)UniformDetail(g,type);
+            return g;
         }
-        static Geometry Leg(int lod){var g=new Geometry();if(lod==1){g.Frustum(V(0,-.18f,0),V(.16f,0,.17f),V(0,.2f,0),V(.23f,0,.24f),Dark,5);g.Box(V(0,-.22f,.045f),V(.20f,.12f,.29f),Wood);return g;}g.Bevel(V(0,0,0),V(.2f,.42f,.22f),.04f,Dark);g.Bevel(V(0,-.2f,.065f),V(.23f,.16f,.36f),.035f,Wood);g.Bevel(V(0,.1f,.115f),V(.21f,.13f,.04f),.025f,Steel);return g;}
+        static Geometry Leg(int lod)
+        {
+            var g=new Geometry();
+            if(lod==1)
+            {
+                g.Frustum(V(0,-.18f,0),V(.16f,0,.17f),V(0,.2f,0),V(.23f,0,.24f),Dark,5);
+                g.Box(V(0,-.22f,.045f),V(.20f,.12f,.29f),Wood);
+                return g;
+            }
+            g.Frustum(V(0,-.17f,0),V(.16f,0,.18f),V(0,.208f,0),V(.22f,0,.24f),Dark,7);
+            g.Bevel(V(0,-.2f,.065f),V(.23f,.16f,.36f),.035f,Wood);
+            g.Frustum(V(0,-.055f,0),V(.18f,0,.21f),V(0,-.017f,0),V(.218f,0,.242f),Copper,7);
+            g.Quad(V(-.08f,.04f,.096f),V(-.076f,.15f,.107f),V(.076f,.15f,.107f),V(.08f,.04f,.096f),Steel);
+            g.Triangle(V(-.076f,.15f,.108f),V(0,.177f,.112f),V(.076f,.15f,.108f),LightSteel);
+            return g;
+        }
         static Geometry Arm(string type,bool left,int lod)
         {
             var g=new Geometry();float x=left?-.36f:.36f;g.Frustum(V(x,-.07f,.03f),V(.16f,0,.17f),V(x,.24f,.015f),V(.24f,0,.25f),Cloth,lod==0?8:5);g.Bevel(V(x,-.14f,.08f),V(.15f,.22f,.17f),.035f,Skin);g.Bevel(V(x,-.05f,.1f),V(.18f,.11f,.2f),.025f,Wood);if(lod==0)g.Cylinder(V(x,-.077f,.085f),V(x,-.044f,.085f),.095f,Gold,7);if(left)return g;
             WeaponTrim(g,type,lod);
             WeaponGrip(g,type,lod);
+            if(lod==0)WeaponFinish(g,type,x);
             if(type=="spear"||type=="cavalry"){g.Cylinder(V(x,.04f,-.35f),V(x,.04f,1.55f),.025f,WoodLight,6);g.Spear(V(x,.04f,1.48f),V(x,.04f,1.9f),.11f,LightSteel);if(lod==0)g.Cylinder(V(x,.04f,1.4f),V(x,.04f,1.52f),.04f,Dark,6);}
             else if(type=="archer"){for(int i=0;i<6;i++){float a=-1.2f+i*.4f,b=a+.4f;g.Cylinder(V(x,Mathf.Sin(a)*.48f+.1f,.36f+Mathf.Cos(a)*.23f),V(x,Mathf.Sin(b)*.48f+.1f,.36f+Mathf.Cos(b)*.23f),.027f,WoodLight,5);}g.Cylinder(V(x,-.35f,.44f),V(x,.55f,.44f),.006f,Snow,3);g.Cylinder(V(x,.1f,.05f),V(x,.1f,.9f),.012f,Wood,4);}
             else if(type=="crossbow"){g.Bevel(V(x,.04f,.41f),V(.13f,.16f,.7f),.025f,WoodLight);g.Cylinder(V(x-.4f,.1f,.61f),V(x,.1f,.73f),.035f,Steel,5);g.Cylinder(V(x,.1f,.73f),V(x+.4f,.1f,.61f),.035f,Steel,5);g.Cylinder(V(x-.4f,.1f,.61f),V(x,.1f,.22f),.006f,Snow,3);g.Cylinder(V(x,.1f,.22f),V(x+.4f,.1f,.61f),.006f,Snow,3);g.Bevel(V(x,-.08f,.12f),V(.1f,.25f,.14f),.02f,Wood);}
@@ -96,13 +116,25 @@ namespace Frontline.Editor
             g.Box(V(-.34f,-.061f,.202f),V(.27f,.09f,.108f),Wood);
             if(lod==0)foreach(float x in new[]{-.45f,-.15f})foreach(float y in new[]{-.21f,.23f})
                 g.Ellipsoid(V(x,y,.37f),V(.024f,.024f,.016f),Gold,5,2);
+            if(lod==0)ShieldInlay(g,-.30f,.386f);
             return g;
         }
         static Geometry Horse(int lod)
         {
-            var g=new Geometry();Saddle(g,lod);g.Ellipsoid(V(0,-.54f,-.05f),V(.36f,.39f,.73f),Wood,lod==0?10:6,3);g.Cylinder(V(0,-.49f,.4f),V(0,.03f,.68f),.22f,Wood,7);g.Ellipsoid(V(0,.11f,.81f),V(.2f,.26f,.34f),WoodLight,8,3);g.Bevel(V(0,-.01f,1.03f),V(.26f,.2f,.3f),.07f,Wood);g.Cone(V(-.11f,.43f,.7f),.075f,.22f,Wood,5);g.Cone(V(.11f,.43f,.7f),.075f,.22f,Wood,5);g.Bevel(V(-.18f,.16f,.88f),V(.025f,.06f,.065f),.01f,Dark);g.Bevel(V(.18f,.16f,.88f),V(.025f,.06f,.065f),.01f,Dark);g.Cylinder(V(0,-.33f,-.7f),V(0,-.9f,-.99f),.085f,Dark,6);g.Bevel(V(0,-.24f,-.06f),V(.62f,.12f,.61f),.06f,Cloth);g.Cylinder(V(-.18f,-.02f,.85f),V(-.2f,-.14f,.1f),.012f,Dark,3);g.Cylinder(V(.18f,-.02f,.85f),V(.2f,-.14f,.1f),.012f,Dark,3);for(int i=0;i<5;i++)g.Bevel(V(0,-.2f+i*.08f,.47f+i*.055f),V(.11f,.18f,.16f),.035f,Dark);return g;
+            if(lod==1)return DistantHorse();
+            var g=new Geometry();Saddle(g,lod);g.Ellipsoid(V(0,-.54f,-.05f),V(.36f,.39f,.73f),Wood,lod==0?10:6,3);g.Cylinder(V(0,-.49f,.4f),V(0,.03f,.68f),.22f,Wood,7);g.Ellipsoid(V(0,.11f,.81f),V(.2f,.26f,.34f),WoodLight,8,3);g.Bevel(V(0,-.01f,1.03f),V(.26f,.2f,.3f),.07f,Wood);g.Cone(V(-.11f,.43f,.7f),.075f,.22f,Wood,5);g.Cone(V(.11f,.43f,.7f),.075f,.22f,Wood,5);g.Bevel(V(-.18f,.16f,.88f),V(.025f,.06f,.065f),.01f,Dark);g.Bevel(V(.18f,.16f,.88f),V(.025f,.06f,.065f),.01f,Dark);g.Cylinder(V(0,-.33f,-.7f),V(0,-.9f,-.99f),.085f,Dark,6);g.Bevel(V(0,-.24f,-.06f),V(.62f,.12f,.61f),.06f,Cloth);g.Cylinder(V(-.18f,-.02f,.85f),V(-.2f,-.14f,.1f),.012f,Dark,3);g.Cylinder(V(.18f,-.02f,.85f),V(.2f,-.14f,.1f),.012f,Dark,3);
+            HorseFinish(g);
+            return g;
         }
-        static Geometry HorseLeg(int lod){var g=new Geometry();g.Cylinder(V(0,.12f,0),V(0,-.35f,.025f),.085f,Wood,6);g.Cylinder(V(0,-.35f,.025f),V(0,-.63f,.065f),.055f,WoodLight,5);g.Bevel(V(0,-.64f,.09f),V(.16f,.13f,.22f),.035f,Dark);return g;}
+        static Geometry HorseLeg(int lod)
+        {
+            var g=new Geometry();
+            g.Cylinder(V(0,.12f,0),V(0,-.35f,.025f),.085f,Wood,lod==0?6:4);
+            g.Cylinder(V(0,-.35f,.025f),V(0,-.63f,.065f),.055f,WoodLight,lod==0?5:4);
+            if(lod==0)g.Bevel(V(0,-.64f,.09f),V(.16f,.13f,.22f),.035f,Dark);
+            else g.Box(V(0,-.64f,.09f),V(.16f,.13f,.22f),Dark);
+            return g;
+        }
         static Geometry Catapult(int lod)
         {
             var g=new Geometry();foreach(float x in new[]{-.43f,.43f})g.Bevel(V(x,-.48f,0),V(.18f,.23f,1.65f),.035f,Wood);foreach(float z in new[]{-.59f,.59f})g.Bevel(V(0,-.47f,z),V(1.25f,.18f,.17f),.03f,WoodLight);foreach(float x in new[]{-.56f,.56f})foreach(float z in new[]{-.55f,.55f}){var wheel=new Geometry();wheel.Torus(Vector3.zero,.29f,.06f,Wood,lod==0?12:8);for(int i=0;i<(lod==0?8:4);i++){float a=i*Mathf.PI/(lod==0?4:2);wheel.Cylinder(Vector3.zero,V(Mathf.Sin(a)*.27f,0,Mathf.Cos(a)*.27f),.025f,WoodLight,4);}wheel.Cylinder(V(0,-.06f,0),V(0,.06f,0),.07f,Steel,6);g.Append(wheel,Matrix4x4.TRS(V(x,-.43f,z),Quaternion.Euler(0,0,90),Vector3.one));}foreach(float x in new[]{-.38f,.38f}){g.Cylinder(V(x,-.4f,-.43f),V(x,.61f,0),.065f,WoodLight,6);g.Cylinder(V(x,-.4f,.53f),V(x,.61f,0),.065f,WoodLight,6);}g.Cylinder(V(-.49f,.59f,0),V(.49f,.59f,0),.08f,Steel,7);g.Bevel(V(0,-.29f,0),V(.54f,.12f,1.03f),.03f,Wood);
@@ -112,6 +144,7 @@ namespace Frontline.Editor
                 if(lod==0)foreach(float x in new[]{-.42f,.42f})
                     g.Cylinder(V(x,-.35f,z),V(x,-.317f,z),.055f,LightSteel,6);
             }
+            if(lod==0)EngineIronwork(g);
             return g;
         }
         static Geometry CatapultArm(int lod){var g=new Geometry();g.Bevel(V(0,.0f,-.35f),V(.14f,.17f,1.83f),.035f,WoodLight);g.Bevel(V(0,0,.55f),V(.55f,.42f,.43f),.045f,Wood);g.Bevel(V(0,-.23f,.55f),V(.57f,.07f,.45f),.01f,Steel);g.Ellipsoid(V(0,.08f,-1.2f),V(.23f,.12f,.28f),Wood,8,2);g.Cylinder(V(0,0,-.9f),V(0,.08f,-1.3f),.016f,Dark,3);return g;}
@@ -219,6 +252,7 @@ namespace Frontline.Editor
             g.Box(V(0,3.08f,-.35f),V(.23f,.59f,.72f),Slate);
             g.Box(V(-.132f,3.08f,-.35f),V(.037f,.42f,.085f),Gold);
             g.Box(V(-.135f,3.12f,-.35f),V(.041f,.085f,.41f),Gold);
+            if(lod==0)GateStoneFinish(g);
             return g;
         }
 
@@ -270,6 +304,8 @@ namespace Frontline.Editor
                 case "drill_yard": DrillYard(g,lod); break;
                 case "granary": Granary(g,lod); break;
                 case "chapel": Chapel(g,lod); break;
+                case Manor.Bakery: Bakery(g,lod); break;
+                case Manor.Weaver: Weaver(g,lod); break;
                 default: throw new ArgumentException("Unknown manor building "+kind);
             }
             YardDetail(g,kind,lod);
@@ -287,11 +323,7 @@ namespace Frontline.Editor
             g.Quad(a,left,right,b,roof);g.Quad(left,d,c,right,roof);
             g.Triangle(a,d,left,end);g.Triangle(b,right,c,end);g.Quad(a,b,c,d,Wood);
             if(lod!=0)return;
-            for(int i=1;i<5;i++){
-                float x=-half+i*width/5;
-                g.Cylinder(left+V(x+half,0,0),eave+V(x,0,-side),.035f,roof*.85f,4);
-                g.Cylinder(left+V(x+half,0,0),eave+V(x,0,side),.035f,roof*.85f,4);
-            }
+            RoofCourses(g,eave,width,depth,rise,roof);
             g.Box(eave+V(0,.015f,-side),V(width,.07f,.07f),WoodLight);
             g.Box(eave+V(0,.015f,side),V(width,.07f,.07f),WoodLight);
             g.Box(eave+V(0,rise,0),V(width+.04f,.07f,.09f),roof*1.13f);
@@ -713,7 +745,38 @@ namespace Frontline.Editor
                 return cut;
             }
 
-            public Mesh Build(string name){var mesh=new Mesh{name=name,indexFormat=vertices.Count>65535?IndexFormat.UInt32:IndexFormat.UInt16};mesh.SetVertices(vertices);mesh.SetNormals(normals);mesh.SetColors(colors);mesh.SetTriangles(indices,0);mesh.RecalculateBounds();return mesh;}
+            public Mesh Build(string name,bool compact)
+            {
+                var mesh=new Mesh{name=name,indexFormat=vertices.Count>65535?IndexFormat.UInt32:IndexFormat.UInt16};
+                if(compact)
+                {
+                    // Share identical corners while preserving each flat face, color and triangle winding.
+                    var corners=new Dictionary<(Vector3,Vector3,Color),int>(vertices.Count);
+                    var points=new List<Vector3>(vertices.Count);
+                    var faceNormals=new List<Vector3>(vertices.Count);
+                    var tints=new List<Color>(vertices.Count);
+                    var triangles=new int[indices.Count];
+                    for(int i=0;i<indices.Count;i++)
+                    {
+                        int source=indices[i];
+                        var vertex=(vertices[source],normals[source],colors[source]);
+                        if(!corners.TryGetValue(vertex,out int index))
+                        {
+                            index=points.Count;
+                            corners.Add(vertex,index);
+                            points.Add(vertex.Item1); faceNormals.Add(vertex.Item2); tints.Add(vertex.Item3);
+                        }
+                        triangles[i]=index;
+                    }
+                    mesh.SetVertices(points);mesh.SetNormals(faceNormals);mesh.SetColors(tints);mesh.SetTriangles(triangles,0);
+                }
+                else
+                {
+                    mesh.SetVertices(vertices);mesh.SetNormals(normals);mesh.SetColors(colors);mesh.SetTriangles(indices,0);
+                }
+                mesh.RecalculateBounds();
+                return mesh;
+            }
         }
     }
 }

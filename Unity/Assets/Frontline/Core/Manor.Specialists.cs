@@ -6,8 +6,9 @@ namespace Frontline.Core
     public sealed partial class Manor
     {
         public const int SpecialistMaxLevel = 3;
-        public static readonly string[] SpecialistIds = { "steward","merchant","herbalist","watchman" };
-        static readonly string[] SpecialistNames = { "庄园管家","行商掌柜","草药医者","巡庄队长" };
+        const int LegacySpecialistCount=4;
+        public static readonly string[] SpecialistIds = { "steward","merchant","herbalist","watchman",Mason,Minstrel };
+        static readonly string[] SpecialistNames = { "庄园管家","行商掌柜","草药医者","巡庄队长","石匠大师","吟游乐师" };
         public Dictionary<string,int> specialists = new Dictionary<string,int>(StringComparer.Ordinal);
 
         public int BuildingCount
@@ -44,7 +45,9 @@ namespace Frontline.Core
                 case 0: return null;
                 case 1: return MerchantUnlocked ? null : "安宁村落或至少 5 座建筑";
                 case 2: return HasBuilding("chapel") || HasBuilding("tavern") ? null : "需要石礼拜堂或英雄酒馆";
-                default: return HasBuilding("drill_yard") || HasBuilding("barracks") ? null : "需要兵营或练兵靶场";
+                case 3: return HasBuilding("drill_yard") || HasBuilding("barracks") ? null : "需要兵营或练兵靶场";
+                case 4: return HasBuilding("timber_camp") || HasBuilding("smithy") ? null : "需要伐木采石营或铁匠铺";
+                default: return HasBuilding("tavern") || HasBuilding(Bakery) || HasBuilding(Weaver) ? null : "需要酒馆、面包房或织坊";
             }
         }
         bool MerchantUnlocked => BuildingCount>=5 || ProsperityTier>=1;
@@ -60,7 +63,9 @@ namespace Frontline.Core
                 case 0: return "基础税收 +"+StewardBonus(rank)+"%";
                 case 1: return "季买卖额度 +"+(5*rank)+" · 买价 -"+(2*rank)+"%";
                 case 2: return "每日民心 +"+rank+" · 伤员救回 +"+(5*rank)+" 个百分点";
-                default: return "训练、募兵金币 -"+WatchDiscount(rank)+"% · 迎敌军费 +"+(2*rank)+"%";
+                case 3: return "训练、募兵金币 -"+WatchDiscount(rank)+"% · 迎敌军费 +"+(2*rank)+"%";
+                case 4: return "建造与升级成本 -"+MasonDiscount(rank)+"% · 采集建材 +"+MasonTimberBonus(rank)+"%";
+                default: return "每日民心 +"+rank+" · 赈济日威望再 +"+rank;
             }
         }
 
@@ -93,7 +98,9 @@ namespace Frontline.Core
                 case 0: return new SpecialistCost(coins,timber:senior?10:6);
                 case 1: return new SpecialistCost(coins,timber:senior?14:8);
                 case 2: return new SpecialistCost(coins,food:senior?10:6);
-                default: return new SpecialistCost(coins,arms:senior?7:4);
+                case 3: return new SpecialistCost(coins,arms:senior?7:4);
+                case 4: return new SpecialistCost(coins,timber:senior?16:9);
+                default: return new SpecialistCost(coins,food:senior?12:7);
             }
         }
         public string SpecialistUpgradePrice(string id)
@@ -116,14 +123,17 @@ namespace Frontline.Core
             int rank=SpecialistRank(id);
             UpgradeSpecialistCost(id,rank).Pay(this);
             specialists[id]=rank+1;
+            int index=SpecialistIndex(id);
+            if(index>=LegacySpecialistCount)Remember("specialist",index,rank+1);
         }
 
-        void ReadSpecialists(object value)
+        void ReadSpecialists(object value,bool craftSchema)
         {
             if(!(value is Dictionary<string,object> ranks))throw new FormatException("领地专才名册无效");
             foreach(var item in ranks)
             {
-                if(Array.IndexOf(SpecialistIds,item.Key)<0)throw new FormatException("未知领地专才");
+                int index=Array.IndexOf(SpecialistIds,item.Key);
+                if(index<0||!craftSchema&&index>=LegacySpecialistCount)throw new FormatException("未知领地专才");
                 specialists.Add(item.Key,Number(item.Value,2,SpecialistMaxLevel));
             }
         }

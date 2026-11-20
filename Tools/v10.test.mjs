@@ -8,28 +8,28 @@ const read = path => readFileSync(url(path),'utf8');
 const sha = path => createHash('sha256').update(read(path).replaceAll('\r\n','\n')).digest('hex');
 const root = 'Unity/Assets/Frontline/';
 
-test('1.5.0 ships the same single Unity scene and matching player, package and model versions', () => {
+test('1.6.0 ships the same single Unity scene and matching player, package and model versions', () => {
   for (const p of ['package.json','package-lock.json',root+'Models/model-manifest.json'])
-    assert.equal(JSON.parse(read(p)).version,'1.5.0',p);
-  assert.match(read(root+'Editor/BuildTools.cs'),/bundleVersion="1\.5\.0"/);
-  assert.match(read('Unity/ProjectSettings/ProjectSettings.asset'),/^  bundleVersion: 1\.5\.0\r?$/m);
+    assert.equal(JSON.parse(read(p)).version,'1.6.0',p);
+  assert.match(read(root+'Editor/BuildTools.cs'),/bundleVersion="1\.6\.0"/);
+  assert.match(read('Unity/ProjectSettings/ProjectSettings.asset'),/^  bundleVersion: 1\.6\.0\r?$/m);
   assert.deepEqual(readdirSync(url('Unity/Assets/Scenes/')).filter(s => s.endsWith('.unity')),['Frontline.unity']);
 });
 test('manor buildings, hero equipment and civilian props all have unique baked mesh pairs', () => {
   const {resources} = JSON.parse(read(root+'Models/model-manifest.json'));
-  assert.equal(resources.length,292);
+  assert.equal(resources.length,310);
   assert.equal(new Set(resources).size,resources.length);
   const heroes=JSON.parse(read(root+'Resources/catalog.json')).heroes;
   assert.equal(heroes.length,3);
   const heroMeshes=heroes.flatMap(({id})=>['body_'+id,'arm_right_'+id]);
   for (const name of ['manor_hall','cottage','farm','timber_camp','smithy','barracks','stables','civilian_hat','civilian_pack',
-    'irrigated_field','pasture','tavern','drill_yard','granary','chapel','frontier_gate','mill_sails','farmer_clothes','villager_clothes','villager_wrap','resident_sleeve',
+    'irrigated_field','pasture','tavern','drill_yard','granary','chapel','bakery','weaver','frontier_gate','bridge_fittings','mill_sails','farmer_clothes','villager_clothes','villager_wrap','resident_sleeve',
     'farm_fallow','farm_rich','irrigated_field_fallow','irrigated_field_rich','retinue_guard',
-    ...['steward','merchant','herbalist','watchman'].map(id=>'specialist_'+id),
+    ...['steward','merchant','herbalist','watchman','mason','minstrel'].map(id=>'specialist_'+id),
     ...['plaza','well','market','dock','fence','gatehouse','laundry','firewood','straw','roof_snow'].map(id=>'manor_'+id),
     ...['hoe','sickle','bucket','crate','basket','jug'].map(id=>'carry_'+id),
     ...['garden','poultry','workshop','militia_yard'].map(id=>'backyard_'+id),
-    ...['manor_hall','cottage','farm','irrigated_field','pasture','timber_camp','smithy','barracks','stables','tavern','drill_yard','granary','chapel'].flatMap(id=>[id+'_wing',id+'_tower']),...heroMeshes]) {
+    ...['manor_hall','cottage','farm','irrigated_field','pasture','timber_camp','smithy','barracks','stables','tavern','drill_yard','granary','chapel','bakery','weaver'].flatMap(id=>[id+'_wing',id+'_tower']),...heroMeshes]) {
     for (const suffix of ['','_lod1']) {
       const key = 'Models/' + name + suffix;
       assert.ok(resources.includes(key),key);

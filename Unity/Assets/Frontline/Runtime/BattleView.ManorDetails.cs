@@ -24,8 +24,8 @@ namespace Frontline.UnityGame
         static readonly CivicDetail[] CivicDetails={
             new CivicDetail(CivicKind.Bench,-5.82f,1.46f,.73f,.24f),
             new CivicDetail(CivicKind.Barrel,6.11f,2.01f,.34f,.34f),
-            new CivicDetail(CivicKind.Grain,-7.62f,-15.67f,.43f,.35f),
-            new CivicDetail(CivicKind.Barrel,-3.65f,-16.01f,.34f,.34f),
+            new CivicDetail(CivicKind.Grain,-7.62f,-17.67f,.43f,.35f),
+            new CivicDetail(CivicKind.Barrel,-3.65f,-18.01f,.34f,.34f),
             new CivicDetail(CivicKind.Waypost,19.9f,.95f,.29f,.24f),
             new CivicDetail(CivicKind.Waypost,23.98f,4.73f,.29f,.24f),
             new CivicDetail(CivicKind.Banner,-2.63f,1.57f,.23f,.24f,1),

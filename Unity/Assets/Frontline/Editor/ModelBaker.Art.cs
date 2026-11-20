@@ -239,6 +239,10 @@ namespace Frontline.Editor
                     g.Quad(V(s*.24f,.23f,.12f),V(s*.08f,.32f,.15f),V(s*.05f,-.14f,.181f),V(s*.20f,-.19f,.16f),Moss,true);
             }
             g.Frustum(V(0,-.14f,0),V(.47f,0,.40f),V(0,-.07f,0),V(.47f,0,.39f),Wood,n);
+            CapePleats(g,farm?Linen:Cloth,.24f,farm?-.29f:-.39f);
+            g.Quad(V(-.13f,.325f,.094f),V(.11f,.33f,.098f),V(.181f,.244f,.17f),V(-.181f,.237f,.16f),
+                farm?Copper:Moss,true);
+            g.Quad(V(-.11f,-.286f,.228f),V(.052f,-.269f,.232f),V(.051f,-.39f,.254f),V(-.13f,-.41f,.247f),farm?Linen:Indigo,true);
             return g;
         }
 
@@ -410,6 +414,7 @@ namespace Frontline.Editor
             {
                 case "granary": GranaryAnnex(g,left,lod);break;
                 case "chapel": ChapelAnnex(g,left,lod);break;
+                case Manor.Bakery:case Manor.Weaver:CraftAnnex(g,kind,left,lod,false);break;
                 case "tavern":
                     Canopy(g,left,1.25f,Tile);foreach(float z in new[]{-.28f,.27f})
                         g.Barrel(left+V(0,.29f,z),.24f,.57f,WoodLight,n);break;
@@ -442,6 +447,7 @@ namespace Frontline.Editor
             {
                 case "granary": GranaryLoft(g,right,lod);break;
                 case "chapel": ChapelBelfry(g,right,lod);break;
+                case Manor.Bakery:case Manor.Weaver:CraftAnnex(g,kind,right,lod,true);break;
                 case "manor_hall":
                     Rack(g,right,3.22f);g.Cone(right+Vector3.up*3.22f,.78f,.71f,Gold,4);
                     Lantern(g,right+Vector3.up*2.87f,lod);break;

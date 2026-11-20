@@ -22,7 +22,8 @@ namespace Frontline.Core
 
     public sealed partial class Manor
     {
-        public const int FirstNoblePlot=24, NoblePlotsPerRank=2;
+        public const int FirstNoblePlot=24, LegacyNoblePlotCount=32, NoblePlotsPerRank=3;
+        const int LegacyNoblePlotsPerRank=2;
         public int nobility;
 
         public static IReadOnlyList<ManorNobleRank> NobleRanks {get;}=Array.AsReadOnly(new[]{
@@ -40,9 +41,18 @@ namespace Frontline.Core
         public int ClaimedSectorCount => CountFlags(claimedSectors);
 
         public static int GrantedPlotCount(int rank) => FirstNoblePlot+NoblePlotsPerRank*rank;
-        public static int PlotRank(int index) =>
-            index>=FirstNoblePlot&&index<PlotCount?1+(index-FirstNoblePlot)/NoblePlotsPerRank:0;
-        public bool IsPlotGranted(int index) => (uint)index<GrantedPlots;
+        public static int PlotRank(int index)
+        {
+            if(index<FirstNoblePlot||index>=PlotCount)return 0;
+            return index<LegacyNoblePlotCount?1+(index-FirstNoblePlot)/LegacyNoblePlotsPerRank:1+index-LegacyNoblePlotCount;
+        }
+        public bool IsPlotGranted(int index) => (uint)index<PlotCount&&PlotRank(index)<=nobility;
+
+        public static string NobleGrantPlots(int rank,bool includeOuter=true)
+        {
+            int start=FirstNoblePlot+(rank-1)*LegacyNoblePlotsPerRank;
+            return start+"–"+(start+1)+(includeOuter?"、"+(LegacyNoblePlotCount+rank-1):"");
+        }
 
         public static string NobleRequirement(int rank)
         {
@@ -86,7 +96,7 @@ namespace Frontline.Core
             influence-=entry.influence;
             coin-=entry.coin;
             nobility=rank;
-            Remember("nobility",rank);
+            Remember("nobility",rank,1);
         }
 
         int NobleYield(int amount)
@@ -99,8 +109,8 @@ namespace Frontline.Core
         {
             if(!MeetsNobleProgress(NobleRanks[nobility],prosperityPeak))
                 throw new FormatException("爵位与领地进度不一致");
-            for(int index=GrantedPlots;index<PlotCount;index++)
-                if(slots[index].kind!=null)throw new FormatException("未封授的贵族建地不能有建筑");
+            for(int index=FirstNoblePlot;index<PlotCount;index++)
+                if(!IsPlotGranted(index)&&slots[index].kind!=null)throw new FormatException("未封授的贵族建地不能有建筑");
         }
     }
 }

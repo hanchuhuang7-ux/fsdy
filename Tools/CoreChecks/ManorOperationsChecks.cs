@@ -9,7 +9,7 @@ static partial class ManorChecks
     {
         var old = (Dictionary<string,object>)Json.Parse(manor.Export());
         old["version"] = version;
-        old.Remove("nobility");
+        if(version<11)old.Remove("nobility");
         if(version<10)
         {
             old.Remove("clearedSectors");
@@ -32,7 +32,8 @@ static partial class ManorChecks
             old.Remove("frontierSwept");
         }
         if(version<5)old.Remove("specialists");
-        int plots=version==1?10:version<5?Manor.OriginalPlotCount:version==5?Manor.FirstOuterPlot:Manor.FirstNoblePlot;
+        int plots=version==1?10:version<5?Manor.OriginalPlotCount:version==5?Manor.FirstOuterPlot:
+            version==11?Manor.LegacyNoblePlotCount:Manor.FirstNoblePlot;
         old["slots"]=LegacyPlots(old["slots"],plots,version>=8,version>=9);
         if (version < 4) old.Remove("eventDay");
         if (version < 3)
@@ -98,12 +99,13 @@ static partial class ManorChecks
             Expect(plain.food == 0 && plain.tavern == 0,"duplicate grain plots or idle tavern gave a bonus");
             m.Assign(3,1); m.Assign(4,1);
             var varied = m.Forecast();
-            Expect(varied.approvalFactors.food == 2 && varied.approvalFactors.tavern == 2 && varied.approvalFactors.market == 1 && varied.approvalAfter == 66,"varied diet or staffed tavern");
+            Expect(varied.approvalFactors.food == 2 && varied.approvalFactors.tavern == 2 && varied.approvalFactors.market == 1 &&
+                varied.approvalFactors.minstrel==1 && varied.approvalAfter == 67,"varied diet or staffed tavern");
             m.food = 0;
             var shortage = m.Forecast();
-            Expect(shortage.approvalFactors.food == -5 && shortage.approvalFactors.tavern == 2 && shortage.approvalAfter == 58,"empty granary or combined factors");
+            Expect(shortage.approvalFactors.food == -5 && shortage.approvalFactors.tavern == 2 && shortage.approvalAfter == 59,"empty granary or combined factors");
             m.Advance(1);
-            Expect(m.approval == 58 && m.food > 0 && m.Forecast().approvalFactors.food == 2,"harvest did not relieve shortage");
+            Expect(m.approval == 59 && m.food > 0 && m.Forecast().approvalFactors.food == 2,"harvest did not relieve shortage");
             var draining = new Manor { food = 1 };
             Expect(draining.Forecast().approvalFactors.food == -5,"forecast missed depletion that day");
         });
@@ -112,10 +114,10 @@ static partial class ManorChecks
             m.Build(1,"farm"); m.Build(2,"timber_camp"); m.Build(3,"smithy"); m.Build(4,"cottage");
             m.Assign(1,1); m.Assign(2,1); m.Assign(3,1);
             foreach (var expected in new[] {
-                new { approval=39, coin=734, food=125, timber=340, arms=187, arrival=false },
-                new { approval=40, coin=864, food=0, timber=400, arms=220, arrival=true },
-                new { approval=74, coin=864, food=0, timber=400, arms=220, arrival=true },
-                new { approval=75, coin=950, food=50, timber=440, arms=242, arrival=true }
+                new { approval=39, coin=734, food=125, timber=350, arms=187, arrival=false },
+                new { approval=40, coin=864, food=0, timber=412, arms=220, arrival=true },
+                new { approval=74, coin=864, food=0, timber=412, arms=220, arrival=true },
+                new { approval=75, coin=950, food=50, timber=453, arms=242, arrival=true }
             })
             {
                 m.approval = expected.approval;
@@ -152,9 +154,9 @@ static partial class ManorChecks
             m.Assign(3,1);
             var warmDay = m.Forecast();
             Expect(warmDay.winterTimber == 200 && warmDay.forgeTimber == 100 && warmDay.arms == 220 &&
-                warmDay.timber == 200 && warmDay.approvalFactors.heating == 0,"same-day wood could not cover heat and forge");
+                warmDay.timber == 212 && warmDay.approvalFactors.heating == 0,"same-day wood could not cover heat and forge");
             m.Advance(1);
-            Expect(m.timber == 2 && m.arms == 14 && m.remainder.arms==20 && m.approval == 57,"winter settlement");
+            Expect(m.timber == 2 && m.remainder.timber==12 && m.arms == 14 && m.remainder.arms==20 && m.approval == 57,"winter settlement");
         });
         check("all four decrees change exactly their own output, prices, and approval",() => {
             var m = new Manor { workers = 4, food = 90, coin = 500, timber = 500 };

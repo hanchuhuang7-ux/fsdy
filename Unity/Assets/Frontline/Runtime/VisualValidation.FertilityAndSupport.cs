@@ -78,8 +78,9 @@ namespace Frontline.UnityGame
             Require(estate.market.food.bought==0&&estate.influence==105,"Chartered merchant did not reset the market");
             if(captures)yield return ManorShot("143-governance");
             yield return Press("关闭");
+            int expectedInfluence=estate.influence+1+estate.SpecialistLevel(Manor.Minstrel);
             yield return Press("Manor.Day");
-            Require(estate.influence==106,"Daily tithe did not grant influence");
+            Require(estate.influence==expectedInfluence,"Daily tithe did not grant its base and minstrel influence");
             influenceVerified=true;
 
             yield return CheckFrontierPreset(1);

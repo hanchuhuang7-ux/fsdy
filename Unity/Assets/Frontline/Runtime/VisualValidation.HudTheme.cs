@@ -105,6 +105,11 @@ namespace Frontline.UnityGame
             Require(HudElement<Image>("Live power").sprite.texture==atlas&&HudElement<Image>("Battle controls").sprite.texture==atlas,
                 "Battle HUD did not retain the layout skin");
             if(captures)yield return ManorShot("145-arena-battle");
+            app.View.Focus(new Vector3(-.6f,1.0f,.22f),12.8f,24,-18);
+            yield return new WaitForEndOfFrame();
+            Require(!app.View.LowActorLod&&!app.InManor,"Arena close-up did not use the detailed battle meshes");
+            arenaCloseup=true;
+            if(captures)yield return ManorShot("160-arena-close");
             app.ReturnToDeploy();
         }
     }

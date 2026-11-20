@@ -28,7 +28,9 @@ namespace Frontline.UnityGame
         static readonly Color Survey = new Color(.96f, .86f, .63f);
         static readonly Color[] Clothes = {
             new Color(.28f, .44f, .51f), new Color(.68f, .37f, .23f),
-            new Color(.34f, .50f, .34f), new Color(.72f, .53f, .28f)
+            new Color(.34f, .50f, .34f), new Color(.72f, .53f, .28f),
+            new Color(.48f,.34f,.49f),new Color(.30f,.54f,.52f),
+            new Color(.66f,.48f,.30f),new Color(.37f,.40f,.57f)
         };
 
         Manor manor;
@@ -46,7 +48,8 @@ namespace Frontline.UnityGame
         MeshSet hoe,sickle,bucket,basket,crate,jug;
         readonly Vector3[] millHubs=new Vector3[Manor.PlotCount];
         readonly int[] millPlots=new int[Manor.PlotCount],forgePlots=new int[Manor.PlotCount];
-        readonly Vector3[] occupiedWalkSpace=new Vector3[ResidentLimit+3],heroBays=new Vector3[3];
+        readonly Vector3[] occupiedWalkSpace=new Vector3[OrdinaryResidentLimit+Manor.SpecialistIds.Length+Manor.HeroIds.Length];
+        readonly Vector3[] heroBays=new Vector3[Manor.HeroIds.Length];
         int forgeCount,occupiedWalkCount;
         MeshSet forgeFlame;
         readonly Quaternion[] millFacing=new Quaternion[Manor.PlotCount];
@@ -54,14 +57,16 @@ namespace Frontline.UnityGame
         readonly ResidentVisit[] residents=new ResidentVisit[OrdinaryResidentLimit];
         int millCount,destinationCount,idleWorkers,residentCount;
         bool residentRosterDirty;
-        const int ResidentLimit=32, OrdinaryResidentLimit=28, IdleFirst=Manor.PlotCount*5;
-        const int HeroFirst=IdleFirst+OrdinaryResidentLimit, SpecialistFirst=HeroFirst+3;
+        const int OrdinaryResidentLimit=28, IdleFirst=Manor.PlotCount*5;
+        const int HeroFirst=IdleFirst+OrdinaryResidentLimit;
+        static readonly int SpecialistFirst=HeroFirst+Manor.HeroIds.Length;
         public int VisibleFarmers {get;private set;}
         public int VisibleVillagers {get;private set;}
+        internal int VisibleHeroMask {get;private set;}
         WalkRoute[] walks;
         readonly System.Collections.Generic.List<Batch> ambient=new System.Collections.Generic.List<Batch>();
-        readonly float[] localHeading=new float[SpecialistFirst+4];
-        readonly bool[] headingSet=new bool[SpecialistFirst+4];
+        readonly float[] localHeading=new float[SpecialistFirst+Manor.SpecialistIds.Length];
+        readonly bool[] headingSet=new bool[SpecialistFirst+Manor.SpecialistIds.Length];
         MeshSet waterBlock,solidBlock,surveyPeg,contactShade,raidPennant,hoverRing;
         bool fillingAmbient,ambientDirty=true,ambientPopulated;
         float fadeReach=-1,fadeStartSquared;
@@ -190,8 +195,9 @@ namespace Frontline.UnityGame
         const float OuterLaneEast=24.65f;
 
         static bool WestPlot(int plot) => plot>=Manor.OriginalPlotCount&&plot<Manor.FirstOuterPlot||
-            plot>=WestOuterStart&&plot<Manor.FirstNoblePlot;
-        static bool OuterRow(int plot) => plot>=Manor.FirstOuterPlot&&plot<WestOuterStart||Manor.PlotRank(plot)>=2;
+            plot>=WestOuterStart&&plot<Manor.FirstNoblePlot||plot>=Manor.LegacyNoblePlotCount&&plot<Manor.LegacyNoblePlotCount+2;
+        static bool OuterRow(int plot) => plot>=Manor.FirstOuterPlot&&plot<WestOuterStart||
+            plot>=Manor.FirstNoblePlot+2&&plot<Manor.LegacyNoblePlotCount||plot>=Manor.LegacyNoblePlotCount+2&&plot<Gate;
         static float OuterConnector(float z) => z>0?-5.36f:-3.76f;
 
         static Vector3 LaneMouth(int plot)
@@ -259,8 +265,8 @@ namespace Frontline.UnityGame
                 float along = Mathf.Repeat(.62f + i * .618034f, 1), inset = Mathf.Repeat(.3f + i * .414214f, 1);
                 bool side = i % 3 == 0;
                 float sign = (i & 1) == 0 ? 1 : -1;
-                Vector3 p = side ? new Vector3(sign*(Manor.PlateauHalfWidth-.93f+inset*.42f),.005f,(along-.5f)*34f)
-                                 : new Vector3((along-.5f)*52,.005f,sign*(Manor.PlateauHalfDepth-1.10f+inset*.65f));
+                Vector3 p = side ? new Vector3(sign*(Manor.PlateauHalfWidth-.93f+inset*.42f),.005f,(along-.5f)*(2*Manor.PlateauHalfDepth-2))
+                                 : new Vector3((along-.5f)*(2*Manor.PlateauHalfWidth-4),.005f,sign*(Manor.PlateauHalfDepth-1.10f+inset*.65f));
                 if(!side && sign<0 && Mathf.Abs(p.x-DockOrigin.x)<2.6f)continue;
                 if (side && p.x > 0 && Mathf.Abs(p.z)<4.1f) continue;
                 float size = .5f + .45f * inset;
@@ -269,8 +275,8 @@ namespace Frontline.UnityGame
             }
             for (int i = 0; i < 12; i++)
             {
-                float x = -25.9f + i * 4.65f;
-                float z = i % 3 == 1 ? 17.45f : -17.68f;
+                float x = -Manor.PlateauHalfWidth+2.1f + i * 5.18f;
+                float z = i % 3 == 1 ? Manor.PlateauHalfDepth-.55f : -Manor.PlateauHalfDepth+.32f;
                 if(z<0&&Mathf.Abs(x-DockOrigin.x)<2.65f)continue;
                 ManorStill(rock, new Vector3(x, -.26f, z), Quaternion.Euler(0, i * 37, 0),
                     new Vector3(.68f + i % 3 * .23f, .53f, .73f), White);
@@ -327,9 +333,10 @@ namespace Frontline.UnityGame
             StillShade(ManorOrigin+p,(WestPlot(i)?3.24f:4.0f)*footprint,(WestPlot(i)?4.0f:3.24f)*footprint);
             AddPlotObstacle(i);
             DecoratePlot(i,plot.kind,basePoint,facing);
-            if(plot.kind=="farm")
+            if(plot.kind=="farm"||plot.kind==Manor.Bakery)
             {
-                millHubs[millCount]=basePoint+ManorOrigin+facing*ManorPlotArt.MillHub;
+                var hub=plot.kind==Manor.Bakery?ManorPlotArt.BakeryHub:ManorPlotArt.MillHub;
+                millHubs[millCount]=basePoint+ManorOrigin+facing*hub;
                 millPlots[millCount]=i;
                 millFacing[millCount++]=facing;
             }
@@ -384,7 +391,7 @@ namespace Frontline.UnityGame
             var shore=Load("rock").WithoutShadows();
             for(int side=-1;side<=1;side+=2)for(int i=0;i<13;i++)
             {
-                float lip=.31f*Mathf.Sin(i*2.39f), x=-26f+i*4.32f;
+                float lip=.31f*Mathf.Sin(i*2.39f), x=-Manor.PlateauHalfWidth+2+i*4.82f;
                 if(side<0&&Mathf.Abs(x-DockOrigin.x)<2.4f)continue;
                 ManorStill(shore,new Vector3(x,-.85f,side*(Manor.PlateauHalfDepth+lip)),Quaternion.Euler(0,i*49,0),
                     new Vector3(3.38f+(i%3)*.32f,1.06f,1.43f),new Color(.52f,.58f,.49f));
@@ -618,7 +625,7 @@ namespace Frontline.UnityGame
             ContactAt(ManorOrigin+pos,.92f);
             if(lowActors)return;
             Add(head,root*Matrix4x4.Translate(new Vector3(0,.49f,.015f)),White);
-            Add(farmer?hat:wrap,root*Matrix4x4.Translate(new Vector3(0,.65f,0)),White);
+            Add(farmer&&id%4!=2||!farmer&&id%5==0?hat:wrap,root*Matrix4x4.Translate(new Vector3(0,.65f,0)),White);
             if(farmer&&returning)Add(parcel,root*Matrix4x4.Translate(new Vector3(0,-.03f,-.27f)),White);
             MeshSet prop=farmer?(kind=="pasture"?bucket:kind=="irrigated_field"?hoe:sickle):
                 (id%4==0?basket:id%4==1?crate:id%4==2?jug:null);
@@ -708,7 +715,7 @@ namespace Frontline.UnityGame
 
         void DrawVillagePeople()
         {
-            VisibleFarmers=VisibleVillagers=occupiedWalkCount=0;
+            VisibleFarmers=VisibleVillagers=occupiedWalkCount=VisibleHeroMask=0;
             DrawRetinue();
             ReserveHeroBays();
             DrawSpecialists();
@@ -718,6 +725,7 @@ namespace Frontline.UnityGame
             {
                 string id=Manor.HeroIds[heroIndex];
                 if (manor.HeroLevel(id)==0 || HeroOnPatrol(id) || !heroBayClear[heroIndex]) continue;
+                VisibleHeroMask|=1<<heroIndex;
                 var model=Model(id);
                 bool resting=manor.HeroRest(id)>0;
                 float pace=manorTime*.32f+heroIndex*1.7f;
@@ -735,7 +743,8 @@ namespace Frontline.UnityGame
                 if(!InView(millHubs[i],2.5f))continue;
                 int workers=manor.slots[millPlots[i]].workers;
                 float angle=21+i*37+(workers>0?manorTime*(13+workers*6):0);
-                Add(sails,Pose(millHubs[i],millFacing[i]*Quaternion.AngleAxis(angle,Vector3.forward),Vector3.one),White);
+                float size=manor.slots[millPlots[i]].kind==Manor.Bakery?.67f:1f;
+                Add(sails,Pose(millHubs[i],millFacing[i]*Quaternion.AngleAxis(angle,Vector3.forward),Vector3.one*size),White);
             }
             for(int i=0;i<forgeCount;i++)
             {
@@ -768,6 +777,7 @@ namespace Frontline.UnityGame
                 Vector3 vent;
                 if(plot.kind=="cottage"&&winterHeating)vent=ManorPlotArt.CottageChimney;
                 else if(plot.kind=="smithy"&&plot.workers>0)vent=ManorPlotArt.ForgeChimney;
+                else if(plot.kind==Manor.Bakery&&plot.workers>0)vent=ManorPlotArt.BakeryChimney;
                 else continue;
                 Vector3 chimney=ManorOrigin+Plot(site)+Vector3.up*.042f+Quaternion.Euler(0,FacadeYaw(site),0)*vent;
                 if(!InView(chimney,1.2f))continue;

@@ -18,5 +18,7 @@ namespace Frontline.UnityGame
         public static readonly Vector3 ForgeChimney=new Vector3(.77f,2.49f,.31f);
         public static readonly Vector3 CottageChimney=new Vector3(-.03f,1.87f,.27f);
         public static readonly Vector3 MillHub=new Vector3(-.90f,1.39f,-.55f);
+        public static readonly Vector3 BakeryHub=new Vector3(.82f,1.48f,-.70f);
+        public static readonly Vector3 BakeryChimney=new Vector3(-1.18f,2.27f,.32f);
     }
 }

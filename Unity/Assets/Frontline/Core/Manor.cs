@@ -19,7 +19,7 @@ namespace Frontline.Core
     // Amounts are in hundredths of a resource so building yields accrue exactly through Lv.3.
     public struct ManorDay
     {
-        public int coin, food, timber, arms, forgeTimber, winterTimber, winterTimberRequired, reserveFood, titheFood, influence;
+        public int coin, food, timber, arms, forgeTimber, winterTimber, winterTimberRequired, reserveFood, titheFood, influence, bakeryGrain;
         public ManorApprovalFactors approvalFactors;
         public ManorSynergy synergy;
         public ManorMarketNeeds marketNeeds;
@@ -30,8 +30,8 @@ namespace Frontline.Core
     // The only persistent manor state. Draft formations and battle frames belong to the running sortie.
     public sealed partial class Manor
     {
-        public const int SeasonDays = 12, BuildingMaxLevel = 3, OriginalPlotCount = 14, FirstOuterPlot = 18, PlotCount = 32;
-        public const float PlateauHalfWidth = 28, PlateauHalfDepth = 18;
+        public const int SeasonDays = 12, BuildingMaxLevel = 3, OriginalPlotCount = 14, FirstOuterPlot = 18, PlotCount = 36;
+        public const float PlateauHalfWidth = 31, PlateauHalfDepth = 20;
         const int MaxValue = 1000000;
         public string format = "frontline-manor";
         public int version = SaveVersion;
@@ -41,14 +41,14 @@ namespace Frontline.Core
         public Dictionary<string, int> stock = new Dictionary<string, int>(StringComparer.Ordinal);
         public ManorRemainders remainder = new ManorRemainders();
 
-        public static readonly string[] Buildings = { "cottage", "farm", "irrigated_field", "pasture", "timber_camp", "smithy", "barracks", "stables", "tavern", "drill_yard", "granary", "chapel" };
+        public static readonly string[] Buildings = { "cottage", "farm", "irrigated_field", "pasture", "timber_camp", "smithy", "barracks", "stables", "tavern", "drill_yard", "granary", "chapel", Bakery, Weaver };
         public static readonly string[] Route = { "meadow", "bridge", "ruins", "marsh", "highland", "island" };
         static readonly float[] xs = { 0, -8, -2.8f, 2.8f, 8.4f, -8.5f, 8.5f, -7.5f, 0, 7.5f, -13, 13, -13, 13,
             -18.3f, -18.3f, -18.3f, -18.3f, -12.6f, -1.2f, -12.6f, 6.2f, -24.55f, -24.55f,
-            19.0f, 19.0f, 11.1f, 11.1f, 17.9f, 17.9f, 24.65f, 24.65f };
+            19.0f, 19.0f, 11.1f, 11.1f, 17.9f, 17.9f, 24.65f, 24.65f, -27.1f, -27.1f, 5.1f, -19.8f };
         static readonly float[] zs = { 0, 5.4f, 5.6f, 5.6f, 5.4f, 0, 0, -5.7f, -5.9f, -5.7f, 5, 5, -5, -5,
             9.8f, 5.35f, -5.35f, -9.8f, 14.85f, 14.85f, -14.85f, -14.85f, 6.1f, -6.1f,
-            5.9f, -5.9f, 14.85f, -14.85f, 14.85f, -14.85f, 14.85f, -14.85f };
+            5.9f, -5.9f, 14.85f, -14.85f, 14.85f, -14.85f, 14.85f, -14.85f, 12.1f, -12.1f, 17.2f, -17.2f };
         public static float SlotX(int index) => xs[index];
         public static float SlotZ(int index) => zs[index];
         public static int PickSlot(float x, float z)
@@ -74,7 +74,7 @@ namespace Frontline.Core
 
         static readonly Dictionary<string, Building> buildings = new Dictionary<string, Building>
         {
-            { "manor_hall", new Building("领主宅邸", "每日收税。升级可扩大军费、驻军与行军规模，依次解锁鼓舞、集火和盾阵。", 30, 20, army:13, field:8) },
+            { "manor_hall", new Building("领主宅邸", "每日收税。升级扩大军费、驻军和行军规模，并解锁鼓舞、集火和盾阵。", 30, 20, army:13, field:8) },
             { "cottage", new Building("农舍区", "提供住房。有余粮时，空房会迎来新领民。", 12, 8, housing:3) },
             { "farm", new Building("麦田农庄", "每户收粮，提供基础驻军与行军补给。", 14, 8, harvest:5, army:2, field:1) },
             { "irrigated_field", new Building("水浇麦田", "每户收成最高，扩增驻军与行军补给。", 24, 15, harvest:8, army:4, field:2) },
@@ -86,7 +86,9 @@ namespace Frontline.Core
             { "tavern", new Building("英雄酒馆", "派驻一户后招募和培养英雄。每级开放一位英雄。", 28, 16) },
             { "drill_yard", new Building("兵营", "永久提升兵种等级。派驻教头可节省金币，升级兵营会提高折扣。", 26, 15) },
             { "granary", new Building("谷仓", "派工提振产粮。粮食告急时启用储备，缓和缺粮与缺柴的民心损失。", 25, 16) },
-            { "chapel", new Building("石礼拜堂", "稳定民心，协助救护伤员。繁荣评定额外计一座建筑。", 34, 24) }
+            { "chapel", new Building("石礼拜堂", "稳定民心，协助救护伤员。繁荣评定额外计一座建筑。", 34, 24) },
+            { Bakery, new Building("磨坊面包房", "有余粮时烘烤面包，增加粮食供应并提供独立副食。", 26, 16) },
+            { Weaver, new Building("领地织坊", "派工织造布匹供市集出售，冬衣能节省过冬薪柴。", 28, 18) }
         };
 
         sealed class RecruitDef
@@ -166,6 +168,8 @@ namespace Frontline.Core
             if (kind == "drill_yard") values.Add("派工后训练省 " + WholeLevelValue(6,level) + " 金币");
             if (kind == "granary") values.Add("派工后产粮 +" + GranaryPercent(level) + "% · 储备 " + level + " 粮 / 日");
             if (kind == "chapel") values.Add("民心 +" + ChapelApproval(level,false) + " / 日 · 派工再 +1 · 伤员救护");
+            if (kind == Bakery) values.Add("每户每日以 "+BreadInput+" 粮烤制 "+Amount(BreadOutput)+" 面包");
+            if (kind == Weaver) values.Add(Amount(WeaverCoin)+" 金币 / 户·日 · 冬季单坊省 1 柴");
             return string.Join(" · ",values);
         }
         public static string[] Recruits(string building, int level) =>
@@ -187,13 +191,18 @@ namespace Frontline.Core
         static string Price(int coins, int wood) => coins + " 金币 · " + wood + " 建材";
         static int UpgradeAmount(int baseCost,int currentLevel) => Whole(LevelScaling.Scale(baseCost,currentLevel));
         public static string BuildingPrice(string kind) { var b = Def(kind); return Price(b.coin, b.timber); }
-        public string BuildPrice(string kind) => BuildingPrice(kind);
+        public string BuildPrice(string kind)
+        {
+            var b=Def(kind);int rank=SpecialistLevel(Mason);
+            return Price(MasonryCost(b.coin,rank),MasonryCost(b.timber,rank));
+        }
         public string UpgradePrice(int i)
         {
             var p = Plot(i);
             if (p.kind == null || p.level >= BuildingMaxLevel) return p.level == BuildingMaxLevel ? "已达最高等级" : "";
             var b = Def(p.kind);
-            return Price(UpgradeAmount(b.coin,p.level), UpgradeAmount(b.timber,p.level)) +
+            int rank=SpecialistLevel(Mason);
+            return Price(MasonryCost(UpgradeAmount(b.coin,p.level),rank),MasonryCost(UpgradeAmount(b.timber,p.level),rank)) +
                 (i == 0 ? " · 通关 " + HallRequirement(p.level) + " 关" : "");
         }
         void Pay(int coins, int wood)
@@ -207,9 +216,10 @@ namespace Frontline.Core
             if (i == 0 || p.kind != null || kind == "manor_hall") throw new InvalidOperationException("请选择空建地");
             if (!IsPlotGranted(i)) throw new InvalidOperationException("晋升"+NobleRanks[PlotRank(i)].title+"后开放");
             if (!IsPlotCleared(i)) throw new InvalidOperationException("请先开垦这块建地");
-            Pay(b.coin, b.timber); p.kind = kind; p.level = 1;
+            int rank=SpecialistLevel(Mason);
+            Pay(MasonryCost(b.coin,rank),MasonryCost(b.timber,rank)); p.kind = kind; p.level = 1;
             if (IsCrop(kind)) { p.fertility = DefaultFertility; p.rotation = "auto"; }
-            if(kind=="granary"||kind=="chapel")Remember(kind,i);
+            if(kind=="granary"||kind=="chapel"||IsCraft(kind))Remember(kind,i);
             TrackProsperity();
         }
         public void Upgrade(int i)
@@ -217,7 +227,8 @@ namespace Frontline.Core
             var p = Plot(i); var b = Def(p.kind);
             if (p.level >= BuildingMaxLevel) throw new InvalidOperationException("已达最高等级");
             if (i == 0 && cleared < HallRequirement(p.level)) throw new InvalidOperationException("宅邸升级需通关 " + HallRequirement(p.level) + " 关");
-            Pay(UpgradeAmount(b.coin,p.level), UpgradeAmount(b.timber,p.level)); p.level++;
+            int rank=SpecialistLevel(Mason);
+            Pay(MasonryCost(UpgradeAmount(b.coin,p.level),rank),MasonryCost(UpgradeAmount(b.timber,p.level),rank)); p.level++;
         }
         public void Demolish(int i)
         {
@@ -278,8 +289,8 @@ namespace Frontline.Core
 
         const int FileLimit = 32768;
         const int SpecialistSaveVersion = 5, ExpansionSaveVersion = 6, FrontierSaveVersion = 7, DevelopmentSaveVersion = 8;
-        const int RetinueSaveVersion = 9, ClaimsSaveVersion = 10, NobilitySaveVersion = 11;
-        public const int SaveVersion = NobilitySaveVersion;
+        const int RetinueSaveVersion = 9, ClaimsSaveVersion = 10, NobilitySaveVersion = 11, CraftSaveVersion = 12;
+        public const int SaveVersion = CraftSaveVersion;
         static readonly string[] LegacySaveFields = { "format","version","coin","food","timber","arms","workers","day","cleared","raidReady","slots","stock" };
         static readonly string[] ProgressSaveFields = LegacySaveFields.Concat(new[] { "remainder","training","heroes" }).ToArray();
         static readonly string[] OperationsSaveFields = ProgressSaveFields.Concat(new[] { "approval","tax","decree","market" }).ToArray();
@@ -329,8 +340,9 @@ namespace Frontline.Core
             if (!(root["format"] is string f) || f != "frontline-manor" || !(root["raidReady"] is bool raid))
                 throw new FormatException("无效的庄园存档标识");
             bool nobleSchema=schema>=NobilitySaveVersion;
+            bool craftSchema=schema>=CraftSaveVersion;
             int layoutSize = schema < SpecialistSaveVersion ? OriginalPlotCount : schema == SpecialistSaveVersion ? FirstOuterPlot :
-                nobleSchema ? PlotCount : FirstNoblePlot;
+                craftSchema ? PlotCount : nobleSchema ? LegacyNoblePlotCount : FirstNoblePlot;
             if (!(root["slots"] is List<object> plots) || plots.Count != layoutSize && !(legacy && plots.Count == 10))
                 throw new FormatException("庄园建地数量无效");
             int maxHouseholds = 2 + (legacy ? BuildingMaxLevel : WholeLevelValue(3,BuildingMaxLevel)) * (plots.Count - 1);
@@ -349,7 +361,8 @@ namespace Frontline.Core
                 string kind = p["kind"] as string;
                 if (p["kind"] != null && (kind == null || !buildings.ContainsKey(kind) ||
                     legacy && (kind == "irrigated_field" || kind == "pasture" || kind == "tavern" || kind == "drill_yard") ||
-                    schema < SpecialistSaveVersion && (kind == "granary" || kind == "chapel")) ||
+                    schema < SpecialistSaveVersion && (kind == "granary" || kind == "chapel") ||
+                    !craftSchema && IsCraft(kind)) ||
                     (i == 0) != (kind == "manor_hall"))
                     throw new FormatException("建筑种类或位置无效");
                 int level = Number(p["level"],kind == null ? 0 : 1, kind == null ? 0 : BuildingMaxLevel);
@@ -371,7 +384,7 @@ namespace Frontline.Core
             var inventory = ObjectWith(root["stock"], recruits.Keys.ToArray());
             foreach (var id in recruits.Keys) m.stock[id] = Number(inventory[id],0,60);
             // Closing a farm can leave veterans above today's supply. The historical maximum still bounds a legal reserve.
-            int usableLand=nobleSchema?m.GrantedPlots:plots.Count;
+            int usableLand=craftSchema?m.GrantedPlots:nobleSchema?FirstNoblePlot+m.nobility*LegacyNoblePlotsPerRank:plots.Count;
             int maxArmy = legacy ? 8 + 5 * m.slots[0].level + 2 * 27 :
                 Math.Max(77,WholeLevelValue(13,m.slots[0].level) + WholeLevelValue(4,BuildingMaxLevel) * (usableLand - 1));
             if (m.ArmySize > maxArmy + m.DevelopmentArmyBonus + NobleRanks[m.nobility].armyBonus)
@@ -391,7 +404,7 @@ namespace Frontline.Core
                 m.eventDay = Number(root["eventDay"],0,m.day);
                 if (!ValidEventDay(m.eventDay,m.day)) throw new FormatException("领地急报日期无效");
             }
-            if (schema >= SpecialistSaveVersion) m.ReadSpecialists(root["specialists"]);
+            if (schema >= SpecialistSaveVersion) m.ReadSpecialists(root["specialists"],craftSchema);
             if (schema >= ExpansionSaveVersion) m.ReadExpansion(root);
             if (schema >= FrontierSaveVersion) m.ReadProgression(root);
             else m.guideDismissed = true;

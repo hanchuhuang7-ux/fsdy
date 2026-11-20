@@ -96,7 +96,7 @@ static partial class ManorChecks
             m.UnlockDevelopment(ManorPerk.GuildSmiths);
             var after=m.Forecast();
             Expect(after.food-before.food==45,"crop boost did not compose with active percentages");
-            Expect(before.winterTimberRequired==300&&after.winterTimberRequired==100&&after.timber-before.timber==266,"winter cut or forestry boost");
+            Expect(before.winterTimberRequired==300&&after.winterTimberRequired==100&&after.timber-before.timber==268,"winter cut or forestry boost");
             Expect(before.arms==242&&after.arms==290&&after.forgeTimber==before.forgeTimber,"forge throughput");
             m.workers=3;
             Expect(m.Forecast().winterTimberRequired==100,"minimum winter fuel");

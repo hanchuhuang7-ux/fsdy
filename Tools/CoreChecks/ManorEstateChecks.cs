@@ -7,12 +7,12 @@ static partial class ManorChecks
 {
     public static void RunEstate(Catalog data,Action<string,Action> check)
     {
-        check("all 32 plots fit the 56x36 shelf without moving the causeway or frontier",() => {
+        check("all 36 plots fit the 62x40 shelf without moving the causeway or frontier",() => {
             var shelf=data.Frontier.platforms[0]; var bridge=data.Frontier.platforms[1]; var coast=data.Frontier.platforms[2];
-            Expect(Manor.PlotCount==32&&shelf.x==-50&&shelf.hx==28&&shelf.hz==18&&FrontierMap.West==-78,"shelf bounds");
+            Expect(Manor.PlotCount==36&&shelf.x==-53&&shelf.hx==31&&shelf.hz==20&&FrontierMap.West==-84,"shelf bounds");
             Expect(FrontierMap.BridgeStart==-22&&FrontierMap.Boundary==-10&&bridge.x==-16&&bridge.hz==3.6f&&
                 coast.x==27&&coast.hx==37&&coast.hz==24,"old bridge or coast moved");
-            Expect(FrontierMap.HasGround(-77,16)&&!FrontierMap.HasGround(-78,16)&&!FrontierMap.HasGround(-77,18)&&!FrontierMap.HasGround(-17,4)&&
+            Expect(FrontierMap.HasGround(-83,19)&&!FrontierMap.HasGround(-84,19)&&!FrontierMap.HasGround(-83,20)&&!FrontierMap.HasGround(-17,4)&&
                 FrontierMap.HasGround(-17,3.58f)&&FrontierMap.Safe(-10.01f)&&!FrontierMap.Safe(-10),"ground or safe line");
             for(int i=0;i<Manor.PlotCount;i++)
             {
@@ -89,7 +89,7 @@ static partial class ManorChecks
             Expect(m.SpecialistLevel("merchant")==1,"village market unlock with four buildings");
             m.Build(4,"drill_yard");
             int[] lv2={6,8,6,4},lv3={10,14,10,7};
-            for(int i=0;i<Manor.SpecialistIds.Length;i++)
+            for(int i=0;i<lv2.Length;i++)
             {
                 string id=Manor.SpecialistIds[i];
                 int Funds()=>i==2?m.food:i==3?m.arms:m.timber;
