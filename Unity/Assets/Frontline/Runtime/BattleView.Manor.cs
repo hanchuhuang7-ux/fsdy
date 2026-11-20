@@ -111,6 +111,7 @@ namespace Frontline.UnityGame
             if (changingMode)
             {
                 cameraBlending=false;
+                zoomTarget=0;
                 ClearAmbient();
                 System.Array.Clear(headingSet,0,headingSet.Length);
                 if (manor == null) arenaCamera = Bookmark();
@@ -128,8 +129,11 @@ namespace Frontline.UnityGame
             if (changingMode)
             {
                 ViewCamera.fieldOfView=manor!=null?FrontierFov:Viewport.Compact?65:42;
-                ViewCamera.farClipPlane=manor!=null?390:160;
-                if (!Restore(manor == null ? arenaCamera : villageCamera)) ResetCamera();
+                ViewCamera.farClipPlane=manor!=null?1050:160;
+                if (!Restore(manor == null ? arenaCamera : villageCamera))
+                {
+                    if(manor==null)ResetCamera();else FrameFrontier(1);
+                }
                 UpdateShadowDistance();
             }
             if (manor == null) return;
@@ -191,16 +195,16 @@ namespace Frontline.UnityGame
         }
 
         static Vector3 Plot(int index) => new Vector3(Manor.SlotX(index), 0, Manor.SlotZ(index));
-        const float LaneZ=2.85f, CrossX=3.25f, WestLaneX=-20.65f, OuterLaneZ=12.35f;
+        const float LaneZ=4.95f,CrossX=5.48f,WestLaneX=-20.65f*Manor.TownScaleX,OuterLaneZ=12.35f*Manor.TownScaleZ;
         const float BridgeLocalX=Manor.PlateauHalfWidth;
         const int Gate=Manor.PlotCount, WestOuterStart=Manor.FirstNoblePlot-2;
-        const float OuterLaneEast=24.65f;
+        const float OuterLaneEast=24.65f*Manor.TownScaleX;
 
         static bool WestPlot(int plot) => plot>=Manor.OriginalPlotCount&&plot<Manor.FirstOuterPlot||
             plot>=WestOuterStart&&plot<Manor.FirstNoblePlot||plot>=Manor.LegacyNoblePlotCount&&plot<Manor.LegacyNoblePlotCount+2;
         static bool OuterRow(int plot) => plot>=Manor.FirstOuterPlot&&plot<WestOuterStart||
             plot>=Manor.FirstNoblePlot+2&&plot<Manor.LegacyNoblePlotCount||plot>=Manor.LegacyNoblePlotCount+2&&plot<Gate;
-        static float OuterConnector(float z) => z>0?-5.36f:-3.76f;
+        const float OuterConnectorX=-5.36f*Manor.TownScaleX;
 
         static Vector3 LaneMouth(int plot)
         {
@@ -217,8 +221,8 @@ namespace Frontline.UnityGame
             if (plot == Gate) return new Vector3(BridgeLocalX-.38f,0,0);
             var p=Plot(plot);
             var mouth=LaneMouth(plot);
-            if(WestPlot(plot))return p+Vector3.right*(Mathf.Sign(mouth.x-p.x)*1.85f);
-            p.z += Mathf.Sign(mouth.z-p.z)*(plot==0?2.14f:1.79f);
+            if(WestPlot(plot))return p+Vector3.right*(Mathf.Sign(mouth.x-p.x)*2.10f);
+            p.z += Mathf.Sign(mouth.z-p.z)*(plot==0?4.22f:2.10f);
             return p;
         }
 
@@ -226,7 +230,8 @@ namespace Frontline.UnityGame
 
         void Still(MeshSet mesh, Vector3 p, Quaternion rotation, Vector3 size, Color tint, float wind = 0)
         {
-            (mesh.still ?? Buffer(mesh, still, 1)).Add(Pose(p, rotation, size),tint,wind,
+            var page=fillingOuter?(mesh.outer??Buffer(mesh,outerStill,3)):(mesh.still??Buffer(mesh,still,1));
+            page.Add(Pose(p, rotation, size),tint,wind,
                 chunk:manor!=null?StaticRegion(p):-1);
         }
         void ManorStill(MeshSet mesh,Vector3 p,Quaternion rotation,Vector3 size,Color tint,float wind=0) =>
@@ -251,37 +256,30 @@ namespace Frontline.UnityGame
             var rock = Load("rock").WithoutShadows();
             var grass = Load("grass");
             var flowers = Load("flowers");
-            // Border planting leaves both the field lanes and the full building pads clear.
-            for (int i = 0; i < 7; i++)
+            int sprigs=QualityLevel==0?48:QualityLevel==1?94:144;
+            for(int i=0;i<sprigs;i++)
             {
-                float x = i < 3 ? -26.80f : i < 5 ? 9.6f+(i-3)*7.85f : BridgeLocalX-3.19f+(i-5)*.40f;
-                float z = i < 3 ? -14.85f+i*14.73f : i < 5 ? 15.32f : i==5?9.68f:-8.67f;
-                float scale = .70f + (i * 7 % 5) * .08f;
-                ManorStill(tree, new Vector3(x, 0, z), Quaternion.Euler(0, i * 67, 0), Vector3.one * scale, builtSeason==3?WinterPine:White, .011f);
-                StillShade(ManorOrigin+new Vector3(x,0,z),2.3f*scale,1.7f*scale);
-            }
-            int sprigs = QualityLevel == 0 ? 42 : QualityLevel == 1 ? 92 : 145;
-            for (int i = 0; i < sprigs; i++)
-            {
-                // Irrational spacing gives the same meadow on load, independent of battle randomness.
-                float along = Mathf.Repeat(.62f + i * .618034f, 1), inset = Mathf.Repeat(.3f + i * .414214f, 1);
-                bool side = i % 3 == 0;
-                float sign = (i & 1) == 0 ? 1 : -1;
-                Vector3 p = side ? new Vector3(sign*(Manor.PlateauHalfWidth-.93f+inset*.42f),.005f,(along-.5f)*(2*Manor.PlateauHalfDepth-2))
-                                 : new Vector3((along-.5f)*(2*Manor.PlateauHalfWidth-4),.005f,sign*(Manor.PlateauHalfDepth-1.10f+inset*.65f));
-                if(!side && sign<0 && Mathf.Abs(p.x-DockOrigin.x)<2.6f)continue;
-                if (side && p.x > 0 && Mathf.Abs(p.z)<4.1f) continue;
-                float size = .5f + .45f * inset;
-                if (manor.Season != 3 || i % 4 == 0)
-                    ManorStill(i % 5 == 0 ? flowers : grass, p, Quaternion.Euler(0, i * 137.5f, 0), Vector3.one * size, White, .026f);
-            }
-            for (int i = 0; i < 12; i++)
-            {
-                float x = -Manor.PlateauHalfWidth+2.1f + i * 5.18f;
-                float z = i % 3 == 1 ? Manor.PlateauHalfDepth-.55f : -Manor.PlateauHalfDepth+.32f;
-                if(z<0&&Mathf.Abs(x-DockOrigin.x)<2.65f)continue;
-                ManorStill(rock, new Vector3(x, -.26f, z), Quaternion.Euler(0, i * 37, 0),
-                    new Vector3(.68f + i % 3 * .23f, .53f, .73f), White);
+                float along=Mathf.Repeat(.62f+i*.618034f,1),inset=Mathf.Repeat(.3f+i*.414214f,1);
+                float x=-39+77*along;
+                FrontierMap.ShoreAt(ManorOrigin.x+x,out float south,out float north);
+                bool sunny=(i&1)!=0;
+                float z=sunny?north-1.1f-2.8f*inset:south+1.1f+2.8f*inset;
+                if(!sunny&&Mathf.Abs(x-DockOrigin.x)<3.8f)continue;
+                if(x>34f&&Mathf.Abs(z)<7.5f)continue;
+                var point=new Vector3(x,0,z);
+                var rotation=Quaternion.Euler(0,i*137.5f,0);
+                bool blocked=false;
+                for(int j=0;j<Manor.PlotCount&&!blocked;j++)blocked=PlotObstacle(j).Contains(point,.9f);
+                if(blocked)continue;
+                float size=.55f+.70f*inset;
+                if(i%9==0)
+                {
+                    ManorStill(tree,point,rotation,Vector3.one*size,builtSeason==3?WinterPine:White,.011f);
+                    StillShade(ManorOrigin+point,2.4f*size,1.9f*size);
+                }
+                else if(i%7==0)ManorStill(rock,point-Vector3.up*.25f,rotation,new Vector3(size,.51f,.83f),White);
+                else if(builtSeason!=3||i%4==0)
+                    ManorStill(i%5==0?flowers:grass,point,rotation,Vector3.one*size,White,.026f);
             }
         }
 
@@ -326,26 +324,37 @@ namespace Frontline.UnityGame
                 return;
             }
 
-            float footprint = i == 0 ? 1.19f : 1;
-            Tile(p + Vector3.up*.018f, new Vector3(3.85f*footprint,.04f,2.97f*footprint),
+            var scale=ManorPlotArt.BuildingScale(plot.kind);
+            var foundation=i==0?new Vector3(9.75f,.04f,8.18f):new Vector3(3.85f*scale.x,.04f,2.97f*scale.z);
+            Tile(p + Vector3.up*.018f, foundation,
                 builtSeason==3?WinterPlot:i==0?new Color(.68f,.67f,.55f):new Color(.67f,.58f,.41f),yaw);
             var basePoint=p+Vector3.up*.042f;
-            ManorStill(Load(ManorPlotArt.CropModel(plot.kind,crop)),basePoint,facing,Vector3.one,White);
-            if(plot.level>=2)ManorStill(Load(plot.kind+(plot.level==2?"_wing":"_tower")),basePoint,facing,Vector3.one,White);
-            StillShade(ManorOrigin+p,(WestPlot(i)?3.24f:4.0f)*footprint,(WestPlot(i)?4.0f:3.24f)*footprint);
+            string upgrade=plot.level==3?"_tower":plot.level==2?"_wing":"";
+            if(i==0)
+            {
+                ManorStill(Load("manor_hall"+upgrade),basePoint,facing,Vector3.one,White);
+                if(plot.level==3)ManorStill(props["banner"].WithoutShadows(),basePoint+new Vector3(0,10.29f,.25f),
+                    Quaternion.Euler(0,-24,0),new Vector3(2.0f,1.7f,2.0f),new Color(.78f,.22f,.16f),.023f);
+            }
+            else
+            {
+                ManorStill(Load(ManorPlotArt.CropModel(plot.kind,crop)),basePoint,facing,scale,White);
+                if(plot.level>=2)ManorStill(Load(plot.kind+upgrade),basePoint,facing,scale,White);
+            }
+            StillShade(ManorOrigin+p,WestPlot(i)?foundation.z:foundation.x,WestPlot(i)?foundation.x:foundation.z);
             AddPlotObstacle(i);
             DecoratePlot(i,plot.kind,basePoint,facing);
             if(plot.kind=="farm"||plot.kind==Manor.Bakery)
             {
                 var hub=plot.kind==Manor.Bakery?ManorPlotArt.BakeryHub:ManorPlotArt.MillHub;
-                millHubs[millCount]=basePoint+ManorOrigin+facing*hub;
+                millHubs[millCount]=basePoint+ManorOrigin+facing*Vector3.Scale(hub,scale);
                 millPlots[millCount]=i;
                 millFacing[millCount++]=facing;
             }
             if(plot.kind=="smithy")forgePlots[forgeCount++]=i;
             if(!IsFarm(plot.kind))destinations[destinationCount++]=i;
             // The dark stake with one to three bright inlays sits on the camera-facing verge.
-            var sign=p+facing*new Vector3(1.41f*footprint,.24f,-1.35f*footprint);
+            var sign=p+facing*(i==0?new Vector3(2.39f,.24f,-4.21f):new Vector3(1.61f,.24f,-1.69f));
             bool full=plot.level>=Manor.BuildingMaxLevel;
             var metal=full?new Color(.44f,.72f,.49f):new Color(.81f,.65f,.41f);
             ManorStill(surveyBlock,sign,facing,new Vector3(.63f,.37f,.115f),Timber);
@@ -382,22 +391,10 @@ namespace Frontline.UnityGame
             wrap=Load("villager_wrap");sleeve=Load("resident_sleeve");
             hoe=Load("carry_hoe");sickle=Load("carry_sickle");bucket=Load("carry_bucket");
             basket=Load("carry_basket");crate=Load("carry_crate");jug=Load("carry_jug");
-            float width = Manor.PlateauHalfWidth * 2, depth = Manor.PlateauHalfDepth * 2;
             builtSeason = manor.Season;
             builtReclaimedPlots=manor.reclaimedPlots;
             builtNobility=manor.nobility;
-            Tile(new Vector3(0,-.18f,0),new Vector3(width,.36f,depth),ManorSoils[builtSeason]);
-            Tile(new Vector3(0,-.56f,0),new Vector3(width-.1f,.58f,depth-.1f),new Color(.54f,.44f,.30f));
-            Tile(new Vector3(0,-1.16f,0),new Vector3(width-.6f,.88f,depth-.5f),new Color(.47f,.48f,.40f));
-            ManorStill(Load("cliff"),new Vector3(0,-1.93f,0),Quaternion.identity,new Vector3(width-2,1.7f,depth-1.5f),White);
-            var shore=Load("rock").WithoutShadows();
-            for(int side=-1;side<=1;side+=2)for(int i=0;i<13;i++)
-            {
-                float lip=.31f*Mathf.Sin(i*2.39f), x=-Manor.PlateauHalfWidth+2+i*4.82f;
-                if(side<0&&Mathf.Abs(x-DockOrigin.x)<2.4f)continue;
-                ManorStill(shore,new Vector3(x,-.85f,side*(Manor.PlateauHalfDepth+lip)),Quaternion.Euler(0,i*49,0),
-                    new Vector3(3.38f+(i%3)*.32f,1.06f,1.43f),new Color(.52f,.58f,.49f));
-            }
+            PrepareOuterWorld();
             MeadowBorder();
             Lane(new Vector3(WestLaneX,0,-LaneZ),LaneMouth(Gate),.78f);
             Lane(new Vector3(WestLaneX,0,LaneZ),new Vector3(LaneMouth(Gate).x,0,LaneZ),.68f);
@@ -406,7 +403,7 @@ namespace Frontline.UnityGame
             Lane(new Vector3(WestLaneX,0,-OuterLaneZ),new Vector3(WestLaneX,0,OuterLaneZ),.78f);
             for(int side=-1;side<=1;side+=2)
             {
-                float z=side*OuterLaneZ, x=OuterConnector(z);
+                float z=side*OuterLaneZ, x=OuterConnectorX;
                 Lane(new Vector3(WestLaneX,0,z),new Vector3(OuterLaneEast,0,z),.69f);
                 Lane(new Vector3(x,0,z),new Vector3(x,0,side*LaneZ),.65f);
             }
@@ -427,7 +424,7 @@ namespace Frontline.UnityGame
             if (walks == null) BuildRoutes();
             residentRosterDirty=true;
             variedTerrain=false;
-            BuildFrontierLand();
+            AlertCampMask=-1;
             for(int i=0;i<2;i++)
                 ManorStill(raidPennant,new Vector3(BridgeLocalX-3.45f,0,-4.1f-i*1.45f),Quaternion.Euler(0,-21,0),
                     Vector3.one*1.12f,new Color(.98f,.12f,.08f),.048f);
@@ -437,7 +434,7 @@ namespace Frontline.UnityGame
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.fogColor = ManorHorizons[builtSeason];
-            RenderSettings.fogDensity = .00165f;
+            RenderSettings.fogDensity = .00108f;
             material.SetColor("_SkyLight",Color.Lerp(ManorHorizons[builtSeason],new Color(.52f,.54f,.55f),.45f));
             material.SetColor("_GroundLight",Color.Lerp(ManorSoils[builtSeason],new Color(.16f,.18f,.16f),.70f));
             cachedQuality = QualityLevel;
@@ -513,7 +510,7 @@ namespace Frontline.UnityGame
         static Vector3 MainLaneJoin(int plot,Vector3 mouth)
         {
             if(WestPlot(plot))return new Vector3(mouth.x,0,Mathf.Sign(mouth.z)*LaneZ);
-            if(OuterRow(plot))return new Vector3(OuterConnector(mouth.z),0,Mathf.Sign(mouth.z)*LaneZ);
+            if(OuterRow(plot))return new Vector3(OuterConnectorX,0,Mathf.Sign(mouth.z)*LaneZ);
             return mouth;
         }
 
@@ -630,7 +627,7 @@ namespace Frontline.UnityGame
                     var facing=Quaternion.Euler(0,FacadeYaw(dest),0);
                     float row=kind=="farm"?.70f:kind=="pasture"?.83f:.23f;
                     float blend=Mathf.Clamp01(Mathf.Min(phase-arriving,arriving+dwell-phase)*2);
-                    pos=Vector3.Lerp(pos,Plot(dest)+facing*new Vector3(row+spacing,0,-1.79f),blend);
+                    pos=Vector3.Lerp(pos,Plot(dest)+facing*new Vector3(row+spacing,0,-2.07f),blend);
                     direction=facing*Vector3.forward;
                 }
                 else
@@ -779,7 +776,7 @@ namespace Frontline.UnityGame
                 if(!InView(millHubs[i],2.5f))continue;
                 int workers=manor.slots[millPlots[i]].workers;
                 float angle=21+i*37+(workers>0?manorTime*(13+workers*6):0);
-                float size=manor.slots[millPlots[i]].kind==Manor.Bakery?.67f:1f;
+                float size=manor.slots[millPlots[i]].kind==Manor.Bakery?.80f:1f;
                 Add(sails,Pose(millHubs[i],millFacing[i]*Quaternion.AngleAxis(angle,Vector3.forward),Vector3.one*size),White);
             }
             for(int i=0;i<forgeCount;i++)
@@ -815,7 +812,8 @@ namespace Frontline.UnityGame
                 else if(plot.kind=="smithy"&&plot.workers>0)vent=ManorPlotArt.ForgeChimney;
                 else if(plot.kind==Manor.Bakery&&plot.workers>0)vent=ManorPlotArt.BakeryChimney;
                 else continue;
-                Vector3 chimney=ManorOrigin+Plot(site)+Vector3.up*.042f+Quaternion.Euler(0,FacadeYaw(site),0)*vent;
+                Vector3 chimney=ManorOrigin+Plot(site)+Vector3.up*.042f+
+                    Quaternion.Euler(0,FacadeYaw(site),0)*Vector3.Scale(vent,ManorPlotArt.BuildingScale(plot.kind));
                 if(!InView(chimney,1.2f))continue;
                 float rise=Mathf.Repeat(manorTime*.43f+site*.37f,1);
                 Vector3 center=chimney+new Vector3(rise*.37f,.12f+rise*.88f,-rise*.17f);
@@ -830,6 +828,7 @@ namespace Frontline.UnityGame
             if(!lowActors)ClearAmbient();
             if (manorDirty || cachedQuality != QualityLevel) RebuildManor();
             SyncCampMarkers();
+            DrawOuterWorld();
             foreach (var b in still) Draw(b,true);
             manorTime += Mathf.Min(Time.unscaledDeltaTime,.2f)*Mathf.Max(.65f,manorPace);
             if(!lowActors||ambientDirty||ambientCameraVersion!=visibilityVersion||Time.unscaledTime>=nextAmbient)
@@ -847,7 +846,7 @@ namespace Frontline.UnityGame
             if(lowActors)foreach(var page in ambient)Draw(page,false);
             if(Config.map!=FrontierMap.Id && HoveredPlot!=manorSelection && (uint)HoveredPlot<manor.slots.Length)
             {
-                float radius=HoveredPlot==0?2.60f:2.12f;
+                float radius=HoveredPlot==0?5.25f:2.35f;
                 var at=ManorOrigin+Plot(HoveredPlot)+Vector3.up*.069f;
                 if(InView(at,radius))
                 {
@@ -858,7 +857,7 @@ namespace Frontline.UnityGame
             if ((uint)manorSelection < manor.slots.Length)
             {
                 Vector3 p = Plot(manorSelection) + ManorOrigin + Vector3.up*.073f;
-                float radius = manorSelection == 0 ? 2.65f : 2.16f;
+                float radius = manorSelection == 0 ? 5.30f : 2.39f;
                 if(InView(p,radius))Add(ring,Pose(p,Quaternion.identity,new Vector3(radius,1,radius*.86f)),Gold);
             }
             DrawFrontierPatrol();

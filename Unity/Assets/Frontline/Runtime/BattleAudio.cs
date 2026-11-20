@@ -294,15 +294,31 @@ namespace Frontline.UnityGame
             ApplyVoiceMix(gain,Time.unscaledDeltaTime);
         }
 
-        void OnDestroy()
+        internal void StopAudio()
         {
+            if(!ready)return;
+            ready=false;
+            StopAllCoroutines();
             if(app!=null)
             {
                 app.ManorSound-=PlayManor;
                 app.Presentation.Changed-=ApplyGains;
             }
+            foreach(var source in voices)StopSource(source);
+            foreach(var source in beds)StopSource(source);
             foreach(var clip in clips.Values)Destroy(clip);
+            clips.Clear();
             foreach(var clip in soundscapes)if(clip)Destroy(clip);
+            Array.Clear(soundscapes,0,soundscapes.Length);
         }
+
+        static void StopSource(AudioSource source)
+        {
+            if(!source)return;
+            source.Stop();
+            source.clip=null;
+        }
+
+        void OnDestroy() => StopAudio();
     }
 }

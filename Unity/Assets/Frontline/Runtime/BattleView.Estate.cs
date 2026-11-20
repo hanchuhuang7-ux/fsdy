@@ -7,22 +7,21 @@ namespace Frontline.UnityGame
 {
     public sealed partial class BattleView
     {
-        static readonly Vector3 WellOrigin=new Vector3(-5.02f,.046f,-.30f);
-        static readonly Vector3 MarketNorth=new Vector3(5.44f,.046f,.91f), MarketSouth=new Vector3(5.50f,.046f,-1.37f);
-        static readonly Vector3 DockOrigin=new Vector3(-5.45f,-.67f,-Manor.PlateauHalfDepth+.54f);
-        static readonly Vector3 DockApproach=new Vector3(DockOrigin.x,0,-Manor.PlateauHalfDepth+.82f);
+        static readonly Vector3 WellOrigin=new Vector3(-7.14f,.046f,-.56f);
+        static readonly Vector3 MarketNorth=new Vector3(7.30f,.046f,1.76f),MarketSouth=new Vector3(7.35f,.046f,-2.15f);
+        static readonly Vector3 DockOrigin=DockSite();
+        static readonly Vector3 DockApproach=new Vector3(DockOrigin.x,0,DockOrigin.z+.28f);
         static readonly Vector3 DockScale=new Vector3(1.32f,1,1.21f);
         static readonly Vector3 GatehouseOrigin=new Vector3(BridgeLocalX-1.44f,.021f,0);
         static readonly Vector3 CargoWest=new Vector3(DockOrigin.x-1.95f,.034f,DockOrigin.z+.54f);
         static readonly Vector3 CargoEast=new Vector3(DockOrigin.x+1.98f,.032f,DockOrigin.z+.40f);
-        static readonly Vector3 YardOrigin=new Vector3(-1.51f,0,-1.63f);
+        static readonly Vector3 YardOrigin=new Vector3(-1.51f,0,-1.48f);
         static readonly Color[] SpecialistTrim={Color.white,new Color(.72f,.86f,.97f),new Color(1f,.79f,.39f)};
         static readonly Color RetinueCloth=new Color(.33f,.40f,.58f);
-        // The wider gap on the west flank keeps the south fields' access lane open.
         static readonly Vector3[] RetinuePosts={
-            new Vector3(-2.50f,0,-3.77f),new Vector3(2.50f,0,-3.77f),
-            new Vector3(-1.22f,0,-3.77f),new Vector3(3.76f,0,-3.77f),
-            new Vector3(-4.89f,0,-3.77f),new Vector3(5.02f,0,-3.77f)
+            new Vector3(-1.73f,0,-6.23f),new Vector3(1.73f,0,-6.23f),
+            new Vector3(-3.24f,0,-6.23f),new Vector3(3.24f,0,-6.23f),
+            new Vector3(-4.75f,0,-6.23f),new Vector3(4.75f,0,-6.23f)
         };
         readonly MeshSet[] specialistMeshes=new MeshSet[Manor.SpecialistIds.Length];
         readonly WalkRoute[] specialistRoutes=new WalkRoute[Manor.SpecialistIds.Length];
@@ -63,9 +62,17 @@ namespace Frontline.UnityGame
         readonly EstateObstacle[] estateObstacles=new EstateObstacle[Manor.PlotCount*2+LandmarkObstacles.Length+CivicDetails.Length];
         int estateObstacleCount;
 
+        static Vector3 DockSite()
+        {
+            const float quayX=-5.45f;
+            FrontierMap.ShoreAt(FrontierMap.ManorX+quayX,out float south,out _);
+            return new Vector3(quayX,-.67f,south+.54f);
+        }
+
         static EstateObstacle PlotObstacle(int index)
         {
-            float hx=ManorPlotArt.HalfWidth(index==0),hz=ManorPlotArt.HalfDepth(index==0);
+            float hx=index==0?FrontierMap.CastleHalfWidth:ManorPlotArt.BuiltPadHalfWidth;
+            float hz=index==0?FrontierMap.CastleHalfDepth:ManorPlotArt.BuiltPadHalfDepth;
             return new EstateObstacle(Plot(index),WestPlot(index)?hz:hx,WestPlot(index)?hx:hz);
         }
         static EstateObstacle YardObstacle(int index)
@@ -78,7 +85,7 @@ namespace Frontline.UnityGame
         void BuildEstateDetails()
         {
             foreach(var obstacle in LandmarkObstacles)estateObstacles[estateObstacleCount++]=obstacle;
-            ManorStill(Load("manor_plaza").WithoutShadows(),Vector3.zero,Quaternion.identity,Vector3.one,White);
+            ManorStill(Load("manor_plaza").WithoutShadows(),Vector3.zero,Quaternion.identity,new Vector3(1.46f,1,1.44f),White);
             ManorStill(Load("manor_well").WithoutShadows(),WellOrigin,Quaternion.identity,Vector3.one,White);
             var stall=Load("manor_market").WithoutShadows();
             ManorStill(stall,MarketNorth,Quaternion.identity,Vector3.one,new Color(.94f,.76f,.61f));
@@ -93,25 +100,16 @@ namespace Frontline.UnityGame
             for(int side=-1;side<=1;side+=2)
                 ManorStill(brazier,new Vector3(BridgeLocalX-1.73f,.025f,side*4.69f),Quaternion.identity,Vector3.one*.73f,White);
 
-            var fence=Load("manor_fence").WithoutShadows();
             var hedge=Load("shrub").WithoutShadows();
-            for(int i=0;i<6;i++)
-            {
-                float x=-25.8f+i*9.5f, z=-16.7f+i*6.6f;
-                ManorStill(fence,new Vector3(x,0,Manor.PlateauHalfDepth-.54f),Quaternion.Euler(0,i%2==0?3:-5,0),Vector3.one*.98f,White);
-                ManorStill(fence,new Vector3(-Manor.PlateauHalfWidth+.62f,0,z),Quaternion.Euler(0,i%2==0?87:92,0),Vector3.one*.94f,White);
-                if(Mathf.Abs(x-DockOrigin.x)>4.4f)
-                    ManorStill(fence,new Vector3(x,0,-Manor.PlateauHalfDepth+.58f),Quaternion.Euler(0,i%2==0?-8:5,0),Vector3.one,White);
-                ManorStill(hedge,new Vector3(x+2.46f,0,Manor.PlateauHalfDepth-.7f),Quaternion.Euler(0,i*51,0),
-                    new Vector3(1.44f,.53f,.66f),new Color(.72f,.84f,.60f),.016f);
-            }
             var reed=Load("reeds").WithoutShadows();
-            for(int i=0;i<9;i++)
+            for(int i=0;i<13;i++)
             {
-                float x=-25.3f+i*5.61f, z=-17.65f+i*4.41f;
-                ManorStill(reed,new Vector3(-Manor.PlateauHalfWidth+.05f,-.27f,z),Quaternion.Euler(0,i*47,0),Vector3.one*(.64f+i%3*.13f),White,.029f);
-                if(i%3!=1&&Mathf.Abs(x-DockOrigin.x)>2.8f)
-                    ManorStill(reed,new Vector3(x,-.35f,-Manor.PlateauHalfDepth+.17f),Quaternion.Euler(0,i*31,0),Vector3.one*.75f,White,.026f);
+                float x=-36+i*5.36f;
+                FrontierMap.ShoreAt(ManorOrigin.x+x,out float south,out float north);
+                var rotation=Quaternion.Euler(0,i*47,0);
+                ManorStill(hedge,new Vector3(x,0,north-.63f),rotation,new Vector3(1.17f,.43f,.63f),White,.016f);
+                if(Mathf.Abs(x-DockOrigin.x)>3.8f)
+                    ManorStill(reed,new Vector3(x,-.35f,south-.17f),rotation,Vector3.one*.75f,White,.026f);
             }
             for(int i=0;i<specialistMeshes.Length;i++)
                 specialistMeshes[i]=Load("specialist_"+Manor.SpecialistIds[i]).WithoutShadows();
@@ -139,11 +137,12 @@ namespace Frontline.UnityGame
                 estateObstacles[estateObstacleCount++]=YardObstacle(index);
             }
             var backyard=manor.slots[index].backyard;
+            var scale=ManorPlotArt.BuildingScale(kind);
             if(backyard!=null)
-                ManorStill(Load("backyard_"+backyard).WithoutShadows(),basePoint+facing*ManorPlotArt.BackyardOrigin,
-                    facing,ManorPlotArt.BackyardScale,White);
+                ManorStill(Load("backyard_"+backyard).WithoutShadows(),basePoint+facing*Vector3.Scale(ManorPlotArt.BackyardOrigin,scale),
+                    facing,Vector3.Scale(ManorPlotArt.BackyardScale,scale),White);
             if(kind=="cottage"&&builtSeason==3)
-                ManorStill(Load("manor_roof_snow").WithoutShadows(),basePoint,facing,Vector3.one,White);
+                ManorStill(Load("manor_roof_snow").WithoutShadows(),basePoint,facing,scale,White);
         }
 
         static WalkRoute Trace(params Vector3[] points)
@@ -154,14 +153,14 @@ namespace Frontline.UnityGame
         }
 
         static WalkRoute[] FixedSpecialistRoutes() => new[] {
-            Trace(Door(0),new Vector3(-3.24f,0,-LaneZ),new Vector3(-3.24f,0,1.94f)),
-            Trace(new Vector3(3.97f,0,1.26f),new Vector3(3.97f,0,-LaneZ),LaneMouth(Gate),new Vector3(BridgeLocalX-1.04f,0,-.48f)),
-            Trace(new Vector3(-3.12f,0,1.38f),new Vector3(-3.12f,0,-LaneZ),Door(0)),
+            Trace(Door(0),LaneMouth(0),new Vector3(-CrossX,0,-LaneZ),new Vector3(-CrossX,0,2.35f)),
+            Trace(new Vector3(CrossX,0,1.84f),new Vector3(CrossX,0,-LaneZ),LaneMouth(Gate),new Vector3(BridgeLocalX-1.04f,0,-.48f)),
+            Trace(new Vector3(-CrossX,0,1.45f),new Vector3(-CrossX,0,-LaneZ),LaneMouth(0),Door(0)),
             Trace(new Vector3(BridgeLocalX-5.65f,0,-LaneZ),new Vector3(BridgeLocalX-2.90f,0,-2.0f),
                 new Vector3(BridgeLocalX-.60f,0,-1.50f),new Vector3(BridgeLocalX-.60f,0,1.54f),
                 new Vector3(BridgeLocalX-3.96f,0,1.50f)),
             WalkBetween(Manor.LegacyNoblePlotCount+1,5),
-            Trace(new Vector3(-3.12f,0,1.38f),new Vector3(-CrossX,0,-LaneZ),new Vector3(CrossX,0,-LaneZ),
+            Trace(new Vector3(-CrossX,0,1.38f),new Vector3(-CrossX,0,-LaneZ),new Vector3(CrossX,0,-LaneZ),
                 new Vector3(CrossX,0,LaneZ),LaneMouth(3),Door(3))
         };
 
@@ -232,11 +231,12 @@ namespace Frontline.UnityGame
             for(int index=0;index<Manor.PlotCount;index++)
             {
                 var pad=PlotObstacle(index);
-                float width=index==0?2.28f:1.925f,depth=index==0?1.77f:1.485f;
+                float width=index==0?4.89f:2.23f,depth=index==0?4.10f:1.68f;
                 if(WestPlot(index)){float swap=width;width=depth;depth=swap;}
-                if(Mathf.Abs(pad.center.x)+width>Manor.PlateauHalfWidth-.25f||
-                    Mathf.Abs(pad.center.z)+depth>Manor.PlateauHalfDepth-.25f)
-                    throw new InvalidOperationException("Manor plot outside the shelf: "+index);
+                for(int dx=-1;dx<=1;dx+=2)
+                    for(int dz=-1;dz<=1;dz+=2)
+                        if(!FrontierMap.HasGround(ManorOrigin.x+pad.center.x+dx*width,pad.center.z+dz*depth))
+                            throw new InvalidOperationException("Manor plot outside the coast: "+index);
                 for(int other=0;other<index;other++)
                 {
                     var neighbour=PlotObstacle(other);
@@ -294,7 +294,7 @@ namespace Frontline.UnityGame
                     if(first!=last)Check(WalkBetween(first,last),first+"→"+last);
             var specialists=FixedSpecialistRoutes();
             for(int i=0;i<specialists.Length;i++)Check(specialists[i],Manor.SpecialistIds[i]);
-            Check(Trace(new Vector3(OuterConnector(-OuterLaneZ),0,-OuterLaneZ),
+            Check(Trace(new Vector3(OuterConnectorX,0,-OuterLaneZ),
                 new Vector3(DockOrigin.x,0,-OuterLaneZ),DockApproach),"south quay");
             Check(Trace(new Vector3(WestLaneX,0,-OuterLaneZ),new Vector3(WestLaneX,0,OuterLaneZ)),"west lane");
             for(int side=-1;side<=1;side+=2)

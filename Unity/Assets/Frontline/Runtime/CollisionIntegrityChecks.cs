@@ -21,11 +21,12 @@ namespace Frontline.UnityGame
             foreach(var map in data.Maps.Values)map.props.Clear();
             var crowd=Measure(()=>CheckCrowd(data),failures);
             var bridge=Measure(()=>CheckBridge(data),failures);
+            var coast=Measure(()=>CheckFrontierCoast(data),failures);
             var remains=Measure(()=>CheckRemains(data),failures);
             var plots=Measure(CheckPlotFits,failures);
             var outposts=Measure(()=>new {validated=BattleView.CheckOutpostClearance(data)},failures);
             if(failures.Count>0)throw new AggregateException("Collision fixtures failed",failures);
-            return new {hull,crowd,bridge,remains,plots,outposts};
+            return new {hull,crowd,bridge,coast,remains,plots,outposts};
         }
 
         static object Measure(Func<object> run,List<Exception> failures)
@@ -241,6 +242,88 @@ namespace Frontline.UnityGame
                 }
             }
             return rows;
+        }
+
+        static object CheckFrontierCoast(Catalog data)
+        {
+            var config=new Deployment{map=FrontierMap.Id,manorHall=3,budget=10000};
+            const int party=16;
+            for(int i=0;i<party;i++)
+                config.red.Add(new UnitPlacement("militia",FrontierMap.BridgeStart-2.2f-i/4*1.65f,(i%4-1.5f)*1.45f){level=1});
+            var sentinel=FrontierMap.Guards[0];
+            config.blue.Add(new UnitPlacement(sentinel.unit,261,-53));
+            using(var battle=new Battle(data,config,new UnityWorldFactory(),true))
+            {
+                var world=(UnityWorld)battle.World;
+                var observer=(UnityBody)battle.Units[party].entity.body;
+                observer.rigidbody.constraints|=RigidbodyConstraints.FreezePositionX|RigidbodyConstraints.FreezePositionZ;
+                Physics.SyncTransforms();
+                int cells=0,pathSamples=0;
+                float highest=0,maxError=0;
+                void Probe(float x,float z)
+                {
+                    float expected=FrontierMap.SurfaceHeight(x,z);
+                    bool hit=world.SampleFrontierFloor(x,z,out float y);
+                    Require(hit==Catalog.Finite(expected),"PhysX dry land mismatch at "+x+", "+z);
+                    if(hit)
+                    {
+                        highest=Mathf.Max(highest,y);
+                        maxError=Mathf.Max(maxError,Mathf.Abs(expected-y));
+                    }
+                    cells++;
+                }
+                for(float x=FrontierMap.West-2.37f;x<=FrontierMap.East+2;x+=4.1f)
+                    for(float z=-FrontierMap.HalfDepth-2.73f;z<FrontierMap.HalfDepth+3;z+=4.6f)Probe(x,z);
+                foreach(var coast in new[]{FrontierMap.ManorCoast,FrontierMap.FrontierCoast})
+                    for(int i=1;i<coast.Count;i++)
+                    {
+                        var a=coast[i-1];var b=coast[i];
+                        float x=(a.x+b.x)*.5f,s=(a.south+b.south)*.5f,n=(a.north+b.north)*.5f;
+                        Probe(x,s-.11f);Probe(x,s+.11f);Probe(x,n-.11f);Probe(x,n+.11f);
+                    }
+                for(float x=FrontierMap.BridgeStart-.6f;x<FrontierMap.Boundary+.6f;x+=.12f)
+                    for(int lane=-1;lane<=1;lane++)Probe(x,lane*2.7f);
+                Require(maxError<.005f&&highest>8,"Topography and collision floor disagree: "+maxError+" peak="+highest);
+
+                foreach(var unit in battle.Units)unit.cooldown=2800;
+                var checkpoints=new[]{new V3(16,0,-30),new V3(88,0,93),new V3(177,0,107),
+                    new V3(223,0,-68),new V3(16,0,-30),FrontierMap.Rally};
+                foreach(var goal in checkpoints)
+                {
+                    Require(battle.MarchFrontier(goal.x,goal.z),"Real coast march rejected "+goal.x+","+goal.z);
+                    int arrived=0;
+                    for(int step=0;step<8600&&arrived<party;step++)
+                    {
+                        battle.Step();
+                        if(step%4!=0)continue;
+                        arrived=0;
+                        for(int i=0;i<party;i++)
+                        {
+                            var u=battle.Units[i];
+                            var position=u.entity.body.Position;
+                            float floor=FrontierMap.SurfaceHeight(position.x,position.z);
+                            Require(u.entity.alive&&Catalog.Finite(floor)&&position.y>floor+.42f,
+                                "Patrol left the surfaced route at "+position.x+", "+position.z);
+                            if(V3.DistanceXZ(position,goal)<5.75f)arrived++;
+                            pathSamples++;
+                        }
+                    }
+                    if(arrived!=party)
+                    {
+                        var lagging=new List<string>();
+                        for(int i=0;i<party;i++)
+                        {
+                            var p=battle.Units[i].entity.body.Position;
+                            if(V3.DistanceXZ(p,goal)>5.75f)lagging.Add(i+" at ("+p.x+","+p.z+")");
+                        }
+                        Require(false,"World patrol could not reach "+goal.x+", "+goal.z+": "+string.Join("; ",lagging));
+                    }
+                }
+                Debug.Log("FRONTLINE_NATURAL_COAST_OK raySamples="+cells+" patrolSamples="+pathSamples+
+                    " checkpoints="+checkpoints.Length+" peak="+highest+" floorError="+maxError);
+                return new {raySamples=cells,patrolSamples=pathSamples,checkpoints=checkpoints.Length,peak=highest,floorError=maxError,
+                    manorArea=FrontierMap.ManorArea,frontierArea=FrontierMap.FrontierArea};
+            }
         }
 
         static object CheckPlotFits()

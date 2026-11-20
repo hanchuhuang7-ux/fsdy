@@ -22,7 +22,8 @@ namespace Frontline.Editor
             foreach(var name in new[]{"hoe","sickle","bucket","basket","crate","jug"})
                 Save("carry_"+name,lod,HandProp(name,lod));
             BakeEstateArt(lod);
-            SaveUpgrades("manor_hall",lod);
+            Save("manor_hall_wing",lod,Castle(2,lod));
+            Save("manor_hall_tower",lod,Castle(3,lod));
             foreach(var kind in Manor.Buildings)SaveUpgrades(kind,lod);
         }
 
@@ -468,12 +469,12 @@ namespace Frontline.Editor
                 case "timber_camp":
                     for(int i=0;i<3;i++)g.Box(left+V(0,.16f+i*.24f,0),V(1.06f,.22f,1.04f-i*.14f),WoodLight);break;
                 default:
-                    Canopy(g,left,1.12f,kind=="manor_hall"?Slate:Straw);
-                    g.Box(left+V(0,.23f,0),V(.67f,.46f,.63f),kind=="manor_hall"?Stonework:StrawLight);break;
+                    Canopy(g,left,1.12f,Straw);
+                    g.Box(left+V(0,.23f,0),V(.67f,.46f,.63f),StrawLight);break;
             }
             var wing=new Geometry();
             wing.Append(g,Matrix4x4.identity);
-            wing.FitFootprint(ManorPlotArt.HalfWidth(kind=="manor_hall"),ManorPlotArt.HalfDepth(kind=="manor_hall"));
+            wing.FitFootprint(ManorPlotArt.HalfWidth(false),ManorPlotArt.HalfDepth(false));
             Save(kind+"_wing",lod,wing);
             // A third-tier annex includes its second-tier wing in the same mesh and submission.
             switch(kind)
@@ -481,9 +482,6 @@ namespace Frontline.Editor
                 case "granary": GranaryLoft(g,right,lod);break;
                 case "chapel": ChapelBelfry(g,right,lod);break;
                 case Manor.Bakery:case Manor.Weaver:CraftAnnex(g,kind,right,lod,true);break;
-                case "manor_hall":
-                    Rack(g,right,3.22f);g.Cone(right+Vector3.up*3.22f,.78f,.71f,Gold,4);
-                    Lantern(g,right+Vector3.up*2.87f,lod);break;
                 case "cottage":
                     g.Box(V(.90f,1.02f,.20f),V(1.15f,1.71f,1.02f),Plaster);
                     Gable(g,V(.90f,1.91f,.20f),1.43f,1.36f,.74f,Tile,Plaster,lod);
@@ -516,7 +514,7 @@ namespace Frontline.Editor
                     g.Frustum(right,V(.91f,0,.91f),right+Vector3.up*1.83f,V(.84f,0,.84f),Plaster,n);
                     g.Cone(right+Vector3.up*1.83f,.68f,.73f,StrawLight,n);break;
             }
-            g.FitFootprint(ManorPlotArt.HalfWidth(kind=="manor_hall"),ManorPlotArt.HalfDepth(kind=="manor_hall"));
+            g.FitFootprint(ManorPlotArt.HalfWidth(false),ManorPlotArt.HalfDepth(false));
             Save(kind+"_tower",lod,g);
         }
         static void Rack(Geometry g,Vector3 foot,float height)

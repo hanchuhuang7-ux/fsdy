@@ -49,6 +49,7 @@ namespace Frontline.Editor
                     Save("crest_"+type,lod,ArmamentCrest(type,lod));
                 }
             }
+            BakeCoast();
             AssetDatabase.SaveAssets();File.WriteAllText("Assets/Frontline/Models/model-manifest.json",JsonUtility.ToJson(new Manifest{generator="Frontline.Editor.ModelBaker",version=PlayerSettings.bundleVersion,vertexColor="rgb=albedo; alpha=faction multiply weight",resources=Written.ToArray()},true));AssetDatabase.Refresh();Debug.Log("FRONTLINE_MODELS_OK "+Written.Count+" prebaked meshes, two LODs, vertex colours and flat normals");
         }
         [Serializable] sealed class Manifest{public string generator,version,vertexColor;public string[] resources;}
@@ -311,10 +312,10 @@ namespace Frontline.Editor
 
         static Geometry ManorBuilding(string kind,int lod,CropAppearance state=CropAppearance.Regular)
         {
+            if(kind=="manor_hall")return Castle(1,lod);
             var g=new Geometry();
             switch(kind)
             {
-                case "manor_hall": ManorHall(g,lod); break;
                 case "cottage": Cottages(g,lod); break;
                 case "farm": Farm(g,lod,state); break;
                 case "irrigated_field": IrrigatedField(g,lod,state); break;
@@ -332,7 +333,7 @@ namespace Frontline.Editor
                 default: throw new ArgumentException("Unknown manor building "+kind);
             }
             YardDetail(g,kind,lod);
-            g.FitFootprint(ManorPlotArt.HalfWidth(kind=="manor_hall"),ManorPlotArt.HalfDepth(kind=="manor_hall"));
+            g.FitFootprint(ManorPlotArt.HalfWidth(false),ManorPlotArt.HalfDepth(false));
             return g;
         }
 
@@ -423,36 +424,6 @@ namespace Frontline.Editor
             g.Triangle(upper+V(span*.70f,-.045f,.10f),upper+V(span,-.11f,.04f),lower+V(span*.70f,.05f,.10f),field);
             g.Triangle(lower+V(span*.70f,.05f,.10f),upper+V(span,-.11f,.04f),upper+V(span*.70f,-.045f,.10f),field);
             if(lod==0)g.Cone(top,.07f,.14f,Gold,6);
-        }
-
-        static void ManorHall(Geometry g,int lod)
-        {
-            House(g,-.28f,0,2.87f,2f,1.51f,.88f,Tile,lod);
-            Door(g,-.27f,-1f,1.02f,.55f);
-            Window(g,-1.28f,.88f,-1f,lod);Window(g,.66f,.88f,-1f,lod);
-            // Projecting front porch and the square watchtower distinguish the hall at both distances.
-            foreach(float x in new[]{-.83f,.29f})
-                g.Box(V(x,.61f,-1.43f),V(.13f,1.22f,.13f),Wood);
-            Gable(g,V(-.27f,1.22f,-1.23f),1.38f,.78f,.30f,Slate,Plaster,lod);
-            Vector3 tower=V(1.22f,0,.24f);
-            g.Bevel(tower+Vector3.up*1.13f,V(1.19f,2.26f,1.22f),.06f,Stonework);
-            g.Box(tower+Vector3.up*2.16f,V(1.26f,.16f,1.29f),Plaster);
-            foreach(int side in new[]{-1,1})
-            {
-                g.Bevel(tower+V(.43f*side,2.31f,-.54f),V(.23f,.23f,.24f),.025f,Stonework);
-                g.Bevel(tower+V(.43f*side,2.31f,.54f),V(.23f,.23f,.24f),.025f,Stonework);
-            }
-            g.Box(tower+V(0,1.72f,-.62f),V(.21f,.39f,.04f),Dark);
-            var cap=new Geometry();
-            cap.Cone(Vector3.zero,1.06f,.77f,Slate,4);
-            g.Append(cap,Matrix4x4.TRS(tower+Vector3.up*2.23f,Quaternion.Euler(0,45,0),Vector3.one));
-            Pennant(g,tower+Vector3.up*2.95f,.80f,.68f,Ochre,lod);
-            if(lod==0)
-            {
-                Chimney(g,-1.31f,.31f,2.57f,.28f);
-                g.Cylinder(V(-1.62f,.40f,-1.065f),V(-.83f,1.38f,-1.065f),.044f,Wood,4);
-                g.Box(tower+V(.61f,1.73f,.03f),V(.04f,.41f,.20f),Dark);
-            }
         }
 
         static void Cottages(Geometry g,int lod)
@@ -705,6 +676,12 @@ namespace Frontline.Editor
         {
             readonly List<Vector3> vertices=new List<Vector3>(),normals=new List<Vector3>();readonly List<Color> colors=new List<Color>();readonly List<int> indices=new List<int>();
             public void Triangle(Vector3 a,Vector3 b,Vector3 c,Color color){Vector3 cross=Vector3.Cross(b-a,c-a);if(cross.sqrMagnitude<1e-14f)return;Vector3 normal=cross.normalized;int i=vertices.Count;vertices.Add(a);vertices.Add(b);vertices.Add(c);normals.Add(normal);normals.Add(normal);normals.Add(normal);colors.Add(color);colors.Add(color);colors.Add(color);indices.Add(i);indices.Add(i+1);indices.Add(i+2);}
+            public void Gradient(Vector3 a,Vector3 b,Vector3 c,Color first,Color second,Color third)
+            {
+                int end=colors.Count;
+                Triangle(a,b,c,first);
+                if(colors.Count!=end){colors[end+1]=second;colors[end+2]=third;}
+            }
             public void Quad(Vector3 a,Vector3 b,Vector3 c,Vector3 d,Color color,bool doubleSided=false){Triangle(a,b,c,color);Triangle(a,c,d,color);if(doubleSided){Triangle(c,b,a,color);Triangle(d,c,a,color);}}
             public void Box(Vector3 center,Vector3 size,Color color)
             {

@@ -56,7 +56,7 @@ namespace Frontline.UnityGame
         public int CorpseCount {get{return remains.Count;}}public int StepIndex {get;private set;}public int FilteredGroundContacts,FilteredFriendlyContacts,RecordedChargeContacts,RecordedWallImpacts;
         readonly List<WallImpact> wallImpacts=new List<WallImpact>(24);readonly Dictionary<Collider,UnityBody> collisionBodies=new Dictionary<Collider,UnityBody>();
         public bool MeasurePhysics;public long PhysicsTicks;public string SceneName {get{return scene.name;}}
-        const int GroundLayer=8,UnitLayer=9,ShotLayer=10,PropLayer=11,CorpseLayer=12;
+        const int GroundLayer=8,UnitLayer=9,ShotLayer=10,PropLayer=11,CorpseLayer=12,FrontierRimLayer=13,FrontierFloorLayer=14;
         readonly List<UnityBody> banners=new List<UnityBody>();readonly Scene scene;readonly PhysicsScene physics;readonly GameObject root;readonly Catalog data;readonly Deployment config;
         readonly MapDef map;
         readonly bool refined;
@@ -72,17 +72,38 @@ namespace Frontline.UnityGame
             if(!initialized){Physics.reuseCollisionCallbacks=true;Physics.gravity=new Vector3(0,-18,0);Physics.defaultSolverIterations=6;Physics.defaultSolverVelocityIterations=1;Physics.IgnoreLayerCollision(CorpseLayer,UnitLayer);Physics.IgnoreLayerCollision(CorpseLayer,ShotLayer);Physics.IgnoreLayerCollision(CorpseLayer,CorpseLayer);Physics.IgnoreLayerCollision(ShotLayer,ShotLayer);initialized=true;}
             scene=SceneManager.CreateScene("FrontlinePhysics-"+(++sequence),new CreateSceneParameters(LocalPhysicsMode.Physics3D));physics=scene.GetPhysicsScene();root=new GameObject("Battle physics");SceneManager.MoveGameObjectToScene(root,scene);
             ice=new PhysicsMaterial("Highland ice"){dynamicFriction=.015f,staticFriction=.02f,frictionCombine=PhysicsMaterialCombine.Minimum};rolling=new PhysicsMaterial("Horse and wheel rolling contact"){dynamicFriction=.06f,staticFriction=.08f,frictionCombine=PhysicsMaterialCombine.Minimum};slippery=new PhysicsMaterial("Soldier friction"){dynamicFriction=.2f,staticFriction=.2f};rough=new PhysicsMaterial("Ground friction"){dynamicFriction=.8f,staticFriction=.8f};bouncy=new PhysicsMaterial("Bomb bounce"){dynamicFriction=.35f,staticFriction=.35f,bounciness=.35f};
-            foreach(var p in map.platforms){var go=Make("Platform",new V3(p.x,p.y,p.z),GroundLayer);go.transform.rotation=Quaternion.Euler(0,0,p.angle*Mathf.Rad2Deg);Box(go,new Vector3(p.hx*2,p.hy*2,p.hz*2),config.map=="highland"&&p.y>.95f&&p.angle==0?ice:rough);}
-            foreach(var p in map.rocks){var go=Make("Rock",new V3(p.x,p.r*.2f,p.z),GroundLayer);go.transform.localScale=Vector3.one*p.r*2;go.transform.rotation=Quaternion.Euler(0,CombatMotion.RockYaw(p.x,p.z),0);var col=go.AddComponent<MeshCollider>();col.sharedMesh=Resources.Load<Mesh>("Models/rock_lod1");col.convex=true;col.sharedMaterial=rough;TrackObstacle(go);}
+            foreach(var p in map.platforms){var go=Make("Platform",new V3(p.x,p.y,p.z),config.map==FrontierMap.Id?FrontierFloorLayer:GroundLayer);go.transform.rotation=Quaternion.Euler(0,0,p.angle*Mathf.Rad2Deg);Box(go,new Vector3(p.hx*2,p.hy*2,p.hz*2),config.map=="highland"&&p.y>.95f&&p.angle==0?ice:rough);}
+            foreach(var p in map.rocks){var go=Make("Rock",new V3(p.x,p.r*.2f+(config.map==FrontierMap.Id?FrontierMap.SurfaceHeight(p.x,p.z):0),p.z),GroundLayer);go.transform.localScale=Vector3.one*p.r*2;go.transform.rotation=Quaternion.Euler(0,CombatMotion.RockYaw(p.x,p.z),0);var col=go.AddComponent<MeshCollider>();col.sharedMesh=Resources.Load<Mesh>("Models/rock_lod1");col.convex=true;col.sharedMaterial=rough;TrackObstacle(go);}
             foreach(var p in map.walls){var go=Make("Wall",new V3(p.x,p.hy,p.z),GroundLayer);Box(go,new Vector3(p.hx*2,p.hy*2,p.hz*2),rough);TrackObstacle(go);}
             if(config.map==FrontierMap.Id)
             {
+                var terrain=Resources.Load<FrontierTerrainAsset>(FrontierTerrainAsset.Resource);
+                CoastCollider("Manor ground",terrain.manorFloor,FrontierFloorLayer);
+                CoastCollider("Frontier ground",terrain.frontierFloor,FrontierFloorLayer);
+                // The inward-facing cliffs support pushed infantry without arresting projectiles.
+                Physics.IgnoreLayerCollision(ShotLayer,FrontierRimLayer);
+                CoastCollider("Shore boundary",terrain.shoreBarrier,FrontierRimLayer);
+                var keep=FrontierMap.CastleFootprint;
+                Box(Make("Manor castle",new V3(keep.x,keep.hy,keep.z),GroundLayer),
+                    new Vector3(keep.hx*2,keep.hy*2,keep.hz*2),rough);
                 var gate=Make("Frontier safety boundary",new V3(FrontierMap.Boundary+.08f,5.5f,0),GroundLayer);
                 frontierFence=Box(gate,new Vector3(.16f,13,FrontierMap.BridgeHalfWidth*2+1),rough);
             }
             int capacity=0;foreach(var army in new[]{config.red,config.blue})foreach(var u in army){var d=data.Unit(u.type);if(d.ranged)capacity+=(int)Math.Ceiling(6f*1.15f/d.cooldown)+2;}capacity=Math.Min(1024,capacity);activeShots.Capacity=capacity;
             for(int i=0;i<capacity;i++)projectilePool.Push(CreateProjectile());
             for(int i=0;i<24;i++)corpsePool.Push(CreateRemains());
+        }
+        void CoastCollider(string name,Mesh mesh,int layer)
+        {
+            var collider=Make(name,new V3(),layer).AddComponent<MeshCollider>();
+            collider.sharedMesh=mesh;
+            collider.sharedMaterial=rough;
+        }
+        internal bool SampleFrontierFloor(float x,float z,out float height)
+        {
+            bool hit=physics.Raycast(new Vector3(x,FrontierMap.TerrainCeiling+.2f,z),Vector3.down,out var contact,FrontierMap.TerrainCeiling+.35f,1<<FrontierFloorLayer);
+            height=contact.point.y;
+            return hit;
         }
         void TrackObstacle(GameObject go){var relay=go.AddComponent<ObstacleContacts>();relay.world=this;}
         GameObject Make(string name,V3 p,int layer){var go=new GameObject(name);go.layer=layer;go.transform.SetParent(root.transform,false);go.transform.position=Vector(p);return go;}
@@ -175,7 +196,7 @@ namespace Frontline.UnityGame
         public void UnitContact(UnityBody body,Collision collision)
         {
             if(!body.fast)return;var collider=collision.collider;int layer=collider.gameObject.layer;
-            if(layer==GroundLayer){FilteredGroundContacts++;return;}
+            if(layer==GroundLayer||layer==FrontierFloorLayer||layer==FrontierRimLayer){FilteredGroundContacts++;return;}
             if(layer!=UnitLayer)return;
             if(!collisionBodies.TryGetValue(collider,out var other)||other.team==body.team){FilteredFriendlyContacts++;return;}
             Contact(body.Id,other.Id);RecordedChargeContacts++;

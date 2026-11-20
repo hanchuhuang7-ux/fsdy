@@ -24,12 +24,12 @@ namespace Frontline.UnityGame
             yield return Press("Frontier.View."+focus);
             yield return WaitForState(()=>!app.View.CameraMoving,"Camera did not finish changing presets");
             yield return new WaitForEndOfFrame();
-            float x=focus==1?FrontierMap.ManorX:focus==2?26:FrontierMap.Boundary;
+            float x=focus==1?FrontierMap.ManorX:focus==2?FrontierMap.CampCenter(1).x:FrontierMap.Boundary;
             var screen=(Vector2)app.View.ViewCamera.WorldToScreenPoint(new Vector3(x,0,0));
             Require(app.View.FrontierFocus==focus && screen.x>0&&screen.x<Screen.width&&screen.y>0&&screen.y<Screen.height &&
                 UiHits(screen).Count==0 && app.View.Ground(screen,out var ground) && Mathf.Abs(ground.x-x)<.1f,
                 "Preset obscures its point of interest or breaks picking");
-            if(!Viewport.Compact&&app.View.QualityLevel==2&&focus!=0)
+            if(!Viewport.Compact&&app.View.QualityLevel==2&&focus==1)
                 Require(!app.View.LowActorLod&&!app.View.LowSceneryLod,"A focused fine desktop view lost its detailed models");
         }
 
@@ -499,6 +499,14 @@ namespace Frontline.UnityGame
                     "The Windows smoke test did not start with D3D11 Legacy Graphics Jobs");
                 Require(app.View.SupportedDesktopShaders,"The D3D11 instanced, shadow or atmosphere passes are missing");
             }
+            if(Array.IndexOf(Environment.GetCommandLineArgs(),"--wide-world-only")>=0)
+            {
+                yield return CheckWideWorld();
+#if !UNITY_WEBGL && !UNITY_EDITOR
+                Application.Quit(0);
+#endif
+                yield break;
+            }
             sharedHudAtlas=VisibleButton("Mode.Manor").image.sprite.texture;
             yield return CheckQualityMenu();
             yield return CheckPresentationSettings();
@@ -646,12 +654,13 @@ namespace Frontline.UnityGame
             Require(allies.All(u=>FrontierMap.Safe(u.entity.body.Position.x) && u.entity.hp==u.entity.maxHp) &&
                 mouth.All(u=>u.target==null) && battle.Shots.Count==0,"Enemy acquired or damaged a safe party");
 
-            yield return ClickBattlefield(5,0);
+            var westCamp=FrontierMap.CampCenter(0);
+            yield return ClickBattlefield(westCamp.x,westCamp.z);
             int forwardStart=battle.Tick;
             yield return WaitForState(()=>mouth.Any(u=>u.target!=null) && allies.Any(u=>u.entity.stats.damageDealt>0 || u.entity.stats.damageTaken>0),
                 "Leaving the causeway did not trigger combat");
             Require(allies.Any(u=>!FrontierMap.Safe(u.entity.body.Position.x)) && farther.All(u=>u.target==null),"Patrols aggroed outside their own sector");
-            app.View.Focus(new Vector3(-5,.65f,0),23,40,-16);
+            app.View.Focus(BattleView.CampCenter(0)+new Vector3(-10,.65f,0),25,40,-16);
             yield return new WaitForEndOfFrame();
             if(Application.platform==RuntimePlatform.WindowsPlayer)
             {

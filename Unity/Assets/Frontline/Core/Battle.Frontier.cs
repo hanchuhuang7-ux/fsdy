@@ -13,6 +13,18 @@ namespace Frontline.Core
             public readonly V3[] goals=new V3[FrontierMap.MaxParty];
             public readonly int[] patrolTicks=new int[FrontierMap.Guards.Count/FrontierMap.GroupSize];
             public readonly V3[] offsets=new V3[FrontierMap.Guards.Count/FrontierMap.GroupSize];
+            public readonly Wall[] reefs;
+            public readonly Wall castle=FrontierMap.CastleFootprint;
+            public MarchState(MapDef map)
+            {
+                reefs=new Wall[map.rocks.Count];
+                for(int i=0;i<reefs.Length;i++)
+                {
+                    var rock=map.rocks[i];
+                    float radius=rock.r+.18f;
+                    reefs[i]=new Wall{x=rock.x,z=rock.z,hx=radius+.03f,hz=radius};
+                }
+            }
         }
         readonly MarchState march;
         bool exposedParty;
@@ -20,8 +32,11 @@ namespace Frontline.Core
         public bool MarchFrontier(float x,float z)
         {
             if(!IsFrontier || Result!=null || !FrontierMap.HasGround(x,z)) return false;
+            if(Math.Abs(x-FrontierMap.ManorX)<=FrontierMap.CastleHalfWidth&&Math.Abs(z)<=FrontierMap.CastleHalfDepth)return false;
             foreach(var wall in map.walls)
                 if(Math.Abs(x-wall.x)<=wall.hx && Math.Abs(z-wall.z)<=wall.hz)return false;
+            foreach(var rock in map.rocks)
+                if(Catalog.Distance(x,z,rock.x,rock.z)<=rock.r)return false;
             MarchDestination=new V3(x,0,z);
             int count=0;
             float sumX=0;
@@ -84,7 +99,7 @@ namespace Frontline.Core
             var to=foe.entity.position;
             if(FrontierMap.Safe(from.x)||FrontierMap.Safe(to.x)) return false;
             if(own.isRed)
-                return MarchDestination.HasValue && !FrontierMap.Safe(MarchDestination.Value.x) && Within(from,to,18);
+                return MarchDestination.HasValue && !FrontierMap.Safe(MarchDestination.Value.x) && Within(from,to,FrontierMap.AlertRadius+3);
             return FrontierMap.EnemyAlert(GuardFor(own),from,to,own.target==foe);
         }
 
@@ -126,7 +141,9 @@ namespace Frontline.Core
             {
                 int index=entity.id-1;
                 goal=FrontierMap.Waypoint(p,march.goals[index],march.lanes[index]);
+                if(p.x<FrontierMap.BridgeStart)goal=FrontierMap.AroundFence(p,goal,march.castle);
                 foreach(var wall in map.walls)goal=FrontierMap.AroundFence(p,goal,wall);
+                foreach(var rock in march.reefs)goal=FrontierMap.AroundFence(p,goal,rock);
             }
             var delta=goal-p;
             delta.y=0;
@@ -145,7 +162,8 @@ namespace Frontline.Core
             bool fast=(u.isCavalry&&u.moveSpeed>3.6f)||u.moveSpeed>8||Math.Abs(velocity.y)>6;
             if(u.isCavalry||u.isCatapult||fast!=u.collisionFast){u.combatBody?.Facing(u.angle,fast);u.collisionFast=fast;}
             if(!Catalog.Finite(u.floor)||p.y>=u.floor+d.scale*1.12f) return;
-            float pace=Math.Min(d.speed*(u.isRed?1:.75f)*(inspired?1.12f:1),Math.Max(0,(distance-.10f)*4));
+            float travel=u.isRed&&!FrontierMap.NearBridge(p.x)&&distance>4?FrontierMap.PeaceMarchMultiplier:1;
+            float pace=Math.Min(d.speed*(u.isRed?travel:.75f)*(inspired?1.12f:1),Math.Max(0,(distance-.10f)*4));
             var move=delta*(pace/Math.Max(.01f,distance));
             if(pace>0 && !FrontierMap.NearBridge(p.x))
                 foreach(var ally in Nearby(p,2))

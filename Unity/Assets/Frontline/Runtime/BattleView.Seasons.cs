@@ -118,6 +118,11 @@ namespace Frontline.UnityGame
                 float sway=rain?flight*height*.30f:Mathf.Sin(time*.94f+i*2.12f)*(leaves?.68f:.26f)+flight*(leaves?1.23f:.55f);
                 var position=new Vector3(xCenter+width*(2*Mathf.Repeat(.19f+i*.618f,1)-1)+sway,
                     .22f+height*(1-flight),zCenter+depth*(2*Mathf.Repeat(.35f+i*.377f,1)-1));
+                if(xCenter>=FrontierMap.Boundary&&distance<80)
+                {
+                    float floor=FrontierMap.SurfaceHeight(position.x,position.z);
+                    if(Catalog.Finite(floor))position.y+=floor;
+                }
                 float size=(.70f+.53f*Mathf.Repeat(i*.481f,1))*visibilityScale*
                     Mathf.Min(1,Mathf.Min(flight*10,(1-flight)*10));
                 var rotation=rain?RainSlant:leaves?Quaternion.Euler(42+time*57+i*21,i*37+time*33,23+i*5):

@@ -62,6 +62,9 @@ namespace Frontline.UnityGame
                     yield return WaitForState(()=>Screen.width==2560&&Screen.height==1600,"GPU stress resolution did not apply");
                     app.SetMode("sandbox");app.View.SetQuality(2);
                     yield return MeasureArena(120,"120v120-gpu",capture:true);
+                    StagePerformanceEstate();
+                    app.View.FrameFrontier(0);yield return SamplePerformance("overview-gpu");
+                    app.SetManorMode(false);
                     Screen.SetResolution(standardWidth,standardHeight,FullScreenMode.Windowed);
                     yield return WaitForState(()=>Screen.width==standardWidth&&Screen.height==standardHeight,"Window resolution did not restore");
                 }
@@ -104,6 +107,17 @@ namespace Frontline.UnityGame
             int[] sizes={45,60};
 #endif
             foreach(int count in sizes)yield return MeasureArena(count,count+"v"+count);
+            StagePerformanceEstate();
+            app.View.FrameFrontier(0);yield return SamplePerformance("overview");
+            app.View.FrameFrontier(1);yield return SamplePerformance("manor");
+            var camp=FrontierMap.CampCenter(0);
+            app.PrepareFrontier();app.Battle.MarchFrontier(camp.x,camp.z);
+            for(int i=0;i<800;i++)app.Battle.Step();
+            app.View.FrameFrontier(2);yield return SamplePerformance("frontier");
+        }
+
+        void StagePerformanceEstate()
+        {
             app.SetManorMode(true);app.SetManorSpeed(0);
             var estate=new Manor {coin=5000,timber=5000,arms=200,food=500,day=4,cleared=3,raidReady=true};
             estate.Upgrade(0);estate.Upgrade(0);
@@ -123,11 +137,6 @@ namespace Frontline.UnityGame
             estate.Assign(11,1);estate.Assign(14,1);
             foreach(var hero in app.Data.Data.heroes)estate.HireHero(3,hero);
             app.ImportText(estate.Export());
-            app.View.FrameFrontier(0);yield return SamplePerformance("overview");
-            app.View.FrameFrontier(1);yield return SamplePerformance("manor");
-            app.PrepareFrontier();app.Battle.MarchFrontier(5,0);
-            for(int i=0;i<500;i++)app.Battle.Step();
-            app.View.FrameFrontier(2);yield return SamplePerformance("frontier");
         }
 
         IEnumerator MeasureArena(int count,string scene,bool capture=false)
@@ -262,7 +271,10 @@ namespace Frontline.UnityGame
                     submittedMainVertices=Median(mainVertices),culledStaticInstances=Median(culledStaticInstances),drawCalls=Median(draws),
                     gcBytes=Median(bytes),meanGcBytes=total/count,unityDrawCounter=draw.Valid&&draw.Count>0,unityGcCounter=gc.Valid&&gc.Count>0,
                     threadAllocationCounter=AllocationMeter.Available,submittedCasterVertices=Median(casters),shadowDistance=QualitySettings.shadowDistance,
-                    staticRebuilds=app.View.StaticRebuilds-staticRebuilds,projectilePoolMisses=world?.ProjectilePoolMisses??0,
+                    staticRebuilds=app.View.StaticRebuilds-staticRebuilds,
+                    terrainChunks=app.View.ViewingFrontier?app.View.TerrainChunkCount:0,
+                    visibleTerrainChunks=app.View.ViewingFrontier?app.View.TerrainChunksDrawn:0,
+                    projectilePoolMisses=world?.ProjectilePoolMisses??0,
                     corpsePoolMisses=world?.CorpsePoolMisses??0});
             }
         }

@@ -341,8 +341,9 @@ static partial class ManorChecks
                 Expect(guard.entity.body.Position.x==FrontierMap.EnemyStop && guard.target==null,"safe gate");
                 b.Hit(ally,60,guard.entity,10);
                 Expect(ally.entity.hp==ally.entity.maxHp,"combat crossed safe gate");
-                ReferenceWorld.Position(ally.entity.body,FrontierMap.Boundary+.4f,0);
-                ReferenceWorld.Position(archer.entity.body,2,0);
+                ReferenceWorld.Position(ally.entity.body,1,0);
+                ReferenceWorld.Position(guard.entity.body,9,0);
+                ReferenceWorld.Position(archer.entity.body,8,0);
                 b.MarchFrontier(20,0);
                 for(int i=0;i<60 && b.Shots.Count==0;i++)b.Step();
                 Expect(guard.target==ally && b.Units[6].target==null && b.Units[11].target==null,"wrong patrol aggro");
@@ -377,9 +378,10 @@ static partial class ManorChecks
             using(var b=new Battle(data,s.config,new ReferenceFactory { freezeUnits=true },true))
             {
                 var ally=b.Units[0];var guard=b.Units[1];
-                ReferenceWorld.Position(ally.entity.body,FrontierMap.Boundary+1,0);
-                ReferenceWorld.Position(guard.entity.body,FrontierMap.EnemyStop,1);
-                b.MarchFrontier(5,0);b.Step();
+                var camp=FrontierMap.CampCenter(0);
+                ReferenceWorld.Position(ally.entity.body,camp.x-4,camp.z);
+                ReferenceWorld.Position(guard.entity.body,camp.x,camp.z);
+                b.MarchFrontier(camp.x,camp.z);b.Step();
                 Expect(guard.target==ally,"guard never acquired the exposed party");
                 b.Hit(guard,10000,ally.entity,0);
                 b.MarchFrontier(FrontierMap.Rally.x,0);b.Step();

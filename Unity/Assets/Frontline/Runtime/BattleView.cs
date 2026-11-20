@@ -40,7 +40,7 @@ namespace Frontline.UnityGame
         {
             public Mesh high,low;
             public int highVertices,lowVertices;
-            public Batch moving,still,grid,ambient;
+            public Batch moving,still,grid,ambient,outer;
             MeshSet shadowless;
             public bool atmosphere,castShadow=true,receiveShadow=true,nearDetail,detailProxy;
             public Bounds localBounds;
@@ -227,8 +227,14 @@ namespace Frontline.UnityGame
             System.Array.IndexOf(Manor.Buildings,name)>=0||name.EndsWith("_wing",StringComparison.Ordinal)||name.EndsWith("_tower",StringComparison.Ordinal);
         Batch Buffer(MeshSet mesh,List<Batch> list,int category)
         {
-            var b=category==0?mesh.moving:category==1?mesh.still:mesh.grid;
-            if(b==null){b=new Batch{mesh=mesh,fixedPage=category!=0};if(category==0)mesh.moving=b;else if(category==1)mesh.still=b;else mesh.grid=b;list.Add(b);}return b;
+            var b=category==0?mesh.moving:category==1?mesh.still:category==2?mesh.grid:mesh.outer;
+            if(b==null)
+            {
+                b=new Batch{mesh=mesh,fixedPage=category!=0};
+                if(category==0)mesh.moving=b;else if(category==1)mesh.still=b;else if(category==2)mesh.grid=b;else mesh.outer=b;
+                list.Add(b);
+            }
+            return b;
         }
         void Add(MeshSet mesh,Matrix4x4 matrix,Color color,float wind=0)
         {
@@ -381,7 +387,7 @@ namespace Frontline.UnityGame
             }
             return guard>=0?guardMaxHp[guard]:manorMaxHp[id-1];
         }
-        public void Focus(Vector3 point,float zoom=19,float viewPitch=43,float viewYaw=0){cameraBlending=false;target=point;distance=zoom;pitch=viewPitch;yaw=viewYaw;if(manor!=null)UpdateShadowDistance();else autoArenaDistance=false;}
+        public void Focus(Vector3 point,float zoom=19,float viewPitch=43,float viewYaw=0){cameraBlending=false;zoomTarget=0;target=point;distance=zoom;pitch=viewPitch;yaw=viewYaw;if(manor!=null)UpdateShadowDistance();else autoArenaDistance=false;}
         // The baked dot is 0.02m tall; Y scales below convert stroke lengths to world metres.
         void Impact(EffectFrame e)
         {
@@ -469,6 +475,7 @@ namespace Frontline.UnityGame
             if(cameraWidth!=Screen.width||cameraHeight!=Screen.height){cameraWidth=Screen.width;cameraHeight=Screen.height;if(manor==null){ViewCamera.fieldOfView=Viewport.Compact?65:42;sidebarWeight=HasDesktopDeck?1:0;}else FrameManor();}
             if(manor==null&&CameraMode==2&&Current!=null){UnitFrame best=null;float bestCost=0;foreach(var u in Current.units)if(u.alive){float cost=Model(u.type).definition.cost;if(best==null||cost>bestCost){best=u;bestCost=cost;}}if(best?.t!=null)target=Vector3.Lerp(target,new Vector3(best.t[0],1,best.t[2]),.1f);}
             AdvanceCameraBlend();
+            AdvanceFrontierZoom();
             if(seasonLightBlending)AdvanceSeasonLight();
             if(manor==null)
             {
@@ -534,19 +541,32 @@ namespace Frontline.UnityGame
             DrawPointer(Gold);foreach(var b in moving)Draw(b,false);
         }
         public void Orbit(Vector2 delta){cameraBlending=false;CameraMode=0;yaw+=delta.x*.22f;pitch=Mathf.Clamp(pitch-delta.y*.15f,25,84);}
-        public void Zoom(float amount){cameraBlending=false;distance=Mathf.Clamp(distance*Mathf.Exp(-amount*.095f),manor==null?12:6,manor==null?90:270);if(manor!=null)UpdateShadowDistance();else autoArenaDistance=false;}
+        public void Zoom(float amount)
+        {
+            cameraBlending=false;
+            if(manor!=null)
+            {
+                float origin=zoomTarget>0?zoomTarget:distance;
+                zoomTarget=Mathf.Clamp(origin*Mathf.Exp(-amount*.118f),5.8f,MaxFrontierDistance);
+                return;
+            }
+            distance=Mathf.Clamp(distance*Mathf.Exp(-amount*.095f),12,90);
+            autoArenaDistance=false;
+        }
         public void ResetCamera(){if(manor!=null){FrameFrontier(0);return;}target=Vector3.zero;yaw=0;pitch=51;ViewCamera.fieldOfView=Viewport.Compact?65:42;autoArenaDistance=true;sidebarWeight=HasDesktopDeck?1:0;distance=ArenaDistance(sidebarWeight);CameraMode=0;}
         public bool Ground(Vector2 screen,out Vector3 p)
         {
             var ray=ViewCamera.ScreenPointToRay(screen);p=Vector3.zero;
-            if(manor!=null)
-            {
-                if(!ManorGround.Raycast(ray,out float t))return false;
-                p=ray.GetPoint(t);return FrontierMap.HasGround(p.x,p.z);
-            }
+            if(manor!=null)return PickFrontierGround(ray,out p);
             float nearest=float.PositiveInfinity;foreach(var platform in Data.Maps[Config.map].platforms){var normal=Quaternion.Euler(0,0,platform.angle*Mathf.Rad2Deg)*Vector3.up;var plane=new Plane(normal,new Vector3(platform.x,platform.y,platform.z)+normal*platform.hy);if(plane.Raycast(ray,out float hitDistance)&&hitDistance<nearest){var hit=ray.GetPoint(hitDistance);float h=Data.Height(Config.map,hit.x,hit.z);if(Catalog.Finite(h)&&Mathf.Abs(h-hit.y)<.1f){nearest=hitDistance;p=hit;}}}return nearest<float.PositiveInfinity;
         }
-        void OnDestroy(){DisposeSoldierPoses();if(RenderSettings.skybox==sky)RenderSettings.skybox=null;if(material)Destroy(material);if(atmosphere)Destroy(atmosphere);if(groundingMaterial)Destroy(groundingMaterial);if(sky)Destroy(sky);}
+        internal void StopPresentation()
+        {
+            enabled=false;
+            if(ViewCamera)ViewCamera.enabled=false;
+            DisposeSoldierPoses();
+        }
+        void OnDestroy(){StopPresentation();if(RenderSettings.skybox==sky)RenderSettings.skybox=null;if(material)Destroy(material);if(atmosphere)Destroy(atmosphere);if(groundingMaterial)Destroy(groundingMaterial);if(sky)Destroy(sky);}
     }
 }
 

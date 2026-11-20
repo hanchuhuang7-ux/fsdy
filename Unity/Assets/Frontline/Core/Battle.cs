@@ -78,7 +78,7 @@ namespace Frontline.Core
             int unitCapacity=Math.Max(2*Catalog.MaxUnits,Config.red.Count+Config.blue.Count);
             occupied=new int[unitCapacity];nextInCell=new int[unitCapacity+1];
             IsFrontier=Config.map==FrontierMap.Id;Random=new Seeded(Config.seed);World=factory.Create(catalog,Config);legacyMath=World is ILegacyCompatibilityWorld;map=Data.Map(Config.map);var platforms=map.platforms;groundSamples=new GroundSample[platforms.Count];for(int i=0;i<platforms.Count;i++){var p=platforms[i];float cos=(float)Math.Cos(p.angle);groundSamples[i]=new GroundSample{x=p.x,z=p.z,hz=p.hz,extent=p.hx*cos+p.hy*Math.Abs((float)Math.Sin(p.angle)),top=p.y+p.hy/cos,slope=(float)Math.Tan(p.angle)};}
-            if(IsFrontier)march=new MarchState();
+            if(IsFrontier)march=new MarchState(map);
 #if !UNITY_WEBGL
             if(!IsFrontier&&!legacyMath&&!legacyManorMotion)
                 TargetScanWorkers=Math.Max(1,Math.Min(Math.Min(TargetWorkerCap,Environment.ProcessorCount),targetScanWorkers));

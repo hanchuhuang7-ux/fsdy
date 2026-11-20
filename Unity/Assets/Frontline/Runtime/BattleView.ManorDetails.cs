@@ -22,18 +22,18 @@ namespace Frontline.UnityGame
         }
 
         static readonly CivicDetail[] CivicDetails={
-            new CivicDetail(CivicKind.Bench,-5.82f,1.46f,.73f,.24f),
-            new CivicDetail(CivicKind.Barrel,6.11f,2.01f,.34f,.34f),
-            new CivicDetail(CivicKind.Grain,-7.62f,-17.67f,.43f,.35f),
-            new CivicDetail(CivicKind.Barrel,-3.65f,-18.01f,.34f,.34f),
-            new CivicDetail(CivicKind.Waypost,19.9f,.95f,.29f,.24f),
-            new CivicDetail(CivicKind.Waypost,23.98f,4.73f,.29f,.24f),
-            new CivicDetail(CivicKind.Banner,-2.63f,1.57f,.23f,.24f,1),
-            new CivicDetail(CivicKind.LanternPillar,-6.58f,2.07f,.25f,.25f,2),
-            new CivicDetail(CivicKind.Banner,2.63f,1.57f,.23f,.24f,3),
-            new CivicDetail(CivicKind.LanternPillar,-6.41f,-1.92f,.25f,.25f,3),
-            new CivicDetail(CivicKind.Planter,-.48f,2.09f,.67f,.29f,4),
-            new CivicDetail(CivicKind.Planter,-4.28f,1.83f,.67f,.29f,4),
+            new CivicDetail(CivicKind.Bench,-7.36f,1.30f,.73f,.24f),
+            new CivicDetail(CivicKind.Barrel,7.96f,3.02f,.34f,.34f),
+            new CivicDetail(CivicKind.Grain,-7.68f,-24.7f,.43f,.35f),
+            new CivicDetail(CivicKind.Barrel,-3.61f,-24.5f,.34f,.34f),
+            new CivicDetail(CivicKind.Waypost,31.3f,-1.65f,.29f,.24f),
+            new CivicDetail(CivicKind.Waypost,35.3f,8.10f,.29f,.24f),
+            new CivicDetail(CivicKind.Banner,-6.24f,-3.21f,.23f,.24f,1),
+            new CivicDetail(CivicKind.LanternPillar,-7.95f,2.79f,.25f,.25f,2),
+            new CivicDetail(CivicKind.Banner,6.25f,-3.19f,.23f,.24f,3),
+            new CivicDetail(CivicKind.LanternPillar,-8.02f,-2.72f,.25f,.25f,3),
+            new CivicDetail(CivicKind.Planter,-1.49f,4.31f,.67f,.29f,4),
+            new CivicDetail(CivicKind.Planter,1.49f,4.31f,.67f,.29f,4),
         };
         static readonly Color[] NobleHeraldry={
             new Color(.52f,.55f,.46f),new Color(.57f,.35f,.20f),new Color(.70f,.22f,.16f),
@@ -42,7 +42,7 @@ namespace Frontline.UnityGame
         static readonly Color CutLimestone=new Color(.58f,.57f,.48f), StoneCap=new Color(.76f,.71f,.54f);
         static readonly Color LanternGlass=new Color(1,.64f,.20f);
         static readonly Vector3[] HallLanterns={
-            new Vector3(-1.04f,1.39f,-1.70f),new Vector3(1.04f,1.39f,-1.70f)
+            new Vector3(-1.33f,1.41f,-3.71f),new Vector3(1.33f,1.41f,-3.71f)
         };
         internal int NobleBoundaryCount {get;private set;}
         internal int NobleDetailCount {get;private set;}

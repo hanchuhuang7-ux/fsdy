@@ -15,7 +15,8 @@ namespace Frontline.UnityGame
 
         CameraBookmark blendFrom,blendTo;
         bool cameraBlending;
-        float blendElapsed;
+        const float MaxFrontierDistance=915;
+        float blendElapsed,zoomTarget;
         MeshSet campRings,campFlags,campSentries,campSupplies;
         readonly Bounds[] campFlagPickBounds=new Bounds[Manor.Sectors.Count];
         static readonly Color OutpostRed=new Color(.86f,.22f,.14f);
@@ -27,13 +28,14 @@ namespace Frontline.UnityGame
         internal int ClaimedFlagMask {get;private set;}
         internal int OutpostSentries => campSentries?.still?.count??0;
         internal int OutpostSupplies => campSupplies?.still?.count??0;
-        public bool CameraMoving => cameraBlending;
+        public bool CameraMoving => cameraBlending||zoomTarget>0;
 
         public void FrameFrontier(int focus,bool animate=false)
         {
             if(manor==null)return;
             var previous=Bookmark();
             cameraBlending=false;
+            zoomTarget=0;
             bool changed=FrontierFocus!=focus;
             FrontierFocus=focus;
             bool compact=Viewport.Compact;
@@ -51,18 +53,19 @@ namespace Frontline.UnityGame
             yaw=compact?(focus==0?-72:focus==2?-57:-8):(focus==0?-10:focus==1?-10:-7);
             pitch=compact?58:focus==0?49:46;
             var rotation=Quaternion.Inverse(Quaternion.Euler(pitch,yaw,0));
-            float left=focus==2?FrontierMap.BridgeStart-1:FrontierMap.West-2;
-            float right=focus==1?FrontierMap.BridgeStart+2:FrontierMap.East+2;
-            target=new Vector3(focus==1?FrontierMap.ManorX:(left+right)*.5f,.25f,0);
+            float left=focus==2?FrontierMap.Boundary:FrontierMap.West;
+            float right=focus==1?FrontierMap.BridgeStart:FrontierMap.East;
+            target=new Vector3(focus==1?FrontierMap.ManorX:(left+right)*.5f,focus==1?2.2f:.25f,0);
             distance=20;
             if(focus!=2)
             {
-                FitRegion(left,focus==1?right:FrontierMap.BridgeStart,Manor.PlateauHalfDepth+1.1f,4.4f,rotation,tanX,tanY);
+                FitCoast(FrontierMap.ManorCoast,rotation,tanX,tanY);
+                FitPoint(ManorOrigin+Vector3.up*13,rotation,tanX,tanY);
                 for(int side=-1;side<=1;side+=2)
                     FitPoint(ManorOrigin+DockOrigin+new Vector3(side*1.3f*DockScale.x,0,-4.85f*DockScale.z),rotation,tanX,tanY);
             }
-            if(focus!=1)FitRegion(FrontierMap.Boundary-1,right,FrontierMap.HalfDepth+1,3.1f,rotation,tanX,tanY);
-            distance=Mathf.Clamp(distance,20,270);
+            if(focus!=1)FitCoast(FrontierMap.FrontierCoast,rotation,tanX,tanY);
+            distance=Mathf.Clamp(distance,20,MaxFrontierDistance);
             if(animate)BlendCamera(previous);
             UpdateShadowDistance();
             if(changed)FrontierFocusChanged?.Invoke();
@@ -75,8 +78,8 @@ namespace Frontline.UnityGame
             bool changed=FrontierFocus!=1;
             FrontierFocus=1;
             CameraMode=0;
-            target=ManorOrigin+Plot(index)+Vector3.up*.72f;
-            distance=Viewport.Compact?19.5f:17f;
+            target=ManorOrigin+Plot(index)+Vector3.up*(index==0?3.6f:.72f);
+            distance=index==0?(Viewport.Compact?31f:28f):(Viewport.Compact?19.5f:17f);
             pitch=Viewport.Compact?56:46;
             yaw=-10;
             manorScreenShift=Viewport.Compact?-.055f:.017f;
@@ -91,7 +94,7 @@ namespace Frontline.UnityGame
             bool changed=FrontierFocus!=1;
             FrontierFocus=1;
             CameraMode=0;
-            target=ManorOrigin+new Vector3(0,1.22f,-2.70f);
+            target=ManorOrigin+new Vector3(0,1.22f,-5.50f);
             bool extended=manor.RetinueReady>2;
             distance=Viewport.Compact?(extended?17f:11.3f):(extended?13.2f:9.2f);
             pitch=Viewport.Compact?35:25;
@@ -110,6 +113,7 @@ namespace Frontline.UnityGame
             CameraMode=0;
             pitch=blendFrom.pitch;
             cameraBlending=true;
+            zoomTarget=0;
             blendElapsed=0;
         }
 
@@ -120,19 +124,32 @@ namespace Frontline.UnityGame
             float t=Mathf.SmoothStep(0,1,blendElapsed/.28f);
             target=Vector3.Lerp(blendFrom.focus,blendTo.focus,t);
             pitch=Mathf.Lerp(blendFrom.pitch,blendTo.pitch,t);yaw=Mathf.LerpAngle(blendFrom.yaw,blendTo.yaw,t);
-            distance=Mathf.Lerp(blendFrom.distance,blendTo.distance,t);
+            distance=blendFrom.distance*Mathf.Pow(blendTo.distance/blendFrom.distance,t);
             manorScreenShift=Mathf.Lerp(blendFrom.shift,blendTo.shift,t);
             if(blendElapsed>=.28f)cameraBlending=false;
             UpdateShadowDistance();
         }
 
-        void FitRegion(float left,float right,float halfDepth,float height,Quaternion rotation,float tanX,float tanY)
+        void AdvanceFrontierZoom()
         {
-            for(int i=0;i<2;i++)for(int j=-1;j<=1;j+=2)
+            if(zoomTarget<=0)return;
+            float speed=1-Mathf.Exp(-Time.unscaledDeltaTime*15);
+            distance*=Mathf.Pow(zoomTarget/distance,speed);
+            if(Mathf.Abs(zoomTarget-distance)<.006f*zoomTarget)
             {
-                float x=i==0?left:right;
-                FitPoint(new Vector3(x,-1.3f,halfDepth*j),rotation,tanX,tanY);
-                FitPoint(new Vector3(x,height,halfDepth*j),rotation,tanX,tanY);
+                distance=zoomTarget;
+                zoomTarget=0;
+            }
+            UpdateShadowDistance();
+        }
+
+        void FitCoast(System.Collections.Generic.IReadOnlyList<FrontierMap.ShoreSlice> coast,Quaternion rotation,float tanX,float tanY)
+        {
+            for(int i=0;i<coast.Count;i++)
+            {
+                var bank=coast[i];
+                FitPoint(new Vector3(bank.x,-2.2f,bank.south-3.5f),rotation,tanX,tanY);
+                FitPoint(new Vector3(bank.x,2.8f,bank.north+3.5f),rotation,tanX,tanY);
             }
         }
 
@@ -140,7 +157,8 @@ namespace Frontline.UnityGame
         {
             cameraBlending=false;
             if(CameraMode==2)CameraMode=0;
-            float perPixel=2*distance*Mathf.Tan(ViewCamera.fieldOfView*.5f*Mathf.Deg2Rad)/Mathf.Max(1,Screen.height);
+            float response=ViewingFrontier?Mathf.Lerp(.76f,1.22f,Mathf.InverseLerp(12,240,distance)):1f;
+            float perPixel=response*2*distance*Mathf.Tan(ViewCamera.fieldOfView*.5f*Mathf.Deg2Rad)/Mathf.Max(1,Screen.height);
             float tilt=CameraMode==1?87:pitch;
             var move=Quaternion.Euler(0,yaw,0)*new Vector3(delta.x,0,delta.y/Mathf.Max(.48f,Mathf.Sin(tilt*Mathf.Deg2Rad)))*perPixel;
             target.x=Mathf.Clamp(target.x-move.x,ViewingFrontier?FrontierMap.West-3:-17,ViewingFrontier?FrontierMap.East+3:17);
@@ -148,13 +166,14 @@ namespace Frontline.UnityGame
         }
 
         void FrontierTile(Vector3 point,Vector3 size,Color color) => Still(surveyBlock,point,Quaternion.identity,size,color);
-        void FrontierTrail(float x,float z,float toX,float toZ,float width)
+        void FrontierTrail(Vector3 from,Vector3 to,float width)
         {
-            var span=new Vector3(toX-x,0,toZ-z);
-            var at=new Vector3((x+toX)*.5f,.012f,(z+toZ)*.5f);
+            var span=to-from;
+            var at=(from+to)*.5f;
+            at.y+=.065f;
             var direction=Quaternion.LookRotation(span);
-            Still(surveyBlock,at,direction,new Vector3(width,.021f,span.magnitude+.26f),new Color(.50f,.44f,.29f));
-            Still(surveyBlock,at+Vector3.up*.012f,direction,new Vector3(width*.71f,.013f,span.magnitude+.12f),new Color(.61f,.52f,.34f));
+            Still(surveyBlock,at,direction,new Vector3(width,.061f,span.magnitude+.39f),new Color(.50f,.44f,.29f));
+            Still(surveyBlock,at+Vector3.up*.034f,direction,new Vector3(width*.71f,.020f,span.magnitude+.29f),new Color(.61f,.52f,.34f));
         }
 
         internal static Vector3 CampCenter(int sector) =>
@@ -208,14 +227,9 @@ namespace Frontline.UnityGame
 
         void BuildFrontierLand()
         {
-            var coast=Data.Frontier.platforms[2];
-            var bridge=Data.Frontier.platforms[1];
+            var bridge=Data.Frontier.platforms[0];
             var water=new Color(.19f,.39f,.49f);
-            Still(waterBlock,new Vector3(4,-1.7f,0),Quaternion.identity,new Vector3(900,.12f,900),water);
-            FrontierTile(new Vector3(coast.x,-.18f,0),new Vector3(coast.hx*2,.36f,coast.hz*2),
-                Color.Lerp(ManorSoils[builtSeason],new Color(.37f,.44f,.30f),.57f));
-            FrontierTile(new Vector3(coast.x,-.64f,0),new Vector3(coast.hx*2-.1f,.6f,coast.hz*2-.1f),new Color(.59f,.49f,.36f));
-            Still(Load("cliff"),new Vector3(coast.x,-1.19f,0),Quaternion.identity,new Vector3(coast.hx*2,1.15f,coast.hz*2),White);
+            Still(waterBlock,new Vector3(92,-1.7f,0),Quaternion.identity,new Vector3(2250,.12f,2250),water);
             FrontierTile(new Vector3(bridge.x,-.34f,0),new Vector3(bridge.hx*2,.68f,bridge.hz*2),new Color(.37f,.29f,.19f));
             for(int i=0;i<21;i++)
                 FrontierTile(new Vector3(FrontierMap.BridgeStart+.23f+i*.576f,.01f,0),
@@ -227,7 +241,6 @@ namespace Frontline.UnityGame
             Still(bridgeFittings,new Vector3(bridge.x,0,0),Quaternion.identity,Vector3.one,White);
             Still(Load("frontier_gate"),new Vector3(FrontierMap.Boundary,0,0),Quaternion.identity,Vector3.one,White);
             var bedrock=Load("rock");
-            var erodedRim=bedrock.WithoutShadows();
             for(int side=-1;side<=1;side+=2)
             {
                 float z=side*(FrontierMap.BridgeHalfWidth+.075f);
@@ -238,38 +251,12 @@ namespace Frontline.UnityGame
                     FrontierTile(new Vector3(x,.205f,z),new Vector3(.24f,.53f,.23f),new Color(.50f,.37f,.25f));
                     if(i%2==0)FrontierTile(new Vector3(x,-.74f,z*.89f),new Vector3(.58f,1.03f,.54f),Track);
                 }
-                for(int i=0;i<17;i++)
-                {
-                    float x=FrontierMap.Boundary+1.4f+i*4.33f;
-                    float jitter=Mathf.Sin(i*5.1f)*.82f;
-                    Still(erodedRim,new Vector3(x,-.59f,side*(coast.hz+jitter)),Quaternion.Euler(0,49*i,0),
-                        new Vector3(2.1f+i%3,.98f,2.15f),White);
-                }
             }
             foreach(var rock in Data.Frontier.rocks)
-                Still(bedrock,new Vector3(rock.x,rock.r*.2f,rock.z),Quaternion.Euler(0,CombatMotion.RockYaw(rock.x,rock.z),0),Vector3.one*rock.r*2,White);
+                Still(bedrock,new Vector3(rock.x,FrontierMap.SurfaceHeight(rock.x,rock.z)+rock.r*.2f,rock.z),
+                    Quaternion.Euler(0,CombatMotion.RockYaw(rock.x,rock.z),0),Vector3.one*rock.r*2,White);
 
-            FrontierTrail(FrontierMap.Boundary,0,10,0,2);
-            FrontierTrail(10,0,25,13,1.55f);
-            FrontierTrail(10,0,31,-7,1.48f);
-            FrontierTrail(31,-7,47,-12,1.43f);
-            FrontierTrail(10,0,5.2f,4.10f,1.04f);
-            for(int i=0;i<4;i++)
-                FrontierTile(new Vector3(9.45f+i*.36f,.029f,-.34f+i*.24f),
-                    new Vector3(.32f,.021f,.26f),new Color(.70f,.60f,.42f));
-            var trees=Load(builtSeason==3?"pine":"tree");
-            var grass=Load("grass");
-            int count=QualityLevel==0?42:84;
-            for(int i=0;i<count;i++)
-            {
-                float x=-5+66*Mathf.Repeat(i*.618f+.1f,1);
-                float z=(i%2==0?1:-1)*(15+7*Mathf.Repeat(i*.418f,1));
-                bool tree=i%3==0;
-                if(tree&&x>17&&x<34&&z>0)continue;
-                Still(tree?trees:grass,new Vector3(x,0,z),Quaternion.Euler(0,i*137.5f,0),
-                    Vector3.one*(tree?1.05f+i%4*.18f:1.25f),White,tree?.014f:.03f);
-                if(tree)StillShade(new Vector3(x,0,z),2.8f,2.2f);
-            }
+            BuildFrontierRoads();
             foreach(var wall in Data.Frontier.walls)
             {
                 var point=new Vector3(wall.x,0,wall.z);
@@ -291,7 +278,6 @@ namespace Frontline.UnityGame
                 campSupplies=crate.Variant(false,true);
             }
             AlertCampMask=-1;
-            var wave=Load("water_ripple");
             for(int sector=0;sector<Manor.Sectors.Count;sector++)
             {
                 var camp=CampCenter(sector);
@@ -310,13 +296,6 @@ namespace Frontline.UnityGame
                     Still(Load("timber_camp_tower"),yard+new Vector3(-1.25f,0,.53f),Quaternion.Euler(0,-24,0),Vector3.one*.9f,White);
                 else
                     Still(props["barricade"],yard+new Vector3(2.55f,0,1.22f),Quaternion.Euler(0,60,0),Vector3.one*.85f,White);
-            }
-            for(int i=0;i<35;i++)
-            {
-                float x=-66+144*Mathf.Repeat(i*.617f,1);
-                float z=(i%2==0?1:-1)*(9+24*Mathf.Repeat(i*.317f,1));
-                if(FrontierMap.HasGround(x,z)||FrontierMap.HasGround(x,z+3)||FrontierMap.HasGround(x,z-3))continue;
-                Still(wave,new Vector3(x,-1.62f,z),Quaternion.identity,new Vector3(2.8f,.8f,1.10f),new Color(.45f,.63f,.67f),.07f);
             }
         }
 

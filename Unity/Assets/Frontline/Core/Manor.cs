@@ -31,7 +31,8 @@ namespace Frontline.Core
     public sealed partial class Manor
     {
         public const int SeasonDays = 12, BuildingMaxLevel = 3, OriginalPlotCount = 14, FirstOuterPlot = 18, PlotCount = 36;
-        public const float PlateauHalfWidth = 31, PlateauHalfDepth = 20;
+        public const float PlateauHalfWidth = 42, PlateauHalfDepth = 28;
+        public const float TownScaleX = 1.27f, TownScaleZ = 1.40f;
         const int MaxValue = 1000000;
         public string format = "frontline-manor";
         public int version = SaveVersion;
@@ -49,13 +50,15 @@ namespace Frontline.Core
         static readonly float[] zs = { 0, 5.4f, 5.6f, 5.6f, 5.4f, 0, 0, -5.7f, -5.9f, -5.7f, 5, 5, -5, -5,
             9.8f, 5.35f, -5.35f, -9.8f, 14.85f, 14.85f, -14.85f, -14.85f, 6.1f, -6.1f,
             5.9f, -5.9f, 14.85f, -14.85f, 14.85f, -14.85f, 14.85f, -14.85f, 12.1f, -12.1f, 17.2f, -17.2f };
-        public static float SlotX(int index) => xs[index];
-        public static float SlotZ(int index) => zs[index];
+        public static float SlotX(int index) => xs[index]*TownScaleX;
+        public static float SlotZ(int index) => index==8?-9.65f:zs[index]*TownScaleZ;
         public static int PickSlot(float x, float z)
         {
             for (int i = 0; i < xs.Length; i++)
             {
-                float dx = x - xs[i], dz = z - zs[i], radius = i == 0 ? 2.3f : 2.1f;
+                float dx = x - SlotX(i), dz = z - SlotZ(i);
+                if(i==0&&Math.Abs(dx)<=4.65f&&Math.Abs(dz)<=4.1f)return i;
+                const float radius=2.35f;
                 if (dx * dx + dz * dz <= radius * radius) return i;
             }
             return -1;

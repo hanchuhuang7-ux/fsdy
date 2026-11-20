@@ -32,7 +32,7 @@ namespace Frontline.Core
         public const float Step=1f/60f;
         public float Height(string map,float x,float z)
         {
-            if(map==FrontierMap.Id)return FrontierMap.HasGround(x,z)?0:float.NegativeInfinity;
+            if(map==FrontierMap.Id)return FrontierMap.SurfaceHeight(x,z);
             if(!Maps.ContainsKey(map)||!Finite(x)||!Finite(z))return float.NegativeInfinity;
             float height=float.NegativeInfinity;
             foreach(var p in Maps[map].platforms){float cos=(float)Math.Cos(p.angle),extent=p.hx*cos+p.hy*Math.Abs((float)Math.Sin(p.angle));if(Math.Abs(x-p.x)<=extent-.01f&&Math.Abs(z-p.z)<=p.hz-.01f)height=Math.Max(height,p.y+p.hy/cos+(float)Math.Tan(p.angle)*(x-p.x));}

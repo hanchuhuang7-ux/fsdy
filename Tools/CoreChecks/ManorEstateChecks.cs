@@ -7,25 +7,56 @@ static partial class ManorChecks
 {
     public static void RunEstate(Catalog data,Action<string,Action> check)
     {
-        check("all 36 plots fit the 62x40 shelf without moving the causeway or frontier",() => {
-            var shelf=data.Frontier.platforms[0]; var bridge=data.Frontier.platforms[1]; var coast=data.Frontier.platforms[2];
-            Expect(Manor.PlotCount==36&&shelf.x==-53&&shelf.hx==31&&shelf.hz==20&&FrontierMap.West==-84,"shelf bounds");
-            Expect(FrontierMap.BridgeStart==-22&&FrontierMap.Boundary==-10&&bridge.x==-16&&bridge.hz==3.6f&&
-                coast.x==27&&coast.hx==37&&coast.hz==24,"old bridge or coast moved");
-            Expect(FrontierMap.HasGround(-83,19)&&!FrontierMap.HasGround(-84,19)&&!FrontierMap.HasGround(-83,20)&&!FrontierMap.HasGround(-17,4)&&
+        check("all 36 save slots fit the 84x56 natural peninsula without moving the causeway",() => {
+            var bridge=data.Frontier.platforms.Single();
+            Expect(Manor.PlotCount==36&&Manor.PlateauHalfWidth==42&&Manor.PlateauHalfDepth==28&&FrontierMap.West==-106,"shelf bounds");
+            Expect(FrontierMap.BridgeStart==-22&&FrontierMap.Boundary==-10&&bridge.x==-16&&bridge.hz==3.6f,"causeway moved");
+            Expect(FrontierMap.HasGround(-100,19)&&!FrontierMap.HasGround(-105,23)&&!FrontierMap.HasGround(-17,4)&&
                 FrontierMap.HasGround(-17,3.58f)&&FrontierMap.Safe(-10.01f)&&!FrontierMap.Safe(-10),"ground or safe line");
             for(int i=0;i<Manor.PlotCount;i++)
             {
                 float x=Manor.SlotX(i),z=Manor.SlotZ(i);
                 Expect(Manor.PickSlot(x,z)==i&&FrontierMap.HasGround(FrontierMap.ManorX+x,z),"unpickable plot "+i);
-                if(i>=14&&i<18)Expect(x==-18.3f&&Math.Abs(z)>5,"western layout changed");
-                if(i>=18&&i<22)Expect(Math.Abs(z)==14.85f,"outer farm or shore row");
-                if(i>=22&&i<Manor.FirstNoblePlot)Expect(x==-24.55f,"outer woodland row");
                 for(int j=0;j<i;j++)
                     Expect(Math.Pow(x-Manor.SlotX(j),2)+Math.Pow(z-Manor.SlotZ(j),2)>4.2*4.2,"ambiguous pick regions");
             }
-            var order=FrontierMap.Formation(0,1,new V3(-75,0,16),1);
+            var order=FrontierMap.Formation(0,1,new V3(-90,0,16),1);
             Expect(order.z==16&&FrontierMap.HasGround(order.x,order.z),"patrol could not use the expanded shelf");
+        });
+
+        check("surveyed coastlines exceed ten times the estate area and their inlets reject marching",() => {
+            Expect(FrontierMap.ManorArea>=4200&&FrontierMap.ManorArea<=4700&&FrontierMap.FrontierArea>=45000&&
+                FrontierMap.FrontierArea<=55000&&FrontierMap.FrontierArea/FrontierMap.ManorArea>=10,"coastline area budget");
+            foreach(var coast in new[]{FrontierMap.ManorCoast,FrontierMap.FrontierCoast})
+                for(int i=1;i<coast.Count;i++)
+                {
+                    var a=coast[i-1];var b=coast[i];
+                    float x=(a.x+b.x)*.5f,s=(a.south+b.south)*.5f,n=(a.north+b.north)*.5f;
+                    Expect(FrontierMap.HasGround(x,s+.05f)&&FrontierMap.HasGround(x,n-.05f)&&
+                        !FrontierMap.HasGround(x,s-.05f)&&!FrontierMap.HasGround(x,n+.05f),"segment differs from dry land");
+                }
+            Expect(!FrontierMap.HasGround(128,100)&&FrontierMap.HasGround(166,105),"the north bay disappeared");
+            var endpoints=new[]{new V3(-92,0,12),FrontierMap.Rally,FrontierMap.CampCenter(0),FrontierMap.CampCenter(1),
+                FrontierMap.CampCenter(2),new V3(89,0,99),new V3(176,0,108)};
+            int marches=0;
+            foreach(var start in endpoints)
+                foreach(var target in endpoints)
+                {
+                    if(V3.DistanceXZ(start,target)<.1f)continue;
+                    var p=start;
+                    var goal=FrontierMap.Formation(0,1,target,1);
+                    for(int step=0;step<4200&&V3.DistanceXZ(p,goal)>.12f;step++)
+                    {
+                        var waypoint=FrontierMap.Waypoint(p,goal,0);
+                        if(p.x<FrontierMap.BridgeStart)waypoint=FrontierMap.AroundFence(p,waypoint,FrontierMap.CastleFootprint);
+                        var leg=waypoint-p;
+                        p+=leg.Normalized*Math.Min(.125f,leg.Planar);
+                        Expect(FrontierMap.HasGround(p.x,p.z),"march leaves land: "+p.x+","+p.z);
+                    }
+                    Expect(V3.DistanceXZ(p,goal)<=.12f,"a march did not arrive at "+goal.x+","+goal.z+" from "+start.x+","+start.z);
+                    marches++;
+                }
+            Expect(marches==42,"march sample count");
         });
 
         check("granary, crops and forges stack exact production multipliers and all building grades fit the economy",() => {

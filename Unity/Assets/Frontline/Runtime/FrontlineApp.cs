@@ -20,7 +20,6 @@ namespace Frontline.UnityGame
         internal PlayerPresentation Presentation {get;private set;}
         internal bool FixedPerformanceStep {get;set;}
         void OnApplicationPause(bool paused){if(paused)Presentation?.Flush();}
-        void OnApplicationQuit(){Presentation?.Flush();}
         internal long PerformanceSimulationTicks {get;private set;}
         public string EditingTeam {get{return Mode=="hotseat"?Hotseat=="blue"?"blue":"red":Team;}}
         public bool CanEdit {get{return Phase=="deploy"&&!Busy&&(Mode!="hotseat"||Hotseat=="red"||Hotseat=="blue");}}
@@ -287,6 +286,5 @@ namespace Frontline.UnityGame
         public void Arena(List<Entrant> entrants,List<string> maps,List<uint> seeds){if(Busy||InManor)return;var tournament=new Tournament(Data,Factory,entrants,maps,seeds,Config.budget,Config.commander.enabled);StartJob(ArenaRoutine(tournament));}
         IEnumerator ArenaRoutine(Tournament tournament){foreach(var p in tournament.Run()){Progress="演武擂台 · "+p.phase+" "+p.completed+" / "+p.total;yield return null;}ArenaReport=tournament.Report;Tell("循环赛完成，可查看排名与胜率矩阵");}
         public void ExportArena(){if(ArenaReport!=null)Try(()=>FileBridge.Export("frontline-tournament.json",Json.Write(ArenaReport)));}
-        void OnDestroy(){StopJob();Battle?.Dispose();}
     }
 }

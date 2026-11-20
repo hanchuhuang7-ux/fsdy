@@ -1,3 +1,4 @@
+using Frontline.Core;
 using UnityEngine;
 
 namespace Frontline.UnityGame
@@ -9,8 +10,18 @@ namespace Frontline.UnityGame
         public static string CropModel(string kind,CropAppearance state) => state switch {
             CropAppearance.Fallow => kind+"_fallow", CropAppearance.Rich => kind+"_rich", _ => kind
         };
-        public static float HalfWidth(bool hall)=>hall?2.14f:1.84f;
-        public static float HalfDepth(bool hall)=>hall?1.66f:1.40f;
+        public const float BuiltPadHalfWidth=2.10f,BuiltPadHalfDepth=1.57f;
+        public static float HalfWidth(bool hall)=>hall?FrontierMap.CastleHalfWidth:1.84f;
+        public static float HalfDepth(bool hall)=>hall?FrontierMap.CastleHalfDepth:1.40f;
+        public static Vector3 BuildingScale(string kind) => kind switch {
+            "chapel" => new Vector3(1.11f,1.64f,1.10f),
+            "granary" => new Vector3(1.14f,1.43f,1.11f),
+            "tavern" or "barracks" => new Vector3(1.14f,1.37f,1.10f),
+            Manor.Bakery => new Vector3(1.12f,1.39f,1.10f),
+            Manor.Weaver => new Vector3(1.14f,1.30f,1.11f),
+            "cottage" => new Vector3(1.10f,1.24f,1.08f),
+            _ => Vector3.one
+        };
         public const float BackyardHalfWidth=.41f, BackyardHalfDepth=.24f, BackyardHeight=.78f, BackyardDepthScale=.86f;
         public static readonly Vector3 BackyardOrigin=new Vector3(.97f,0,-.94f);
         public static readonly Vector3 BackyardScale=new Vector3(1,1,BackyardDepthScale);

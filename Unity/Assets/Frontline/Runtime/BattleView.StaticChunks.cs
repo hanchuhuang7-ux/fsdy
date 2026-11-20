@@ -7,17 +7,12 @@ namespace Frontline.UnityGame
     {
         internal int CulledStaticInstances { get; private set; }
 
-        // 3×2 on the peninsula, the bridge, and four quadrants on the frontier.
-        const int StaticRegionCount=11;
+        const int ChunkSize=32,RegionsWide=16,RegionsDeep=10,StaticRegionCount=RegionsWide*RegionsDeep;
         static int StaticRegion(Vector3 world)
         {
-            if(world.x<=FrontierMap.BridgeStart)
-            {
-                float u=(world.x-FrontierMap.West)/(2*Manor.PlateauHalfWidth);
-                return Mathf.Clamp((int)(u*3),0,2)+(world.z>=0?3:0);
-            }
-            if(world.x<FrontierMap.Boundary)return 6;
-            return 7+(world.x>=27?1:0)+(world.z>=0?2:0);
+            int x=Mathf.Clamp(Mathf.FloorToInt(world.x/ChunkSize)+5,0,RegionsWide-1);
+            int z=Mathf.Clamp(Mathf.FloorToInt(world.z/ChunkSize)+5,0,RegionsDeep-1);
+            return z*RegionsWide+x;
         }
 
         Batch VisibleStaticPage(Batch source)
@@ -37,43 +32,65 @@ namespace Frontline.UnityGame
         sealed class StaticChunks
         {
             readonly Bounds[] bounds=new Bounds[StaticRegionCount];
-            readonly byte[] regions=new byte[Capacity];
+            readonly int[] first=new int[StaticRegionCount],last=new int[StaticRegionCount],next=new int[Capacity];
+            readonly byte[] active=new byte[StaticRegionCount];
+            readonly bool[] occupied=new bool[StaticRegionCount],visible=new bool[StaticRegionCount];
             readonly Batch compact;
-            int populated,visible=-1;
+            int populated;
+            bool allVisible,prepared;
 
             public StaticChunks(MeshSet mesh) { compact=new Batch{mesh=mesh}; }
-            public void Clear() { populated=0;visible=-1; }
+            public void Clear()
+            {
+                for(int i=0;i<populated;i++)occupied[active[i]]=false;
+                populated=0;
+                prepared=false;
+            }
 
             public void Add(int index,int region,Bounds instance)
             {
-                regions[index]=(byte)region;
-                int bit=1<<region;
-                if((populated&bit)==0)bounds[region]=instance;
-                else bounds[region].Encapsulate(instance);
-                populated|=bit;
+                next[index]=-1;
+                if(!occupied[region])
+                {
+                    occupied[region]=true;
+                    active[populated++]=(byte)region;
+                    bounds[region]=instance;
+                    first[region]=index;
+                }
+                else
+                {
+                    bounds[region].Encapsulate(instance);
+                    next[last[region]]=index;
+                }
+                last[region]=index;
             }
 
-            public Batch Page(Batch source) => populated==0||visible==populated?source:compact;
+            public Batch Page(Batch source) => populated==0||allVisible?source:compact;
 
             public void Update(Batch source,Plane[] frustum)
             {
                 if(populated==0)return;
-                int mask=0;
-                for(int region=0;region<bounds.Length;region++)
+                bool changed=!prepared;
+                prepared=true;
+                allVisible=true;
+                for(int i=0;i<populated;i++)
                 {
-                    int bit=1<<region;
-                    if((populated&bit)!=0&&GeometryUtility.TestPlanesAABB(frustum,bounds[region]))mask|=bit;
+                    int region=active[i];
+                    bool inView=GeometryUtility.TestPlanesAABB(frustum,bounds[region]);
+                    changed|=inView!=visible[region];
+                    visible[region]=inView;
+                    allVisible&=inView;
                 }
-                if(mask==visible)return;
-                visible=mask;
-                if(mask==populated)return;
-
-                // Repack only when the visible regions change. Batch order, material and page capacity stay intact.
+                if(!changed||allVisible)return;
+                // The links are built once per static page. Hidden instance indices are never visited.
                 compact.Clear();
-                if(mask==0)return;
-                for(int i=0;i<source.count;i++)
-                    if((mask&(1<<regions[i]))!=0)
+                for(int region=0;region<populated;region++)
+                {
+                    int key=active[region];
+                    if(!visible[key])continue;
+                    for(int i=first[key];i>=0;i=next[i])
                         compact.Add(source.matrices[i],source.colors[i],source.winds[i],source.flashes[i]);
+                }
             }
         }
     }
