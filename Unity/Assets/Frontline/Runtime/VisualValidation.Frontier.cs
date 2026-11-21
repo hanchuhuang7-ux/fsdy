@@ -521,6 +521,14 @@ namespace Frontline.UnityGame
 #endif
                 yield break;
             }
+            if(Array.IndexOf(Environment.GetCommandLineArgs(),"--actions-only")>=0)
+            {
+                yield return CheckActionMotion();
+#if !UNITY_WEBGL && !UNITY_EDITOR
+                Application.Quit(0);
+#endif
+                yield break;
+            }
             sharedHudAtlas=VisibleButton("Mode.Manor").image.sprite.texture;
             yield return CheckQualityMenu();
             yield return CheckPresentationSettings();

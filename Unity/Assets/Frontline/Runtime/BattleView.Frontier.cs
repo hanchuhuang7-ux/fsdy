@@ -371,7 +371,7 @@ namespace Frontline.UnityGame
                     var guard=guards[j];var p=guard.spawn+offset;
                     var model=Model(roster[j]);
                     Soldier(model,"blue",RoadSurface(UnityWorld.Vector(p))+Vector3.up*(model.definition.scale*.8f),
-                        heading,0,220+j,speed:.48f,direction:1,gait:manorTime*.54f);
+                        heading,220+j,speed:.38f,direction:1,gait:manorTime*.38f/model.definition.scale);
                 }
             }
         }

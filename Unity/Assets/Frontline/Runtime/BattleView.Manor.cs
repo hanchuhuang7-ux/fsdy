@@ -44,6 +44,7 @@ namespace Frontline.UnityGame
         internal CropAppearance DisplayedCrop(int index) => builtCrops[index];
         internal Vector3 ResidentPoint {get;private set;}
         internal float ResidentHeading {get;private set;}
+        internal bool WalkingResidentVisible {get;private set;}
         int builtReclaimedPlots,builtNobility;
         int homeCount,tavernSlot,builtSeason=-1;
         MeshSet surveyBlock, hat, parcel, farmerCoat, villagerCoat, wrap, sleeve, sails;
@@ -647,15 +648,24 @@ namespace Frontline.UnityGame
             if(!TryPlaceWalker(pos,direction,out pos))return;
             bool first=VisibleFarmers+VisibleVillagers==0;
             if(farmer)VisibleFarmers++;else VisibleVillagers++;
-            float gait=walking?Mathf.Sin(along*4.6f+id):0;
+            float ease=Ease(Mathf.Min(along,route.total-along)/.43f);
+            if(pause>0&&!returning)ease*=Ease(Mathf.Max(stopTime-phase,phase-stopTime-pause)/.35f);
+            float metres=returning?2*route.total-along:along;
+            var gait=new BipedGait(metres/.91f,walking?speed*ease:0,2.6f,1,manorTime,id);
             float gesture=atWork||browsing?Mathf.Sin(manorTime*(forge?4.8f:loom?3.3f:bakery?2.8f:farmer?2.1f:1.3f)+id):0;
             float nod=browsing?3+gesture*5:atWork&&bakery?7+gesture*6:farmer&&atWork?9+gesture*6:0;
             var tint=Clothes[id%Clothes.Length];
             float heading=LocalHeading(id,Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg);
-            if(first){ResidentPoint=ManorOrigin+pos;ResidentHeading=heading;}
-            var root=Pose(ManorOrigin+pos+Vector3.up*(.74f+.025f*Mathf.Abs(gait)),
-                Quaternion.Euler(0,heading,0)*
-                Quaternion.Euler(nod,0,0),Vector3.one*.91f);
+            bool striding=gait.weight>.48f;
+            if(first||striding&&!WalkingResidentVisible)
+            {
+                ResidentPoint=ManorOrigin+pos;
+                ResidentHeading=heading;
+                WalkingResidentVisible=striding;
+            }
+            var hips=Pose(ManorOrigin+pos+Vector3.up*.74f,Quaternion.Euler(0,heading,0),Vector3.one*.91f);
+            var root=hips*Pose(new Vector3(.016f*gait.sway,gait.bob,0),
+                Quaternion.Euler(gait.lean+nod,gait.twist,gait.roll),Vector3.one);
             Add(farmer?farmerCoat:villagerCoat,root,tint);
             ContactAt(ManorOrigin+pos,.92f);
             if(lowActors)return;
@@ -667,13 +677,17 @@ namespace Frontline.UnityGame
                 (id%4==0?basket:id%4==1?crate:id%4==2?jug:null);
             for(int side=-1;side<=1;side+=2)
             {
-                Add(leg,root*Pose(new Vector3(side*.135f,-.51f,0),Quaternion.Euler(gait*side*27,0,0),Vector3.one),White);
-                float swing=gait*side*-19;
+                Add(leg,WalkingLeg(hips,gait,new Vector3(side*.135f,-.51f,0),side>0),White);
+                bool carrying=side>0&&prop!=null;
+                float swing=-gait.sway*side*(carrying?6:20);
+                if(carrying)swing-=prop==bucket?7:17;
+                swing+=gait.breath*.8f*(1-gait.weight);
                 if(side==1&&atWork)swing=farmer&&prop!=bucket?-48+gesture*38:-17+gesture*13;
                 if(atWork&&loom)swing=-24+gesture*21*side;
                 else if(atWork&&bakery)swing=-38+gesture*18;
                 else if(atWork&&forge&&side==1)swing=-10-68*Mathf.Max(0,gesture);
-                var shoulder=root*Pose(new Vector3(side*.275f,.25f,0),Quaternion.Euler(swing,0,side*9),Vector3.one);
+                var shoulder=root*Pose(new Vector3(side*.275f,.25f,0),
+                    Quaternion.Euler(swing,carrying?side*-7+gait.sway*1.8f:0,side*(carrying?6:9)),Vector3.one);
                 Add(sleeve,shoulder,tint);
                 if(side==1&&prop!=null)
                 {
@@ -755,6 +769,7 @@ namespace Frontline.UnityGame
         void DrawVillagePeople()
         {
             VisibleFarmers=VisibleVillagers=occupiedWalkCount=VisibleHeroMask=0;
+            WalkingResidentVisible=false;
             DrawRetinue();
             ReserveHeroBays();
             DrawSpecialists();
@@ -771,8 +786,7 @@ namespace Frontline.UnityGame
                 var p=heroBays[heroIndex]+Vector3.up*(model.definition.scale*.8f);
                 float desired=(heroIndex==0?-83:81)+(resting?4:13)*Mathf.Sin(pace);
                 float facing=LocalHeading(HeroFirst+heroIndex,desired+FacadeYaw(tavernSlot))*Mathf.Deg2Rad;
-                Soldier(model,"red",p+ManorOrigin,facing,0,200+heroIndex,speed:resting?0:.66f,direction:1,gait:manorTime*.63f,
-                    armament:manor.HeroArmament(id));
+                Soldier(model,"red",p+ManorOrigin,facing,200+heroIndex,armament:manor.HeroArmament(id));
             }
         }
 

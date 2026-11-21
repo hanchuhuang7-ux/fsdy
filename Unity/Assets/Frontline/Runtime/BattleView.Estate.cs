@@ -36,6 +36,7 @@ namespace Frontline.UnityGame
         internal static Vector3 QuayPoint => ManorOrigin+DockOrigin+new Vector3(1.3f*DockScale.x,.12f,-2.27f*DockScale.z);
         internal int VisibleSpecialistMask {get;private set;}
         internal Vector3 SpecialistPoint(int role) => specialistPoints[role];
+        internal float SpecialistFacing(int role) => localHeading[SpecialistFirst+role];
 
         readonly struct EstateObstacle
         {
@@ -195,16 +196,18 @@ namespace Frontline.UnityGame
                 if(!InView(specialistPoints[role],2.4f)||!TryPlaceWalker(pos,direction,out pos))continue;
                 specialistPoints[role]=ManorOrigin+pos;
                 VisibleSpecialistMask|=1<<role;
-                float gait=Mathf.Sin(along*4.8f+role);
-                var rotation=Quaternion.Euler(0,LocalHeading(SpecialistFirst+role,Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg),0);
-                if(Manor.SpecialistIds[role]==Manor.Minstrel)
-                    rotation*=Quaternion.Euler(0,0,Mathf.Sin(manorTime*4)*3);
-                var root=Pose(specialistPoints[role]+Vector3.up*(.735f+.028f*Mathf.Abs(gait)),rotation,Vector3.one*.96f);
+                float pace=speed*Ease(Mathf.Min(along,route.total-along)/.52f);
+                var gait=new BipedGait(phase/.96f,pace,2.8f,1,manorTime,SpecialistFirst+role);
+                float heading=LocalHeading(SpecialistFirst+role,Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg);
+                var hips=Pose(specialistPoints[role]+Vector3.up*.735f,Quaternion.Euler(0,heading,0),Vector3.one*.96f);
+                float music=role==Manor.SpecialistIds.Length-1?gait.breath*1.45f:0;
+                var root=hips*Pose(new Vector3(.013f*gait.sway,gait.bob,0),
+                    Quaternion.Euler(gait.lean*.83f,gait.twist*.66f,gait.roll*.80f+music),Vector3.one);
                 Add(specialistMeshes[role],root,SpecialistTrim[rank-1]);
                 ContactAt(specialistPoints[role],.90f);
                 if(lowActors)continue;
                 for(int side=-1;side<=1;side+=2)
-                    Add(specialistLeg,root*Pose(new Vector3(side*.124f,-.50f,0),Quaternion.Euler(gait*side*25,0,0),Vector3.one),White);
+                    Add(specialistLeg,WalkingLeg(hips,gait,new Vector3(side*.124f,-.50f,0),side>0),White);
             }
         }
 
@@ -218,7 +221,14 @@ namespace Frontline.UnityGame
                 if(!InView(point,2.4f))continue;
                 var facing=Quaternion.Euler(0,i%2==0?174:186,0);
                 retinueGuard??=Load("retinue_guard");
-                Add(retinueGuard,Pose(point,facing,Vector3.one),RetinueCloth);
+                float breath=Mathf.Sin(manorTime*2.16f+i*1.82f);
+                var stance=Matrix4x4.identity;
+                // The watch mesh includes its boots and weapons. Anchor the
+                // foot plane and vary only the height and upper-body weight.
+                stance.m01=.012f*Mathf.Sin(manorTime*1.32f+i*2.39f);
+                stance.m11=1+.008f*breath;
+                stance.m21=.016f*breath;
+                Add(retinueGuard,Pose(point,facing,Vector3.one)*stance,RetinueCloth);
                 ContactAt(point,.92f);
                 VisibleRetinue++;
             }

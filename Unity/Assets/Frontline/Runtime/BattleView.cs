@@ -88,18 +88,24 @@ namespace Frontline.UnityGame
         {
             public readonly MeshSet body,right,crest;
             public readonly SoldierKind kind;
+            public readonly AttackStyle attackStyle;
+            public readonly bool stockWeapon;
+            public readonly float windup;
             public UnitDef definition;
             public UnitVisual(string type,MeshSet body,MeshSet right,MeshSet crest=null)
             {
                 this.body=body;this.right=right;this.crest=crest;
                 kind=type=="cavalry"?SoldierKind.Cavalry:type=="catapult"?SoldierKind.Catapult:
                     type=="shield"?SoldierKind.Shield:SoldierKind.Infantry;
+                attackStyle=StyleOf(type);
+                stockWeapon=type=="crossbow"||type=="hero_ranger"||type=="hero_commander";
+                windup=CombatMotion.Windup(type=="hero_vanguard"?"giant":type);
             }
         }
         readonly Dictionary<string,MeshSet> meshes=new Dictionary<string,MeshSet>();readonly Dictionary<string,MeshSet> fxMeshes=new Dictionary<string,MeshSet>();readonly Dictionary<string,UnitVisual> units=new Dictionary<string,UnitVisual>();readonly Dictionary<string,MeshSet> props=new Dictionary<string,MeshSet>();
         readonly List<Batch> moving=new List<Batch>(),still=new List<Batch>(),grid=new List<Batch>();
         Material material,atmosphere,groundingMaterial,sky;Light sun;MeshSet armLeft,leg,horse,horseLeg,catapult,catapultArm,shield,ring,dot,torso,head,limb,wreckHorse,wreckCart,arrow,bolt,bomb,stone;MapEcology.Mote[] motes;
-        MeshSet dust;float activeFlash;struct MotionSample {public Vector3 p;public float time,speed,phase,direction;public bool valid;}readonly MotionSample[] oldMotion=new MotionSample[122];
+        MeshSet dust;float activeFlash;struct MotionSample {public Vector3 p;public float time,speed,phase,direction;public bool valid;}readonly MotionSample[] oldMotion=new MotionSample[VisualUnitSlots];
         struct GroundSample {public string map;public float x,z,height;}
         readonly GroundSample[] unitFloors=new GroundSample[2*Catalog.MaxUnits+1];
         GroundSample[] propFloors=Array.Empty<GroundSample>();
@@ -425,11 +431,12 @@ namespace Frontline.UnityGame
             {
                 var model=Model(u.type);
                 float floor=UnitFloor(id,u.x,u.z);
-                Soldier(model,team,new Vector3(u.x,floor+.8f*model.definition.scale,u.z),angle,0,id++,stance:u.stance,floor:floor,armament:u.armament);
+                Soldier(model,team,new Vector3(u.x,floor+.8f*model.definition.scale,u.z),angle,id++,stance:u.stance,floor:floor,armament:u.armament);
             }
         }
         void DrawLiveFrame()
         {
+            PrepareSnapshotMotion();
             bool jobs=false;
             if(Current.units.Count>=ParallelPoseThreshold&&ParallelPoseWorkers>1)
             {
@@ -442,7 +449,9 @@ namespace Frontline.UnityGame
                 var model=Model(u.type);
                 int index=u.id-1;
                 int armament=Config.manorHall>0&&(uint)index<Config.red.Count?Config.red[index].armament:0;
-                Soldier(model,u.team,new Vector3(u.t[0],u.t[1],u.t[2]),u.angle,u.attack,u.id,u.hp/MaxHp(model.definition,u.id),u.inspired,u.fortified,u.stance,u.moveSpeed,u.moveForward,u.gait,u.hitFlash,u.hitTiltX,u.hitTiltZ,u.charge,u.guard,armament:armament);
+                Soldier(model,u.team,new Vector3(u.t[0],u.t[1],u.t[2]),u.angle,u.id,u.hp/MaxHp(model.definition,u.id),
+                    u.inspired,u.fortified,u.stance,u.moveSpeed,u.moveForward,u.gait,u.hitFlash,u.hitTiltX,u.hitTiltZ,u.charge,
+                    u.guard,armament:armament,action:SnapshotAction(u,model),recorded:true);
             }
             if(jobs)FinishSoldierPoses();
             foreach(var p in Current.props)if(p.alive)Prop(p.type,p.team,p.x,p.z,p.floor,p.active);

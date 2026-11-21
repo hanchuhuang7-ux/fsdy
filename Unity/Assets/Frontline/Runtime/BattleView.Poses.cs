@@ -15,6 +15,8 @@ namespace Frontline.UnityGame
         internal int ParallelPoseWorkers=>Math.Min(CpuWork.TargetWorkers,CpuWork.UnityWorkers+1);
         internal bool CheckParallelPoses {get;set;}
         internal int CheckedParallelPoses {get;private set;}
+        internal int CheckedWindupStyles {get;private set;}
+        internal int CheckedReleaseStyles {get;private set;}
 
         enum SoldierKind : byte { Infantry,Shield,Cavalry,Catapult }
 
@@ -43,20 +45,22 @@ namespace Frontline.UnityGame
             public Vector3 position;
             public Color color;
             public SoldierKind kind;
-            public float angle,attack,scale,maxSpeed,speed,direction,gait,hitTiltX,hitTiltZ,charge,guard,hp,terrainTilt;
+            public AttackStyle style;
+            public ActionSample action;
+            public float angle,scale,maxSpeed,speed,direction,gait,hitTiltX,hitTiltZ,charge,guard,hp,terrainTilt;
             public int id;
-            public bool useMotionSample;
+            public bool useMotionSample,stockWeapon;
             public MotionSample previousMotion;
         }
 
         struct PoseOutput
         {
-            public bool visible;
+            public bool visible,emptyThrowHand;
             public Vector3 position;
             public float speed,gait;
             public MotionSample motion;
             public Matrix4x4 root,leftLeg,rightLeg,leftArm,rightArm,guardOrCatapultArm;
-            public Matrix4x4 nearLeft,nearRight,farLeft,farRight;
+            public Matrix4x4 horse,nearLeft,nearRight,farLeft,farRight;
             public Matrix4x4 hpBackground,hpFill;
         }
 
@@ -122,7 +126,7 @@ namespace Frontline.UnityGame
             int workers=ParallelPoseWorkers;
             int batch=Mathf.Max(8,(poseCount+workers-1)/workers);
             var poses=new PoseJob{inputs=poseInputs,outputs=poseOutputs,frustum=poseFrustum,
-                time=Current?.time??Time.time,deploying=Deploying,lowDetail=lowActors};
+                time=PoseTime(),deploying=Deploying,lowDetail=lowActors};
             poseHandle=poses.Schedule(poseCount,batch);
             poseHandle.Complete();
             ParallelPoseFrames++;
@@ -136,6 +140,11 @@ namespace Frontline.UnityGame
                     ComputePose(input,poseFrustum,poses.time,Deploying,lowActors,out var expected);
                     VerifyPose(output,expected);
                     CheckedParallelPoses++;
+                    if(output.visible)
+                    {
+                        if(input.action.stage==ActionStage.Draw)CheckedWindupStyles|=1<<(int)input.style;
+                        if(input.action.stage==ActionStage.Release)CheckedReleaseStyles|=1<<(int)input.style;
+                    }
                 }
                 SubmitPose(input,output,poseDraws[i]);
             }
@@ -151,16 +160,20 @@ namespace Frontline.UnityGame
 #endif
         }
 
-        void Soldier(UnitVisual model,string team,Vector3 p,float angle,float attack,int id,float hp=1,
+        float PoseTime() => Current?.time??(manor==null?Time.time:manorTime);
+
+        void Soldier(UnitVisual model,string team,Vector3 p,float angle,int id,float hp=1,
             bool inspired=false,bool fortified=false,string stance="advance",float speed=0,float direction=0,
-            float gait=0,float hitFlash=0,float hitTiltX=0,float hitTiltZ=0,float charge=0,float guard=0,float floor=float.NaN,int armament=0)
+            float gait=0,float hitFlash=0,float hitTiltX=0,float hitTiltZ=0,float charge=0,float guard=0,float floor=float.NaN,
+            int armament=0,ActionSample action=default,bool recorded=false)
         {
             float scale=model.definition.scale;
             var input=new PoseInput {
-                position=p,color=Team(team),kind=model.kind,id=id,angle=angle,attack=attack,scale=scale,maxSpeed=model.definition.speed,
+                position=p,color=Team(team),kind=model.kind,style=model.attackStyle,stockWeapon=model.stockWeapon,
+                action=action,id=id,angle=angle,scale=scale,maxSpeed=model.definition.speed,
                 speed=speed,direction=direction,gait=gait,hitTiltX=hitTiltX,hitTiltZ=hitTiltZ,charge=charge,guard=guard,hp=hp
             };
-            if(!Deploying&&gait==0&&(uint)id<oldMotion.Length)
+            if(recorded&&speed==0&&gait==0&&(uint)id<oldMotion.Length)
             {
                 input.useMotionSample=true;
                 input.previousMotion=oldMotion[id];
@@ -182,7 +195,7 @@ namespace Frontline.UnityGame
                 return;
             }
 #endif
-            ComputePose(input,poseFrustum,Current?.time??Time.time,Deploying,lowActors,out var pose);
+            ComputePose(input,poseFrustum,PoseTime(),Deploying,lowActors,out var pose);
             SubmitPose(input,pose,draw);
         }
 
@@ -202,56 +215,144 @@ namespace Frontline.UnityGame
                 {
                     var delta=p-sample.p;
                     float travel=new Vector2(delta.x,delta.z).magnitude;
-                    sample.speed=travel/(time-sample.time);
-                    sample.phase+=travel/scale;
+                    float elapsed=time-sample.time;
+                    sample.speed=elapsed<=.35f?Mathf.Min(input.maxSpeed*1.9f,travel/elapsed):0;
+                    if(sample.speed>0)sample.phase+=travel/scale;
                     sample.direction=(delta.x*Mathf.Sin(input.angle)+delta.z*Mathf.Cos(input.angle))/Mathf.Max(.001f,travel);
                 }
                 sample.p=p;sample.time=time;sample.valid=true;
                 pose.motion=sample;
                 speed=sample.speed;gait=sample.phase;direction=sample.direction;
             }
-            p.y+=Mathf.Sin(time*2.2f+input.id)*.008f*scale;
-            bool mounted=input.kind==SoldierKind.Cavalry;
-            float tilt=0;
-            if(mounted){p.y+=.55f*scale;tilt=Mathf.Clamp01(input.charge/1.1f)*7-input.terrainTilt;}
-            pose.position=p;
             pose.speed=speed;pose.gait=gait;
-
-            var root=Pose(p,Quaternion.Euler(input.hitTiltZ*Mathf.Rad2Deg,0,-input.hitTiltX*Mathf.Rad2Deg)*
-                Quaternion.Euler(0,input.angle*Mathf.Rad2Deg,0)*Quaternion.Euler(tilt,0,0),Vector3.one*scale);
-            pose.root=root;
-            float swing=Mathf.Sin(Mathf.Clamp01(input.attack)*Mathf.PI)*65;
+            var facing=Quaternion.Euler(input.hitTiltZ*Mathf.Rad2Deg,input.angle*Mathf.Rad2Deg,-input.hitTiltX*Mathf.Rad2Deg);
+            var size=Vector3.one*scale;
             if(input.kind==SoldierKind.Catapult)
-                pose.guardOrCatapultArm=root*Pose(new Vector3(0,.59f,0),Quaternion.Euler(-35-swing*.8f,0,0),Vector3.one);
+            {
+                pose.position=p;
+                float kick=input.action.stage==ActionStage.Release?1-Ease(input.action.progress/.47f):0;
+                pose.root=Pose(p-facing*Vector3.forward*(kick*.035f*scale),facing*Quaternion.Euler(-kick*2.8f,0,0),size);
+                pose.guardOrCatapultArm=pose.root*Pose(new Vector3(0,.59f,0),
+                    Quaternion.Euler(SiegePitch(input.action),0,0),Vector3.one);
+            }
             else
             {
-                bool reverse=direction<-.15f;
-                float amplitude=speed<.12f?0:Mathf.Clamp01(speed/input.maxSpeed);
-                float walk=deploying?0:Mathf.Sin(gait*4.4f*(reverse?-1:1)+input.id)*28*amplitude*(reverse?.65f:1);
-                pose.leftLeg=root*Pose(new Vector3(-.15f,-.53f,0),Quaternion.Euler(walk,0,0),Vector3.one);
-                pose.rightLeg=root*Pose(new Vector3(.15f,-.53f,0),Quaternion.Euler(-walk,0,0),Vector3.one);
-                if(!lowDetail)pose.leftArm=root*Pose(new Vector3(-.36f,.27f,0),Quaternion.Euler(-walk*.5f,0,0),Vector3.one)*
-                    Matrix4x4.Translate(new Vector3(.36f,-.27f,0));
-                pose.rightArm=root*Pose(new Vector3(.36f,.27f,0),Quaternion.Euler(-swing+walk*.4f,0,-4),Vector3.one)*
-                    Matrix4x4.Translate(new Vector3(-.36f,-.27f,0));
-                if(input.kind==SoldierKind.Shield&&!lowDetail)
-                    pose.guardOrCatapultArm=root*Pose(new Vector3(0,input.guard*.1f,input.guard*.15f),
-                        Quaternion.Euler(-input.guard*14,0,0),Vector3.one);
-                if(mounted)
+                var step=new BipedGait(gait,deploying?0:speed,input.maxSpeed,direction,time,input.id);
+                var attack=AttackPose(input.style,input.action);
+                float actionWeight=ActionWeight(input.action);
+                float couch=0;
+                if(input.kind==SoldierKind.Cavalry)
                 {
-                    var left=Quaternion.Euler(walk,0,0);
-                    var right=Quaternion.Euler(-walk,0,0);
-                    pose.nearLeft=root*Pose(new Vector3(-.24f,-.65f,-.4f),left,Vector3.one);
-                    pose.nearRight=root*Pose(new Vector3(.24f,-.65f,-.4f),right,Vector3.one);
-                    pose.farLeft=root*Pose(new Vector3(-.24f,-.65f,.4f),left,Vector3.one);
-                    pose.farRight=root*Pose(new Vector3(.24f,-.65f,.4f),right,Vector3.one);
+                    var horse=new HorseStride(gait,deploying?0:speed,input.charge,input.terrainTilt,step.breath,input.id);
+                    p.y+=(.55f+horse.bob)*scale;
+                    pose.horse=Pose(p,facing*Quaternion.Euler(horse.pitch,0,horse.roll),size);
+                    pose.nearLeft=Hoof(pose.horse,horse,false,false);
+                    pose.nearRight=Hoof(pose.horse,horse,false,true);
+                    pose.farLeft=Hoof(pose.horse,horse,true,false);
+                    pose.farRight=Hoof(pose.horse,horse,true,true);
+                    couch=horse.gallop;
+                    var seat=pose.horse*Matrix4x4.Translate(new Vector3(0,-.005f,-.034f));
+                    // The seat follows the horse; the upper body counterbalances its rocking motion.
+                    pose.root=seat*Pose(attack.weightShift+new Vector3(0,0,.075f*couch),
+                        Quaternion.Euler(attack.torso+new Vector3(19*couch-horse.pitch*.55f,0,-horse.roll*.56f)),Vector3.one);
+                    pose.leftLeg=seat*Pose(new Vector3(-.19f,-.455f,-.07f),Quaternion.Euler(-20-9*couch,0,-16),Vector3.one);
+                    pose.rightLeg=seat*Pose(new Vector3(.19f,-.455f,-.07f),Quaternion.Euler(-20-9*couch,0,16),Vector3.one);
                 }
+                else
+                {
+                    var hips=Pose(p,facing,size);
+                    float feet=1-.69f*actionWeight;
+                    pose.leftLeg=WalkingLeg(hips,step,new Vector3(-.15f,-.53f,0),false,feet);
+                    pose.rightLeg=WalkingLeg(hips,step,new Vector3(.15f,-.53f,0),true,feet);
+                    var shift=attack.weightShift+new Vector3(step.sway*.019f,step.bob*feet,0);
+                    var spine=attack.torso+new Vector3(step.lean*feet,step.twist*feet,step.roll*feet);
+                    if(input.style==AttackStyle.Aim&&input.stockWeapon)spine.y-=14*actionWeight;
+                    pose.root=hips*Pose(shift,Quaternion.Euler(spine),Vector3.one);
+                }
+                PoseArms(input,step,attack,actionWeight,couch,lowDetail,ref pose);
+                p=pose.root.GetColumn(3);
+                pose.position=p;
             }
             if(input.hp<.99f)
             {
                 pose.hpBackground=Pose(p+Vector3.up*(1.1f*scale),Quaternion.identity,new Vector3(.7f*scale,.055f,.1f));
                 pose.hpFill=Pose(p+new Vector3(-.35f*scale*(1-input.hp),1.12f*scale,0),Quaternion.identity,
                     new Vector3(.7f*scale*Mathf.Clamp01(input.hp),.06f,.11f));
+            }
+        }
+
+        static float ActionWeight(in ActionSample sample) => sample.stage switch
+        {
+            ActionStage.Idle=>0,
+            ActionStage.Release=>1-Ease((sample.progress-.22f)/.78f),
+            _=>Ease(sample.progress)
+        };
+
+        static readonly Vector3 RightShoulder=new Vector3(.282f,.251f,.009f),LeftShoulder=new Vector3(-.282f,.251f,.009f);
+        static readonly Vector3 LeftPalm=new Vector3(-.36f,-.14f,.078f);
+
+        static Matrix4x4 ArmPivot(Vector3 shoulder,Vector3 angles,Vector3 shift)
+        {
+            var rotation=Quaternion.Euler(angles);
+            return Pose(shoulder+shift-rotation*shoulder,rotation,Vector3.one);
+        }
+
+        static Matrix4x4 ReachLeftHand(Vector3 target)
+        {
+            var resting=LeftPalm-LeftShoulder;
+            var reach=target-LeftShoulder;
+            float reachRatio=Mathf.Clamp(reach.magnitude/resting.magnitude,.67f,1.29f);
+            var rotation=Quaternion.FromToRotation(resting,reach);
+            var stretch=new Vector3(1,reachRatio,1);
+            return Pose(LeftShoulder-rotation*Vector3.Scale(LeftShoulder,stretch),rotation,stretch);
+        }
+
+        static void PoseArms(in PoseInput input,in BipedGait step,in AttackKey attack,float actionWeight,float couch,
+            bool distant,ref PoseOutput pose)
+        {
+            float stride=step.sway*(13+step.run*11)*step.direction*(1-actionWeight);
+            float block=Ease(input.guard);
+            var angles=attack.weapon+new Vector3(stride,-couch*6,-6-couch*6);
+            var travel=Vector3.Scale(attack.hand,new Vector3(.82f,.74f,.64f))+new Vector3(-.026f,.01f,.105f)*couch;
+            if(input.style==AttackStyle.Aim&&input.stockWeapon)
+            {
+                angles.y+=14*actionWeight;
+                angles.x+=8*actionWeight;
+                travel.z-=.055f*actionWeight;
+            }
+            if(input.style==AttackStyle.Bless&&input.stockWeapon)angles.x-=17*actionWeight;
+            var right=ArmPivot(RightShoulder,angles,travel);
+            pose.rightArm=pose.root*right;
+            pose.emptyThrowHand=input.style==AttackStyle.Throw&&input.action.stage==ActionStage.Release&&input.action.progress<.86f;
+            if(distant)return;
+            if(input.kind==SoldierKind.Shield)
+            {
+                float cover=Mathf.Max(block,actionWeight*.62f);
+                var shift=new Vector3(.014f,.091f,.142f)*cover;
+                var guard=new Vector3(-18*cover-stride*.12f,11*cover,-7*cover);
+                pose.leftArm=pose.root*ArmPivot(LeftShoulder,guard,shift*.55f);
+                pose.guardOrCatapultArm=pose.root*ArmPivot(new Vector3(-.30f,-.03f,.291f),guard,shift);
+            }
+            else if((input.style==AttackStyle.Aim||input.style==AttackStyle.Hammer)&&actionWeight>.001f)
+            {
+                Vector3 grip;
+                if(input.style==AttackStyle.Hammer)grip=right.MultiplyPoint3x4(new Vector3(.36f,-.145f,.36f));
+                else
+                {
+                    grip=right.MultiplyPoint3x4(new Vector3(.36f,.10f,input.stockWeapon?.37f:.441f));
+                    if(!input.stockWeapon)
+                    {
+                        float pull=input.action.stage==ActionStage.Release?1-Ease(input.action.progress/.44f):Ease(input.action.progress);
+                        grip+=new Vector3(-.20f,.10f,-.43f)*pull;
+                    }
+                }
+                pose.leftArm=pose.root*ReachLeftHand(Vector3.LerpUnclamped(LeftPalm,grip,actionWeight));
+            }
+            else
+            {
+                float balance=input.style==AttackStyle.Bless?61:input.style==AttackStyle.Throw?34:18;
+                pose.leftArm=pose.root*ArmPivot(LeftShoulder,new Vector3(-stride-balance*actionWeight-couch*18,
+                    actionWeight*11,5+actionWeight*9),Vector3.zero);
             }
         }
 
@@ -278,11 +379,12 @@ namespace Frontline.UnityGame
             {
                 Add(leg,pose.leftLeg,White);Add(leg,pose.rightLeg,White);
                 if(!lowActors)Add(armLeft,pose.leftArm,input.color);
-                Add(draw.model.right,pose.rightArm,input.color);
+                if(pose.emptyThrowHand)Add(armLeft,pose.rightArm*Matrix4x4.Translate(new Vector3(.72f,0,0)),input.color);
+                else Add(draw.model.right,pose.rightArm,input.color);
                 if(input.kind==SoldierKind.Shield&&!lowActors)Add(shield,pose.guardOrCatapultArm,input.color);
                 if(input.kind==SoldierKind.Cavalry)
                 {
-                    Add(horse,pose.root,White);
+                    Add(horse,pose.horse,White);
                     Add(horseLeg,pose.nearLeft,White);Add(horseLeg,pose.nearRight,White);
                     Add(horseLeg,pose.farLeft,White);Add(horseLeg,pose.farRight,White);
                 }
@@ -324,7 +426,12 @@ namespace Frontline.UnityGame
 
         static void VerifyPose(in PoseOutput job,in PoseOutput inline)
         {
-            if(job.visible!=inline.visible||!EqualBits(job.root,inline.root)||
+            if(job.visible!=inline.visible||job.emptyThrowHand!=inline.emptyThrowHand||
+                !EqualBits(job.position,inline.position)||!EqualBits(job.speed,inline.speed)||!EqualBits(job.gait,inline.gait)||
+                job.motion.valid!=inline.motion.valid||!EqualBits(job.motion.p,inline.motion.p)||
+                !EqualBits(job.motion.time,inline.motion.time)||!EqualBits(job.motion.speed,inline.motion.speed)||
+                !EqualBits(job.motion.phase,inline.motion.phase)||!EqualBits(job.motion.direction,inline.motion.direction)||
+                !EqualBits(job.root,inline.root)||!EqualBits(job.horse,inline.horse)||
                 !EqualBits(job.leftLeg,inline.leftLeg)||!EqualBits(job.rightLeg,inline.rightLeg)||
                 !EqualBits(job.leftArm,inline.leftArm)||!EqualBits(job.rightArm,inline.rightArm)||
                 !EqualBits(job.guardOrCatapultArm,inline.guardOrCatapultArm)||
@@ -333,6 +440,9 @@ namespace Frontline.UnityGame
                 !EqualBits(job.hpBackground,inline.hpBackground)||!EqualBits(job.hpFill,inline.hpFill))
                 throw new InvalidOperationException("Parallel soldier pose differs from its inline result");
         }
+
+        static bool EqualBits(float a,float b) => BitConverter.SingleToInt32Bits(a)==BitConverter.SingleToInt32Bits(b);
+        static bool EqualBits(Vector3 a,Vector3 b) => EqualBits(a.x,b.x)&&EqualBits(a.y,b.y)&&EqualBits(a.z,b.z);
 #endif
     }
 }

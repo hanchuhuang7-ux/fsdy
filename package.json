@@ -1,6 +1,6 @@
 {
   "name": "frontline-lab",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "type": "module",
   "description": "Native Unity 3D physics battle sandbox for Windows and WebGL",
