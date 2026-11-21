@@ -29,29 +29,11 @@ namespace Frontline.Editor
 
         static void Tunic(Geometry g,int lod,Color dye)
         {
-            int sides=lod==0?10:6;
+            if(lod==0){TailoredTunic(g,dye,false);return;}
+            const int sides=6;
             g.Frustum(V(0,-.33f,0),V(.54f,0,.40f),V(0,-.14f,0),V(.42f,0,.32f),dye,sides);
             g.Frustum(V(0,-.14f,0),V(.42f,0,.32f),V(0,.23f,0),V(.57f,0,.40f),dye,sides);
             g.Frustum(V(0,.23f,0),V(.57f,0,.40f),V(0,.34f,0),V(.26f,0,.23f),dye,sides);
-        }
-
-        static void SoldierTrim(Geometry g,string kind,int lod)
-        {
-            bool heavy=kind=="shield"||kind=="giant"||kind=="cavalry";
-            if(heavy)
-            {
-                g.Frustum(V(0,-.2f,.008f),V(.46f,0,.37f),V(0,.24f,0),V(.60f,0,.43f),Steel,lod==0?10:6);
-                g.Spear(V(0,.69f,.19f),V(0,.48f,.228f),.052f,LightSteel);
-            }
-            else
-            {
-                g.Cylinder(V(-.21f,.27f,.13f),V(.17f,-.20f,.14f),.039f,Wood,5);
-                g.Frustum(V(0,.22f,-.015f),V(.55f,0,.43f),V(0,.37f,-.01f),V(.27f,0,.23f),kind=="archer"?Moss:Linen,7);
-            }
-            if(lod!=0)return;
-            g.Bevel(V(.21f,-.21f,.08f),V(.14f,.18f,.13f),.035f,Copper);
-            foreach(float side in new[]{-1f,1f})
-                g.Cylinder(V(side*.18f,.29f,.12f),V(side*.18f,.29f,.155f),.027f,Gold,6);
         }
 
         static void Blade(Geometry g,float x)
@@ -229,51 +211,25 @@ namespace Frontline.Editor
             }
         }
 
-        static void HeroRegalia(Geometry g,string type,int lod)
-        {
-            if(type=="hero_commander")
-            {
-                Pennant(g,V(-.18f,-.18f,-.23f),1.68f,.63f,Indigo,lod);
-                g.Bevel(V(0,.68f,.04f),V(.39f,.09f,.36f),.034f,Gold);
-                g.Quad(V(-.23f,.27f,-.19f),V(.22f,.27f,-.19f),V(.25f,-.34f,-.28f),V(-.24f,-.42f,-.29f),Indigo,true);
-                g.Quad(V(-.13f,1.42f,-.29f),V(.27f,1.39f,-.20f),V(.21f,1.29f,-.21f),V(-.13f,1.32f,-.29f),Gold,true);
-            }
-            else if(type=="hero_vanguard")
-            {
-                foreach(float side in new[]{-1f,1f}){
-                    g.Frustum(V(side*.30f,.22f,0),V(.34f,0,.49f),V(side*.31f,.43f,0),V(.20f,0,.30f),Dark,lod==0?8:5);
-                    g.Bevel(V(side*.35f,.327f,.21f),V(.20f,.15f,.087f),.028f,Copper);
-                    g.Spear(V(side*.17f,.73f,-.02f),V(side*.38f,1.03f,-.18f),.095f,Gold);
-                }
-            }
-            else
-            {
-                g.Quad(V(-.23f,.30f,-.20f),V(.24f,.31f,-.20f),V(.40f,-.57f,-.42f),V(-.05f,-.41f,-.43f),Moss,true);
-                g.Quad(V(-.23f,.30f,-.20f),V(-.05f,-.41f,-.43f),V(-.32f,-.61f,-.45f),V(-.39f,-.35f,-.36f),Green,true);
-                g.Spear(V(-.14f,.74f,-.04f),V(-.26f,1.09f,-.27f),.078f,Linen);
-                g.Bevel(V(0,.602f,.182f),V(.33f,.054f,.077f),.017f,Moss);
-                g.Cylinder(V(.14f,.292f,.152f),V(.14f,.294f,.215f),.038f,Gold,5);
-            }
-        }
-
         static Geometry ResidentCoat(bool farm,int lod)
         {
             if(lod==1)return DistantResident(farm);
-            var g=new Geometry();Tunic(g,lod,farm?Linen:Cloth);
-            int n=lod==0?10:6;
+            var g=new Geometry();
+            TailoredTunic(g,farm?UndyedLinen:DyedWool,false);
             if(farm)
             {
-                g.Quad(V(-.14f,.21f,.19f),V(.14f,.21f,.19f),V(.22f,-.42f,.225f),V(-.22f,-.42f,.225f),Copper,true);
-                if(lod==0)g.Box(V(.06f,-.17f,.227f),V(.13f,.11f,.024f),WoodLight);
+                g.Quad(V(-.113f,.207f,.177f),V(.114f,.207f,.179f),V(.200f,-.465f,.212f),V(-.192f,-.474f,.221f),
+                    new Color(.51f,.317f,.174f,0),true);
+                g.Box(V(.057f,-.17f,.191f),V(.107f,.09f,.029f),WoodLight);
             }
             else
             {
-                g.Frustum(V(0,-.44f,-.015f),V(.59f,0,.43f),V(0,-.08f,0),V(.39f,0,.32f),Indigo,n);
-                foreach(float s in new[]{-1f,1f})
-                    g.Quad(V(s*.24f,.23f,.12f),V(s*.08f,.32f,.15f),V(s*.05f,-.14f,.181f),V(s*.20f,-.19f,.16f),Moss,true);
+                g.Quad(V(-.206f,.223f,.122f),V(-.093f,.303f,.129f),V(.211f,.115f,.169f),V(.144f,.044f,.175f),
+                    UndyedLinen,true);
+                g.Bevel(V(-.184f,-.203f,.067f),V(.113f,.126f,.13f),.027f,Walnut);
             }
-            g.Frustum(V(0,-.14f,0),V(.47f,0,.40f),V(0,-.07f,0),V(.47f,0,.39f),Wood,n);
-            CapePleats(g,farm?Linen:Cloth,.24f,farm?-.29f:-.39f);
+            g.Frustum(V(0,-.16f,0),V(.386f,0,.33f),V(0,-.11f,0),V(.386f,0,.329f),Walnut,8);
+            ShoulderMantle(g,farm?UndyedLinen:DyedWool,farm?-.24f:-.40f);
             g.Quad(V(-.13f,.325f,.094f),V(.11f,.33f,.098f),V(.181f,.244f,.17f),V(-.181f,.237f,.16f),
                 farm?Copper:Moss,true);
             g.Quad(V(-.11f,-.286f,.228f),V(.052f,-.269f,.232f),V(.051f,-.39f,.254f),V(-.13f,-.41f,.247f),farm?Linen:Indigo,true);
@@ -351,6 +307,14 @@ namespace Frontline.Editor
         }
         static Geometry HeadWrap(int lod)
         {
+            if(lod==0)
+            {
+                var hood=new Geometry();
+                WoolHood(hood,DyedWool,true);
+                var local=new Geometry();
+                local.Append(hood,Matrix4x4.Translate(V(0,-.60f,0)));
+                return local;
+            }
             var g=new Geometry();int n=lod==0?10:6;
             g.Ellipsoid(V(0,.015f,-.02f),V(.219f,.16f,.203f),Indigo,n,3);
             g.Frustum(V(0,-.042f,0),V(.44f,0,.403f),V(0,.011f,0),V(.45f,0,.413f),Linen,n);
@@ -492,7 +456,7 @@ namespace Frontline.Editor
                     g.Barrel(right+V(0,1.63f,-.17f),.22f,.43f,Ochre,n);
                     Pennant(g,right+V(-.45f,1.95f,0),.91f,.81f,Tile,lod);break;
                 case "smithy":
-                    Chimney(g,right.x,right.z,2.93f,.64f);g.Box(right+V(0,.42f,-.34f),V(.46f,.38f,.065f),Dark);
+                    Chimney(g,right.x,right.z,2.93f,.64f,lod);g.Box(right+V(0,.42f,-.34f),V(.46f,.38f,.065f),Dark);
                     g.Box(right+V(0,.35f,-.385f),V(.35f,.13f,.042f),Amber);break;
                 case "drill_yard":
                     Pennant(g,right,2.76f,.94f,Indigo,lod);

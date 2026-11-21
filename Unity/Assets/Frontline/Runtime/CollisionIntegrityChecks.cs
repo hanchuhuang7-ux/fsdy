@@ -251,7 +251,8 @@ namespace Frontline.UnityGame
             for(int i=0;i<party;i++)
                 config.red.Add(new UnitPlacement("militia",FrontierMap.BridgeStart-2.2f-i/4*1.65f,(i%4-1.5f)*1.45f){level=1});
             var sentinel=FrontierMap.Guards[0];
-            config.blue.Add(new UnitPlacement(sentinel.unit,261,-53));
+            var lookout=FrontierMap.RingRoad(2.72,.92f);
+            config.blue.Add(new UnitPlacement(sentinel.unit,lookout.x,lookout.z));
             using(var battle=new Battle(data,config,new UnityWorldFactory(),true))
             {
                 var world=(UnityWorld)battle.World;
@@ -274,20 +275,29 @@ namespace Frontline.UnityGame
                 }
                 for(float x=FrontierMap.West-2.37f;x<=FrontierMap.East+2;x+=4.1f)
                     for(float z=-FrontierMap.HalfDepth-2.73f;z<FrontierMap.HalfDepth+3;z+=4.6f)Probe(x,z);
-                foreach(var coast in new[]{FrontierMap.ManorCoast,FrontierMap.FrontierCoast})
-                    for(int i=1;i<coast.Count;i++)
+                var coast=FrontierMap.ManorCoast;
+                for(int i=1;i<coast.Count;i++)
+                {
+                    var a=coast[i-1];var b=coast[i];
+                    float x=(a.x+b.x)*.5f,s=(a.south+b.south)*.5f,n=(a.north+b.north)*.5f;
+                    Probe(x,s-.11f);Probe(x,s+.11f);Probe(x,n-.11f);Probe(x,n+.11f);
+                }
+                foreach(var bank in new[]{FrontierMap.LakeBank,FrontierMap.OuterBank})
+                    for(int i=0;i<bank.Count;i++)
                     {
-                        var a=coast[i-1];var b=coast[i];
-                        float x=(a.x+b.x)*.5f,s=(a.south+b.south)*.5f,n=(a.north+b.north)*.5f;
-                        Probe(x,s-.11f);Probe(x,s+.11f);Probe(x,n-.11f);Probe(x,n+.11f);
+                        var center=(bank[i]+bank[(i+1)%bank.Count])*.5f;
+                        var radial=(center-new V3(FrontierMap.ManorX,0,0)).Normalized*.13f;
+                        Probe(center.x-radial.x,center.z-radial.z);
+                        Probe(center.x+radial.x,center.z+radial.z);
                     }
                 for(float x=FrontierMap.BridgeStart-.6f;x<FrontierMap.Boundary+.6f;x+=.12f)
                     for(int lane=-1;lane<=1;lane++)Probe(x,lane*2.7f);
                 Require(maxError<.005f&&highest>8,"Topography and collision floor disagree: "+maxError+" peak="+highest);
 
-                foreach(var unit in battle.Units)unit.cooldown=2800;
-                var checkpoints=new[]{new V3(16,0,-30),new V3(88,0,93),new V3(177,0,107),
-                    new V3(223,0,-68),new V3(16,0,-30),FrontierMap.Rally};
+                foreach(var unit in battle.Units)unit.cooldown=100000;
+                var checkpoints=new[]{FrontierMap.CampCenter(0),FrontierMap.CampCenter(1),
+                    FrontierMap.RingRoad(Math.PI,.30f),FrontierMap.CampCenter(2),
+                    FrontierMap.CampCenter(0),FrontierMap.Rally};
                 foreach(var goal in checkpoints)
                 {
                     Require(battle.MarchFrontier(goal.x,goal.z),"Real coast march rejected "+goal.x+","+goal.z);
@@ -322,7 +332,7 @@ namespace Frontline.UnityGame
                 Debug.Log("FRONTLINE_NATURAL_COAST_OK raySamples="+cells+" patrolSamples="+pathSamples+
                     " checkpoints="+checkpoints.Length+" peak="+highest+" floorError="+maxError);
                 return new {raySamples=cells,patrolSamples=pathSamples,checkpoints=checkpoints.Length,peak=highest,floorError=maxError,
-                    manorArea=FrontierMap.ManorArea,frontierArea=FrontierMap.FrontierArea};
+                    manorArea=FrontierMap.ManorArea,lakeArea=FrontierMap.LakeArea,frontierArea=FrontierMap.FrontierArea};
             }
         }
 

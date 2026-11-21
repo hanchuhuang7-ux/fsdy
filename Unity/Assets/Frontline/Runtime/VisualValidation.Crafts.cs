@@ -41,7 +41,7 @@ namespace Frontline.UnityGame
             craftBuildingsVerified=true;
         }
 
-        IEnumerator CheckResidentCloseups(bool captures)
+        IEnumerator CheckResidentCloseups(bool captures,string series="160")
         {
             while(app.Estate.RetinueReady<3)
             {
@@ -52,14 +52,14 @@ namespace Frontline.UnityGame
             app.View.FocusManorRetinue();
             yield return WaitForState(()=>!app.View.CameraMoving&&app.View.VisibleRetinue>=3,"Retinue close-up was obscured");
             retinueCloseup=app.View.VisibleRetinue;
-            if(captures)yield return ManorShot("160-retinue");
+            if(captures)yield return ManorShot(series+"-retinue");
 
             var tavern=new Vector3(FrontierMap.ManorX+Manor.SlotX(3),.93f,Manor.SlotZ(3)-.15f);
             app.View.Focus(tavern,10.3f,29,-11);
             yield return new WaitForEndOfFrame();
             heroCloseupMask=app.View.VisibleHeroMask;
             Require(heroCloseupMask==(1<<Manor.HeroIds.Length)-1,"Hero portrait group was obscured");
-            if(captures)yield return ManorShot("160-heroes");
+            if(captures)yield return ManorShot(series+"-heroes");
 
             for(int role=0;role<Manor.SpecialistIds.Length;role++)
             {
@@ -74,7 +74,7 @@ namespace Frontline.UnityGame
                 app.View.Focus(position+Vector3.up*.88f,6.8f,22,yaw);
                 yield return WaitForState(()=>(app.View.VisibleSpecialistMask&mask)!=0,"Missing specialist close-up "+Manor.SpecialistIds[role]);
                 specialistCloseupMask|=mask;
-                if(captures)yield return ManorShot("160-specialist-"+Manor.SpecialistIds[role]);
+                if(captures)yield return ManorShot(series+"-specialist-"+Manor.SpecialistIds[role]);
             }
             Debug.Log("FRONTLINE_CRAFTS_ART_OK crafts=2 specialists="+specialistCloseupMask+" heroes="+heroCloseupMask+" retinue="+retinueCloseup);
         }

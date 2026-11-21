@@ -383,7 +383,7 @@ namespace Frontline.UnityGame
             if(Battle.MarchFrontier(point.x,point.z))
             {
                 View.FrontierDestination=Battle.MarchDestination;
-                Tell(FrontierMap.Safe(point.x)?"队伍向安全区移动":"队伍推进 · 遇敌自动接战");
+                Tell(FrontierMap.Safe(point.x,point.z)?"队伍向安全区移动":"队伍推进 · 遇敌自动接战");
             }
         }
         public void RecallFrontier()
@@ -392,7 +392,7 @@ namespace Frontline.UnityGame
             var rally=FrontierMap.Rally;
             Battle.MarchFrontier(rally.x,rally.z);
             Tool="march";
-            Tell("队伍撤向半岛集合点");
+            Tell("队伍撤向湖心集合点");
             Refresh();
         }
         public void PrepareExpedition(int stage,bool raid)

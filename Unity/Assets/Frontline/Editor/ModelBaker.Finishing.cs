@@ -18,48 +18,6 @@ namespace Frontline.Editor
             name=="head"||name=="rock"||name=="tree"||name=="pine"||name=="catapult_arm"||
             Array.IndexOf(Manor.Buildings,name)>=0||name.EndsWith("_wing",StringComparison.Ordinal)||name.EndsWith("_tower",StringComparison.Ordinal);
 
-        static void UniformDetail(Geometry g,string role)
-        {
-            bool plate=role=="shield"||role=="spear"||role=="giant"||role=="cavalry"||role=="crossbow"||role=="catapult";
-            Color edge=plate?LightSteel:Linen;
-            for(int side=-1;side<=1;side+=2)
-            {
-                float x=side;
-                var shoulder=V(x*.19f,.27f,.17f);
-                var elbow=V(x*.355f,.19f,.17f);
-                var rib=V(x*.27f,.11f,.219f);
-                g.Triangle(shoulder,V(x*.30f,.318f,.105f),elbow,plate?Steel:Cloth);
-                g.Triangle(shoulder,elbow,rib,edge);
-                g.Triangle(shoulder,rib,V(x*.122f,.105f,.241f),plate?Steel:Cloth);
-                g.Quad(V(x*.20f,.018f,.213f),V(x*.20f,.060f,.216f),
-                    V(x*.045f,.043f,.227f),V(x*.045f,-.002f,.225f),edge,true);
-                if(plate)
-                {
-                    g.Quad(V(x*.185f,.612f,.143f),V(x*.208f,.514f,.135f),V(x*.123f,.465f,.156f),V(x*.125f,.574f,.201f),
-                        side<0?Steel:LightSteel,true);
-                    g.Quad(V(x*.186f,.610f,.147f),V(x*.144f,.599f,.191f),V(x*.142f,.627f,.187f),V(x*.188f,.638f,.143f),Gold,true);
-                }
-                else g.Quad(V(x*.059f,.55f,.173f),V(x*.126f,.555f,.148f),
-                    V(x*.125f,.572f,.148f),V(x*.056f,.566f,.173f),Dark,true);
-            }
-            g.Bevel(V(-.19f,-.249f,.171f),V(.137f,.17f,.12f),.023f,Wood);
-            g.Quad(V(-.246f,-.216f,.234f),V(-.132f,-.216f,.234f),V(-.150f,-.249f,.238f),V(-.229f,-.254f,.237f),Copper,true);
-            if(role=="militia"||role=="archer"||role=="medic")
-                g.Quad(V(.145f,.665f,-.108f),V(.229f,.792f,-.149f),V(.25f,.859f,-.233f),V(.167f,.754f,-.182f),role=="medic"?Linen:Cloth,true);
-            else if(role!="bomber")
-                CapePleats(g,plate?Cloth:Indigo,.22f,-.38f);
-        }
-
-        static void CapePleats(Geometry g,Color fabric,float shoulder,float hem)
-        {
-            Vector3 shoulderLeft=V(-.23f,shoulder,-.215f), shoulderRight=V(.23f,shoulder,-.215f);
-            Vector3 fold=V(.01f,hem-.06f,-.355f);
-            g.Triangle(shoulderLeft,V(0,shoulder,-.241f),fold,fabric);
-            g.Triangle(shoulderLeft,fold,V(-.33f,hem,-.293f),fabric*.83f);
-            g.Triangle(V(0,shoulder,-.241f),shoulderRight,fold,fabric*1.09f);
-            g.Triangle(shoulderRight,V(.33f,hem+.035f,-.277f),fold,fabric*.92f);
-        }
-
         static void WeaponFinish(Geometry g,string type,float x)
         {
             if(type=="spear"||type=="cavalry")
@@ -84,16 +42,6 @@ namespace Frontline.Editor
             else
             {
                 g.Quad(V(x-.067f,-.061f,.18f),V(x+.067f,-.061f,.18f),V(x+.063f,-.08f,.18f),V(x-.063f,-.08f,.18f),Copper,true);
-            }
-        }
-
-        static void ShieldInlay(Geometry g,float x,float z)
-        {
-            foreach(int side in new[]{-1,1})
-            {
-                g.Quad(V(x+side*.153f,.25f,z),V(x+side*.18f,.233f,z),V(x+side*.172f,-.207f,z),V(x+side*.147f,-.225f,z),Gold,true);
-                g.Triangle(V(x,.14f,z+.005f),V(x+side*.126f,.033f,z+.005f),V(x,-.17f,z+.005f),LightSteel);
-                g.Triangle(V(x,.14f,z+.005f),V(x,-.17f,z+.005f),V(x+side*.126f,.033f,z+.005f),Gold);
             }
         }
 
@@ -174,21 +122,43 @@ namespace Frontline.Editor
         {
             var g=new Geometry();
             float length=FrontierMap.Boundary-FrontierMap.BridgeStart;
+            float width=FrontierMap.BridgeHalfWidth;
+            const int spans=9;
+            g.Box(V(0,-.24f,0),V(length,.48f,width*2),Wood);
+            if(lod==0)
+            {
+                int boards=Mathf.RoundToInt(length/.50f);
+                for(int i=0;i<boards;i++)
+                {
+                    float step=length/boards,x=(i+.5f)*step-length*.5f;
+                    var stain=Color.Lerp(new Color(.42f,.29f,.19f,0),new Color(.66f,.50f,.33f,0),.4f+.39f*Mathf.Sin(i*3.13f+.8f));
+                    g.Quad(V(x-step*.477f,.014f,-width),V(x-step*.477f,.014f,width),
+                        V(x+step*.477f,.014f,width),V(x+step*.477f,.014f,-width),stain);
+                }
+            }
             for(int side=-1;side<=1;side+=2)
             {
-                float z=side*(FrontierMap.BridgeHalfWidth+.075f);
-                if(lod==1)
+                float z=side*(width+.075f);
+                g.Box(V(0,.64f,z),V(length,.14f,.17f),WoodLight);
+                g.Box(V(0,.105f,z),V(length,.19f,.29f),Wood);
+                for(int i=0;i<=spans;i++)
                 {
-                    g.Box(V(0,.42f,z),V(.19f,.022f,.20f),Steel);
-                    continue;
-                }
-                for(int i=0;i<6;i++)
-                {
-                    float x=-length*.5f+.54f+i*2.09f;
-                    g.Box(V(x,.43f,z),V(.18f,.035f,.217f),Steel);
-                    g.Box(V(x,.33f,z-side*.105f),V(.16f,.17f,.034f),Copper);
-                    g.Triangle(V(x-.20f,.07f,z-side*.10f),V(x+.21f,.35f,z-side*.10f),
-                        V(x+.21f,.07f,z-side*.10f),WoodLight);
+                    float x=(i/(float)spans-.5f)*(length-1.2f);
+                    g.Box(V(x,-.66f,z*.91f),V(.36f,2.54f,.40f),Wood);
+                    if(lod!=0)continue;
+                    g.Box(V(x,.72f,z),V(.27f,.16f,.29f),WoodLight);
+                    g.Quad(V(x-.139f,.49f,z-side*.18f),V(x+.139f,.49f,z-side*.18f),V(x+.139f,.63f,z-side*.18f),
+                        V(x-.139f,.63f,z-side*.18f),Steel,true);
+                    if(i<spans)
+                    {
+                        float end=x+(length-1.2f)/spans;
+                        g.Box(V((x+end)*.5f,.32f,z),V(.14f,.74f,.15f),Wood);
+                    }
+                    if(i%3==1)
+                    {
+                        g.Box(V(x,-1.20f,0),V(.58f,.38f,width*1.9f),WoodLight);
+                        g.Cylinder(V(x,-1.58f,0),V(x,-.33f,z*.88f),.136f,Wood,4);
+                    }
                 }
             }
             return g;

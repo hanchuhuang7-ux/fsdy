@@ -17,22 +17,18 @@ namespace Frontline.Editor
                 proxy.SetAtGrade();
                 return proxy;
             }
-            var model=Body("shield",lod);
+            var model=FieldSoldier("shield");
             foreach(float x in new[]{-.15f,.15f})model.Append(Leg(lod),Matrix4x4.Translate(V(x,-.53f,0)));
             model.Append(Arm("militia",true,lod),Matrix4x4.identity);
             model.Append(Arm("militia",true,lod),Matrix4x4.Translate(V(.70f,0,0)));
-            model.Bevel(V(-.235f,-.04f,.235f),V(.43f,.66f,.10f),.068f,Gold);
-            model.Bevel(V(-.235f,-.04f,.29f),V(.35f,.57f,.035f),.046f,Indigo);
-            model.Box(V(-.235f,-.04f,.313f),V(.045f,.34f,.017f),Gold);
-            model.Box(V(-.235f,.015f,.314f),V(.23f,.047f,.018f),Gold);
-            model.Bevel(V(0,.673f,.195f),V(.38f,.046f,.045f),.013f,Gold);
-            model.Bevel(V(0,.24f,.22f),V(.32f,.064f,.035f),.015f,Gold);
+            model.Append(CurvedShield(-.235f,.255f,OldGold,Indigo),Matrix4x4.identity);
+            model.Frustum(V(0,.65f,-.018f),V(.296f,0,.293f),V(0,.677f,-.020f),V(.25f,0,.257f),OldGold,8);
+            HeraldicKite(model,0,.153f,.195f,.057f,.084f,OldGold);
             model.Cylinder(V(.36f,-.78f,.15f),V(.36f,1.07f,.15f),.029f,WoodLight,5);
             model.Spear(V(.36f,.99f,.15f),V(.36f,1.32f,.15f),.081f,LightSteel);
             model.Cylinder(V(.36f,.94f,.15f),V(.36f,1.04f,.15f),.042f,Gold,5);
             if(lod==0)
             {
-                ShieldInlay(model,-.235f,.322f);
                 model.Quad(V(-.15f,.74f,-.025f),V(-.06f,.91f,-.086f),V(.08f,.92f,-.183f),V(.112f,.735f,-.16f),Indigo,true);
                 model.Triangle(V(-.15f,.74f,-.025f),V(.08f,.92f,-.183f),V(.135f,.83f,-.18f),Gold);
             }
@@ -50,7 +46,7 @@ namespace Frontline.Editor
             Save("manor_laundry",lod,YardProp(lod,0));
             Save("manor_firewood",lod,YardProp(lod,1));
             Save("manor_straw",lod,YardProp(lod,2));
-            Save("manor_roof_snow",lod,CottageSnow());
+            Save("manor_roof_snow",lod,CottageSnow(lod));
             BakeBackyards(lod);
             for(int i=0;i<Manor.SpecialistIds.Length;i++)
                 Save("specialist_"+Manor.SpecialistIds[i],lod,Specialist(i,lod));
@@ -65,7 +61,7 @@ namespace Frontline.Editor
             Gable(g,V(.79f,1.82f,.16f),1.04f,1.16f,.47f,Slate,Plaster,lod);
             var hub=ManorPlotArt.BakeryHub;
             g.Cylinder(hub+V(0,0,-.015f),V(hub.x,hub.y,-.14f),.073f,WoodLight,lod==0?8:5);
-            Chimney(g,-1.18f,.32f,2.24f,.26f);
+            Chimney(g,-1.18f,.32f,2.24f,.26f,lod);
             BreadStall(g,V(-.52f,0,-1.02f),lod);
             g.Box(V(.86f,.41f,-.78f),V(.46f,.60f,.38f),Stonework);
             g.Box(V(.86f,.38f,-.979f),V(.29f,.31f,.032f),Dark);
@@ -173,12 +169,20 @@ namespace Frontline.Editor
                 g.Box(pier+Vector3.up*.10f,V(.46f,.12f,.43f),Stonework);
             }
             g.Box(V(0,.46f,.25f),V(2.42f,.15f,1.52f),Wood);
-            g.Box(V(0,1.02f,.25f),V(2.22f,1.02f,1.40f),WoodLight);
-            Gable(g,V(0,1.53f,.25f),2.69f,1.80f,.74f,Tile,Plaster,lod);
-            for(int i=0;i<(lod==0?9:4);i++)
-                g.Box(V(-.97f+i*(lod==0?.244f:.646f),1.0f,-.472f),V(.044f,1.03f,.04f),Wood);
-            foreach(float x in new[]{-.96f,.96f})
-                g.Cylinder(V(x,.52f,-.49f),V(x*.50f,1.46f,-.49f),.047f,Wood,5);
+            if(lod==0)
+            {
+                var granary=new Geometry();
+                TimberHouse(granary,0,.25f,2.22f,1.40f,1.02f,.74f,FiredClay);
+                g.Append(granary,Matrix4x4.Translate(Vector3.up*.51f));
+            }
+            else
+            {
+                g.Box(V(0,1.02f,.25f),V(2.22f,1.02f,1.40f),WoodLight);
+                Gable(g,V(0,1.53f,.25f),2.69f,1.80f,.74f,Tile,Plaster,lod);
+                for(int i=0;i<4;i++)g.Box(V(-.97f+i*.646f,1.0f,-.472f),V(.044f,1.03f,.04f),Wood);
+                foreach(float x in new[]{-.96f,.96f})
+                    g.Cylinder(V(x,.52f,-.49f),V(x*.50f,1.46f,-.49f),.047f,Wood,5);
+            }
             g.Box(V(0,.96f,-.494f),V(.74f,.94f,.105f),Wood);
             g.Box(V(0,.95f,-.56f),V(.56f,.77f,.055f),Dark);
             g.Box(V(.23f,.92f,-.595f),V(.065f,.15f,.04f),Gold);
@@ -238,12 +242,16 @@ namespace Frontline.Editor
             g.Cylinder(foot+Vector3.up*3.86f,foot+Vector3.up*4.12f,.044f,Copper,lod==0?7:5);
             g.Spear(foot+Vector3.up*4.04f,foot+Vector3.up*4.23f,.083f,Gold);
             if(lod==0)
+            {
+                MasonryFace(g,V(-.39f,.19f,-.534f),Quaternion.identity,2.17f,1.36f,.225f);
+                MasonryFace(g,V(.93f,.18f,-1.001f),Quaternion.identity,1.02f,2.20f,.24f);
                 for(int i=0;i<5;i++)
                 {
                     float y=.36f+i*.31f;
                     g.Box(V(1.4f,y,-.91f),V(.18f,.065f,.115f),Rock);
                     g.Box(V(-1.42f,y,-.50f),V(.18f,.065f,.115f),Rock);
                 }
+            }
         }
 
         static void ChapelAnnex(Geometry g,Vector3 at,int lod)
@@ -418,7 +426,7 @@ namespace Frontline.Editor
             return g;
         }
 
-        static Geometry CottageSnow()
+        static Geometry CottageSnow(int lod)
         {
             var g=new Geometry();
             void Cap(float x,float z,float halfWidth,float halfDepth,float eave,float rise)
@@ -431,8 +439,8 @@ namespace Frontline.Editor
                         V(x+halfWidth-.16f,y,edge),V(x-halfWidth+.11f,y+.019f,edge),Snow,true);
                 }
             }
-            Cap(-.55f,.05f,.97f,.94f,1,.71f);
-            Cap(.91f,.29f,.705f,.73f,.83f,.50f);
+            Cap(-.55f,.05f,.97f,.94f,1,lod==0?.71f*1.22f:.71f);
+            Cap(.91f,.29f,.705f,.73f,.83f,lod==0?.50f*1.22f:.50f);
             return g;
         }
 
@@ -445,7 +453,11 @@ namespace Frontline.Editor
                 role==2?new Color(.31f,.47f,.32f,0):role==3?new Color(.28f,.37f,.43f,0):
                 role==4?new Color(.52f,.36f,.22f,0):new Color(.32f,.24f,.54f,0);
             Tunic(g,lod,coat);
-            if(lod==0)FaceBust(g,V(0,.51f,.025f),V(.167f,.20f,.16f),role+1,role==3);
+            if(lod==0)
+            {
+                Portrait(g,role+1,role==3);
+                if(role==2||role==5)WoolHood(g,role==2?Moss:coat,true);
+            }
             else g.Ellipsoid(V(0,.51f,.025f),V(.167f,.20f,.16f),Skin,n,3);
             g.Frustum(V(0,-.17f,0),V(.469f,0,.366f),V(0,-.10f,0),V(.475f,0,.372f),Wood,n);
             g.Box(V(0,-.115f,.188f),V(.16f,.083f,.048f),new Color(.74f,.68f,.46f,1));
@@ -463,20 +475,20 @@ namespace Frontline.Editor
             g.Ellipsoid(rightHand,V(.073f,.065f,.076f),Skin,6,2);
             if(role==0)
             {
-                g.Cylinder(V(0,.608f,.009f),V(0,.76f,.006f),.168f,Indigo,n);
-                g.Cylinder(V(0,.603f,.009f),V(0,.631f,.009f),.196f,Dark,n);
+                g.Cylinder(V(0,lod==0?.648f:.608f,.009f),V(0,.76f,.006f),lod==0?.132f:.168f,Indigo,n);
+                g.Cylinder(V(0,lod==0?.638f:.603f,.009f),V(0,lod==0?.656f:.631f,.009f),lod==0?.148f:.196f,Dark,n);
                 g.Box(V(0,.017f,.333f),V(.38f,.08f,.25f),Copper);
                 g.Box(V(0,.053f,.340f),V(.34f,.022f,.22f),Linen);
             }
             else if(role==1)
             {
-                g.Ellipsoid(V(0,.66f,-.040f),V(.22f,.155f,.19f),Copper,n,3);
-                g.Cylinder(V(0,.605f,-.004f),V(0,.627f,-.004f),.225f,Ochre,n);
+                g.Ellipsoid(V(0,.66f,-.040f),lod==0?V(.153f,.095f,.129f):V(.22f,.155f,.19f),Copper,n,3);
+                g.Cylinder(V(0,lod==0?.626f:.605f,-.004f),V(0,lod==0?.647f:.627f,-.004f),lod==0?.158f:.225f,Ochre,n);
                 g.Ellipsoid(V(0,-.016f,.337f),V(.17f,.15f,.12f),Linen,n,3);
             }
             else if(role==2)
             {
-                g.Ellipsoid(V(0,.66f,-.055f),V(.201f,.15f,.184f),Moss,n,3);
+                if(lod!=0)g.Ellipsoid(V(0,.66f,-.055f),V(.201f,.15f,.184f),Moss,n,3);
                 g.Bevel(V(0,.083f,-.270f),V(.43f,.39f,.219f),.042f,WoodLight);
                 g.Box(V(0,.091f,-.388f),V(.09f,.23f,.026f),Linen);
                 g.Box(V(0,.083f,-.389f),V(.25f,.08f,.026f),Linen);
@@ -484,8 +496,12 @@ namespace Frontline.Editor
             }
             else if(role==3)
             {
-                g.Ellipsoid(V(0,.62f,.01f),V(.199f,.174f,.179f),Steel,n,3);
-                g.Box(V(0,.569f,.143f),V(.44f,.066f,.164f),LightSteel);
+                if(lod==0)KettleHat(g,WroughtIron);
+                else
+                {
+                    g.Ellipsoid(V(0,.62f,.01f),V(.199f,.174f,.179f),Steel,n,3);
+                    g.Box(V(0,.569f,.143f),V(.44f,.066f,.164f),LightSteel);
+                }
                 g.Bevel(V(0,.07f,.148f),V(.42f,.40f,.12f),.038f,Steel);
                 var foot=V(.39f,-.61f,.14f);
                 g.Cylinder(foot,foot+V(0,1.60f,0),.028f,Wood,n);
@@ -496,7 +512,7 @@ namespace Frontline.Editor
             else MinstrelKit(g,n,lod);
             if(lod==0)
             {
-                CapePleats(g,coat,.26f,-.34f);
+                ShoulderMantle(g,coat,-.47f);
                 SpecialistRegalia(g,role,coat);
             }
             return g;

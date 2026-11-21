@@ -301,12 +301,12 @@ static partial class ManorChecks
             Expect(data.Maps.Count==6 && !data.Maps.ContainsKey(FrontierMap.Id),"frontier leaked into arena");
             for(float x=FrontierMap.BridgeStart-.5f;x<=FrontierMap.Boundary+.5f;x+=.25f)
                 Expect(data.Height(FrontierMap.Id,x,0)==0,"causeway has a physical gap");
-            Expect(!Catalog.Finite(data.Height(FrontierMap.Id,-16,6)) && data.Height(FrontierMap.Id,52,20)==0,"coastline is not isolated");
-            Expect(data.OrderGround(FrontierMap.Id,52,20) && !data.OrderGround("meadow",52,20) &&
+            Expect(!Catalog.Finite(data.Height(FrontierMap.Id,-16,6)) && data.Height(FrontierMap.Id,71,5)>=0,"coastline is not isolated");
+            Expect(data.OrderGround(FrontierMap.Id,71,5) && !data.OrderGround("meadow",71,5) &&
                 !data.OrderGround(FrontierMap.Id,-16,6),"order bounds");
             Expect(!FrontierMap.Fell(new V3(52,.8f,20)) && FrontierMap.Fell(new V3(52,-5,20)),"fall bounds");
-            V3 outward=FrontierMap.Waypoint(new V3(-30,0,7),new V3(24,0,-15),0);
-            V3 inward=FrontierMap.Waypoint(new V3(24,0,-15),new V3(-30,0,7),0);
+            V3 outward=FrontierMap.Waypoint(new V3(-30,0,7),new V3(62,0,-15),0);
+            V3 inward=FrontierMap.Waypoint(new V3(62,0,-15),new V3(-30,0,7),0);
             Expect(outward.x<FrontierMap.BridgeStart && inward.x>FrontierMap.Boundary && outward.z==0 && inward.z==0,"routes bypassed the causeway");
         });
         check("patrols cap the party at sixteen including heroes, and zero food only allows three",() => {
@@ -341,10 +341,12 @@ static partial class ManorChecks
                 Expect(guard.entity.body.Position.x==FrontierMap.EnemyStop && guard.target==null,"safe gate");
                 b.Hit(ally,60,guard.entity,10);
                 Expect(ally.entity.hp==ally.entity.maxHp,"combat crossed safe gate");
-                ReferenceWorld.Position(ally.entity.body,1,0);
-                ReferenceWorld.Position(guard.entity.body,9,0);
-                ReferenceWorld.Position(archer.entity.body,8,0);
-                b.MarchFrontier(20,0);
+                var north=b.Units[6];
+                var northSpawn=north.entity.body.Position;
+                ReferenceWorld.Position(ally.entity.body,FrontierMap.Boundary+1.2f,0);
+                ReferenceWorld.Position(guard.entity.body,FrontierMap.Boundary+8.3f,0);
+                ReferenceWorld.Position(archer.entity.body,FrontierMap.Boundary+7.5f,0);
+                b.MarchFrontier(FrontierMap.CampCenter(0).x,0);
                 for(int i=0;i<60 && b.Shots.Count==0;i++)b.Step();
                 Expect(guard.target==ally && b.Units[6].target==null && b.Units[11].target==null,"wrong patrol aggro");
                 var shot=b.Shots.First(p=>p.owner==archer.entity);
@@ -353,8 +355,9 @@ static partial class ManorChecks
                 b.Step();
                 Expect(guard.target==null && archer.target==null && ally.target==null,"guard chased into safety");
                 for(int i=0;i<150 && !shot.removed;i++)b.Step();
-                Expect(shot.removed && FrontierMap.Safe(shot.body.Position.x),"arrow was not intercepted at the boundary");
-                Expect(b.Units.All(u=>u.entity.alive) && b.IssueOrder("red",new Order("inspire",52,20),out _),"far units or orders used arena bounds");
+                Expect(shot.removed && FrontierMap.Safe(shot.body.Position),"arrow was not intercepted at the boundary");
+                Expect(north.entity.body.Position.x==northSpawn.x&&!FrontierMap.Safe(northSpawn),"north shore guard was pulled to the gate");
+                Expect(b.Units.All(u=>u.entity.alive) && b.IssueOrder("red",new Order("inspire",71,5),out _),"far units or orders used arena bounds");
             }
         });
         check("march routes pass both tactical fences and keep selected endpoints on walkable ground",() => {
@@ -402,7 +405,7 @@ static partial class ManorChecks
                 long before=GC.GetAllocatedBytesForCurrentThread();
                 for(int i=0;i<120;i++){b.Step();b.Snapshot(frame);}
                 Expect(GC.GetAllocatedBytesForCurrentThread()==before,"patrol movement or snapshot allocated");
-                Expect(b.Result==null&&b.Units.Take(16).All(u=>FrontierMap.Safe(u.entity.body.Position.x)),"safe march crossed the boundary");
+                Expect(b.Result==null&&b.Units.Take(16).All(u=>FrontierMap.Safe(u.entity.body.Position)),"safe march crossed the boundary");
             }
         });
         check("withdrawal saves frontier casualties and patrol loot once without advancing the campaign",() => {

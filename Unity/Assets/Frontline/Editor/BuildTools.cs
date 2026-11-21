@@ -15,7 +15,7 @@ namespace Frontline.Editor
         public const string Scene="Assets/Scenes/Frontline.unity";
         [MenuItem("Frontline/Prepare project")] public static void Prepare()
         {
-            PlayerSettings.companyName="Frontline Lab";PlayerSettings.productName="Frontline Lab";PlayerSettings.bundleVersion="2.0.0";PlayerSettings.defaultScreenWidth=1280;PlayerSettings.defaultScreenHeight=800;PlayerSettings.fullScreenMode=FullScreenMode.Windowed;PlayerSettings.resizableWindow=true;PlayerSettings.runInBackground=true;PlayerSettings.colorSpace=ColorSpace.Gamma;
+            PlayerSettings.companyName="Frontline Lab";PlayerSettings.productName="Frontline Lab";PlayerSettings.bundleVersion="2.1.0";PlayerSettings.defaultScreenWidth=1280;PlayerSettings.defaultScreenHeight=800;PlayerSettings.fullScreenMode=FullScreenMode.Windowed;PlayerSettings.resizableWindow=true;PlayerSettings.runInBackground=true;PlayerSettings.colorSpace=ColorSpace.Gamma;
             PlayerSettings.MTRendering=true;
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneWindows64,false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.StandaloneWindows64,new[]{GraphicsDeviceType.Direct3D11});

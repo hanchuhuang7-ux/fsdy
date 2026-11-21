@@ -79,7 +79,8 @@ namespace Frontline.Core
         }
         bool LegalPosition(Deployment c,string team,float x,float z)
         {
-            if(c.map==FrontierMap.Id)return (team=="red"?FrontierMap.AtManor(x):x>=FrontierMap.EnemyStop)&&FrontierMap.HasGround(x,z);
+            if(c.map==FrontierMap.Id)return team=="red"?FrontierMap.AtManor(x,z):
+                FrontierMap.OnMainland(x,z)&&!FrontierMap.GuardCrossedGate(new V3(x,0,z));
             return Finite(x)&&Finite(z)&&Math.Abs(x)<=16.8f&&Math.Abs(z)<=10.8f&&(team=="red"?x<=-2.5f:x>=2.5f)&&Finite(Height(c.map,x,z));
         }
         public bool OrderGround(string map,float x,float z) => (map==FrontierMap.Id||Math.Abs(x)<=18&&Math.Abs(z)<=12)&&Finite(Height(map,x,z));

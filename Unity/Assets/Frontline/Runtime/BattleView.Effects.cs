@@ -137,12 +137,16 @@ namespace Frontline.UnityGame
         void DrawBridgeRipples()
         {
             BridgeRippleCount=0;
-            if(distance>62||!InView(new Vector3((FrontierMap.BridgeStart+FrontierMap.Boundary)*.5f,-1.59f,0),8))return;
+            const int spans=8;
+            const float bay=(FrontierMap.Boundary-FrontierMap.BridgeStart)/spans;
+            int span=Mathf.Clamp(Mathf.FloorToInt((target.x-FrontierMap.BridgeStart)/bay),0,spans-1);
+            float start=FrontierMap.BridgeStart+span*bay;
+            if(distance>62||!InView(new Vector3(start+bay*.5f,-1.59f,0),8))return;
             int count=QualityLevel==2?8:QualityLevel==1?6:4;
             for(int i=0;i<count;i++)
             {
                 float phase=Mathf.Repeat(manorTime*.19f+i*.153f,1);
-                float x=FrontierMap.BridgeStart+1.55f+i/2*2.68f+phase*.65f;
+                float x=start+1.35f+i/2*1.8f+phase*.65f;
                 float z=(i%2==0?-1:1)*(FrontierMap.BridgeHalfWidth+.29f+phase*.73f);
                 var at=new Vector3(x,-1.627f+(i%2)*.004f,z);
                 float radius=.38f+phase*1.25f;

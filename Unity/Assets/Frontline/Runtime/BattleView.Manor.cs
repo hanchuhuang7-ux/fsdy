@@ -27,10 +27,10 @@ namespace Frontline.UnityGame
         static readonly Color Timber = new Color(.46f, .30f, .19f);
         static readonly Color Survey = new Color(.96f, .86f, .63f);
         static readonly Color[] Clothes = {
-            new Color(.28f, .44f, .51f), new Color(.68f, .37f, .23f),
-            new Color(.34f, .50f, .34f), new Color(.72f, .53f, .28f),
-            new Color(.48f,.34f,.49f),new Color(.30f,.54f,.52f),
-            new Color(.66f,.48f,.30f),new Color(.37f,.40f,.57f)
+            new Color(.35f,.48f,.61f),new Color(.64f,.32f,.27f),
+            new Color(.39f,.51f,.35f),new Color(.81f,.71f,.54f),
+            new Color(.56f,.39f,.44f),new Color(.46f,.56f,.51f),
+            new Color(.58f,.43f,.31f),new Color(.40f,.43f,.55f)
         };
 
         Manor manor;
@@ -42,6 +42,8 @@ namespace Frontline.UnityGame
         readonly int[] builtLevels = new int[Manor.PlotCount], homes = new int[Manor.PlotCount];
         readonly CropAppearance[] builtCrops = new CropAppearance[Manor.PlotCount];
         internal CropAppearance DisplayedCrop(int index) => builtCrops[index];
+        internal Vector3 ResidentPoint {get;private set;}
+        internal float ResidentHeading {get;private set;}
         int builtReclaimedPlots,builtNobility;
         int homeCount,tavernSlot,builtSeason=-1;
         MeshSet surveyBlock, hat, parcel, farmerCoat, villagerCoat, wrap, sleeve, sails;
@@ -69,7 +71,7 @@ namespace Frontline.UnityGame
         readonly System.Collections.Generic.List<Batch> ambient=new System.Collections.Generic.List<Batch>();
         readonly float[] localHeading=new float[SpecialistFirst+Manor.SpecialistIds.Length];
         readonly bool[] headingSet=new bool[SpecialistFirst+Manor.SpecialistIds.Length];
-        MeshSet waterBlock,solidBlock,surveyPeg,contactShade,raidPennant,hoverRing;
+        MeshSet solidBlock,surveyPeg,contactShade,raidPennant,hoverRing;
         bool fillingAmbient,ambientDirty=true,ambientPopulated;
         float fadeReach=-1,fadeStartSquared;
         static readonly int GroundFadeId=Shader.PropertyToID("_GroundFade");
@@ -129,7 +131,7 @@ namespace Frontline.UnityGame
             if (changingMode)
             {
                 ViewCamera.fieldOfView=manor!=null?FrontierFov:Viewport.Compact?65:42;
-                ViewCamera.farClipPlane=manor!=null?1050:160;
+                ViewCamera.farClipPlane=manor!=null?2600:160;
                 if (!Restore(manor == null ? arenaCamera : villageCamera))
                 {
                     if(manor==null)ResetCamera();else FrameFrontier(1);
@@ -230,7 +232,8 @@ namespace Frontline.UnityGame
 
         void Still(MeshSet mesh, Vector3 p, Quaternion rotation, Vector3 size, Color tint, float wind = 0)
         {
-            var page=fillingOuter?(mesh.outer??Buffer(mesh,outerStill,3)):(mesh.still??Buffer(mesh,still,1));
+            var page=fillingOuter?(mesh.outer??Buffer(mesh,fillingVegetation?outerVegetation:outerStill,3)):
+                (mesh.still??Buffer(mesh,still,1));
             page.Add(Pose(p, rotation, size),tint,wind,
                 chunk:manor!=null?StaticRegion(p):-1);
         }
@@ -374,9 +377,8 @@ namespace Frontline.UnityGame
             foreach (var b in still) b.Clear();
             foreach (var b in grid) b.Clear();
             surveyBlock = Load("platform");
-            if(waterBlock==null)
+            if(solidBlock==null)
             {
-                waterBlock=surveyBlock.Variant(false,false);
                 solidBlock=surveyBlock.Variant(true,true);
                 surveyPeg=surveyBlock.Variant(false,false,true);
                 contactShade=dust.Variant(false,false);
@@ -430,11 +432,12 @@ namespace Frontline.UnityGame
                     Vector3.one*1.12f,new Color(.98f,.12f,.08f),.048f);
             sky.SetColor("_Horizon",ManorHorizons[builtSeason]);
             sky.SetColor("_Zenith",ManorSkies[builtSeason]);
-            sky.SetColor("_Nadir",new Color(.30f,.39f,.34f));
+            sky.SetColor("_Nadir",ManorHorizons[builtSeason]);
+            ViewCamera.backgroundColor=ManorHorizons[builtSeason];
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.fogColor = ManorHorizons[builtSeason];
-            RenderSettings.fogDensity = .00108f;
+            RenderSettings.fogDensity = .00155f;
             material.SetColor("_SkyLight",Color.Lerp(ManorHorizons[builtSeason],new Color(.52f,.54f,.55f),.45f));
             material.SetColor("_GroundLight",Color.Lerp(ManorSoils[builtSeason],new Color(.16f,.18f,.16f),.70f));
             cachedQuality = QualityLevel;
@@ -642,19 +645,23 @@ namespace Frontline.UnityGame
             bool walking=!atWork&&!browsing&&!(returning&&along==0);
             if(!InView(ManorOrigin+pos,3))return;
             if(!TryPlaceWalker(pos,direction,out pos))return;
+            bool first=VisibleFarmers+VisibleVillagers==0;
             if(farmer)VisibleFarmers++;else VisibleVillagers++;
             float gait=walking?Mathf.Sin(along*4.6f+id):0;
             float gesture=atWork||browsing?Mathf.Sin(manorTime*(forge?4.8f:loom?3.3f:bakery?2.8f:farmer?2.1f:1.3f)+id):0;
             float nod=browsing?3+gesture*5:atWork&&bakery?7+gesture*6:farmer&&atWork?9+gesture*6:0;
             var tint=Clothes[id%Clothes.Length];
+            float heading=LocalHeading(id,Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg);
+            if(first){ResidentPoint=ManorOrigin+pos;ResidentHeading=heading;}
             var root=Pose(ManorOrigin+pos+Vector3.up*(.74f+.025f*Mathf.Abs(gait)),
-                Quaternion.Euler(0,LocalHeading(id,Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg),0)*
+                Quaternion.Euler(0,heading,0)*
                 Quaternion.Euler(nod,0,0),Vector3.one*.91f);
             Add(farmer?farmerCoat:villagerCoat,root,tint);
             ContactAt(ManorOrigin+pos,.92f);
             if(lowActors)return;
-            Add(head,root*Matrix4x4.Translate(new Vector3(0,.49f,.015f)),White);
-            Add(farmer&&id%4!=2||!farmer&&id%5==0?hat:wrap,root*Matrix4x4.Translate(new Vector3(0,.65f,0)),White);
+            Add(head,root*Matrix4x4.Translate(new Vector3(0,.549f,.026f)),White);
+            bool straw=farmer&&id%4!=2||!farmer&&id%5==0;
+            Add(straw?hat:wrap,root*Matrix4x4.Translate(new Vector3(0,.60f,0)),straw?White:tint);
             if(farmer&&returning)Add(parcel,root*Matrix4x4.Translate(new Vector3(0,-.03f,-.27f)),White);
             MeshSet prop=farmer?(kind=="pasture"?bucket:kind=="irrigated_field"?hoe:sickle):
                 (id%4==0?basket:id%4==1?crate:id%4==2?jug:null);

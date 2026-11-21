@@ -24,10 +24,11 @@ namespace Frontline.UnityGame
             yield return Press("Frontier.View."+focus);
             yield return WaitForState(()=>!app.View.CameraMoving,"Camera did not finish changing presets");
             yield return new WaitForEndOfFrame();
-            float x=focus==1?FrontierMap.ManorX:focus==2?FrontierMap.CampCenter(1).x:FrontierMap.Boundary;
-            var screen=(Vector2)app.View.ViewCamera.WorldToScreenPoint(new Vector3(x,0,0));
+            var subject=focus==1?new V3(FrontierMap.ManorX,0,0):focus==2?FrontierMap.CampCenter(0):new V3(FrontierMap.Boundary,0,0);
+            var screen=(Vector2)app.View.ViewCamera.WorldToScreenPoint(UnityWorld.Vector(subject));
             Require(app.View.FrontierFocus==focus && screen.x>0&&screen.x<Screen.width&&screen.y>0&&screen.y<Screen.height &&
-                UiHits(screen).Count==0 && app.View.Ground(screen,out var ground) && Mathf.Abs(ground.x-x)<.1f,
+                UiHits(screen).Count==0 && app.View.Ground(screen,out var ground)&&
+                Vector2.Distance(new Vector2(ground.x,ground.z),new Vector2(subject.x,subject.z))<.2f,
                 "Preset obscures its point of interest or breaks picking");
             if(!Viewport.Compact&&app.View.QualityLevel==2&&focus==1)
                 Require(!app.View.LowActorLod&&!app.View.LowSceneryLod,"A focused fine desktop view lost its detailed models");
@@ -644,7 +645,7 @@ namespace Frontline.UnityGame
             yield return Press("Manor.Patrol.Start");
             var battle=app.Battle;
             Require(app.InFrontier && battle.World is UnityWorld && battle.Config.red.Count==displayLimit &&
-                battle.Config.blue.Count==15 && battle.Units.Take(displayLimit).All(u=>FrontierMap.AtManor(u.entity.body.Position.x)),
+                battle.Config.blue.Count==15 && battle.Units.Take(displayLimit).All(u=>FrontierMap.AtManor(u.entity.body.Position)),
                 "Party or guards did not spawn in the live PhysX world");
             var allies=battle.Units.Take(displayLimit).ToArray();
             var mouth=battle.Units.Skip(displayLimit).Take(5).ToArray();
@@ -664,7 +665,7 @@ namespace Frontline.UnityGame
                 Require(app.View.CheckedParallelPoses>=displayLimit+FrontierMap.Guards.Count,"Live pose parity test did not run");
             app.View.CheckParallelPoses=false;
             yield return WaitForState(()=>allies.All(u=>u.entity.body.Position.x>-19),"Party stalled before the bridge");
-            Require(allies.All(u=>FrontierMap.Safe(u.entity.body.Position.x) && u.entity.hp==u.entity.maxHp) &&
+            Require(allies.All(u=>FrontierMap.Safe(u.entity.body.Position) && u.entity.hp==u.entity.maxHp) &&
                 mouth.All(u=>u.target==null) && battle.Shots.Count==0,"Enemy acquired or damaged a safe party");
 
             var westCamp=FrontierMap.CampCenter(0);
@@ -672,7 +673,7 @@ namespace Frontline.UnityGame
             int forwardStart=battle.Tick;
             yield return WaitForState(()=>mouth.Any(u=>u.target!=null) && allies.Any(u=>u.entity.stats.damageDealt>0 || u.entity.stats.damageTaken>0),
                 "Leaving the causeway did not trigger combat");
-            Require(allies.Any(u=>!FrontierMap.Safe(u.entity.body.Position.x)) && farther.All(u=>u.target==null),"Patrols aggroed outside their own sector");
+            Require(allies.Any(u=>!FrontierMap.Safe(u.entity.body.Position)) && farther.All(u=>u.target==null),"Patrols aggroed outside their own sector");
             app.View.Focus(BattleView.CampCenter(0)+new Vector3(-10,.65f,0),25,40,-16);
             yield return new WaitForEndOfFrame();
             if(Application.platform==RuntimePlatform.WindowsPlayer)
@@ -684,7 +685,7 @@ namespace Frontline.UnityGame
                     "Fine main view lost high meshes or did not use separate shadow casters");
             }
             if(captures)yield return ManorShot("142-desktop-contact");
-            yield return WaitForState(()=>allies.All(u=>!u.entity.alive||!FrontierMap.Safe(u.entity.body.Position.x)),
+            yield return WaitForState(()=>allies.All(u=>!u.entity.alive||!FrontierMap.Safe(u.entity.body.Position)),
                 "The last file stalled inside the causeway");
             int forwardTicks=battle.Tick-forwardStart;
 
@@ -693,19 +694,21 @@ namespace Frontline.UnityGame
             yield return CheckFrontierPreset(2);
             if(captures)yield return ManorShot("142-desktop-clearance");
             yield return Press("Frontier.Order.inspire");
-            yield return ClickBattlefield(46,6);
+            yield return ClickBattlefield(westCamp.x+2,westCamp.z+9);
             Require(battle.Commander.log.Any(o=>o.type=="inspire"&&o.x>40),"Farther terrain rejected the army order");
             Require(app.Tool=="march" && app.Message=="军令已释放，已切回推进模式","Order did not restore march");
-            yield return ClickBattlefield(43,5);
+            yield return ClickBattlefield(westCamp.x-4,westCamp.z-7);
             Require(battle.Commander.log.Count==1 && battle.MarchDestination.Value.x>40,"Next click did not move the party");
             yield return Press("Frontier.Recall");
             int recallStart=battle.Tick;
-            yield return WaitForState(()=>allies.Any(u=>u.entity.alive) && allies.All(u=>!u.entity.alive||FrontierMap.AtManor(u.entity.body.Position.x)),
+            yield return WaitForState(()=>allies.Any(u=>u.entity.alive) && allies.All(u=>!u.entity.alive||FrontierMap.AtManor(u.entity.body.Position)),
                 "Survivors could not withdraw across the bridge");
             foreach(var enemy in battle.Units.Skip(displayLimit))
             {
                 Require(enemy.target==null,"Guard "+enemy.entity.id+" still targets a recalled soldier; alive="+enemy.entity.alive);
-                if(enemy.entity.alive)Require(enemy.entity.body.Position.x>=FrontierMap.EnemyStop-.01f,"Guard crossed gate at "+enemy.entity.body.Position.x);
+                if(enemy.entity.alive)
+                    Require(!FrontierMap.Safe(enemy.entity.body.Position)&&!FrontierMap.GuardCrossedGate(enemy.entity.body.Position),
+                        "Guard crossed gate at "+enemy.entity.body.Position.x);
             }
             int ticks=battle.Tick;
             int beforeReturn=app.Estate.approval;

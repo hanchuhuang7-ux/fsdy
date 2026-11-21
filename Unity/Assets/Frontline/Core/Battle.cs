@@ -148,7 +148,7 @@ namespace Frontline.Core
                 var u=Units[i];if(!u.entity.alive)continue;
                 var p=u.entity.body.Position;u.entity.position=p;
                 (u.isRed?redTargets:blueTargets).Add(u);
-                if(IsFrontier&&u.isRed&&!FrontierMap.Safe(p.x))exposedParty=true;
+                if(IsFrontier&&u.isRed&&!FrontierMap.Safe(p))exposedParty=true;
                 u.floor=GroundAt(p.x,p.z,out u.slope);
                 int key=Key(p.x,p.z),index=i+1;
                 nextInCell[index]=0;
@@ -200,7 +200,7 @@ namespace Frontline.Core
         }
         Soldier Target(Soldier own)
         {
-            if(IsFrontier&&(!exposedParty||FrontierMap.Safe(own.entity.position.x)))return null;
+            if(IsFrontier&&(!exposedParty||FrontierMap.Safe(own.entity.position)))return null;
             Soldier best=null;float score=float.PositiveInfinity;
             var query=new TargetQuery(own,Tick);
             var targets=own.isRed?blueTargets:redTargets;

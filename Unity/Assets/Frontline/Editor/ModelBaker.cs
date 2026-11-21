@@ -23,7 +23,7 @@ namespace Frontline.Editor
             Directory.CreateDirectory(Folder);Written.Clear();
             for(int lod=0;lod<2;lod++)
             {
-                foreach(string type in Types){Save("body_"+type,lod,lod==0?Body(type,lod):DistantBody(type));Save("arm_right_"+type,lod,lod==0?Arm(type,false,lod):DistantArm(type));}
+                foreach(string type in Types){Save("body_"+type,lod,lod==0?FieldSoldier(type):DistantBody(type));Save("arm_right_"+type,lod,lod==0?Arm(type,false,lod):DistantArm(type));}
                 Save("arm_left",lod,Arm("militia",true,lod));Save("leg",lod,Leg(lod));Save("horse_leg",lod,HorseLeg(lod));Save("horse",lod,Horse(lod));
                 Save("catapult",lod,Catapult(lod));Save("catapult_arm",lod,CatapultArm(lod));Save("wreck_horse",lod,WreckHorse(lod));Save("wreck_catapult",lod,WreckCatapult(lod));Save("shield",lod,Shield(lod));
                 foreach(string name in new[]{"barrel","barricade","banner","spikes","spring"})Save("prop_"+name,lod,Prop(name,lod));
@@ -44,7 +44,7 @@ namespace Frontline.Editor
                 BakeManorArt(lod);
                 foreach(string type in Manor.HeroIds)
                 {
-                    Save("body_"+type,lod,lod==0?HeroBody(type,lod):DistantBody(type));
+                    Save("body_"+type,lod,lod==0?FieldSoldier(type=="hero_ranger"?"archer":Equipment(type),type):DistantBody(type));
                     Save("arm_right_"+type,lod,lod==0?HeroArm(type,lod):DistantArm(type));
                     Save("crest_"+type,lod,ArmamentCrest(type,lod));
                 }
@@ -58,25 +58,6 @@ namespace Frontline.Editor
             string key=name+(lod==1?"_lod1":""),path=Folder+"/"+key+".asset";var mesh=g.Build(key,lod==0&&CompactDetail(name));if(mesh.vertexCount==0||mesh.normals.Length!=mesh.vertexCount||mesh.colors.Length!=mesh.vertexCount)throw new InvalidDataException("Incomplete baked mesh "+key);foreach(var v in mesh.vertices)if(float.IsNaN(v.x)||float.IsNaN(v.y)||float.IsNaN(v.z)||float.IsInfinity(v.x)||float.IsInfinity(v.y)||float.IsInfinity(v.z))throw new InvalidDataException("Non-finite baked vertex "+key);foreach(var n in mesh.normals)if(n.sqrMagnitude<.98f)throw new InvalidDataException("Invalid baked normal "+key);var old=AssetDatabase.LoadAssetAtPath<Mesh>(path);if(old){EditorUtility.CopySerialized(mesh,old);UnityEngine.Object.DestroyImmediate(mesh);EditorUtility.SetDirty(old);}else AssetDatabase.CreateAsset(mesh,path);Written.Add("Models/"+key);
         }
         static Vector3 V(float x,float y,float z){return new Vector3(x,y,z);}
-        static Geometry Body(string type,int lod)
-        {
-            var g=new Geometry();Tunic(g,lod,Cloth);
-            bool helmet=type!="militia"&&type!="archer"&&type!="medic";
-            FaceBust(g,V(0,.53f,.015f),V(.185f,.21f,.175f),Array.IndexOf(Types,type),helmet);
-            SoldierTrim(g,type,lod);
-            if(type=="militia"){g.Cone(V(0,.7f,0),.25f,.15f,WoodLight,8);g.Cylinder(V(0,.64f,0),V(0,.67f,0),.25f,Wood,8);}
-            else if(type=="archer"||type=="medic"){g.Ellipsoid(V(0,.66f,-.015f),V(.215f,.16f,.2f),Cloth,8,2);g.Bevel(V(0,.49f,-.14f),V(.42f,.31f,.12f),.04f,Cloth);}
-            else{g.Ellipsoid(V(0,.7f,0),V(.23f,.19f,.22f),Steel,lod==0?10:6,2);g.Bevel(V(0,.64f,.21f),V(.48f,.065f,.05f),.025f,LightSteel);g.Bevel(V(-.19f,.5f,-.015f),V(.09f,.21f,.23f),.03f,Steel);g.Bevel(V(.19f,.5f,-.015f),V(.09f,.21f,.23f),.03f,Steel);}
-            if(type=="shield"||type=="spear"||type=="giant"||type=="cavalry"){g.Bevel(V(0,.045f,.18f),V(.39f,.41f,.065f),.055f,Steel);g.Bevel(V(-.29f,.25f,0),V(.24f,.19f,.4f),.065f,LightSteel);g.Bevel(V(.29f,.25f,0),V(.24f,.19f,.4f),.065f,LightSteel);g.Bevel(V(0,-.27f,.04f),V(.53f,.12f,.39f),.04f,Dark);}
-            if(type=="spear"||type=="cavalry"||type=="giant"){g.Bevel(V(0,.91f,-.025f),V(.08f,.23f,.23f),.03f,Cloth);g.Quad(V(-.23f,.28f,-.21f),V(.23f,.28f,-.21f),V(.34f,-.49f,-.34f),V(-.34f,-.49f,-.34f),Cloth,true);}
-            if(type=="archer"||type=="crossbow"){g.Cylinder(V(-.16f,-.23f,-.26f),V(-.08f,.34f,-.22f),.105f,Wood,7);if(lod==0)for(int i=0;i<4;i++)g.Cylinder(V(-.16f+i*.045f,.27f,-.27f),V(-.13f+i*.045f,.5f,-.29f),.012f,WoodLight,4);}
-            if(type=="bomber"){g.Bevel(V(0,.04f,-.28f),V(.39f,.42f,.19f),.045f,Wood);for(int i=-1;i<=1;i++)g.Cylinder(V(i*.105f,-.1f,-.4f),V(i*.105f,.17f,-.4f),.043f,Red,6);g.Cylinder(V(-.18f,-.22f,0),V(.18f,.26f,.19f),.035f,Dark,4);}
-            if(type=="medic"){g.Bevel(V(-.32f,-.12f,-.04f),V(.25f,.35f,.28f),.035f,new Color(.85f,.84f,.72f,0));g.Bevel(V(-.32f,-.12f,.11f),V(.055f,.22f,.018f),.005f,Red);g.Bevel(V(-.32f,-.12f,.12f),V(.17f,.055f,.018f),.005f,Red);g.Quad(V(-.19f,.25f,.19f),V(.19f,.25f,.19f),V(.19f,-.32f,.21f),V(-.19f,-.32f,.21f),new Color(.85f,.87f,.77f,0),true);}
-            g.Bevel(V(0,-.19f,.18f),V(.5f,.07f,.06f),.012f,Wood);
-            g.Bevel(V(0,-.19f,.22f),V(.09f,.08f,.03f),.012f,Gold);
-            if(lod==0)UniformDetail(g,type);
-            return g;
-        }
         static Geometry Leg(int lod)
         {
             var g=new Geometry();
@@ -86,20 +67,41 @@ namespace Frontline.Editor
                 g.Box(V(0,-.22f,.045f),V(.20f,.12f,.29f),Wood);
                 return g;
             }
-            g.Frustum(V(0,-.17f,0),V(.16f,0,.18f),V(0,.208f,0),V(.22f,0,.24f),Dark,7);
-            g.Bevel(V(0,-.2f,.065f),V(.23f,.16f,.36f),.035f,Wood);
-            g.Frustum(V(0,-.055f,0),V(.18f,0,.21f),V(0,-.017f,0),V(.218f,0,.242f),Copper,7);
-            g.Quad(V(-.08f,.04f,.096f),V(-.076f,.15f,.107f),V(.076f,.15f,.107f),V(.08f,.04f,.096f),Steel);
-            g.Triangle(V(-.076f,.15f,.108f),V(0,.177f,.112f),V(.076f,.15f,.108f),LightSteel);
+            g.Frustum(V(0,-.16f,-.013f),V(.108f,0,.127f),V(0,.06f,.016f),V(.145f,0,.162f),Walnut,7);
+            g.Frustum(V(0,.058f,.016f),V(.145f,0,.162f),V(0,.218f,-.013f),V(.176f,0,.191f),Dark,7);
+            g.Bevel(V(0,-.216f,.052f),V(.143f,.122f,.246f),.037f,Walnut);
+            g.Box(V(0,-.267f,.057f),V(.142f,.025f,.238f),Dark);
+            for(int i=0;i<3;i++)
+            {
+                float y=-.119f+i*.046f,z=.057f+i*.011f;
+                g.Quad(V(-.046f,y,z),V(.051f,y+.020f,z),V(.051f,y+.034f,z),V(-.046f,y+.014f,z),Pigment(WoodLight,.75f),true);
+            }
             return g;
         }
         static Geometry Arm(string type,bool left,int lod)
         {
-            var g=new Geometry();float x=left?-.36f:.36f;g.Frustum(V(x,-.07f,.03f),V(.16f,0,.17f),V(x,.24f,.015f),V(.24f,0,.25f),Cloth,lod==0?8:5);g.Bevel(V(x,-.14f,.08f),V(.15f,.22f,.17f),.035f,Skin);g.Bevel(V(x,-.05f,.1f),V(.18f,.11f,.2f),.025f,Wood);if(lod==0)g.Cylinder(V(x,-.077f,.085f),V(x,-.044f,.085f),.095f,Gold,7);if(left)return g;
+            var g=new Geometry();
+            float x=left?-.36f:.36f;
+            if(lod==0)
+            {
+                float side=left?-1:1;
+                g.Frustum(V(x,-.081f,.041f),V(.124f,0,.138f),V(x-side*.028f,.123f,.014f),V(.159f,0,.166f),DyedWool,7);
+                g.Frustum(V(x-side*.028f,.123f,.014f),V(.159f,0,.166f),V(x-side*.091f,.259f,.006f),
+                    V(.145f,0,.162f),DyedWool,7);
+                g.Bevel(V(x,-.143f,.078f),V(.113f,.174f,.133f),.032f,Skin);
+                g.Bevel(V(x,-.065f,.056f),V(.142f,.069f,.155f),.022f,Walnut);
+            }
+            else
+            {
+                g.Frustum(V(x,-.07f,.03f),V(.16f,0,.17f),V(x,.24f,.015f),V(.24f,0,.25f),Cloth,5);
+                g.Bevel(V(x,-.14f,.08f),V(.15f,.22f,.17f),.035f,Skin);
+                g.Bevel(V(x,-.05f,.1f),V(.18f,.11f,.2f),.025f,Wood);
+            }
+            if(left)return g;
             WeaponTrim(g,type,lod);
             WeaponGrip(g,type,lod);
             if(lod==0)WeaponFinish(g,type,x);
-            if(type=="spear"||type=="cavalry"){g.Cylinder(V(x,.04f,-.35f),V(x,.04f,1.55f),.025f,WoodLight,6);g.Spear(V(x,.04f,1.48f),V(x,.04f,1.9f),.11f,LightSteel);if(lod==0)g.Cylinder(V(x,.04f,1.4f),V(x,.04f,1.52f),.04f,Dark,6);}
+            if(type=="spear"||type=="cavalry"){g.Cylinder(V(x,.04f,-.35f),V(x,.04f,1.55f),.025f,WoodLight,6);g.Spear(V(x,.04f,1.48f),V(x,.04f,1.9f),.078f,LightSteel);if(lod==0)g.Cylinder(V(x,.04f,1.4f),V(x,.04f,1.52f),.04f,Dark,6);}
             else if(type=="archer"){for(int i=0;i<6;i++){float a=-1.2f+i*.4f,b=a+.4f;g.Cylinder(V(x,Mathf.Sin(a)*.48f+.1f,.36f+Mathf.Cos(a)*.23f),V(x,Mathf.Sin(b)*.48f+.1f,.36f+Mathf.Cos(b)*.23f),.027f,WoodLight,5);}g.Cylinder(V(x,-.35f,.44f),V(x,.55f,.44f),.006f,Snow,3);g.Cylinder(V(x,.1f,.05f),V(x,.1f,.9f),.012f,Wood,4);}
             else if(type=="crossbow"){g.Bevel(V(x,.04f,.41f),V(.13f,.16f,.7f),.025f,WoodLight);g.Cylinder(V(x-.4f,.1f,.61f),V(x,.1f,.73f),.035f,Steel,5);g.Cylinder(V(x,.1f,.73f),V(x+.4f,.1f,.61f),.035f,Steel,5);g.Cylinder(V(x-.4f,.1f,.61f),V(x,.1f,.22f),.006f,Snow,3);g.Cylinder(V(x,.1f,.22f),V(x+.4f,.1f,.61f),.006f,Snow,3);g.Bevel(V(x,-.08f,.12f),V(.1f,.25f,.14f),.02f,Wood);}
             else if(type=="bomber"){g.Ellipsoid(V(x,.03f,.38f),V(.17f,.18f,.17f),Dark,8,3);g.Cylinder(V(x,.2f,.37f),V(x+.055f,.33f,.38f),.021f,WoodLight,5);g.Ellipsoid(V(x+.06f,.33f,.38f),V(.035f,.05f,.035f),Gold,5,2);}
@@ -110,15 +112,13 @@ namespace Frontline.Editor
         }
         static Geometry Shield(int lod)
         {
+            if(lod==0)return CurvedShield(-.30f,.294f,WroughtIron,DyedWool);
             var g=new Geometry();
             g.Spear(V(-.30f,-.23f,.29f),V(-.30f,-.51f,.29f),.18f,Steel);
             g.Bevel(V(-.30f,.006f,.29f),V(.47f,.72f,.12f),.084f,Steel);
             g.Bevel(V(-.30f,.006f,.356f),V(.39f,.61f,.026f),.061f,Cloth);
             g.Ellipsoid(V(-.30f,.02f,.389f),V(.102f,.10f,.055f),LightSteel,6,2);
             g.Box(V(-.34f,-.061f,.202f),V(.27f,.09f,.108f),Wood);
-            if(lod==0)foreach(float x in new[]{-.45f,-.15f})foreach(float y in new[]{-.21f,.23f})
-                g.Ellipsoid(V(x,y,.37f),V(.024f,.024f,.016f),Gold,5,2);
-            if(lod==0)ShieldInlay(g,-.30f,.386f);
             return g;
         }
         static Geometry Horse(int lod)
@@ -211,7 +211,7 @@ namespace Frontline.Editor
             else if(name=="bomb"){g.Ellipsoid(Vector3.zero,Vector3.one*.5f,Dark,n,4);g.Cylinder(V(0,.45f,0),V(.07f,.68f,0),.035f,WoodLight,5);g.Ellipsoid(V(.07f,.69f,0),Vector3.one*.05f,Gold,5,2);}
             else if(name=="head")
             {
-                if(lod==0)FaceBust(g,Vector3.zero,V(.2f,.22f,.19f),1,false,false);
+                if(lod==0)FaceBust(g,Vector3.zero,V(.116f,.137f,.119f),1,false,false);
                 else g.Ellipsoid(Vector3.zero,V(.2f,.22f,.19f),Skin,8,3);
             }
             else if(name=="torso")g.Bevel(Vector3.zero,V(.46f,.64f,.32f),.06f,Cloth);
@@ -224,38 +224,6 @@ namespace Frontline.Editor
             Slate=new Color(.27f,.39f,.44f,0), Green=new Color(.23f,.43f,.34f,0),
             Ochre=new Color(.80f,.49f,.18f,0), Glass=new Color(.24f,.43f,.44f,0),
             Stonework=new Color(.60f,.60f,.53f,0), Earth=new Color(.42f,.31f,.20f,0);
-
-        static Geometry HeroBody(string type,int lod)
-        {
-            const string vanguard="hero_vanguard", ranger="hero_ranger";
-            var g=Body(type==vanguard?"giant":type==ranger?"archer":"medic",lod);
-            HeroRegalia(g,type,lod);
-            if(type==vanguard)
-            {
-                g.Bevel(V(0,.08f,.235f),V(.53f,.49f,.16f),.07f,Dark);
-                g.Bevel(V(0,.12f,.32f),V(.085f,.30f,.026f),.012f,Gold);
-                foreach(float x in new[]{-.34f,.34f})
-                    g.Bevel(V(x,.28f,.025f),V(.23f,.23f,.43f),.063f,Gold);
-                g.Cylinder(V(0,.82f,-.16f),V(0,.95f,-.16f),.17f,Ochre,lod==0?8:5);
-            }
-            else if(type==ranger)
-            {
-                g.Ellipsoid(V(0,.69f,-.025f),V(.235f,.16f,.216f),Green,lod==0?10:6,2);
-                g.Quad(V(-.24f,.35f,-.21f),V(.20f,.30f,-.21f),V(.30f,-.51f,-.38f),V(-.28f,-.34f,-.31f),Green,true);
-                // Split linen feather gives the helmet a readable angled silhouette.
-                g.Quad(V(.14f,.68f,-.085f),V(.37f,.98f,-.19f),V(.48f,1.13f,-.37f),V(.27f,.82f,-.19f),Plaster,true);
-                g.Cylinder(V(.14f,.68f,-.085f),V(.48f,1.13f,-.37f),.016f,LightSteel,4);
-            }
-            else
-            {
-                g.Bevel(V(0,.12f,.229f),V(.35f,.45f,.065f),.033f,Plaster);
-                g.Bevel(V(0,.11f,.27f),V(.06f,.29f,.02f),.009f,Ochre);
-                g.Bevel(V(0,.14f,.278f),V(.21f,.052f,.02f),.009f,Ochre);
-                g.Cylinder(V(0,.68f,0),V(0,.75f,0),.223f,Gold,lod==0?10:6);
-                g.Quad(V(-.22f,.32f,-.20f),V(.22f,.32f,-.20f),V(.29f,-.45f,-.32f),V(-.35f,-.42f,-.32f),Slate,true);
-            }
-            return g;
-        }
 
         static Geometry FrontierGate(int lod)
         {
@@ -355,13 +323,13 @@ namespace Frontline.Editor
 
         static void House(Geometry g,float x,float z,float width,float depth,float eave,float rise,Color roof,int lod)
         {
+            if(lod==0)
+            {
+                TimberHouse(g,x,z,width,depth,eave,rise,roof);
+                return;
+            }
             g.Bevel(V(x,.10f,z),V(width+.14f,.2f,depth+.14f),.055f,Stonework);
             g.Box(V(x,.044f,z),V(width+.17f,.066f,depth+.15f),Slate);
-            if(lod==0)for(int j=0;j<4;j++)
-            {
-                float joint=x+width*((j+.5f)*.25f-.5f);
-                g.Box(V(joint,.113f,z-depth*.5f-.071f),V(.025f,.12f,.012f),Slate);
-            }
             g.Box(V(x,eave*.5f,z),V(width,eave,depth),Plaster);
             Gable(g,V(x,eave,z),width+.24f,depth+.28f,rise,roof,Plaster,lod);
             float face=z-depth*.5f-.025f;
@@ -371,15 +339,6 @@ namespace Frontline.Editor
             {
                 float corner=x+side*(width*.5f-.05f);
                 g.Box(V(corner,eave*.5f,face),V(.13f,eave,.09f),Wood);
-                if(lod==0)g.Cylinder(V(corner,eave-.49f,face-.022f),
-                    V(corner-side*.29f,eave-.13f,face-.096f),.040f,WoodLight,4);
-            }
-            if(lod==0)
-            {
-                g.Box(V(x,.29f,face),V(width,.09f,.07f),WoodLight);
-                g.Box(V(x,eave*.49f,z+depth*.5f),V(width,.10f,.09f),Wood);
-                g.Box(V(x-width*.5f,eave*.49f,z),V(.10f,.10f,depth),Wood);
-                g.Box(V(x+width*.5f,eave*.49f,z),V(.10f,.10f,depth),Wood);
             }
         }
 
@@ -408,11 +367,17 @@ namespace Frontline.Editor
             }
         }
 
-        static void Chimney(Geometry g,float x,float z,float top,float width)
+        static void Chimney(Geometry g,float x,float z,float top,float width,int lod)
         {
             g.Box(V(x,top*.5f,z),V(width,top,width),Stonework);
             g.Box(V(x,top-.07f,z),V(width+.14f,.16f,width+.14f),Rock);
             g.Box(V(x,top+.02f,z),V(width*.71f,.025f,width*.71f),Dark);
+            if(lod==0)
+                for(int face=0;face<4;face++)
+                {
+                    var turn=Quaternion.Euler(0,face*90,0);
+                    MasonryFace(g,V(x,top-.80f,z)+turn*V(0,0,-width*.5f),turn,width,.67f,.132f);
+                }
         }
 
         static void Pennant(Geometry g,Vector3 foot,float height,float span,Color field,int lod)
@@ -428,12 +393,12 @@ namespace Frontline.Editor
 
         static void Cottages(Geometry g,int lod)
         {
-            House(g,-.55f,.05f,1.70f,1.60f,1.00f,.71f,Straw,lod);
+            House(g,-.55f,.05f,1.70f,1.60f,1.00f,.71f,lod==0?FiredClay:Straw,lod);
             Door(g,-.81f,-.75f,.77f,.37f);
             Window(g,-.08f,.59f,-.75f,lod);
             House(g,.91f,.29f,1.17f,1.18f,.83f,.50f,StrawLight,lod);
             Door(g,.92f,-.30f,.62f,.32f);
-            Chimney(g,-.03f,.27f,1.83f,.24f);
+            Chimney(g,-.03f,.27f,1.83f,.24f,lod);
             // The short rail marks a reserved work yard beside the cottage entrance.
             const float fenceZ=-1.225f;
             foreach(float x in new[]{.27f,1.53f})
@@ -525,7 +490,7 @@ namespace Frontline.Editor
                 Window(g,x,1.12f,-.68f,lod);
                 g.Box(V(x,1.12f,-.83f),V(.22f,.22f,.042f),StrawLight);
             }
-            Chimney(g,1.03f,.36f,2.68f,.35f);
+            Chimney(g,1.03f,.36f,2.68f,.35f,lod);
             Gable(g,V(.06f,1.48f,-1.03f),2.91f,.77f,.19f,Ochre,Plaster,lod);
             // Hanging tankard above the porch.
             g.Box(V(.68f,1.38f,-1.21f),V(.09f,.11f,.44f),Wood);
@@ -584,7 +549,7 @@ namespace Frontline.Editor
         {
             House(g,-.45f,.22f,1.98f,1.54f,1.12f,.52f,Slate,lod);
             Door(g,-.56f,-.55f,.82f,.45f);
-            Chimney(g,.77f,.31f,2.45f,.55f);
+            Chimney(g,.77f,.31f,2.45f,.55f,lod);
             g.Bevel(V(.88f,.43f,-.30f),V(1.14f,.86f,.96f),.12f,Stonework);
             g.Box(V(.88f,.50f,-.80f),V(.70f,.48f,.08f),Dark);
             g.Box(V(.88f,.33f,-.86f),V(.56f,.16f,.11f),new Color(.95f,.40f,.10f,0));
@@ -652,10 +617,17 @@ namespace Frontline.Editor
 
         static Geometry CivilianHat(int lod)
         {
-            var g=new Geometry();int n=lod==0?12:7;
+            var g=new Geometry();
+            if(lod==0)
+            {
+                g.Frustum(V(0,-.009f,.018f),V(.469f,0,.390f),V(0,.061f,0),V(.271f,0,.263f),Straw,10);
+                g.Frustum(V(0,.058f,0),V(.271f,0,.263f),V(.012f,.154f,-.016f),V(.164f,0,.173f),StrawLight,10);
+                g.Cylinder(V(0,.057f,0),V(0,.077f,0),.135f,Walnut,9);
+                return g;
+            }
+            const int n=7;
             g.Frustum(V(0,-.02f,0),V(.66f,0,.61f),V(0,.045f,0),V(.38f,0,.36f),Straw,n);
             g.Frustum(V(0,.036f,0),V(.37f,0,.36f),V(0,.177f,0),V(.24f,0,.23f),StrawLight,n);
-            if(lod==0)g.Cylinder(V(0,.047f,0),V(0,.073f,0),.183f,Wood,10);
             return g;
         }
 
@@ -681,6 +653,16 @@ namespace Frontline.Editor
                 int end=colors.Count;
                 Triangle(a,b,c,first);
                 if(colors.Count!=end){colors[end+1]=second;colors[end+2]=third;}
+            }
+            public void SmoothFace(Vector3 a,Vector3 b,Vector3 c,Color first,Color second,Color third,
+                Vector3 normalA,Vector3 normalB,Vector3 normalC)
+            {
+                int start=vertices.Count;
+                Gradient(a,b,c,first,second,third);
+                if(vertices.Count==start)return;
+                normals[start]=normalA;
+                normals[start+1]=normalB;
+                normals[start+2]=normalC;
             }
             public void Quad(Vector3 a,Vector3 b,Vector3 c,Vector3 d,Color color,bool doubleSided=false){Triangle(a,b,c,color);Triangle(a,c,d,color);if(doubleSided){Triangle(c,b,a,color);Triangle(d,c,a,color);}}
             public void Box(Vector3 center,Vector3 size,Color color)

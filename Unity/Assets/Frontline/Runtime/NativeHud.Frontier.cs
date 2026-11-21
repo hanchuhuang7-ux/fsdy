@@ -31,7 +31,7 @@ namespace Frontline.UnityGame
             float x=portrait?(rw-w)*.5f:rw-w-15;
             float y=portrait?(estate?106:51):63;
             var bar=Float(baseRoot,"Frontier camera",x,y,w,35,Slice.Rail);
-            string[] names={"全景","半岛","外域"};
+            string[] names={"全景","湖心","外域"};
             float cell=(w-10)/3;
             for(int i=0;i<names.Length;i++)
             {
@@ -68,7 +68,7 @@ namespace Frontline.UnityGame
                 app.Tool="march";app.Tell("点选地面推进，遇敌自动接战");app.Refresh();
             });
             BindFrontier(advance,()=>app.Tool=="march");
-            BindFrontier(ManorButton(controls,"Frontier.Recall","撤回半岛",8+part,7,part-4,35,app.RecallFrontier));
+            BindFrontier(ManorButton(controls,"Frontier.Recall","撤回湖心",8+part,7,part-4,35,app.RecallFrontier));
             BindFrontier(ManorButton(controls,"Frontier.Pause","暂停",8+part*2,7,part-4,35,app.TogglePause),caption:()=>app.Paused?"继续":"暂停");
             ManorButton(controls,"Frontier.Settle","结算归营",8+part*3,7,part-4,35,app.ReturnManor,true);
 

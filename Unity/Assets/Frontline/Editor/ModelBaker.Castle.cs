@@ -28,6 +28,7 @@ namespace Frontline.Editor
                 bool duke=level==3;
                 float curtain=duke?3.05f:2.28f,citadel=duke?8.8f:5.35f;
                 g.Box(V(0,citadel*.5f,.50f),V(duke?4.45f:4.0f,citadel,4.15f),KeepStone);
+                MasonryFace(g,V(0,.47f,-1.587f),Quaternion.identity,duke?4.42f:3.98f,citadel-.96f,.43f);
                 g.Box(V(0,citadel-.32f,.5f),V(4.58f,.39f,4.37f),KeepEdge);
                 if(duke)
                 {
@@ -112,7 +113,7 @@ namespace Frontline.Editor
                     float x=span*((tooth+.5f)/merlons-.5f);
                     wall.Box(V(x,height+.18f,-depth*.31f),V(.33f,.38f,depth*.43f),KeepEdge);
                 }
-                StoneCourses(wall,span,height,-depth*.505f);
+                MasonryFace(wall,V(0,.041f,-depth*.505f),Quaternion.identity,span-.043f,height-.195f,.35f);
             }
             g.Append(wall,Matrix4x4.TRS(at,Quaternion.Euler(0,turn?90:0,0),Vector3.one));
         }
@@ -150,10 +151,17 @@ namespace Frontline.Editor
             g.Box(V(0,top-.16f,-3.15f),V(2.96f,.32f,.89f),timber?WoodLight:KeepEdge);
             g.Box(V(0,spring*.57f,face+.18f),V(doorWidth*2,spring*1.14f,.21f),Dark);
             if(!fine)return;
+            var topOfDoor=V(0,spring,face-.046f);
+            for(int i=0;i<12;i++)
+            {
+                float a=i*Mathf.PI/12,b=(i+1)*Mathf.PI/12;
+                g.Triangle(topOfDoor,topOfDoor+V(Mathf.Cos(b)*doorWidth,Mathf.Sin(b)*doorWidth,0),
+                    topOfDoor+V(Mathf.Cos(a)*doorWidth,Mathf.Sin(a)*doorWidth,0),Dark);
+            }
             float outer=doorWidth+.26f;
             for(int tooth=0;tooth<9;tooth++)
             {
-                float a=tooth*Mathf.PI/9,b=(tooth+1)*Mathf.PI/9;
+                float a=(tooth+.027f)*Mathf.PI/9,b=(tooth+.973f)*Mathf.PI/9;
                 Vector3 At(float angle,float r)=>V(Mathf.Cos(angle)*r,spring+Mathf.Sin(angle)*r,face-.11f);
                 g.Quad(At(b,doorWidth),At(b,outer),At(a,outer),At(a,doorWidth),tooth%2==0?KeepEdge:KeepStone,true);
             }
@@ -173,24 +181,16 @@ namespace Frontline.Editor
 
         static void ArrowLoop(Geometry g,float x,float y,float face,float height)
         {
-            g.Box(V(x,y,face-.018f),V(.22f,height+.16f,.10f),KeepEdge);
-            g.Box(V(x,y,face-.076f),V(.079f,height,.03f),Dark);
-            g.Box(V(x,y-.06f,face-.093f),V(.155f,.068f,.03f),Dark);
-        }
-
-        static void StoneCourses(Geometry g,float width,float height,float face)
-        {
-            int rows=Mathf.FloorToInt(height/.37f),columns=Mathf.FloorToInt(width/.55f);
-            for(int row=0;row<rows;row++)
+            float half=height*.5f;
+            g.Box(V(x,y,face-.037f),V(.238f,height+.17f,.081f),KeepEdge);
+            g.Box(V(x,y,face-.085f),V(.119f,height,.023f),Dark);
+            for(int side=-1;side<=1;side+=2)
             {
-                float y=.31f+row*.34f;
-                for(int col=0;col<columns;col++)
-                {
-                    if((col*11+row*7)%5>1)continue;
-                    float x=(col+.35f+(row%2)*.21f)/columns*width-width*.5f;
-                    g.Box(V(x,y,face),V(.39f,.13f,.03f),Color.Lerp(KeepStone,Rock,.25f+((row+col)%4)*.12f));
-                }
+                g.Quad(V(x+side*.096f,y+half+.04f,face-.089f),V(x+side*.039f,y+half,face-.101f),
+                    V(x+side*.039f,y-half,face-.101f),V(x+side*.096f,y-half-.04f,face-.089f),
+                    side<0?Stonework:Pigment(KeepStone,.67f),true);
             }
+            g.Box(V(x,y-.06f,face-.105f),V(.146f,.06f,.015f),Dark);
         }
     }
 }

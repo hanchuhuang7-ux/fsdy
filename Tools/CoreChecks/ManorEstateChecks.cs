@@ -7,12 +7,12 @@ static partial class ManorChecks
 {
     public static void RunEstate(Catalog data,Action<string,Action> check)
     {
-        check("all 36 save slots fit the 84x56 natural peninsula without moving the causeway",() => {
+        check("all 36 save slots and the dock retain the island survey and west bridge abutment",() => {
             var bridge=data.Frontier.platforms.Single();
-            Expect(Manor.PlotCount==36&&Manor.PlateauHalfWidth==42&&Manor.PlateauHalfDepth==28&&FrontierMap.West==-106,"shelf bounds");
-            Expect(FrontierMap.BridgeStart==-22&&FrontierMap.Boundary==-10&&bridge.x==-16&&bridge.hz==3.6f,"causeway moved");
+            Expect(Manor.PlotCount==36&&Manor.PlateauHalfWidth==42&&Manor.PlateauHalfDepth==28&&FrontierMap.IslandWest==-106,"shelf bounds");
+            Expect(FrontierMap.BridgeStart==-22&&FrontierMap.Boundary==45&&Math.Abs(bridge.x-11.5f)<.001f&&bridge.hz==3.6f,"bridge abutments");
             Expect(FrontierMap.HasGround(-100,19)&&!FrontierMap.HasGround(-105,23)&&!FrontierMap.HasGround(-17,4)&&
-                FrontierMap.HasGround(-17,3.58f)&&FrontierMap.Safe(-10.01f)&&!FrontierMap.Safe(-10),"ground or safe line");
+                FrontierMap.HasGround(-17,3.58f)&&FrontierMap.Safe(44.99f,0)&&!FrontierMap.Safe(45,0),"ground or safe line");
             for(int i=0;i<Manor.PlotCount;i++)
             {
                 float x=Manor.SlotX(i),z=Manor.SlotZ(i);
@@ -24,20 +24,32 @@ static partial class ManorChecks
             Expect(order.z==16&&FrontierMap.HasGround(order.x,order.z),"patrol could not use the expanded shelf");
         });
 
-        check("surveyed coastlines exceed ten times the estate area and their inlets reject marching",() => {
-            Expect(FrontierMap.ManorArea>=4200&&FrontierMap.ManorArea<=4700&&FrontierMap.FrontierArea>=45000&&
-                FrontierMap.FrontierArea<=55000&&FrontierMap.FrontierArea/FrontierMap.ManorArea>=10,"coastline area budget");
-            foreach(var coast in new[]{FrontierMap.ManorCoast,FrontierMap.FrontierCoast})
-                for(int i=1;i<coast.Count;i++)
-                {
-                    var a=coast[i-1];var b=coast[i];
-                    float x=(a.x+b.x)*.5f,s=(a.south+b.south)*.5f,n=(a.north+b.north)*.5f;
-                    Expect(FrontierMap.HasGround(x,s+.05f)&&FrontierMap.HasGround(x,n-.05f)&&
-                        !FrontierMap.HasGround(x,s-.05f)&&!FrontierMap.HasGround(x,n+.05f),"segment differs from dry land");
-                }
-            Expect(!FrontierMap.HasGround(128,100)&&FrontierMap.HasGround(166,105),"the north bay disappeared");
+        check("surveyed continent encloses the lake on every bearing and exceeds twenty times the island area",() => {
+            Expect(FrontierMap.ManorArea==4325&&FrontierMap.LakeArea>=21000&&
+                FrontierMap.FrontierArea/FrontierMap.ManorArea>=20,"coastline area budget");
+            var origin=new V3(FrontierMap.ManorX,0,0);
+            for(int i=0;i<FrontierMap.ShoreStations;i++)
+            {
+                int next=(i+1)%FrontierMap.ShoreStations;
+                var lake=(FrontierMap.LakeBank[i]+FrontierMap.LakeBank[next])*.5f;
+                var outer=(FrontierMap.OuterBank[i]+FrontierMap.OuterBank[next])*.5f;
+                var outward=(lake-origin).Normalized*.15f;
+                Expect(FrontierMap.OnMainland(lake.x+outward.x,lake.z+outward.z)&&
+                    !FrontierMap.OnMainland(lake.x-outward.x,lake.z-outward.z)&&
+                    FrontierMap.OnMainland(outer.x-outward.x,outer.z-outward.z)&&
+                    !FrontierMap.HasGround(outer.x+outward.x,outer.z+outward.z),"bank crosses at station "+i);
+                var shelf=FrontierMap.RingRoad((i+.5)*2*Math.PI/FrontierMap.ShoreStations,.24f);
+                Expect(Catalog.Finite(FrontierMap.SurfaceHeight(shelf.x,shelf.z))&&!FrontierMap.Safe(shelf),"ring terrain or protection is discontinuous");
+            }
+            Expect(!FrontierMap.HasGround(FrontierMap.ManorX,55)&&!FrontierMap.HasGround(-129,0)&&
+                FrontierMap.HasGround(FrontierMap.ManorX,122)&&FrontierMap.Safe(FrontierMap.Rally),
+                "island, water and inland coast are not distinct");
+        });
+
+        check("patrols skirt the lake on either bank, cross only at the bridge and return to the island",() => {
             var endpoints=new[]{new V3(-92,0,12),FrontierMap.Rally,FrontierMap.CampCenter(0),FrontierMap.CampCenter(1),
-                FrontierMap.CampCenter(2),new V3(89,0,99),new V3(176,0,108)};
+                FrontierMap.CampCenter(2),FrontierMap.RingRoad(2.57,.10f),FrontierMap.RingRoad(3.95,.72f),
+                FrontierMap.RingRoad(.6,.03f),FrontierMap.RingRoad(4.78,.045f)};
             int marches=0;
             foreach(var start in endpoints)
                 foreach(var target in endpoints)
@@ -45,18 +57,19 @@ static partial class ManorChecks
                     if(V3.DistanceXZ(start,target)<.1f)continue;
                     var p=start;
                     var goal=FrontierMap.Formation(0,1,target,1);
-                    for(int step=0;step<4200&&V3.DistanceXZ(p,goal)>.12f;step++)
+                    for(int step=0;step<7500&&V3.DistanceXZ(p,goal)>.12f;step++)
                     {
                         var waypoint=FrontierMap.Waypoint(p,goal,0);
-                        if(p.x<FrontierMap.BridgeStart)waypoint=FrontierMap.AroundFence(p,waypoint,FrontierMap.CastleFootprint);
+                        if(FrontierMap.IsIsland(p.x,p.z))waypoint=FrontierMap.AroundFence(p,waypoint,FrontierMap.CastleFootprint);
                         var leg=waypoint-p;
                         p+=leg.Normalized*Math.Min(.125f,leg.Planar);
-                        Expect(FrontierMap.HasGround(p.x,p.z),"march leaves land: "+p.x+","+p.z);
+                        if(!FrontierMap.HasGround(p.x,p.z))throw new Exception("march leaves land at "+p.x+","+p.z);
                     }
-                    Expect(V3.DistanceXZ(p,goal)<=.12f,"a march did not arrive at "+goal.x+","+goal.z+" from "+start.x+","+start.z);
+                    Expect(V3.DistanceXZ(p,goal)<=.12f,"a march did not arrive at "+goal.x+","+goal.z+" from "+start.x+","+start.z+
+                        " stalled at "+p.x+","+p.z);
                     marches++;
                 }
-            Expect(marches==42,"march sample count");
+            Expect(marches==72,"march sample count");
         });
 
         check("granary, crops and forges stack exact production multipliers and all building grades fit the economy",() => {

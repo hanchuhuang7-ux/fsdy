@@ -7,14 +7,18 @@ namespace Frontline.Core
     public static partial class FrontierMap
     {
         public const string Id = "frontier";
-        public const float ManorX = -64, BridgeStart = ManorX + Manor.PlateauHalfWidth, Boundary = -10, BridgeHalfWidth = 3.6f;
-        public const float West = ManorX - Manor.PlateauHalfWidth, East = 290, HalfDepth = 122, EnemyStop = Boundary + 1.15f;
+        public const float ManorX = -64, BridgeStart = ManorX + Manor.PlateauHalfWidth, Boundary = 45, BridgeHalfWidth = 3.6f;
+        public const float IslandWest = ManorX - Manor.PlateauHalfWidth;
+        public const float West = -325, East = 204, HalfDepth = 209, EnemyStop = Boundary + 1.15f;
         public const int MaxParty = 16, GroupSize = 5, MaxTier = 3;
         public const float AlertRadius = 18;
         public static V3 Rally => new V3(BridgeStart - 4,0,0);
-        public static bool Safe(float x) => x < Boundary;
-        public static bool AtManor(float x) => x <= BridgeStart - .65f;
-        public static bool NearBridge(float x) => x > BridgeStart - 2 && x < Boundary + 2;
+        public static bool Safe(float x,float z) => IsIsland(x,z)||x>=BridgeStart&&x<Boundary&&Math.Abs(z)<=BridgeHalfWidth;
+        public static bool Safe(V3 p) => Safe(p.x,p.z);
+        public static bool AtManor(V3 p) => AtManor(p.x,p.z);
+        public static bool AtManor(float x,float z) => x<=BridgeStart-.65f&&IsIsland(x,z);
+        public static bool NearBridge(V3 p) => p.x>BridgeStart-2&&p.x<Boundary+2&&Math.Abs(p.z)<=BridgeHalfWidth+.32f;
+        public static bool GuardCrossedGate(V3 p) => p.x>=BridgeStart-2&&p.x<EnemyStop&&Math.Abs(p.z)<=BridgeHalfWidth+.55f;
         public static bool Fell(V3 p) => p.y < -4 || p.x < West - 6 || p.x > East + 6 || Math.Abs(p.z) > HalfDepth + 6;
 
         static Platform Surface(float west,float east,float halfDepth,float thickness) =>
@@ -22,18 +26,18 @@ namespace Frontline.Core
                 hx = (east - west) * .5f, hy = thickness * .5f, hz = halfDepth };
 
         internal static MapDef Create() => new MapDef {
-            id = Id, name = "半岛边疆",
+            id = Id, name = "环湖边疆",
             platforms = new List<Platform> {
                 Surface(BridgeStart-.13f,Boundary+.13f,BridgeHalfWidth,.68f)
             },
             walls = new List<Wall> {
-                new Wall { x=34,z=15,hx=1.85f,hy=.64f,hz=.30f },
-                new Wall { x=168,z=-36,hx=.35f,hy=.78f,hz=2.0f }
+                new Wall { x=79,z=15,hx=1.85f,hy=.64f,hz=.30f },
+                new Wall { x=56,z=-119,hx=.35f,hy=.78f,hz=2.0f }
             },
             rocks = new List<Rock> {
-                new Rock { x=12,z=-14,r=1.1f }, new Rock { x=33,z=-16,r=1.15f },
-                new Rock { x=82,z=31,r=1.35f }, new Rock { x=125,z=40,r=1.65f },
-                new Rock { x=195,z=-52,r=1.0f }, new Rock { x=230,z=-73,r=1.3f }
+                new Rock { x=56,z=-16,r=1.1f }, new Rock { x=82,z=-14,r=1.15f },
+                new Rock { x=67,z=37,r=1.35f }, new Rock { x=-58,z=132,r=1.65f },
+                new Rock { x=-188,z=-75,r=1.0f }, new Rock { x=77,z=-96,r=1.3f }
             }
         };
 
@@ -117,7 +121,7 @@ namespace Frontline.Core
             return x*x+z*z<=radius*radius;
         }
         internal static bool EnemyAlert(Guard guard,V3 enemy,V3 ally,bool pursuing) =>
-            !Safe(ally.x) && !Safe(enemy.x) && Inside(enemy,ally,pursuing?23:AlertRadius) &&
+            !Safe(ally) && !Safe(enemy) && Inside(enemy,ally,pursuing?23:AlertRadius) &&
             Inside(guard.camp,ally,27) && Inside(guard.camp,enemy,28);
 
         internal static int Columns(int count) => count>=10?4:Math.Min(3,Math.Max(1,count));
@@ -133,35 +137,45 @@ namespace Frontline.Core
             float x=center.x+rank*1.65f*direction;
             float lane=Lane(index,count);
             float z=center.z+lane*1.16f;
-            if(center.x<BridgeStart)
+            if(IsIsland(center.x,center.z))
             {
-                var goal=KeepInland(Peninsula,x,z,1.9f);
+                var goal=KeepOnIsland(x,z,1.9f);
                 if(Math.Abs(goal.x-ManorX)<CastleHalfWidth+1.05f&&Math.Abs(goal.z)<CastleHalfDepth+1.12f)
                     goal.z=(center.z<0?-1:1)*(CastleHalfDepth+1.12f);
                 return goal;
             }
-            if(Safe(center.x))
+            if(OnBridge(center.x,center.z))
                 return new V3(Clamp(x,BridgeStart+.2f,Boundary-.2f),0,lane);
-            return KeepInland(Mainland,x,z,2.15f);
+            return KeepOnMainland(x,z,2.7f);
         }
 
         internal static V3 Waypoint(V3 from,V3 goal,float lane)
         {
-            if(from.x<BridgeStart-1.6f&&goal.x<BridgeStart)return InlandWaypoint(Peninsula,from,goal);
-            if(from.x>Boundary+1.6f&&goal.x>=Boundary)return InlandWaypoint(Mainland,from,goal);
-            int direction=goal.x>=from.x?1:-1;
+            bool goalIsland=IsIsland(goal.x,goal.z),goalBridge=OnBridge(goal.x,goal.z);
+            bool onIsland=IsIsland(from.x,from.z),atEastThroat=from.x>=Boundary&&from.x<=Boundary+4.65f
+                &&Math.Abs(from.z-lane)<=.72f;
+            if(onIsland&&goalIsland&&from.x<BridgeStart-1.6f)return IslandWaypoint(from,goal);
+            if(!onIsland&&!OnBridge(from.x,from.z))
+            {
+                if(!goalIsland&&!goalBridge)return MainlandWaypoint(from,goal);
+                if(!atEastThroat)return MainlandWaypoint(from,new V3(Boundary+4f,0,lane));
+            }
+            int direction=goalIsland?-1:goalBridge&&goal.x<from.x?-1:1;
             float entry=direction>0?BridgeStart:Boundary;
-            float at=(from.x-entry)*direction,end=(goal.x-entry)*direction;
+            // The east destination can be west of the bridge in world X, on the opposite
+            // shore of the lake. Cross the bridge first; route by coastline after landing.
+            var exit=direction>0&&!goalBridge?new V3(Boundary+3.1f,0,lane):goal;
+            float at=(from.x-entry)*direction,end=(exit.x-entry)*direction;
             float span=Boundary-BridgeStart;
             if(end<0||at>=span+4)return goal;
             // Align on dry land. A moving look-ahead avoids braking on the same exit point in each file.
             if(at<-1.6f && Math.Abs(from.z-lane)>.65f)
-                return InlandWaypoint(direction>0?Peninsula:Mainland,from,new V3(entry-2*direction,0,lane));
+                return direction>0?IslandWaypoint(from,new V3(entry-2,0,lane)):new V3(entry+1.9f,0,lane);
             float look=Math.Min(end,Math.Max(-1.3f,at+5.0f));
             float fanDistance=Clamp(end-span-.55f,.20f,3.0f);
             float spread=Clamp((at-span-.55f)/fanDistance,0,1);
             spread=spread*spread*(3-2*spread);
-            return new V3(entry+look*direction,0,lane+(goal.z-lane)*spread);
+            return new V3(entry+look*direction,0,lane+(exit.z-lane)*spread);
         }
 
         internal static V3 AroundFence(V3 from,V3 goal,Wall wall)

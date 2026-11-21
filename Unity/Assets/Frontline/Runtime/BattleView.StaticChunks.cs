@@ -7,11 +7,11 @@ namespace Frontline.UnityGame
     {
         internal int CulledStaticInstances { get; private set; }
 
-        const int ChunkSize=32,RegionsWide=16,RegionsDeep=10,StaticRegionCount=RegionsWide*RegionsDeep;
+        const int ChunkSize=32,RegionsWide=18,RegionsDeep=14,StaticRegionCount=RegionsWide*RegionsDeep;
         static int StaticRegion(Vector3 world)
         {
-            int x=Mathf.Clamp(Mathf.FloorToInt(world.x/ChunkSize)+5,0,RegionsWide-1);
-            int z=Mathf.Clamp(Mathf.FloorToInt(world.z/ChunkSize)+5,0,RegionsDeep-1);
+            int x=Mathf.Clamp(Mathf.FloorToInt(world.x/ChunkSize)+11,0,RegionsWide-1);
+            int z=Mathf.Clamp(Mathf.FloorToInt(world.z/ChunkSize)+7,0,RegionsDeep-1);
             return z*RegionsWide+x;
         }
 

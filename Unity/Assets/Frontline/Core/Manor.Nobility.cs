@@ -64,7 +64,7 @@ namespace Frontline.Core
 
         public static string NoblePrivilege(int rank)
         {
-            if(rank==0)return "持有半岛原有建地";
+            if(rank==0)return "持有湖心岛原有建地";
             var entry=NobleRanks[rank];
             var previous=NobleRanks[rank-1];
             if(entry.armyBonus>previous.armyBonus)return "常备军上限 +"+entry.armyBonus;

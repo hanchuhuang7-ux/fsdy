@@ -97,27 +97,27 @@ namespace Frontline.Core
         {
             var from=own.entity.position;
             var to=foe.entity.position;
-            if(FrontierMap.Safe(from.x)||FrontierMap.Safe(to.x)) return false;
+            if(FrontierMap.Safe(from)||FrontierMap.Safe(to)) return false;
             if(own.isRed)
-                return MarchDestination.HasValue && !FrontierMap.Safe(MarchDestination.Value.x) && Within(from,to,FrontierMap.AlertRadius+3);
+                return MarchDestination.HasValue && !FrontierMap.Safe(MarchDestination.Value) && Within(from,to,FrontierMap.AlertRadius+3);
             return FrontierMap.EnemyAlert(GuardFor(own),from,to,own.target==foe);
         }
 
         bool FrontierCanHit(Entity target,Entity source) =>
-            !FrontierMap.Safe(target.body.Position.x) &&
-            (source==null || !FrontierMap.Safe((source.alive ? source.body.Position : source.position).x));
+            !FrontierMap.Safe(target.body.Position) &&
+            (source==null || !FrontierMap.Safe(source.alive ? source.body.Position : source.position));
 
         void FrontlineBoundary()
         {
             for(int i=Config.red.Count;i<Units.Count;i++)
             {
                 var unit=Units[i].entity;
-                if(unit.alive && unit.body.Position.x<FrontierMap.EnemyStop)
+                if(unit.alive && FrontierMap.GuardCrossedGate(unit.body.Position))
                     ((IFrontierBody)unit.body).StopAtFrontier(FrontierMap.EnemyStop);
             }
             // A shot launched against an exposed unit can no longer cross the gate after its target retreats.
             foreach(var shot in Shots)
-                if(!shot.removed && FrontierMap.Safe(shot.body.Position.x)) RemoveShot(shot);
+                if(!shot.removed && FrontierMap.Safe(shot.body.Position)) RemoveShot(shot);
         }
 
         void WalkFrontier(Soldier u,bool inspired)
@@ -141,7 +141,7 @@ namespace Frontline.Core
             {
                 int index=entity.id-1;
                 goal=FrontierMap.Waypoint(p,march.goals[index],march.lanes[index]);
-                if(p.x<FrontierMap.BridgeStart)goal=FrontierMap.AroundFence(p,goal,march.castle);
+                if(FrontierMap.IsIsland(p.x,p.z))goal=FrontierMap.AroundFence(p,goal,march.castle);
                 foreach(var wall in map.walls)goal=FrontierMap.AroundFence(p,goal,wall);
                 foreach(var rock in march.reefs)goal=FrontierMap.AroundFence(p,goal,rock);
             }
@@ -162,10 +162,10 @@ namespace Frontline.Core
             bool fast=(u.isCavalry&&u.moveSpeed>3.6f)||u.moveSpeed>8||Math.Abs(velocity.y)>6;
             if(u.isCavalry||u.isCatapult||fast!=u.collisionFast){u.combatBody?.Facing(u.angle,fast);u.collisionFast=fast;}
             if(!Catalog.Finite(u.floor)||p.y>=u.floor+d.scale*1.12f) return;
-            float travel=u.isRed&&!FrontierMap.NearBridge(p.x)&&distance>4?FrontierMap.PeaceMarchMultiplier:1;
+            float travel=u.isRed&&distance>4?(FrontierMap.NearBridge(p)?1.38f:FrontierMap.PeaceMarchMultiplier):1;
             float pace=Math.Min(d.speed*(u.isRed?travel:.75f)*(inspired?1.12f:1),Math.Max(0,(distance-.10f)*4));
             var move=delta*(pace/Math.Max(.01f,distance));
-            if(pace>0 && !FrontierMap.NearBridge(p.x))
+            if(pace>0 && !FrontierMap.NearBridge(p))
                 foreach(var ally in Nearby(p,2))
                     if(ally!=u && ally.isRed==u.isRed)
                         move+=CombatMotion.Separation(p-ally.entity.position,.65f*(d.scale+ally.definition.scale),false,1);

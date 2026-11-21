@@ -108,6 +108,7 @@ namespace Frontline.UnityGame
             float xCenter=Mathf.Clamp(target.x,FrontierMap.West,FrontierMap.East);
             float zCenter=Mathf.Clamp(target.z,-FrontierMap.HalfDepth,FrontierMap.HalfDepth);
             float height=Mathf.Clamp(distance*.27f,3.7f,10f);
+            bool sampleHills=distance<80&&FrontierMap.OnMainland(xCenter,zCenter);
             float phase=time*(rain?1.22f:leaves?.32f:.28f)+manor.day*.267f;
             float visibilityScale=1+Mathf.Clamp01((distance-16)/65)*(rain||leaves?.68f:.90f);
             int count=WeatherBudget;
@@ -118,7 +119,7 @@ namespace Frontline.UnityGame
                 float sway=rain?flight*height*.30f:Mathf.Sin(time*.94f+i*2.12f)*(leaves?.68f:.26f)+flight*(leaves?1.23f:.55f);
                 var position=new Vector3(xCenter+width*(2*Mathf.Repeat(.19f+i*.618f,1)-1)+sway,
                     .22f+height*(1-flight),zCenter+depth*(2*Mathf.Repeat(.35f+i*.377f,1)-1));
-                if(xCenter>=FrontierMap.Boundary&&distance<80)
+                if(sampleHills)
                 {
                     float floor=FrontierMap.SurfaceHeight(position.x,position.z);
                     if(Catalog.Finite(floor))position.y+=floor;

@@ -493,6 +493,11 @@ namespace Frontline.UnityGame
                 cameraPosition-=rotation*Vector3.right*(halfWidth*.208f*sidebarWeight);
             }
             ViewCamera.transform.SetPositionAndRotation(cameraPosition,rotation);
+            if(manor!=null)
+            {
+                float farPlane=Mathf.Max(2600,distance*5.5f);
+                if(!Mathf.Approximately(ViewCamera.farClipPlane,farPlane))ViewCamera.farClipPlane=farPlane;
+            }
             var clip=ViewCamera.projectionMatrix*ViewCamera.worldToCameraMatrix;
             if(clip!=previousClip)
             {
@@ -566,7 +571,7 @@ namespace Frontline.UnityGame
             if(ViewCamera)ViewCamera.enabled=false;
             DisposeSoldierPoses();
         }
-        void OnDestroy(){StopPresentation();if(RenderSettings.skybox==sky)RenderSettings.skybox=null;if(material)Destroy(material);if(atmosphere)Destroy(atmosphere);if(groundingMaterial)Destroy(groundingMaterial);if(sky)Destroy(sky);}
+        void OnDestroy(){StopPresentation();if(RenderSettings.skybox==sky)RenderSettings.skybox=null;if(material)Destroy(material);if(atmosphere)Destroy(atmosphere);if(groundingMaterial)Destroy(groundingMaterial);if(sky)Destroy(sky);if(lakeMaterial)Destroy(lakeMaterial);}
     }
 }
 

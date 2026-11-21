@@ -44,6 +44,10 @@ namespace Frontline.UnityGame
             if(message==0)return false;
             if(TraceShutdown)Debug.Log($"FRONTLINE_WINDOW_CLOSE dispatched=0x{message:X} on player loop");
             Shutdown();
+            // The user's preference is already on disk. Avoid waiting for the next
+            // presented frame once the view and audio have been stopped.
+            Application.targetFrameRate=-1;
+            QualitySettings.vSyncCount=0;
             WindowsCloseRequest.Commit();
             Application.Quit(0);
             return true;

@@ -140,7 +140,7 @@ namespace Frontline.UnityGame
                 Require(text.preferredHeight<=text.rectTransform.rect.height+1,"Clipped text in "+title+": "+text.text);
         }
 
-        IEnumerator CaptureArmamentArt(bool captures)
+        IEnumerator CaptureArmamentArt(bool captures,string series="170")
         {
             if(!captures)yield break;
             for(int hero=0;hero<Manor.HeroIds.Length;hero++)
@@ -153,19 +153,19 @@ namespace Frontline.UnityGame
                 app.View.Focus(app.View.ManorHeroPoint(hero)+Vector3.up*1.12f,5.5f,16,app.View.ManorHeroYaw(hero)+(hero==0?128:153));
                 yield return new WaitForEndOfFrame();
                 Require(!app.View.LowActorLod&&(app.View.VisibleHeroMask&mask)!=0&&app.Estate.HeroArmament(id)==3,"Hero close-up lost its armor");
-                yield return ManorShot("170-hero-"+id);
+                yield return ManorShot(series+"-hero-"+id);
             }
-            app.View.Focus(BattleView.RetinuePost(1)+Vector3.up*.90f,5.6f,20,2);
+            app.View.Focus(BattleView.RetinuePost(1)+Vector3.up*.90f,5.6f,16,-56);
             yield return new WaitForEndOfFrame();
             Require(!app.View.LowActorLod&&app.View.VisibleRetinue>0,"Retinue close-up lost its detailed mesh");
-            yield return ManorShot("170-retinue");
+            yield return ManorShot(series+"-retinue");
             app.View.Focus(BattleView.QuayPoint,10.1f,40,-22);
             yield return new WaitForEndOfFrame();
             Require(!app.View.LowSceneryLod,"Quay close-up did not show the detail mesh");
-            yield return ManorShot("170-quay-skiff");
+            yield return ManorShot(series+"-quay-skiff");
         }
 
-        IEnumerator CheckArenaLandscape(bool captures)
+        IEnumerator CheckArenaLandscape(bool captures,string series="170")
         {
             string original=Json.Write(app.Config);
             var c=new Deployment();
@@ -200,7 +200,7 @@ namespace Frontline.UnityGame
             Require(!app.View.LowActorLod&&!app.View.LowSceneryLod&&app.Battle.Props.Any(p=>p.entity.type=="barricade")&&
                 app.Battle.Units.Any(u=>u.entity.type=="catapult")&&app.Config.red.All(unit=>unit.armament==0),
                 "Battle scenery or fair army scope was lost");
-            if(captures)yield return ManorShot("170-arena-siege");
+            if(captures)yield return ManorShot(series+"-arena-siege");
             landscapeVerified=true;
             app.ReturnToDeploy();
             app.ImportText(original);

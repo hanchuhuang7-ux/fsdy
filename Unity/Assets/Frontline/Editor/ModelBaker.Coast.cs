@@ -47,33 +47,52 @@ namespace Frontline.Editor
             }
 
             var manor=FrontierMap.ManorCoast;
-            var frontier=FrontierMap.FrontierCoast;
-            asset.manorFloor=SaveMesh("Manor walkable ground",FloorMesh(manor,false));
-            asset.frontierFloor=SaveMesh("Frontier walkable ground",FloorMesh(frontier,true));
+            var island=CoastRim(manor);
+            var lake=new List<Vector3>(FrontierMap.ShoreStations);
+            var outer=new List<Vector3>(FrontierMap.ShoreStations);
+            for(int i=0;i<FrontierMap.ShoreStations;i++)
+            {
+                lake.Add(UnityWorld.Vector(FrontierMap.LakeBank[i]));
+                outer.Add(UnityWorld.Vector(FrontierMap.OuterBank[FrontierMap.ShoreStations-1-i]));
+            }
+            var manorFloor=new Geometry();
+            for(int i=1;i<manor.Count;i++)
+            {
+                var a=manor[i-1];var b=manor[i];
+                manorFloor.Quad(V(a.x,0,a.south),V(a.x,0,a.north),V(b.x,0,b.north),V(b.x,0,b.south),Turf);
+            }
+            asset.manorFloor=SaveMesh("Manor walkable ground",manorFloor);
+            var mainlandFloor=new Geometry();
+            MainlandPatches((a,b,c,d)=>mainlandFloor.Quad(a,b,c,d,Turf));
+            asset.frontierFloor=SaveMesh("Frontier walkable ground",mainlandFloor);
             var barrier=new Geometry();
-            AddShoreBarrier(barrier,manor,FrontierMap.BridgeStart);
-            AddShoreBarrier(barrier,frontier,FrontierMap.Boundary);
+            AddShoreBarrier(barrier,island,FrontierMap.BridgeStart);
+            AddShoreBarrier(barrier,lake,FrontierMap.Boundary);
+            AddShoreBarrier(barrier,outer,float.PositiveInfinity);
+            float bridge=FrontierMap.BridgeHalfWidth,entry=FrontierMap.BridgeStart,exit=FrontierMap.Boundary;
+            barrier.Quad(V(entry,-.2f,bridge),V(entry,.8f,bridge),V(exit,.8f,bridge),V(exit,-.2f,bridge),CliffStone);
+            barrier.Quad(V(exit,-.2f,-bridge),V(exit,.8f,-bridge),V(entry,.8f,-bridge),V(entry,-.2f,-bridge),CliffStone);
             asset.shoreBarrier=SaveMesh("Inward shore collision",barrier);
-            asset.closeChunks=CoastChunks(manor,frontier,32,true,SaveMesh);
-            asset.wideChunks=CoastChunks(manor,frontier,96,false,SaveMesh);
+            asset.closeChunks=CoastChunks(manor,island,lake,outer,32,true,SaveMesh);
+            asset.wideChunks=CoastChunks(manor,island,lake,outer,128,false,SaveMesh);
+            asset.distantRelief=SaveMesh("Distant folds and ridges",DistantRelief());
+            var water=new Geometry();
+            water.Quad(V(-.5f,0,-.5f),V(-.5f,0,.5f),V(.5f,0,.5f),V(.5f,0,-.5f),Color.white);
+            asset.lakeSurface=SaveMesh("Lake horizon plane",water);
             foreach(var obsolete in existing.Values)UnityEngine.Object.DestroyImmediate(obsolete,true);
             EditorUtility.SetDirty(asset);
             Debug.Log("FRONTLINE_COAST_BAKED fine="+asset.closeChunks.Length+" coarse="+asset.wideChunks.Length+
                 " manor="+FrontierMap.ManorArea+"m2 frontier="+FrontierMap.FrontierArea+"m2");
         }
 
-        static Geometry FloorMesh(IReadOnlyList<FrontierMap.ShoreSlice> coast,bool mainland)
+        static void MainlandPatches(Action<Vector3,Vector3,Vector3,Vector3> add)
         {
-            var floor=new Geometry();
-            for(int i=1;i<coast.Count;i++)
-            {
-                var a=coast[i-1];var b=coast[i];
-                if(!mainland)floor.Quad(V(a.x,0,a.south),V(a.x,0,a.north),V(b.x,0,b.north),V(b.x,0,b.south),Turf);
-                else
-                    for(int band=0;band<FrontierMap.TerrainBands;band++)
-                        floor.Quad(Survey(i-1,band),Survey(i-1,band+1),Survey(i,band+1),Survey(i,band),Turf);
-            }
-            return floor;
+            for(int i=0;i<FrontierMap.ShoreStations;i++)
+                for(int band=0;band<FrontierMap.TerrainBands;band++)
+                {
+                    int next=(i+1)%FrontierMap.ShoreStations;
+                    add(Survey(i,band),Survey(next,band),Survey(next,band+1),Survey(i,band+1));
+                }
         }
 
         static Vector3 Survey(int station,int band) => UnityWorld.Vector(FrontierMap.TerrainPoint(station,band));
@@ -86,17 +105,14 @@ namespace Frontline.Editor
             return rim;
         }
 
-        static void AddShoreBarrier(Geometry mesh,IReadOnlyList<FrontierMap.ShoreSlice> coast,float bridgeX)
+        static void AddShoreBarrier(Geometry mesh,List<Vector3> rim,float bridgeX)
         {
-            var rim=CoastRim(coast);
             for(int i=0;i<rim.Count;i++)
             {
                 var a=rim[i];var b=rim[(i+1)%rim.Count];
                 if(a.x==bridgeX&&b.x==bridgeX)
                 {
-                    float sign=a.z>b.z?1:-1;
-                    BarrierEdge(a,V(bridgeX,0,sign*FrontierMap.BridgeHalfWidth));
-                    BarrierEdge(V(bridgeX,0,-sign*FrontierMap.BridgeHalfWidth),b);
+                    SplitBridgeEdge(a,b,BarrierEdge);
                 }
                 else BarrierEdge(a,b);
             }
@@ -105,8 +121,25 @@ namespace Frontline.Editor
                 mesh.Quad(a+Vector3.down,a+Vector3.up*5,b+Vector3.up*5,b+Vector3.down,CliffStone);
         }
 
-        static Mesh[] CoastChunks(IReadOnlyList<FrontierMap.ShoreSlice> manor,IReadOnlyList<FrontierMap.ShoreSlice> frontier,
-            int size,bool detail,Func<string,Geometry,Mesh> save)
+        static void SplitBridgeEdge(Vector3 start,Vector3 end,Action<Vector3,Vector3> edge)
+        {
+            float from=Mathf.Min(start.z,end.z),to=Mathf.Max(start.z,end.z);
+            float width=FrontierMap.BridgeHalfWidth;
+            bool ascending=end.z>start.z;
+            if(from< -width)
+            {
+                var a=V(start.x,0,from);var b=V(start.x,0,Mathf.Min(-width,to));
+                edge(ascending?a:b,ascending?b:a);
+            }
+            if(to>width)
+            {
+                var a=V(start.x,0,Mathf.Max(width,from));var b=V(start.x,0,to);
+                edge(ascending?a:b,ascending?b:a);
+            }
+        }
+
+        static Mesh[] CoastChunks(IReadOnlyList<FrontierMap.ShoreSlice> manor,List<Vector3> island,List<Vector3> lake,
+            List<Vector3> outer,int size,bool detail,Func<string,Geometry,Mesh> save)
         {
             var pages=new Dictionary<(int,int),Geometry>();
             var a=new List<Vector3>(8);
@@ -141,30 +174,23 @@ namespace Frontline.Editor
                     }
             }
 
-            void Land(IReadOnlyList<FrontierMap.ShoreSlice> coast,float bridgeX,bool mainland)
+            void IslandLand()
             {
-                for(int i=1;i<coast.Count;i++)
+                for(int i=1;i<manor.Count;i++)
                 {
-                    var l=coast[i-1];var r=coast[i];
-                    // Cross-bands soften the colour changes around the inlets at either LOD.
-                    int bands=mainland?FrontierMap.TerrainBands:detail?6:3;
+                    var l=manor[i-1];var r=manor[i];
+                    int bands=detail?6:3;
                     for(int band=0;band<bands;band++)
                     {
                         float t=band/(float)bands,u=(band+1)/(float)bands;
-                        if(mainland)
-                        {
-                            var start=Survey(i-1,band);var north=Survey(i-1,band+1);
-                            var diagonal=Survey(i,band+1);var end=Survey(i,band);
-                            // Clip the two original triangles separately so the facets inland
-                            // coincide with the farm and patrol physics floor at both distances.
-                            Patch(start,north,diagonal,diagonal,Turf,true);
-                            Patch(start,diagonal,end,end,Turf,true);
-                        }
-                        else Patch(V(l.x,0,Mathf.Lerp(l.south,l.north,t)),V(l.x,0,Mathf.Lerp(l.south,l.north,u)),
+                        Patch(V(l.x,0,Mathf.Lerp(l.south,l.north,t)),V(l.x,0,Mathf.Lerp(l.south,l.north,u)),
                             V(r.x,0,Mathf.Lerp(r.south,r.north,u)),V(r.x,0,Mathf.Lerp(r.south,r.north,t)),Turf,true);
                     }
                 }
-                var rim=CoastRim(coast);
+            }
+
+            void Rim(List<Vector3> rim,float bridgeX)
+            {
                 for(int i=0;i<rim.Count;i++)
                 {
                     var prev=rim[(i+rim.Count-1)%rim.Count];
@@ -173,11 +199,7 @@ namespace Frontline.Editor
                     var aOut=(Outward(prev,start)+outward).normalized;
                     var bOut=(outward+Outward(end,next)).normalized;
                     if(start.x==bridgeX&&end.x==bridgeX)
-                    {
-                        float sign=start.z>end.z?1:-1;
-                        Cliff(start,V(bridgeX,0,sign*FrontierMap.BridgeHalfWidth),aOut,outward,i);
-                        Cliff(V(bridgeX,0,-sign*FrontierMap.BridgeHalfWidth),end,outward,bOut,i);
-                    }
+                        SplitBridgeEdge(start,end,(a,b)=>Cliff(a,b,a==start?aOut:outward,b==end?bOut:outward,i));
                     else Cliff(start,end,aOut,bOut,i);
                 }
             }
@@ -196,8 +218,16 @@ namespace Frontline.Editor
                 else Patch(end,start,a3,b3,Color.Lerp(CliffStone,SeaStone,grit*.65f));
             }
 
-            Land(manor,FrontierMap.BridgeStart,false);
-            Land(frontier,FrontierMap.Boundary,true);
+            IslandLand();
+            MainlandPatches((a,b,c,d)=>{
+                Patch(a,b,c,c,Turf,true);
+                Patch(a,c,d,d,Turf,true);
+            });
+            Rim(island,FrontierMap.BridgeStart);
+            Rim(lake,FrontierMap.Boundary);
+            Rim(outer,float.PositiveInfinity);
+            LakeRoads(detail,(a,b,c,d,color)=>Patch(a,b,c,d,color));
+            if(!detail)FarForests((a,b,c,color)=>Patch(a,b,c,c,color));
             var keys=new List<(int,int)>(pages.Keys);
             keys.Sort();
             var chunks=new Mesh[keys.Count];
@@ -222,8 +252,15 @@ namespace Frontline.Editor
         static Color Ground(Vector3 p)
         {
             float mottled=.5f+.19f*Mathf.Sin(p.x*.091f+p.z*.031f)+.16f*Mathf.Cos(p.z*.139f-p.x*.13f);
-            float blend=FrontierMap.ShoreAt(p.x,out var south,out var north)?Mathf.Min(p.z-south,north-p.z):0;
-            var grass=Color.Lerp(new Color(.46f,.61f,.38f,1),new Color(.79f,.84f,.59f,1),mottled);
+            float blend;
+            if(FrontierMap.IsIsland(p.x,p.z)&&FrontierMap.ShoreAt(p.x,out var south,out var north))
+                blend=Mathf.Min(p.z-south,north-p.z);
+            else
+            {
+                float depth=FrontierMap.MainlandDepth(p.x,p.z,out blend);
+                if(depth>.65f)blend=12;
+            }
+            var grass=Color.Lerp(new Color(.39f,.54f,.35f,1),new Color(.72f,.79f,.56f,1),mottled);
             grass=Color.Lerp(grass,new Color(.53f,.57f,.43f,1),Mathf.Clamp01((p.y-2.0f)/9f)*.72f);
             return Color.Lerp(new Color(.76f,.72f,.53f,.45f),grass,Mathf.Clamp01(blend/12));
         }
