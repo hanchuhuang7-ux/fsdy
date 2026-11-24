@@ -8,16 +8,16 @@ const read = path => readFileSync(url(path),'utf8');
 const sha = path => createHash('sha256').update(read(path).replaceAll('\r\n','\n')).digest('hex');
 const root = 'Unity/Assets/Frontline/';
 
-test('2.2.0 ships the same single Unity scene and matching player, package and model versions', () => {
+test('3.0.0 ships the same single Unity scene and matching player, package and model versions', () => {
   for (const p of ['package.json','package-lock.json',root+'Models/model-manifest.json'])
-    assert.equal(JSON.parse(read(p)).version,'2.2.0',p);
-  assert.match(read(root+'Editor/BuildTools.cs'),/bundleVersion="2\.2\.0"/);
-  assert.match(read('Unity/ProjectSettings/ProjectSettings.asset'),/^  bundleVersion: 2\.2\.0\r?$/m);
+    assert.equal(JSON.parse(read(p)).version,'3.0.0',p);
+  assert.match(read(root+'Editor/BuildTools.cs'),/bundleVersion="3\.0\.0"/);
+  assert.match(read('Unity/ProjectSettings/ProjectSettings.asset'),/^  bundleVersion: 3\.0\.0\r?$/m);
   assert.deepEqual(readdirSync(url('Unity/Assets/Scenes/')).filter(s => s.endsWith('.unity')),['Frontline.unity']);
 });
 test('manor buildings, hero equipment and civilian props all have unique baked mesh pairs', () => {
   const {resources} = JSON.parse(read(root+'Models/model-manifest.json'));
-  assert.equal(resources.length,316);
+  assert.equal(resources.length,318);
   assert.equal(new Set(resources).size,resources.length);
   const heroes=JSON.parse(read(root+'Resources/catalog.json')).heroes;
   assert.equal(heroes.length,3);
@@ -52,3 +52,34 @@ test('1.2 preserves historical rule signatures and both expedition replay identi
   assert.match(read(root+'Core/Rules.cs'),/Validate\(Deployment input,bool expedition=false\)/);
 });
 
+
+test('material channels, shadow proxies and the frozen rock hull survive the full editor bake', () => {
+  const model = name => read(root+'Models/Resources/Models/'+name+'.asset');
+  const layout = mesh => [...mesh.matchAll(/- stream: (\d+)\s+offset: (\d+)\s+format: (\d+)\s+dimension: (\d+)/g)]
+    .map(m => ({offset:+m[2], dimension:+m[4]}));
+  for (const name of ['manor_hall_tower','cottage','bakery','tree','pine','body_shield','body_spear','horse','arm_right_spear','arena_ground']) {
+    const mesh=model(name), channels=layout(mesh);
+    assert.deepEqual([channels[4].dimension,channels[5].dimension],[2,4],name);
+    const vertices=+mesh.match(/m_VertexCount: (\d+)/)[1];
+    const data=Buffer.from(mesh.match(/_typelessdata: ([a-f0-9]+)/i)[1],'hex');
+    const stride=data.length/vertices, kinds=new Set();
+    for (let at=channels[5].offset;at<data.length;at+=stride) {
+      const id=data.readFloatLE(at);kinds.add(id);
+      assert.ok(Number.isInteger(id)&&id>=1&&id<=13,name);
+      for(const i of [4,8,12])assert.ok(data.readFloatLE(at+i)>=0&&data.readFloatLE(at+i)<=1,name);
+    }
+    if(name==='body_shield'||name==='arm_right_spear')assert.ok(kinds.has(5)&&kinds.has(6),name);
+    if(name==='arena_ground')assert.deepEqual([...kinds],[7]);
+    assert.equal(layout(model(name+'_lod1'))[5].dimension,0);
+  }
+  const hull=Buffer.from(model('rock_lod1').replaceAll('\r\n','\n'));
+  assert.equal(createHash('sha1').update('blob '+hull.length+'\0').update(hull).digest('hex'),
+    'e3a36e16270490edf0ad5dc58edd93141c86d7e8');
+  const manifest=JSON.parse(read(root+'Models/model-manifest.json'));
+  assert.ok(!manifest.resources.some(item=>item.includes('water_ripple')));
+  for(const texture of manifest.textures){
+    const meta=read(root+'Resources/'+texture+'.png.meta');
+    assert.match(meta,/enableMipMap: 1/);assert.match(meta,/aniso: [2-9]/);
+    for(const target of ['Standalone','WebGL'])assert.match(meta,new RegExp('buildTarget: '+target+'[\\s\\S]*?overridden: 1'));
+  }
+});

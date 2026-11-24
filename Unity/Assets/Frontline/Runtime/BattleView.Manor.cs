@@ -47,7 +47,7 @@ namespace Frontline.UnityGame
         internal bool WalkingResidentVisible {get;private set;}
         int builtReclaimedPlots,builtNobility;
         int homeCount,tavernSlot,builtSeason=-1;
-        MeshSet surveyBlock, hat, parcel, farmerCoat, villagerCoat, wrap, sleeve, sails;
+        MeshSet earthBlock,surveyBlock, hat, parcel, farmerCoat, villagerCoat, wrap, sleeve, sails;
         MeshSet hoe,sickle,bucket,basket,crate,jug;
         readonly Vector3[] millHubs=new Vector3[Manor.PlotCount];
         readonly int[] millPlots=new int[Manor.PlotCount],forgePlots=new int[Manor.PlotCount];
@@ -243,14 +243,14 @@ namespace Frontline.UnityGame
 
         void Tile(Vector3 p, Vector3 size, Color tint, float angle = 0)
         {
-            ManorStill(surveyBlock, p, Quaternion.Euler(0, angle, 0), size, tint);
+            ManorStill(size.x>1?earthBlock:surveyBlock, p, Quaternion.Euler(0, angle, 0), size, tint);
         }
 
         void Lane(Vector3 from, Vector3 to, float width)
         {
             Vector3 span = to - from;
             if (span.sqrMagnitude < .001f) return;
-            ManorStill(surveyBlock, (from + to) * .5f + Vector3.up * .011f, Quaternion.LookRotation(span),
+            ManorStill(earthBlock, (from + to) * .5f + Vector3.up * .011f, Quaternion.LookRotation(span),
                 new Vector3(width, .018f, span.magnitude + .18f), builtSeason==3?WinterTrack:Track);
         }
 
@@ -378,6 +378,7 @@ namespace Frontline.UnityGame
             foreach (var b in still) b.Clear();
             foreach (var b in grid) b.Clear();
             surveyBlock = Load("platform");
+            earthBlock = Load("arena_ground");
             if(solidBlock==null)
             {
                 solidBlock=surveyBlock.Variant(true,true);
@@ -882,7 +883,6 @@ namespace Frontline.UnityGame
                 if(InView(p,radius))Add(ring,Pose(p,Quaternion.identity,new Vector3(radius,1,radius*.86f)),Gold);
             }
             DrawFrontierPatrol();
-            DrawBridgeRipples();
             PrepareWeatherPage(manorTime);
             Draw(weatherPage,false);
             foreach (var b in moving) Draw(b,false);

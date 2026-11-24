@@ -36,7 +36,7 @@ namespace Frontline.UnityGame
             foreach(var p in map.platforms)
             {
                 var q=Quaternion.Euler(0,0,p.angle*Mathf.Rad2Deg);
-                Put(rows,"platform",new Vector3(p.x,p.y,p.z),new Vector3(p.hx*2,p.hy*2,p.hz*2),tint:p.bridge?new Color(.57f,.4f,.24f):ground,rotation:q);
+                Put(rows,p.bridge?"platform":"arena_ground",new Vector3(p.x,p.y,p.z),new Vector3(p.hx*2,p.hy*2,p.hz*2),tint:p.bridge?new Color(.57f,.4f,.24f):ground,rotation:q);
                 if(!p.bridge&&!p.ramp)
                 {
                     float depth=island?6:bridge?5.2f:2.5f;
@@ -115,12 +115,6 @@ namespace Frontline.UnityGame
         {
             Put(rows,"platform",new Vector3(0,-4.15f,0),new Vector3(7.4f,.08f,70),tint:new Color(.21f,.44f,.51f));
             Put(rows,"platform",new Vector3(-.34f,-4.097f,0),new Vector3(2.35f,.012f,57),tint:new Color(.16f,.35f,.43f));
-            for(int i=0;i<14;i++)
-            {
-                float z=-21.9f+i*3.31f,x=Mathf.Sin(i*1.97f)*1.15f;
-                Put(rows,"water_ripple",new Vector3(x,-4.065f,z),new Vector3(1.04f,.47f,1.64f),i*29,
-                    new Color(.67f,.84f,.85f,.42f),atmosphere:true);
-            }
             var oak=new Color(.63f,.43f,.25f);
             for(int i=0;i<12;i++)
             {
@@ -195,8 +189,6 @@ namespace Frontline.UnityGame
                 {
                     float x=-3.58f+i*1.17f,z=side*(6.78f+Mathf.Sin(i*1.68f)*.44f);
                     Put(rows,"dot",new Vector3(x,.024f,z),new Vector3(.89f,.58f,.52f),34*i,wet);
-                    Put(rows,"water_ripple",new Vector3(x,.034f,z),new Vector3(.51f,.43f,.76f),23*i,
-                        new Color(.66f,.80f,.66f,.37f),atmosphere:true);
                 }
             }
             for(int i=0;i<(quality==2?6:4);i++)

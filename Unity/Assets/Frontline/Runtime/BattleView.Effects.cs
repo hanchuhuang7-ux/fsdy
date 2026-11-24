@@ -8,13 +8,12 @@ namespace Frontline.UnityGame
         Batch accentRings,accentMist;
         internal int VisibleOrderAccents {get;private set;}
         internal int VisibleImpactAccents {get;private set;}
-        internal int BridgeRippleCount {get;private set;}
         internal int AccentInstances => accentRings.count+accentMist.count;
         internal bool AccentCasters => accentRings.mesh.castShadow||accentMist.mesh.castShadow;
 
         void InitializeAccents()
         {
-            var wave=Load("water_ripple",true);
+            var wave=Load("ring",true);
             // Thin translucent bands use the existing inexpensive distant mesh at every quality.
             var band=new MeshSet {
                 high=wave.low,low=wave.low,highVertices=wave.lowVertices,lowVertices=wave.lowVertices,
@@ -134,25 +133,5 @@ namespace Frontline.UnityGame
             return true;
         }
 
-        void DrawBridgeRipples()
-        {
-            BridgeRippleCount=0;
-            const int spans=8;
-            const float bay=(FrontierMap.Boundary-FrontierMap.BridgeStart)/spans;
-            int span=Mathf.Clamp(Mathf.FloorToInt((target.x-FrontierMap.BridgeStart)/bay),0,spans-1);
-            float start=FrontierMap.BridgeStart+span*bay;
-            if(distance>62||!InView(new Vector3(start+bay*.5f,-1.59f,0),8))return;
-            int count=QualityLevel==2?8:QualityLevel==1?6:4;
-            for(int i=0;i<count;i++)
-            {
-                float phase=Mathf.Repeat(manorTime*.19f+i*.153f,1);
-                float x=start+1.35f+i/2*1.8f+phase*.65f;
-                float z=(i%2==0?-1:1)*(FrontierMap.BridgeHalfWidth+.29f+phase*.73f);
-                var at=new Vector3(x,-1.627f+(i%2)*.004f,z);
-                float radius=.38f+phase*1.25f;
-                DrawPulseRing(at,radius,.39f,.42f,new Color(.69f,.85f,.86f),.49f*phase*(1-phase));
-                BridgeRippleCount++;
-            }
-        }
     }
 }

@@ -10,7 +10,7 @@ using CropAppearance = Frontline.UnityGame.ManorPlotArt.CropAppearance;
 
 namespace Frontline.Editor
 {
-    // Editor-only, deterministic vertex-colour models. No textures or runtime mesh construction.
+    // Deterministic editor bake. The render mesh and its physics/shadow proxy have independent layouts.
     public static partial class ModelBaker
     {
         const string Folder="Assets/Frontline/Models/Resources/Models";
@@ -21,16 +21,22 @@ namespace Frontline.Editor
         public static void Bake()
         {
             Directory.CreateDirectory(Folder);Written.Clear();
+            ProceduralTextureBaker.BakeAtlas();
             for(int lod=0;lod<2;lod++)
             {
                 foreach(string type in Types){Save("body_"+type,lod,lod==0?FieldSoldier(type):DistantBody(type));Save("arm_right_"+type,lod,lod==0?Arm(type,false,lod):DistantArm(type));}
                 Save("arm_left",lod,Arm("militia",true,lod));Save("leg",lod,Leg(lod));Save("horse_leg",lod,HorseLeg(lod));Save("horse",lod,Horse(lod));
                 Save("catapult",lod,Catapult(lod));Save("catapult_arm",lod,CatapultArm(lod));Save("wreck_horse",lod,WreckHorse(lod));Save("wreck_catapult",lod,WreckCatapult(lod));Save("shield",lod,Shield(lod));
                 foreach(string name in new[]{"barrel","barricade","banner","spikes","spring"})Save("prop_"+name,lod,Prop(name,lod));
-                foreach(string name in new[]{"rock","wall","platform","grass","flowers","shrub","tree","pine","dead_tree","reeds","column","arch","brazier","icicle","water_ripple","ring","dot","arrow","bolt","bomb","stone","torso","head","limb","cliff","base","flame","snow","island_root","mist"})Save(name,lod,EnvironmentMesh(name,lod));
+                foreach(string name in new[]{"rock","wall","platform","grass","flowers","shrub","tree","pine","dead_tree","reeds","column","arch","brazier","icicle","ring","dot","arrow","bolt","bomb","stone","torso","head","limb","cliff","base","flame","snow","island_root","mist"})Save(name,lod,EnvironmentMesh(name,lod));
             }
             for(int lod=0;lod<2;lod++)
             {
+                var gusset=new Geometry {surface=Surface.Cloth};
+                gusset.Frustum(V(0,-.5f,0),V(.80f,0,.92f),V(0,.5f,0),V(1,0,1),DyedWool,lod==0?8:4);
+                Save("shoulder_gusset",lod,gusset);
+                var ground=new Geometry {surface=Surface.Terrain};
+                ground.Box(Vector3.zero,Vector3.one,Cloth);Save("arena_ground",lod,ground);
                 Save("manor_hall",lod,ManorBuilding("manor_hall",lod));
                 foreach(string kind in Manor.Buildings)Save(kind,lod,ManorBuilding(kind,lod));
                 foreach(string kind in new[]{"farm","irrigated_field"})
@@ -50,12 +56,12 @@ namespace Frontline.Editor
                 }
             }
             BakeCoast();
-            AssetDatabase.SaveAssets();File.WriteAllText("Assets/Frontline/Models/model-manifest.json",JsonUtility.ToJson(new Manifest{generator="Frontline.Editor.ModelBaker",version=PlayerSettings.bundleVersion,vertexColor="rgb=albedo; alpha=faction multiply weight",resources=Written.ToArray()},true));AssetDatabase.Refresh();Debug.Log("FRONTLINE_MODELS_OK "+Written.Count+" prebaked meshes, two LODs, vertex colours and flat normals");
+            AssetDatabase.SaveAssets();File.WriteAllText("Assets/Frontline/Models/model-manifest.json",JsonUtility.ToJson(new Manifest{generator="Frontline.Editor.ModelBaker",version=PlayerSettings.bundleVersion,vertexColor="rgb=albedo; alpha=faction multiply weight",surfaceChannels="UV0=projected detail; UV1=surface ID, metallic, roughness, AO; legacy ID 0 is untextured",textures=new[]{"Textures/SurfaceAlbedoRoughness","Textures/SurfaceNormals","Textures/ShoreDistance","Textures/LakeNormals"},resources=Written.ToArray()},true));AssetDatabase.Refresh();Debug.Log("FRONTLINE_MODELS_OK "+Written.Count+" prebaked meshes, two LODs, PBR surfaces, independent shadow proxies");
         }
-        [Serializable] sealed class Manifest{public string generator,version,vertexColor;public string[] resources;}
+        [Serializable] sealed class Manifest{public string generator,version,vertexColor,surfaceChannels;public string[] textures,resources;}
         static void Save(string name,int lod,Geometry g)
         {
-            string key=name+(lod==1?"_lod1":""),path=Folder+"/"+key+".asset";var mesh=g.Build(key,lod==0&&CompactDetail(name));if(mesh.vertexCount==0||mesh.normals.Length!=mesh.vertexCount||mesh.colors.Length!=mesh.vertexCount)throw new InvalidDataException("Incomplete baked mesh "+key);foreach(var v in mesh.vertices)if(float.IsNaN(v.x)||float.IsNaN(v.y)||float.IsNaN(v.z)||float.IsInfinity(v.x)||float.IsInfinity(v.y)||float.IsInfinity(v.z))throw new InvalidDataException("Non-finite baked vertex "+key);foreach(var n in mesh.normals)if(n.sqrMagnitude<.98f)throw new InvalidDataException("Invalid baked normal "+key);var old=AssetDatabase.LoadAssetAtPath<Mesh>(path);if(old){EditorUtility.CopySerialized(mesh,old);UnityEngine.Object.DestroyImmediate(mesh);EditorUtility.SetDirty(old);}else AssetDatabase.CreateAsset(mesh,path);Written.Add("Models/"+key);
+            string key=name+(lod==1?"_lod1":""),path=Folder+"/"+key+".asset";var mesh=lod==0?g.SurfaceMesh(key):g.ProxyMesh(key);if(mesh.vertexCount==0||mesh.normals.Length!=mesh.vertexCount||mesh.colors.Length!=mesh.vertexCount)throw new InvalidDataException("Incomplete baked mesh "+key);foreach(var v in mesh.vertices)if(float.IsNaN(v.x)||float.IsNaN(v.y)||float.IsNaN(v.z)||float.IsInfinity(v.x)||float.IsInfinity(v.y)||float.IsInfinity(v.z))throw new InvalidDataException("Non-finite baked vertex "+key);foreach(var n in mesh.normals)if(n.sqrMagnitude<.98f)throw new InvalidDataException("Invalid baked normal "+key);var old=AssetDatabase.LoadAssetAtPath<Mesh>(path);if(old){EditorUtility.CopySerialized(mesh,old);UnityEngine.Object.DestroyImmediate(mesh);EditorUtility.SetDirty(old);}else AssetDatabase.CreateAsset(mesh,path);Written.Add("Models/"+key);
         }
         static Vector3 V(float x,float y,float z){return new Vector3(x,y,z);}
         static Geometry Leg(int lod)
@@ -67,6 +73,7 @@ namespace Frontline.Editor
                 g.Box(V(0,-.22f,.045f),V(.20f,.12f,.29f),Wood);
                 return g;
             }
+            g.Ellipsoid(V(0,.175f,-.012f),V(.102f,.135f,.109f),Dark,9,4);
             g.Frustum(V(0,-.16f,-.013f),V(.108f,0,.127f),V(0,.06f,.016f),V(.145f,0,.162f),Walnut,7);
             g.Frustum(V(0,.058f,.016f),V(.145f,0,.162f),V(0,.218f,-.013f),V(.176f,0,.191f),Dark,7);
             g.Bevel(V(0,-.216f,.052f),V(.143f,.122f,.246f),.037f,Walnut);
@@ -84,12 +91,7 @@ namespace Frontline.Editor
             float x=left?-.36f:.36f;
             if(lod==0)
             {
-                float side=left?-1:1;
-                g.Frustum(V(x,-.081f,.041f),V(.124f,0,.138f),V(x-side*.028f,.123f,.014f),V(.159f,0,.166f),DyedWool,7);
-                g.Frustum(V(x-side*.028f,.123f,.014f),V(.159f,0,.166f),V(x-side*.091f,.259f,.006f),
-                    V(.145f,0,.162f),DyedWool,7);
-                g.Bevel(V(x,-.143f,.078f),V(.113f,.174f,.133f),.032f,Skin);
-                g.Bevel(V(x,-.065f,.056f),V(.142f,.069f,.155f),.022f,Walnut);
+                ArticulatedSleeve(g,type,left);
             }
             else
             {
@@ -99,7 +101,7 @@ namespace Frontline.Editor
             }
             if(left)return g;
             WeaponTrim(g,type,lod);
-            WeaponGrip(g,type,lod);
+            if(lod==1)WeaponGrip(g,type,lod);
             if(lod==0)WeaponFinish(g,type,x);
             if(type=="spear"||type=="cavalry"){g.Cylinder(V(x,.04f,-.35f),V(x,.04f,1.55f),.025f,WoodLight,6);g.Spear(V(x,.04f,1.48f),V(x,.04f,1.9f),.078f,LightSteel);if(lod==0)g.Cylinder(V(x,.04f,1.4f),V(x,.04f,1.52f),.04f,Dark,6);}
             else if(type=="archer"){for(int i=0;i<6;i++){float a=-1.2f+i*.4f,b=a+.4f;g.Cylinder(V(x,Mathf.Sin(a)*.48f+.1f,.36f+Mathf.Cos(a)*.23f),V(x,Mathf.Sin(b)*.48f+.1f,.36f+Mathf.Cos(b)*.23f),.027f,WoodLight,5);}g.Cylinder(V(x,-.35f,.44f),V(x,.55f,.44f),.006f,Snow,3);g.Cylinder(V(x,.1f,.05f),V(x,.1f,.9f),.012f,Wood,4);}
@@ -124,12 +126,11 @@ namespace Frontline.Editor
         static Geometry Horse(int lod)
         {
             if(lod==1)return DistantHorse();
-            var g=new Geometry();Saddle(g,lod);g.Ellipsoid(V(0,-.54f,-.05f),V(.36f,.39f,.73f),Wood,lod==0?10:6,3);g.Cylinder(V(0,-.49f,.4f),V(0,.03f,.68f),.22f,Wood,7);g.Ellipsoid(V(0,.11f,.81f),V(.2f,.26f,.34f),WoodLight,8,3);g.Bevel(V(0,-.01f,1.03f),V(.26f,.2f,.3f),.07f,Wood);g.Cone(V(-.11f,.43f,.7f),.075f,.22f,Wood,5);g.Cone(V(.11f,.43f,.7f),.075f,.22f,Wood,5);g.Bevel(V(-.18f,.16f,.88f),V(.025f,.06f,.065f),.01f,Dark);g.Bevel(V(.18f,.16f,.88f),V(.025f,.06f,.065f),.01f,Dark);g.Cylinder(V(0,-.33f,-.7f),V(0,-.9f,-.99f),.085f,Dark,6);g.Bevel(V(0,-.24f,-.06f),V(.62f,.12f,.61f),.06f,Cloth);g.Cylinder(V(-.18f,-.02f,.85f),V(-.2f,-.14f,.1f),.012f,Dark,3);g.Cylinder(V(.18f,-.02f,.85f),V(.2f,-.14f,.1f),.012f,Dark,3);
-            HorseFinish(g);
-            return g;
+            return Charger();
         }
         static Geometry HorseLeg(int lod)
         {
+            if(lod==0)return ChargerLeg();
             var g=new Geometry();
             g.Cylinder(V(0,.12f,0),V(0,-.35f,.025f),.085f,Wood,lod==0?6:4);
             g.Cylinder(V(0,-.35f,.025f),V(0,-.63f,.065f),.055f,WoodLight,lod==0?5:4);
@@ -183,7 +184,7 @@ namespace Frontline.Editor
         static Geometry EnvironmentMesh(string name,int lod)
         {
             var g=new Geometry();int n=lod==0?10:6;
-            if(name=="ring"||name=="water_ripple")g.Torus(Vector3.zero,1,name=="ring"?.022f:.014f,Cloth,lod==0?40:24);
+            if(name=="ring")g.Torus(Vector3.zero,1,.022f,Cloth,lod==0?40:24);
             else if(name=="dot")g.Cylinder(V(0,-.01f,0),V(0,.01f,0),.5f,Cloth,6);
             else if(name=="mist"){for(int i=0;i<n*2;i++){float a=i*Mathf.PI/n,b=(i+1)*Mathf.PI/n;g.Quad(Vector3.zero,V(Mathf.Sin(a)*.5f,0,Mathf.Cos(a)*.5f),V(Mathf.Sin(b)*.5f,0,Mathf.Cos(b)*.5f),Vector3.zero,Snow,true);}}
             else if(name=="island_root"){g.Frustum(V(0,-.5f,0),V(.18f,0,.18f),V(0,.5f,0),V(1,0,1),Rock,n);g.Frustum(V(0,.2f,0),V(.72f,0,.72f),V(0,.27f,0),V(.78f,0,.78f),new Color(.3f,.34f,.32f,0),n);}
@@ -195,8 +196,10 @@ namespace Frontline.Editor
                 g.Rock(Vector3.zero,.5f,Rock,6,4);
                 if(lod==0)return g.StoneStrata();
             }
-            else if(name=="stone")g.Rock(Vector3.zero,.5f,Rock,n,4);
+            else if(name=="stone"){g.surface=Surface.Outcrop;g.Rock(Vector3.zero,.5f,Rock,n,4);}
             else if(name=="wall")WallMasonry(g,lod);
+            else if(lod==0&&(name=="grass"||name=="reeds"))MeadowTuft(g,name=="reeds");
+            else if(lod==0&&name=="shrub"){g.surface=Surface.Leaf;for(int i=0;i<4;i++){float a=i*2.4f;LeafCrown(g,V(Mathf.Sin(a)*.24f,.35f+.084f*(i%2),Mathf.Cos(a)*.24f),V(.39f,.32f,.37f),i,Moss);}}
             else if(name=="grass"||name=="reeds"){int blades=lod==0?7:3;for(int i=0;i<blades;i++){float a=i*2.4f,h=name=="reeds"?.85f+i*.1f:.26f+i*.04f,x=Mathf.Sin(a)*.21f,z=Mathf.Cos(a)*.21f;g.Quad(V(x-.025f,0,z),V(x+.025f,0,z),V(x+.09f,h*.58f,z+.025f),V(x+.06f,h,z),Leaf,true);if(name=="reeds"){g.Cylinder(V(x,h*.7f,z),V(x+.06f,h+.12f,z),.014f,Leaf,4);g.Cylinder(V(x+.06f,h,z),V(x+.06f,h+.22f,z),.035f,Wood,5);}}}
             else if(name=="flowers"){int flowers=lod==0?5:2;for(int i=0;i<flowers;i++){float a=i*2.4f,x=Mathf.Sin(a)*.3f,z=Mathf.Cos(a)*.3f,h=.28f+i*.035f;g.Cylinder(V(x,0,z),V(x,h,z),.012f,Leaf,3);g.Cylinder(V(x,h-.015f,z),V(x,h+.015f,z),.095f,i%2==0?new Color(.96f,.8f,.34f,0):new Color(.84f,.62f,.76f,0),5);g.Cylinder(V(x,h+.016f,z),V(x,h+.025f,z),.03f,Gold,5);}}
             else if(name=="shrub"){g.Cylinder(Vector3.zero,V(0,.4f,0),.08f,Wood,5);for(int i=0;i<(lod==0?5:3);i++){float a=i*2.4f;g.Rock(V(Mathf.Sin(a)*.3f,.43f+(i%2)*.15f,Mathf.Cos(a)*.3f),.4f,Leaf,n,3);}}
@@ -644,10 +647,10 @@ namespace Frontline.Editor
             return g;
         }
 
-        sealed class Geometry
+        sealed partial class Geometry
         {
             readonly List<Vector3> vertices=new List<Vector3>(),normals=new List<Vector3>();readonly List<Color> colors=new List<Color>();readonly List<int> indices=new List<int>();
-            public void Triangle(Vector3 a,Vector3 b,Vector3 c,Color color){Vector3 cross=Vector3.Cross(b-a,c-a);if(cross.sqrMagnitude<1e-14f)return;Vector3 normal=cross.normalized;int i=vertices.Count;vertices.Add(a);vertices.Add(b);vertices.Add(c);normals.Add(normal);normals.Add(normal);normals.Add(normal);colors.Add(color);colors.Add(color);colors.Add(color);indices.Add(i);indices.Add(i+1);indices.Add(i+2);}
+            public void Triangle(Vector3 a,Vector3 b,Vector3 c,Color color){Vector3 cross=Vector3.Cross(b-a,c-a);if(cross.sqrMagnitude<1e-14f)return;Vector3 normal=cross.normalized;int i=vertices.Count;faceSurfaces.Add(surface);vertices.Add(a);vertices.Add(b);vertices.Add(c);normals.Add(normal);normals.Add(normal);normals.Add(normal);colors.Add(color);colors.Add(color);colors.Add(color);indices.Add(i);indices.Add(i+1);indices.Add(i+2);}
             public void Gradient(Vector3 a,Vector3 b,Vector3 c,Color first,Color second,Color third)
             {
                 int end=colors.Count;
@@ -676,7 +679,7 @@ namespace Frontline.Editor
             }
             void ConvexTriangle(Vector3 a,Vector3 b,Vector3 c,Color color){if(Vector3.Dot(Vector3.Cross(b-a,c-a),a+b+c)<0)Triangle(c,b,a,color);else Triangle(a,b,c,color);}
             void ConvexQuad(Vector3 a,Vector3 b,Vector3 c,Vector3 d,Color color){ConvexTriangle(a,b,c,color);ConvexTriangle(a,c,d,color);}
-            public void Append(Geometry other,Matrix4x4 matrix){int offset=vertices.Count;for(int i=0;i<other.vertices.Count;i++){vertices.Add(matrix.MultiplyPoint3x4(other.vertices[i]));normals.Add(matrix.MultiplyVector(other.normals[i]).normalized);colors.Add(other.colors[i]);}foreach(int i in other.indices)indices.Add(offset+i);}
+            public void Append(Geometry other,Matrix4x4 matrix){int offset=vertices.Count;foreach(var tag in other.faceSurfaces)faceSurfaces.Add(surface==Surface.Auto?tag:surface);foreach(var uv in other.loftUV)loftUV.Add(offset+uv.Key,uv.Value);for(int i=0;i<other.vertices.Count;i++){vertices.Add(matrix.MultiplyPoint3x4(other.vertices[i]));normals.Add(matrix.MultiplyVector(other.normals[i]).normalized);colors.Add(other.colors[i]);}foreach(int i in other.indices)indices.Add(offset+i);}
             public void Bevel(Vector3 p,Vector3 size,float bevel,Color color,Quaternion rotation=default)
             {
                 if(rotation.x*rotation.x+rotation.y*rotation.y+rotation.z*rotation.z+rotation.w*rotation.w<.5f)rotation=Quaternion.identity;float x=size.x*.5f,y=size.y*.5f,z=size.z*.5f,b=Mathf.Min(bevel,Mathf.Min(x,Mathf.Min(y,z))*.8f);var local=new Geometry();Vector3[] low=new Vector3[8],high=new Vector3[8];float[] xx={-x+b,x-b,x,x,x-b,-x+b,-x,-x},zz={-z,-z,-z+b,z-b,z,z,z-b,-z+b};for(int i=0;i<8;i++){low[i]=V(xx[i],-y+b,zz[i]);high[i]=V(xx[i],y-b,zz[i]);}for(int i=0;i<8;i++)local.ConvexQuad(low[i],high[i],high[(i+1)%8],low[(i+1)%8],color);Vector3[] bottom={V(-x+b,-y,-z+b),V(x-b,-y,-z+b),V(x-b,-y,z-b),V(-x+b,-y,z-b)},top={V(-x+b,y,-z+b),V(x-b,y,-z+b),V(x-b,y,z-b),V(-x+b,y,z-b)};local.ConvexQuad(bottom[3],bottom[2],bottom[1],bottom[0],color);local.ConvexQuad(top[0],top[1],top[2],top[3],color);for(int i=0;i<4;i++){int a=i*2,bb=(i*2+1)%8;local.ConvexQuad(bottom[i],bottom[(i+1)%4],low[bb],low[a],color);local.ConvexQuad(top[(i+1)%4],top[i],high[a],high[bb],color);local.ConvexTriangle(bottom[(i+1)%4],low[(bb+1)%8],low[bb],color);local.ConvexTriangle(top[(i+1)%4],high[bb],high[(bb+1)%8],color);}Append(local,Matrix4x4.TRS(p,rotation,Vector3.one));
@@ -713,7 +716,7 @@ namespace Frontline.Editor
 
             public Geometry StoneStrata()
             {
-                var cut=new Geometry();
+                var cut=new Geometry {surface=Surface.Outcrop};
                 for(int i=0;i<vertices.Count;i+=3)
                 {
                     var a=vertices[i];var b=vertices[i+1];var c=vertices[i+2];
@@ -728,35 +731,10 @@ namespace Frontline.Editor
                 return cut;
             }
 
-            public Mesh Build(string name,bool compact)
+            public Mesh ProxyMesh(string name)
             {
                 var mesh=new Mesh{name=name,indexFormat=vertices.Count>65535?IndexFormat.UInt32:IndexFormat.UInt16};
-                if(compact)
-                {
-                    // Share identical corners while preserving each flat face, color and triangle winding.
-                    var corners=new Dictionary<(Vector3,Vector3,Color),int>(vertices.Count);
-                    var points=new List<Vector3>(vertices.Count);
-                    var faceNormals=new List<Vector3>(vertices.Count);
-                    var tints=new List<Color>(vertices.Count);
-                    var triangles=new int[indices.Count];
-                    for(int i=0;i<indices.Count;i++)
-                    {
-                        int source=indices[i];
-                        var vertex=(vertices[source],normals[source],colors[source]);
-                        if(!corners.TryGetValue(vertex,out int index))
-                        {
-                            index=points.Count;
-                            corners.Add(vertex,index);
-                            points.Add(vertex.Item1); faceNormals.Add(vertex.Item2); tints.Add(vertex.Item3);
-                        }
-                        triangles[i]=index;
-                    }
-                    mesh.SetVertices(points);mesh.SetNormals(faceNormals);mesh.SetColors(tints);mesh.SetTriangles(triangles,0);
-                }
-                else
-                {
-                    mesh.SetVertices(vertices);mesh.SetNormals(normals);mesh.SetColors(colors);mesh.SetTriangles(indices,0);
-                }
+                mesh.SetVertices(vertices);mesh.SetNormals(normals);mesh.SetColors(colors);mesh.SetTriangles(indices,0);
                 mesh.RecalculateBounds();
                 return mesh;
             }

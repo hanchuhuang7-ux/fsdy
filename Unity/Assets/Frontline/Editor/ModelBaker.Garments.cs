@@ -17,7 +17,7 @@ namespace Frontline.Editor
 
         static void TailoredTunic(Geometry g,Color dye,bool split)
         {
-            const int sides=8;
+            const int sides=14;
             Vector3 Point(int row,int i)
             {
                 var ring=TunicSections[row];
@@ -70,35 +70,101 @@ namespace Frontline.Editor
 
         static void Bascinet(Geometry g,Color metal,Color fringe)
         {
-            g.Frustum(V(0,.504f,-.014f),V(.253f,0,.253f),V(0,.65f,-.018f),V(.289f,0,.284f),metal,8);
-            g.Frustum(V(0,.65f,-.018f),V(.29f,0,.283f),V(0,.793f,-.041f),V(.074f,0,.088f),LightSteel,8);
-            g.Frustum(V(0,.372f,-.025f),V(.278f,0,.211f),V(0,.514f,-.021f),V(.249f,0,.203f),fringe,7);
-            for(int side=-1;side<=1;side+=2)
+            g.surface=Surface.Metal;
+            g.Loft(new[]{V(0,.493f,-.026f),V(0,.568f,-.020f),V(0,.655f,-.004f),V(0,.716f,-.022f),V(0,.793f,-.054f)},
+                new[]{Section(.134f,.122f),Section(.149f,.141f),Section(.143f,.158f),Section(.102f,.111f),Section(.012f,.017f)},
+                14,2,metal);
+            g.Frustum(V(0,.37f,-.018f),V(.30f,0,.245f),V(0,.525f,-.022f),V(.25f,0,.215f),Pigment(fringe,.78f),12);
+            // A continuous visor band overlaps the shell on both hinges. The ocular slit is recessed
+            // between its raised lower plate and the brow rather than cut all the way through the head.
+            Vector3 Face(float t,int row)
             {
-                void Shell(Vector3 a,Vector3 b,Vector3 c,Color color)
-                {
-                    if(side<0)g.Triangle(a,c,b,color);else g.Triangle(a,b,c,color);
-                }
-                var pin=V(side*.117f,.605f,.059f);
-                Shell(pin,V(0,.632f,.164f),V(0,.546f,.201f),LightSteel);
-                Shell(pin,V(0,.546f,.201f),V(side*.095f,.504f,.101f),metal);
-                Shell(V(0,.598f,.183f),V(side*.104f,.603f,.084f),V(side*.045f,.584f,.158f),Dark);
-                Shell(V(side*.080f,.550f,.136f),V(side*.064f,.534f,.153f),V(side*.083f,.534f,.129f),Dark);
+                float a=t*1.43f,front=Mathf.Cos(a);
+                float y=row==0?.492f:row==1?.572f:row==2?.590f:.636f;
+                float nose=row==0?.152f:row==1?.207f:row==2?.190f:.182f;
+                return V(.150f*Mathf.Sin(a),y+(1-front)*.024f,.008f+front*nose);
             }
+            for(int row=0;row<3;row++)for(int j=0;j<12;j++)
+            {
+                float a=j/6f-1,b=(j+1)/6f-1;
+                var dye=row==1?Dark:row==2?LightSteel:metal;
+                g.Quad(Face(a,row),Face(b,row),Face(b,row+1),Face(a,row+1),dye,true);
+            }
+            for(int s=-1;s<=1;s+=2)
+            {
+                g.Ellipsoid(V(s*.151f,.585f,.042f),V(.012f,.018f,.019f),OldGold,8,3);
+                for(int i=0;i<3;i++)
+                {
+                    float t=s*(.22f+i*.11f);
+                    var p=Vector3.Lerp(Face(t,0),Face(t,1),.56f)+V(0,0,.002f);
+                    g.Quad(p+V(-.003f,0,0),p+V(.003f,0,0),p+V(.004f,.020f,0),p+V(-.002f,.020f,0),Dark,true);
+                }
+            }
+            g.surface=Surface.Auto;
         }
 
         static void ShoulderMantle(Geometry g,Color dye,float length)
         {
-            const int folds=5;
-            for(int i=0;i<folds;i++)
+            // A lofted strip of wool follows the clavicle, shoulder blades and flared hem.
+            Vector3 OnFold(float u,float t)
             {
-                float a=i/(float)folds-.5f,b=(i+1)/(float)folds-.5f;
-                var left=V(a*.412f,.31f,-.10f-Mathf.Cos(a*2.9f)*.059f);
-                var right=V(b*.412f,.31f,-.10f-Mathf.Cos(b*2.9f)*.059f);
-                var hemA=V(a*.587f,length+.067f*Mathf.Abs(a),-.285f-i%2*.044f);
-                var hemB=V(b*.587f,length+.067f*Mathf.Abs(b),-.285f-(i+1)%2*.044f);
-                g.Quad(right,left,hemA,hemB,Pigment(dye,i%2==0?.83f:1.09f),true);
+                var collar=V(u*.41f,.305f,-.129f-.046f*Mathf.Cos(u*2.8f));
+                var blade=V(u*.51f,.158f,-.192f-.026f*Mathf.Cos(u*3.2f));
+                var waist=V(u*.54f,-.061f+.18f*length,-.22f-.038f*Mathf.Cos(u*13));
+                var hem=V(u*.608f,length+.077f*Mathf.Abs(u)+.014f*Mathf.Sin(u*18),
+                    -.282f-.058f*Mathf.Cos(u*19+.56f));
+                if(t<.34f)return Geometry.Catmull(collar,collar,blade,waist,t/.34f);
+                if(t<.67f)return Geometry.Catmull(collar,blade,waist,hem,(t-.34f)/.33f);
+                return Geometry.Catmull(blade,waist,hem,hem,(t-.67f)/.33f);
             }
+            g.surface=Surface.Cloth;
+            for(int i=0;i<12;i++)for(int j=0;j<6;j++)
+            {
+                float u=i/12f-.5f,v=(i+1)/12f-.5f,t=j/6f,s=(j+1)/6f;
+                g.Quad(OnFold(v,t),OnFold(u,t),OnFold(u,s),OnFold(v,s),Pigment(dye,.96f+.04f*Mathf.Cos(u*19)),true);
+            }
+            g.surface=Surface.Auto;
+        }
+
+
+        static void ArticulatedSleeve(Geometry g,string unit,bool left)
+        {
+            float side=left?-1:1;
+            bool plate=!left&&(unit=="spear"||unit=="shield"||unit=="giant"||unit=="cavalry");
+            var joint=V(side*.282f,.251f,.009f);
+            var elbow=V(side*.354f,.040f,-.043f);
+            var grip=left?V(-.36f,-.14f,.078f):unit switch {
+                "archer"=>V(.36f,.10f,.51f), "crossbow"=>V(.36f,.035f,.22f),
+                "medic"=>V(.36f,-.115f,.28f),"giant"=>V(.36f,-.12f,.36f),
+                "bomber"=>V(.36f,-.043f,.29f),"spear"=>V(.36f,.041f,.085f),
+                "cavalry"=>V(.36f,.041f,.085f),_=>V(.36f,.10f,-.071f)
+            };
+            // The longest ranged item has a forward grip; turn the elbow toward it.
+            elbow.z+=Mathf.Max(0,grip.z-.10f)*.53f;
+            if(!left&&grip.z<.10f)elbow+=V(side*.028f,-.127f,-.046f);
+            var mid=Vector3.Lerp(joint,elbow,.55f)+V(side*.022f,0,0);
+            g.surface=Surface.Cloth;
+            g.Loft(new[]{joint,mid,elbow},new[]{Section(.093f,.102f),Section(.086f,.09f),Section(.071f,.072f)},9,2,DyedWool);
+            g.surface=plate?Surface.Metal:Surface.Cloth;
+            g.Ellipsoid(joint, V(.107f,.103f,.110f),plate?WroughtIron:DyedWool,10,4);
+            if(plate)
+            {
+                g.Frustum(joint+V(0,-.058f,0),V(.217f,0,.227f),joint+V(0,-.012f,0),V(.227f,0,.232f),LightSteel,10);
+                g.Ellipsoid(elbow,V(.084f,.082f,.092f),WroughtIron,9,4);
+            }
+            var wrist=Vector3.Lerp(elbow,grip,.78f);
+            g.surface=plate?Surface.Metal:Surface.Hide;
+            g.Loft(new[]{elbow,Vector3.Lerp(elbow,wrist,.40f),wrist,grip},
+                new[]{Section(.078f,.079f),Section(.076f,.074f),Section(.051f,.057f),Section(.05f,.053f)},
+                9,2,plate?WroughtIron:Walnut);
+            g.surface=Surface.Hide;
+            g.Ellipsoid(grip,V(.067f,.065f,.075f),Walnut,9,4);
+            if(plate)
+            {
+                g.surface=Surface.Metal;
+                g.Ellipsoid(grip+V(side*.038f,.01f,0),V(.033f,.051f,.060f),Steel,8,3);
+            }
+            g.surface=Surface.Auto;
         }
 
         static Geometry FieldSoldier(string unit,string hero=null)
@@ -107,6 +173,21 @@ namespace Frontline.Editor
             bool armored=unit=="shield"||unit=="spear"||unit=="cavalry"||unit=="giant";
             var wool=hero=="hero_ranger"?Moss:hero=="hero_commander"?UndyedLinen:DyedWool;
             TailoredTunic(g,wool,armored);
+            for(int side=-1;side<=1;side+=2)
+            {
+                g.surface=armored?Surface.Metal:Surface.Cloth;
+                var shoulder=V(side*.229f,.243f,-.002f);
+                g.Ellipsoid(shoulder,V(.113f,.103f,.143f),armored?WroughtIron:wool,10,4);
+                if(armored)
+                {
+                    g.Frustum(shoulder+V(0,-.052f,0),V(.230f,0,.291f),shoulder+V(0,.013f,0),
+                        V(.230f,0,.273f),LightSteel,10);
+                    g.Ellipsoid(shoulder+V(side*.082f,-.021f,.081f),V(.019f,.020f,.023f),OldGold,6,3);
+                }
+                g.surface=Surface.Cloth;
+                g.Ellipsoid(V(side*.114f,-.351f,-.01f),V(.125f,.165f,.148f),Pigment(wool,.85f),8,4);
+            }
+            g.surface=Surface.Auto;
             Portrait(g,(hero!=null?11:0)+System.Array.IndexOf(Types,unit),armored);
             if(unit=="shield"||unit=="cavalry"||unit=="giant")
                 Bascinet(g,WroughtIron,hero!=null?OldGold:Steel);
@@ -117,6 +198,17 @@ namespace Frontline.Editor
 
             if(armored)
             {
+                g.surface=Surface.Metal;
+                g.Loft(new[]{V(0,-.157f,.012f),V(0,-.058f,.032f),V(0,.091f,.054f),V(0,.201f,.034f),V(0,.293f,.009f)},
+                    new[]{Section(.186f,.143f),Section(.207f,.165f),Section(.244f,.181f),Section(.247f,.170f),Section(.145f,.115f)},
+                    14,2,WroughtIron);
+                for(int i=0;i<3;i++)
+                {
+                    float y=-.137f-i*.044f,w=.396f+i*.014f;
+                    g.Frustum(V(0,y-.022f,.026f),V(w,0,.33f),V(0,y+.016f,.026f),V(w-.019f,0,.302f),
+                        Pigment(WroughtIron,1.03f-i*.069f),12);
+                }
+                g.surface=Surface.Auto;
                 // Linen falls over the iron breast and fauld rather than forming
                 // thick boxes at the shoulders. Its edges follow the waist and hip.
                 g.Frustum(V(0,-.145f,.014f),V(.38f,0,.31f),V(0,.218f,.016f),V(.502f,0,.345f),WroughtIron,8);

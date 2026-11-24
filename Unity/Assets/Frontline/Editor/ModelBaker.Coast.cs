@@ -33,7 +33,8 @@ namespace Frontline.Editor
 
             Mesh SaveMesh(string name,Geometry geometry)
             {
-                var candidate=geometry.Build(name,false);
+                bool render=name.StartsWith("Coast close ",StringComparison.Ordinal);
+                var candidate=render?geometry.SurfaceMesh(name):geometry.ProxyMesh(name);
                 if(!existing.TryGetValue(name,out var saved))
                 {
                     AssetDatabase.AddObjectToAsset(candidate,asset);
@@ -55,6 +56,8 @@ namespace Frontline.Editor
                 lake.Add(UnityWorld.Vector(FrontierMap.LakeBank[i]));
                 outer.Add(UnityWorld.Vector(FrontierMap.OuterBank[FrontierMap.ShoreStations-1-i]));
             }
+            asset.shoreRect=new Vector4(FrontierMap.West-24,-FrontierMap.HalfDepth-24,FrontierMap.East-FrontierMap.West+48,2*FrontierMap.HalfDepth+48);
+            ProceduralTextureBaker.BakeShore(new[]{Waterline(island),Waterline(lake),Waterline(outer)},asset.shoreRect);
             var manorFloor=new Geometry();
             for(int i=1;i<manor.Count;i++)
             {
@@ -166,6 +169,7 @@ namespace Frontline.Editor
                             face=Vector3.Cross(a[i-1]-a[0],a[i]-a[0]).sqrMagnitude>=1e-8f;
                         if(!face)continue;
                         if(!pages.TryGetValue((x,z),out var page))pages.Add((x,z),page=new Geometry());
+                        page.surface=ground?Surface.Terrain:tint.a>.5f?Surface.Leaf:tint.a>.10f?Surface.Earth:Surface.Outcrop;
                         for(int i=2;i<a.Count;i++)
                         {
                             if(ground)page.Gradient(a[0],a[i-1],a[i],Ground(a[0]),Ground(a[i-1]),Ground(a[i]));
@@ -240,6 +244,19 @@ namespace Frontline.Editor
         }
 
         static Vector3 Outward(Vector3 a,Vector3 b) => new Vector3(a.z-b.z,0,b.x-a.x).normalized;
+
+        static List<Vector3> Waterline(List<Vector3> rim)
+        {
+            var result=new List<Vector3>(rim.Count);
+            for(int i=0;i<rim.Count;i++)
+            {
+                var p=rim[i];
+                var outward=(Outward(rim[(i+rim.Count-1)%rim.Count],p)+Outward(p,rim[(i+1)%rim.Count])).normalized;
+                CliffProfile(p,outward,out _,out var tide,out var shelf);
+                result.Add(Vector3.Lerp(tide,shelf,Mathf.InverseLerp(tide.y,shelf.y,-1.70f)));
+            }
+            return result;
+        }
 
         static void CliffProfile(Vector3 point,Vector3 outward,out Vector3 ledge,out Vector3 tide,out Vector3 shelf)
         {

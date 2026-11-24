@@ -4,66 +4,121 @@ namespace Frontline.Editor
 {
     public static partial class ModelBaker
     {
-        static void FacetedCanopy(Geometry g,bool pine)
-        {
-            g.Cylinder(Vector3.zero,V(.06f,2.71f,.01f),.13f,Wood,6);
-            if(pine)
-            {
-                for(int tier=0;tier<4;tier++)
-                {
-                    const int tips=7;
-                    float y=.88f+tier*.55f,r=1-tier*.15f,turn=tier*.72f;
-                    Color shade=Color.Lerp(Green,Leaf,tier*.26f);
-                    Vector3 Ring(int i,bool inner)
-                    {
-                        float a=i*Mathf.PI*2/tips+turn;
-                        float ripple=.86f+.12f*Mathf.Cos(i*2.71f+tier);
-                        return V(Mathf.Sin(a)*r*ripple*(inner?.64f:1),y+(inner?.48f:i%2*.073f),
-                            Mathf.Cos(a)*r*ripple*(inner?.64f:1));
-                    }
-                    for(int i=0;i<tips;i++)
-                    {
-                        int next=(i+1)%tips;
-                        var a=Ring(i,false); var b=Ring(next,false); var c=Ring(next,true); var d=Ring(i,true);
-                        g.Triangle(a,b,d,shade*(i%2==0?.86f:1.02f));
-                        g.Triangle(b,c,d,shade*(i%2==0?1.13f:.97f));
-                        g.Triangle(d,c,V(.038f*tier,y+1.20f,-.05f),Color.Lerp(shade,Snow,.39f+.10f*tier));
-                        g.Triangle(V(0,y+.14f,0),b,a,shade*.71f);
-                    }
-                }
-                return;
-            }
 
-            for(int branch=0;branch<4;branch++)
+        static void WoodlandTree(Geometry g,bool conifer)
+        {
+            var bark=Pigment(Walnut,1.14f);
+            var basePoint=V(-.041f,0,0);
+            var fork=conifer?V(.038f,1.58f,.04f):V(.12f,1.38f,-.06f);
+            var crown=conifer?V(.05f,3.66f,.09f):V(-.21f,2.97f,.10f);
+            g.surface=Surface.Oak;
+            g.Loft(new[]{basePoint,V(-.08f,.58f,.045f),fork,V(.033f,2.13f,.07f),crown},
+                new[]{new Vector2(.222f,.20f),new Vector2(.143f,.146f),new Vector2(.115f,.10f),
+                    new Vector2(.079f,.066f),new Vector2(.016f,.018f)},8,2,bark);
+            for(int k=0;k<5;k++)
             {
-                float a=branch*2.18f;
-                var tip=V(Mathf.Sin(a)*.77f,1.76f+branch*.21f,Mathf.Cos(a)*.79f);
-                g.Cylinder(V(0,1.15f+branch*.22f,0),tip,.060f,WoodLight,4);
-                LeafCluster(g,tip+Vector3.up*.38f,.73f,branch,Color.Lerp(Moss,Leaf,branch*.25f));
+                float a=k*2.4f;
+                var outward=V(Mathf.Cos(a),0,Mathf.Sin(a));
+                g.Loft(new[]{basePoint+Vector3.up*.25f,basePoint+outward*.21f+Vector3.up*.091f,basePoint+outward*.46f},
+                    new[]{new Vector2(.125f,.095f),new Vector2(.093f,.065f),new Vector2(.015f,.011f)},5,1,bark);
             }
-            LeafCluster(g,V(-.11f,2.73f,.075f),1.06f,5,new Color(.35f,.51f,.27f,0));
+            int branches=conifer?12:7;
+            for(int k=0;k<branches;k++)
+            {
+                float t=k/(float)branches,a=k*2.39996f+.34f;
+                float reach=conifer?.81f*(1-.63f*t):.88f*(1-.35f*t);
+                var outwards=V(Mathf.Sin(a),0,Mathf.Cos(a));
+                var axil=Vector3.Lerp(fork,crown,t*.86f);
+                var end=axil+outwards*reach+Vector3.up*(conifer?-.17f:.49f);
+                g.surface=Surface.Oak;
+                g.Loft(new[]{axil,axil+outwards*(reach*.37f)+Vector3.up*.08f,end},
+                    new[]{new Vector2(.076f,.073f),new Vector2(.049f,.041f),new Vector2(.020f,.015f)},5,1,bark);
+                g.surface=Surface.Leaf;
+                var dye=conifer?Color.Lerp(new Color(.19f,.31f,.215f,.4f),new Color(.39f,.47f,.30f,.47f),t):
+                    Color.Lerp(new Color(.295f,.405f,.195f,.51f),new Color(.53f,.57f,.302f,.58f),t);
+                var radii=conifer?V(.60f,.43f,.61f)*(1-.49f*t):V(.71f,.61f,.70f)*(1-.17f*t);
+                LeafCrown(g,end+Vector3.up*(conifer?.20f:.14f),radii,k,dye);
+            }
+            g.surface=Surface.Leaf;
+            LeafCrown(g,crown,conifer?V(.30f,.51f,.31f):V(.69f,.53f,.68f),18,
+                conifer?new Color(.38f,.47f,.31f,.5f):new Color(.49f,.58f,.32f,.56f));
+            g.surface=Surface.Auto;
         }
 
-        static void LeafCluster(Geometry g,Vector3 center,float radius,int seed,Color leaf)
+        // Shading normals come from the surrounding botanical crown, not the tiny boundary lobes.
+        static void LeafCrown(Geometry g,Vector3 center,Vector3 extent,int seed,Color leaf)
         {
-            const int sides=6;
-            Vector3 Ring(int i,bool high)
+            const int sides=9,bands=4;
+            Vector3 Point(int k,int j)
             {
-                float angle=i*Mathf.PI/3+seed*.68f+(high?.18f:0);
-                float r=radius*(.81f+.19f*Mathf.Sin(i*2.39f+seed))*(high?.87f:1);
-                return center+V(Mathf.Sin(angle)*r,radius*((high?.30f:-.22f)+.20f*Mathf.Cos(i*2.09f+seed)),Mathf.Cos(angle)*r);
+                k%=sides;
+                float lat=(j/(float)bands-.5f)*Mathf.PI;
+                float a=k*(2*Mathf.PI/sides)+seed*.72f+j*.27f;
+                float r=(1+.16f*Mathf.Sin(k*4.01f+j*2.68f+seed))*Mathf.Cos(lat);
+                return center+Vector3.Scale(extent,V(r*Mathf.Sin(a),Mathf.Sin(lat)+.074f*r*Mathf.Sin(a*3+seed),r*Mathf.Cos(a)));
             }
-            var top=center+V(radius*.12f,radius*.78f,-radius*.24f);
-            var bottom=center+V(-radius*.12f,-radius*.62f,radius*.06f);
-            for(int i=0;i<sides;i++)
+            Vector3 Normal(Vector3 p)
             {
-                int next=(i+1)%sides;
-                var a=Ring(i,false); var b=Ring(next,false); var c=Ring(next,true); var d=Ring(i,true);
-                g.Triangle(a,b,d,leaf*(.75f+i*.06f));
-                g.Triangle(b,c,d,leaf*(1.08f-i*.045f));
-                g.Triangle(d,c,top,leaf*(1.02f+i*.047f));
-                g.Triangle(bottom,b,a,leaf*.73f);
+                var n=p-center;
+                return V(n.x/extent.x,n.y/extent.y+.22f,n.z/extent.z).normalized;
             }
+            Color Tone(Vector3 p)=>Pigment(leaf,.88f+.16f*Normal(p).y+.032f*Mathf.Sin(7*p.x+4*p.z));
+            void Face(Vector3 a,Vector3 b,Vector3 c)=>g.SmoothFace(a,b,c,Tone(a),Tone(b),Tone(c),Normal(a),Normal(b),Normal(c));
+            for(int j=0;j<bands;j++)for(int k=0;k<sides;k++)
+            {
+                var a=Point(k,j);var b=Point(k+1,j);var c=Point(k+1,j+1);var d=Point(k,j+1);
+                if(j>0)Face(a,b,c);
+                if(j+1<bands)Face(a,c,d);
+            }
+
+            // Leaf sprays break the silvery outline into individual leaves. Their normals continue
+            // the crown lighting so that strips at the silhouette never turn into black cutouts.
+            for(int spray=0;spray<14;spray++)
+            {
+                float a=spray*2.39996f+seed*.61f,level=-.36f+.13f*(spray%7);
+                var radial=V(Mathf.Cos(a),level,Mathf.Sin(a)).normalized;
+                var tip=center+Vector3.Scale(extent,radial)*(1.04f+.10f*Mathf.Sin(spray+seed));
+                var tangent=V(-radial.z,0,radial.x);
+                for(int blade=0;blade<5;blade++)
+                {
+                    float s=blade/4f;
+                    var foot=tip+Vector3.Scale(extent,tangent)*((s-.5f)*.64f)-radial*.065f;
+                    var direction=(radial+tangent*(s-.5f)*1.8f+Vector3.down*.48f).normalized;
+                    float length=(.13f+.05f*Mathf.Sin(spray*3f+blade))*Mathf.Min(extent.x,extent.z)+.051f;
+                    var width=(tangent+Vector3.up*(.41f-.13f*blade)).normalized*(length*.38f);
+                    var end=foot+direction*length*1.53f;
+                    var ridge=foot+direction*length*.60f+Vector3.up*.017f;
+                    var lo=ridge-width;var hi=ridge+width;
+                    Face(foot,lo,end);Face(foot,end,hi);Face(end,lo,foot);Face(hi,end,foot);
+                }
+            }
+        }
+
+        static void MeadowTuft(Geometry g,bool reed)
+        {
+            g.surface=Surface.Leaf;
+            int count=reed?7:10;
+            for(int i=0;i<count;i++)
+            {
+                float a=i*2.39996f,r=.034f+(i%4)*.039f;
+                var direction=V(Mathf.Sin(a),0,Mathf.Cos(a));var across=V(direction.z,0,-direction.x)*(.018f+(i%3)*.006f);
+                var root=direction*r;
+                float h=reed?.74f+.081f*(i%5):.23f+.047f*(i%4);
+                var mid=root+direction*h*.24f+Vector3.up*h*.59f;
+                var tip=root+direction*h*.69f+Vector3.up*h;
+                var tint=Color.Lerp(Moss,new Color(.53f,.57f,.29f,.3f),i/(float)count);
+                var normal=(direction+Vector3.up*1.7f).normalized;
+                void Blade(Vector3 p,Vector3 q,Vector3 s)
+                {
+                    g.SmoothFace(p,q,s,tint,tint,tint,normal,normal,normal);
+                    g.SmoothFace(s,q,p,tint,tint,tint,normal,normal,normal);
+                }
+                Blade(root-across,root+across,mid+across*.66f);
+                Blade(root-across,mid+across*.66f,mid-across*.66f);
+                Blade(mid-across*.66f,mid+across*.66f,tip);
+                if(reed&&i%3==0)g.Cylinder(tip,tip+Vector3.up*.12f,.023f,Walnut,5);
+            }
+            g.surface=Surface.Auto;
         }
 
         static Geometry DistantCatapult()

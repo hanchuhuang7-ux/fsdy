@@ -11,34 +11,108 @@ namespace Frontline.Editor
         {
             g.Bevel(V(x,.103f,z),V(width+.16f,.206f,depth+.16f),.055f,Stonework);
             g.Box(V(x,.042f,z),V(width+.18f,.081f,depth+.18f),Pigment(Stonework,.75f));
-            g.Box(V(x,eave*.5f,z),V(width,eave,depth),Limewash);
+            float jetty=Mathf.Clamp(width*.056f,.06f,.15f),floor=eave*.57f;
+            g.Box(V(x,floor*.5f,z),V(width,floor,depth),Limewash);
+            g.surface=Surface.Plaster;
+            g.Box(V(x,(eave+floor)*.5f,z),V(width+2*jetty,eave-floor,depth+2*jetty),Limewash);
+            g.surface=Surface.Oak;
+            g.Box(V(x,floor,z),V(width+2*jetty+.035f,.078f,depth+2*jetty+.035f),Walnut);
+            g.surface=Surface.Auto;
             rise*=1.22f;
             var ridge=V(x,eave,z);
-            Gable(g,ridge,width+.28f,depth+.31f,rise,roof,Limewash,0);
+            BowedRoof(g,ridge,width+2*jetty+.22f,depth+2*jetty+.23f,rise,roof);
             for(int face=0;face<4;face++)
             {
                 bool end=face%2!=0;
                 float span=end?depth:width,reach=end?width:depth;
                 var turn=Quaternion.Euler(0,90*face,0);
                 var foot=V(x,0,z)+turn*V(0,0,-reach*.5f);
-                HalfTimberWall(g,foot,turn,span,eave,end?rise:0,face==0);
+                HalfTimberWall(g,foot,turn,span,eave,end?rise:0,face==0,jetty);
+                int brackets=Mathf.Max(2,Mathf.RoundToInt(span/.43f));
+                for(int j=0;j<brackets;j++)
+                {
+                    float along=span*((j+.5f)/brackets-.5f);
+                    g.Cylinder(foot+turn*V(along,floor-.19f,-.012f),foot+turn*V(along,floor-.027f,-jetty-.018f),
+                        .041f,Walnut,4);
+                }
+                if(face==2||face==1)UpperWindow(g,foot,turn,eave*.774f,jetty+.015f,span*.21f);
                 MasonryFace(g,foot+turn*V(0,0,-.085f),turn,span,.208f,.104f);
             }
             if(width>1.95f&&eave>1.07f)
                 Dormer(g,ridge+V(width*.19f,rise*.42f,-(depth+.31f)*.29f),Mathf.Min(.63f,width*.27f),rise,roof);
         }
 
-        static void HalfTimberWall(Geometry g,Vector3 at,Quaternion turn,float width,float height,float gable,bool front)
+        static void UpperWindow(Geometry g,Vector3 at,Quaternion turn,float y,float offset,float half)
         {
-            Vector3 Point(float x,float y,float z) => at+turn*V(x,y,z);
+            var frame=new Geometry();
+            half=Mathf.Clamp(half,.145f,.36f);
+            frame.Box(V(0,y,0),V(2*half,.33f,.07f),Walnut);
+            frame.surface=Surface.Glass;
+            frame.Box(V(0,y,-.039f),V(half*1.65f,.245f,.023f),new Color(.78f,.58f,.34f,0));
+            frame.surface=Surface.Oak;
+            for(int i=-1;i<=1;i++)frame.Box(V(i*half*.50f,y,-.062f),V(.022f,.27f,.035f),Walnut);
+            frame.Box(V(0,y-.14f,-.06f),V(half*2.13f,.044f,.10f),WoodLight);
+            frame.Box(V(0,y+.018f,-.066f),V(half*1.8f,.019f,.021f),Walnut);
+            g.Append(frame,Matrix4x4.TRS(at+turn*V(0,0,-offset),turn,Vector3.one));
+        }
+
+        static void BowedRoof(Geometry g,Vector3 at,float width,float depth,float rise,Color dye)
+        {
+            var roofType=dye==Straw||dye==StrawLight?Surface.Thatch:Surface.Roof;
+            Vector3 Point(float t,float slope,int side)
+            {
+                float camber=.054f*width*(2*t-1)*(2*t-1);
+                return at+V((t-.5f)*width,rise*slope+camber*slope,side*(1-slope)*depth*.5f);
+            }
+            const int bays=6;
+            for(int side=-1;side<=1;side+=2)
+            {
+                g.surface=roofType;
+                for(int i=0;i<bays;i++)
+                {
+                    float a=i/(float)bays,b=(i+1)/(float)bays;
+                    var p=Point(a,0,side);var q=Point(b,0,side);
+                    var r=Point(b,1,side);var s=Point(a,1,side);
+                    if(side<0)g.Quad(p,s,r,q,dye);else g.Quad(q,r,s,p,dye);
+                    for(int row=1;row<=3;row++)
+                    {
+                        float band=row*.21f;
+                        p=Point(a,band,side);q=Point(b,band,side);
+                        g.Quad(p+Vector3.up*.016f,q+Vector3.up*.016f,q+V(0,0,side*.027f),p+V(0,0,side*.027f),
+                            Pigment(dye,.82f),true);
+                    }
+                }
+                g.surface=Surface.Oak;
+                g.Box(at+V(0,-.018f,side*depth*.5f),V(width,.087f,.076f),Walnut);
+            }
+            foreach(float t in new[]{0f,1f})
+            {
+                g.surface=Surface.Plaster;
+                var a=Point(t,0,-1);var b=Point(t,0,1);var c=Point(t,1,1);
+                if(t==0)g.Triangle(a,b,c,Limewash);else g.Triangle(b,a,c,Limewash);
+                g.surface=Surface.Oak;
+                g.Cylinder(a,c,.047f,Walnut,4);g.Cylinder(b,c,.047f,Walnut,4);
+            }
+            g.surface=roofType;
+            var ridge=new[]{Point(0,1,1),Point(.25f,1,1),Point(.5f,1,1),Point(.75f,1,1),Point(1,1,1)};
+            var cap=new Vector2(.065f,.055f);
+            g.Loft(ridge,new[]{cap,cap,cap,cap,cap},6,2,Pigment(dye,1.12f));
+            g.surface=Surface.Auto;
+        }
+
+        static void HalfTimberWall(Geometry g,Vector3 at,Quaternion turn,float width,float height,float gable,bool front,float jetty)
+        {
+            Vector3 Point(float x,float y,float z) => at+turn*V(x,y,z-(y>=height*.57f?jetty:0));
             void Beam(float x,float y,float u,float v,float breadth,float offset=0)
             {
                 var a=Point(x,y,-.025f-offset);var b=Point(u,v,-.025f-offset);
                 var across=turn*V(v-y,x-u,0).normalized*breadth*.5f;
-                g.Quad(a-across,a+across,b+across,b-across,Walnut,true);
-                var grain=turn*V(0,0,-.002f);
-                g.Quad(a+across+grain,a+across*.76f+grain,b+across*.76f+grain,b+across+grain,
-                    Pigment(Walnut,1.36f),true);
+                var lip=turn*V(0,0,-.043f);
+                g.surface=Surface.Oak;
+                g.Quad(a-across+lip,a+across+lip,b+across+lip,b-across+lip,Walnut,true);
+                g.Quad(a+across,a+across+lip,b+across+lip,b+across,Pigment(Walnut,1.18f),true);
+                g.Quad(a-across,b-across,b-across+lip,a-across+lip,Pigment(Walnut,.87f),true);
+                g.surface=Surface.Auto;
             }
 
             float left=-width*.5f+.036f,right=-left;

@@ -15,8 +15,11 @@ namespace Frontline.Editor
         public const string Scene="Assets/Scenes/Frontline.unity";
         [MenuItem("Frontline/Prepare project")] public static void Prepare()
         {
-            PlayerSettings.companyName="Frontline Lab";PlayerSettings.productName="Frontline Lab";PlayerSettings.bundleVersion="2.2.0";PlayerSettings.defaultScreenWidth=1280;PlayerSettings.defaultScreenHeight=800;PlayerSettings.fullScreenMode=FullScreenMode.Windowed;PlayerSettings.resizableWindow=true;PlayerSettings.runInBackground=true;PlayerSettings.colorSpace=ColorSpace.Gamma;
+            PlayerSettings.companyName="Frontline Lab";PlayerSettings.productName="Frontline Lab";PlayerSettings.bundleVersion="3.0.0";PlayerSettings.defaultScreenWidth=1280;PlayerSettings.defaultScreenHeight=800;PlayerSettings.fullScreenMode=FullScreenMode.Windowed;PlayerSettings.resizableWindow=true;PlayerSettings.runInBackground=true;PlayerSettings.colorSpace=ColorSpace.Gamma;
             PlayerSettings.MTRendering=true;
+            // With D3D11 windowed on the target Intel GPU, flip presentation paced even uncapped
+            // frames to the desktop refresh interval. Use the measured windowed presentation path.
+            PlayerSettings.useFlipModelSwapchain=false;
             PlayerSettings.SetUseDefaultGraphicsAPIs(BuildTarget.StandaloneWindows64,false);
             PlayerSettings.SetGraphicsAPIs(BuildTarget.StandaloneWindows64,new[]{GraphicsDeviceType.Direct3D11});
             PlayerSettings.WebGL.threadsSupport=false;
@@ -88,6 +91,7 @@ namespace Frontline.Editor
                 File.WriteAllText(filename+".json",Json.Write(new {
                     version=PlayerSettings.bundleVersion,unity=Application.unityVersion,target=target.ToString(),
                     colorSpace=PlayerSettings.colorSpace.ToString(),graphicsApis=Array.ConvertAll(PlayerSettings.GetGraphicsAPIs(target),api=>api.ToString()),
+                    useFlipModelSwapchain=windows&&PlayerSettings.useFlipModelSwapchain,
                     multiThreadedRendering=windows&&PlayerSettings.MTRendering,graphicsJobs=windows,graphicsJobMode=windows?"Legacy":"Off",
                     webGLThreadsSupport=PlayerSettings.WebGL.threadsSupport,frameTimingStats=windows,
                     guid=summary.guid.ToString(),options=summary.options.ToString(),result=summary.result.ToString(),

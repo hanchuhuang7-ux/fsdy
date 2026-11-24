@@ -82,7 +82,7 @@ namespace Frontline.UnityGame
 
             app.View.Focus(new Vector3((FrontierMap.BridgeStart+FrontierMap.Boundary)*.5f,0,0),23,39,-12);
             yield return new WaitForEndOfFrame();
-            Require(app.View.BridgeRippleCount==8&&!app.View.AccentCasters,"Bridge water was missing or cast shadows");
+            Require(app.View.LakeShoreReady&&!app.View.AccentCasters,"Bridge water was missing or cast shadows");
             if(captures)yield return ManorShot("180-bridge-ripples");
             bridgeWaterVerified=true;
         }

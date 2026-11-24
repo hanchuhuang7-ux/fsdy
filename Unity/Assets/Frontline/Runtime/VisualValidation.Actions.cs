@@ -179,7 +179,7 @@ namespace Frontline.UnityGame
             }
         }
 
-        IEnumerator RecordActionMatch(MotionCapture[] shots,List<object> records)
+        IEnumerator RecordActionMatch(MotionCapture[] shots,List<object> records,string series="220")
         {
             var battle=app.Battle;
             var view=app.View;
@@ -206,7 +206,15 @@ namespace Frontline.UnityGame
                         view.Focus(center+Vector3.up*(horse?.55f:siege?.45f:.27f)+forward*(horse?.35f:.42f),
                             horse?7.8f:siege?8.7f:actor.type=="giant"?7.4f:aim?5.6f:6.3f,
                             horse?20:siege?26:focusSword?24:17,angle+(horse?-80:siege?128:focusSword?-125:125));
-                        yield return ManorShot("220-"+capture.name);
+                        if(series=="300")
+                            view.Focus(center+Vector3.up*(horse?.45f:.22f)+forward*.24f,horse?4.85f:3.85f,
+                                horse?14:17,angle+(horse?-76:focusSword?-119:103));
+                        yield return ManorShot(series+"-"+capture.name);
+                        if(series=="300"&&capture.type=="shield")
+                        {
+                            view.Focus(new Vector3(0,.71f,-1.7f),24,30,-47);
+                            yield return ManorShot("300-arena-engagement");
+                        }
                         records.Add(new {name=capture.name,type=actor.type,tick=snapshot.tick,actor=actor.id,
                             moment=capture.moment.ToString(),attack=actor.attack,guard=actor.guard,charge=actor.charge,
                             speed=actor.moveSpeed,expedition=app.InManor});

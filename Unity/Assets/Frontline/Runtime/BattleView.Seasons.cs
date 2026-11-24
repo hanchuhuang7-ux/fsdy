@@ -24,11 +24,14 @@ namespace Frontline.UnityGame
             }
         }
 
+        static readonly int SunDirectionId=Shader.PropertyToID("_FrontlineSunDirection");
+        void PublishSunDirection()=>Shader.SetGlobalVector(SunDirectionId,-sun.transform.forward);
+
         static readonly SeasonalLight ArenaLight=new SeasonalLight(48,-32,new Color(1,.92f,.8f),.95f);
         static readonly SeasonalLight[] Seasons={
-            new SeasonalLight(51,-35,new Color(1,.95f,.85f),.96f),
-            new SeasonalLight(64,-25,new Color(1,.91f,.72f),.98f),
-            new SeasonalLight(39,-44,new Color(1,.80f,.60f),.95f),
+            new SeasonalLight(37,-42,new Color(1,.91f,.76f),1.02f),
+            new SeasonalLight(52,-29,new Color(1,.94f,.82f),1.04f),
+            new SeasonalLight(31,-47,new Color(1,.82f,.63f),1.01f),
             new SeasonalLight(31,-18,new Color(.83f,.90f,1),.90f)
         };
 
@@ -84,6 +87,7 @@ namespace Frontline.UnityGame
                 sun.transform.rotation=sunTarget.rotation;
                 sun.color=sunTarget.color;
                 sun.intensity=sunTarget.intensity;
+                PublishSunDirection();
             }
         }
 
@@ -94,6 +98,7 @@ namespace Frontline.UnityGame
             sun.transform.rotation=Quaternion.Slerp(sunFromRotation,sunTarget.rotation,curve);
             sun.color=Color.Lerp(sunFromColor,sunTarget.color,curve);
             sun.intensity=Mathf.Lerp(sunFromIntensity,sunTarget.intensity,curve);
+            PublishSunDirection();
             seasonLightBlending=t<1;
         }
 

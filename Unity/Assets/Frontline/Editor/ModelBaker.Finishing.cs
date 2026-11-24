@@ -6,18 +6,6 @@ namespace Frontline.Editor
 {
     public static partial class ModelBaker
     {
-        // This list excludes every mesh used to cook a physics hull and every LOD1 caster.
-        static bool CompactDetail(string name) =>
-            name.StartsWith("body_",StringComparison.Ordinal)||name.StartsWith("arm_",StringComparison.Ordinal)||
-            name.StartsWith("specialist_",StringComparison.Ordinal)||name.StartsWith("civilian_",StringComparison.Ordinal)||
-            name.StartsWith("manor_",StringComparison.Ordinal)||name.StartsWith("farmer_",StringComparison.Ordinal)||
-            name.StartsWith("villager_",StringComparison.Ordinal)||name=="resident_sleeve"||
-            name=="leg"||name=="horse"||name=="wreck_horse"||name=="horse_leg"||name=="shield"||name=="catapult"||
-            name=="wreck_catapult"||name=="frontier_gate"||name=="bridge_fittings"||name=="retinue_guard"||
-            name.StartsWith("prop_",StringComparison.Ordinal)&&name!="prop_spring"&&name!="prop_spikes"||
-            name=="head"||name=="rock"||name=="tree"||name=="pine"||name=="catapult_arm"||
-            Array.IndexOf(Manor.Buildings,name)>=0||name.EndsWith("_wing",StringComparison.Ordinal)||name.EndsWith("_tower",StringComparison.Ordinal);
-
         static void WeaponFinish(Geometry g,string type,float x)
         {
             if(type=="spear"||type=="cavalry")
@@ -43,24 +31,6 @@ namespace Frontline.Editor
             {
                 g.Quad(V(x-.067f,-.061f,.18f),V(x+.067f,-.061f,.18f),V(x+.063f,-.08f,.18f),V(x-.063f,-.08f,.18f),Copper,true);
             }
-        }
-
-        static void HorseFinish(Geometry g)
-        {
-            for(int i=0;i<5;i++)
-            {
-                float y=-.2f+i*.08f,z=.47f+i*.055f;
-                g.Triangle(V(-.057f,y,z),V(0,y+.20f,z-.08f),V(.067f,y+.068f,z+.046f),i%2==0?Dark:Indigo);
-            }
-            foreach(float side in new[]{-1f,1f})
-            {
-                g.Quad(V(side*.307f,-.31f,.31f),V(side*.351f,-.31f,-.32f),
-                    V(side*.383f,-.52f,-.35f),V(side*.338f,-.499f,.39f),Cloth,true);
-                g.Quad(V(side*.332f,-.481f,.35f),V(side*.38f,-.50f,-.35f),
-                    V(side*.383f,-.54f,-.35f),V(side*.34f,-.523f,.35f),Gold,true);
-            }
-            g.Quad(V(-.13f,.235f,1.07f),V(0,.322f,.845f),V(.13f,.235f,1.07f),V(0,.034f,1.211f),Steel,true);
-            g.Triangle(V(0,.248f,1.092f),V(-.071f,.138f,1.144f),V(.071f,.138f,1.144f),Gold);
         }
 
         static Geometry DistantHorse()

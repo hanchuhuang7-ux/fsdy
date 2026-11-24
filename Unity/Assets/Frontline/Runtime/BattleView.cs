@@ -150,11 +150,15 @@ namespace Frontline.UnityGame
         void Awake()
         {
             ViewCamera=new GameObject("Battle camera").AddComponent<Camera>();ViewCamera.transform.SetParent(transform,false);ViewCamera.clearFlags=CameraClearFlags.Skybox;ViewCamera.fieldOfView=Viewport.Compact?65:42;ViewCamera.nearClipPlane=.5f;ViewCamera.farClipPlane=160;ViewCamera.gameObject.AddComponent<AudioListener>();
-            sun=new GameObject("Warm key light").AddComponent<Light>();sun.transform.SetParent(transform,false);sun.transform.rotation=Quaternion.Euler(48,-32,0);sun.type=LightType.Directional;sun.color=new Color(1,.92f,.8f);sun.intensity=.95f;sun.shadows=LightShadows.Soft;sun.shadowStrength=.46f;sun.shadowBias=.045f;
+            sun=new GameObject("Warm key light").AddComponent<Light>();sun.transform.SetParent(transform,false);sun.transform.rotation=Quaternion.Euler(48,-32,0);sun.type=LightType.Directional;sun.color=new Color(1,.92f,.8f);sun.intensity=.95f;sun.shadows=LightShadows.Soft;sun.shadowStrength=.62f;sun.shadowBias=.045f;
 #if !UNITY_WEBGL
             splitFineShadows=SystemInfo.graphicsDeviceType==GraphicsDeviceType.Direct3D11;
 #endif
             material=new Material(Resources.Load<Shader>("FrontlineInstanced")){enableInstancing=true};atmosphere=new Material(Resources.Load<Shader>("FrontlineAtmosphere")){enableInstancing=true};sky=new Material(Resources.Load<Shader>("FrontlineSky"));RenderSettings.skybox=sky;
+            material.SetTexture("_SurfaceAtlas",Resources.Load<Texture2D>("Textures/SurfaceAlbedoRoughness"));
+            material.SetTexture("_NormalAtlas",Resources.Load<Texture2D>("Textures/SurfaceNormals"));
+            RenderSettings.sun=sun;
+            PublishSunDirection();
             groundingMaterial=new Material(atmosphere){enableInstancing=true};
             var fillDirection=(Quaternion.Euler(30,145,0)*Vector3.back).normalized;
             material.SetColor("_FillColor",new Color(.58f,.72f,1)*.28f);
@@ -164,6 +168,10 @@ namespace Frontline.UnityGame
             foreach(string type in new[]{"barrel","barricade","banner","spikes","spring"})props.Add(type,Load("prop_"+type));
             dust=Load("mist",true);armLeft=Load("arm_left");leg=Load("leg");horse=Load("horse");horseLeg=Load("horse_leg");catapult=Load("catapult");catapultArm=Load("catapult_arm");shield=Load("shield");ring=Load("ring");dot=Load("dot");torso=Load("torso");head=Load("head");limb=Load("limb");wreckHorse=Load("wreck_horse");wreckCart=Load("wreck_catapult");arrow=Load("arrow");bolt=Load("bolt");bomb=Load("bomb");stone=Load("stone");
             weatherPage=new Batch { mesh=Load("snow",true) };
+            shoulderGusset=Load("shoulder_gusset").WithoutShadows();
+            var sleeves=Buffer(shoulderGusset,moving,0);
+            for(int reserved=Capacity;reserved<240;reserved+=Capacity)
+            {sleeves.next=new Batch{mesh=shoulderGusset};sleeves=sleeves.next;}
             InitializeAccents();
 
             // Reserve up to 12 strokes per effect and two marks per health bar before contact.
@@ -213,12 +221,12 @@ namespace Frontline.UnityGame
             set=new MeshSet{high=high,low=low?low:high,atmosphere=transparent,localBounds=high.bounds};
             set.localBounds.Encapsulate(set.low.bounds);
             set.highVertices=set.high.vertexCount;set.lowVertices=set.low.vertexCount;
-            bool small=name=="grass"||name=="flowers"||name=="reeds"||name=="water_ripple"||
+            bool small=name=="grass"||name=="flowers"||name=="reeds"||
                 name=="ring"||name=="dot"||name=="arrow"||name=="bolt"||name=="bomb"||name=="stone";
             bool secondary=name=="base"||name=="island_root"||name=="cliff"||name=="icicle"||name=="shrub"||
                 name=="snow"||name=="flame"||name=="mist"||name=="civilian_hat"||name=="villager_wrap"||
                 name=="resident_sleeve"||name=="civilian_pack"||name.StartsWith("carry_",StringComparison.Ordinal);
-            set.castShadow=!transparent&&!small&&!secondary&&name!="platform";
+            set.castShadow=!transparent&&!small&&!secondary&&name!="platform"&&name!="arena_ground";
             set.receiveShadow=!transparent&&!small;
             set.nearDetail=name=="flowers"||name=="grass";
             set.detailProxy=set.castShadow&&set.high!=set.low&&DetailedCaster(name);
@@ -226,7 +234,7 @@ namespace Frontline.UnityGame
         }
         static bool DetailedCaster(string name) =>
             name.StartsWith("body_",StringComparison.Ordinal)||name.StartsWith("arm_right_",StringComparison.Ordinal)||
-            name=="leg"||name=="horse"||name=="horse_leg"||name=="wreck_horse"||name=="shield"||
+            name=="arm_left"||name=="leg"||name=="horse"||name=="horse_leg"||name=="wreck_horse"||name=="shield"||
             name=="catapult"||name=="catapult_arm"||name=="wreck_catapult"||name=="retinue_guard"||name=="frontier_gate"||name=="manor_hall"||
             name=="head"||name=="tree"||name=="pine"||name=="rock"||name=="prop_barrel"||name=="prop_barricade"||name=="prop_banner"||
             name.StartsWith("specialist_",StringComparison.Ordinal)||

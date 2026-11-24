@@ -174,7 +174,7 @@ namespace Frontline.Editor
         {
             if(lod==0&&name!="dead_tree")
             {
-                FacetedCanopy(g,name=="pine");
+                WoodlandTree(g,name=="pine");
                 return;
             }
             int sides=lod==0?8:6;
@@ -199,16 +199,6 @@ namespace Frontline.Editor
                 else g.Cylinder(branch,branch+V(Mathf.Cos(a)*.36f,.41f,Mathf.Sin(a)*.35f),.031f,WoodLight,4);
             }
             if(name=="tree")g.Rock(V(0,2.72f,0),1.04f,new Color(.36f,.53f,.29f,0),sides,3);
-        }
-
-        static void Saddle(Geometry g,int lod)
-        {
-            foreach(float side in new[]{-1f,1f})
-            {
-                g.Quad(V(side*.30f,-.25f,.24f),V(side*.31f,-.25f,-.40f),V(side*.38f,-.68f,-.32f),V(side*.38f,-.56f,.23f),Indigo,true);
-                g.Cylinder(V(side*.31f,-.27f,.06f),V(side*.39f,-.70f,.06f),.028f,Copper,5);
-                if(lod==0)g.Bevel(V(side*.39f,-.71f,.06f),V(.08f,.05f,.19f),.014f,Gold);
-            }
         }
 
         static Geometry ResidentCoat(bool farm,int lod)

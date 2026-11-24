@@ -22,11 +22,14 @@ namespace Frontline.Editor
                 House(g,-.52f,.51f,5.82f,4.40f,3.05f,1.42f,Tile,lod);
                 CastleTower(g,V(2.96f,0,1.83f),1.16f,4.44f,1.8f,true,fine);
                 CastleGate(g,1.86f,true,fine);
+                SquareWard(g,V(-2.90f,0,-1.82f),1.52f,2.91f,true);
             }
             else
             {
                 bool duke=level==3;
                 float curtain=duke?3.05f:2.28f,citadel=duke?8.8f:5.35f;
+                var court=g;
+                g=new Geometry();
                 g.Box(V(0,citadel*.5f,.50f),V(duke?4.45f:4.0f,citadel,4.15f),KeepStone);
                 MasonryFace(g,V(0,.47f,-1.587f),Quaternion.identity,duke?4.42f:3.98f,citadel-.96f,.43f);
                 g.Box(V(0,citadel-.32f,.5f),V(4.58f,.39f,4.37f),KeepEdge);
@@ -49,19 +52,76 @@ namespace Frontline.Editor
                     g.Box(V(0,6.04f,.5f),V(2.72f,1.55f,2.63f),KeepStone);
                     Gable(g,V(0,6.82f,.5f),2.92f,2.98f,.85f,KeepRoof,KeepStone,lod);
                 }
+                DonjonCorbels(g,citadel,duke);
+                court.Append(g,Matrix4x4.Translate(V(-.74f,0,.25f)));
+                g=court;
+                // A lower east hall gives the central keep a stepped silhouette facing the lake.
+                SquareWard(g,V(1.82f,0,.57f),2.20f,duke?5.71f:3.94f,false);
                 CastleWall(g,V(0,0,2.78f),8.15f,curtain,1,false,fine);
                 CastleWall(g,V(-3.39f,0,0),5.85f,curtain,1,true,fine);
                 CastleWall(g,V(3.39f,0,0),5.85f,curtain,1,true,fine);
                 for(int side=-1;side<=1;side+=2)
                 {
                     CastleWall(g,V(side*2.24f,0,-2.92f),2.52f,curtain,1,false,fine);
-                    CastleTower(g,V(side*3.34f,0,-2.53f),1.08f,duke?5.65f:3.64f,duke?2.1f:1.22f,false,fine);
-                    CastleTower(g,V(side*3.34f,0,2.50f),1.08f,duke?6.43f:3.88f,duke?2.25f:1.35f,false,fine);
+                    CastleTower(g,V(side*3.34f,0,-2.53f),side<0?.91f:1.05f,
+                        (duke?4.67f:3.31f)+(side>0?.92f:0),duke?1.73f:1.16f,false,fine);
+                    if(side>0)CastleTower(g,V(3.20f,0,2.50f),1.09f,duke?7.10f:4.61f,duke?2.11f:1.42f,false,fine);
+                    else SquareWard(g,V(-3.16f,0,2.38f),1.83f,duke?5.62f:3.71f,false);
                 }
                 CastleGate(g,curtain,false,fine);
+                HangingStandard(g,V(-1.50f,citadel+.58f,-1.53f),duke?2.67f:1.79f);
+                if(duke)HangingStandard(g,V(1.92f,4.72f,-.57f),1.46f);
             }
+            for(int step=0;step<3;step++)
+                g.Box(V(0,.058f+step*.059f,-3.61f+step*.168f),V(2.21f-step*.063f,.116f+step*.118f,.35f),KeepEdge);
             g.FitFootprint(FrontierMap.CastleHalfWidth,FrontierMap.CastleHalfDepth);
             return g;
+        }
+
+        static void SquareWard(Geometry g,Vector3 at,float width,float top,bool timber)
+        {
+            g.Box(at+Vector3.up*top*.50f,V(width,top,width*1.16f),KeepStone);
+            g.Box(at+Vector3.up*(top-.24f),V(width+.16f,.25f,width*1.16f+.16f),timber?Walnut:KeepEdge);
+            Gable(g,at+Vector3.up*top,width+.24f,width*1.16f+.23f,width*.54f,timber?FiredClay:KeepRoof,KeepStone,0);
+            ArrowLoop(g,at.x,top-.83f,at.z-width*.58f-.01f,.62f);
+            if(!timber)UpperWindow(g,at+V(width*.5f,0,0),Quaternion.Euler(0,-90,0),top-1.49f,.018f,.28f);
+        }
+
+        static void DonjonCorbels(Geometry g,float height,bool duke)
+        {
+            float side=duke?2.225f:2f;
+            foreach(int flank in new[]{-1,1})
+            {
+                float x=flank*(side-.17f);
+                g.Frustum(V(x,.43f,-1.73f),V(.47f,0,.69f),V(x,height*.64f,-1.57f),
+                    V(.30f,0,.31f),Stonework,4);
+                g.Box(V(x,height*.64f,-1.61f),V(.37f,.12f,.37f),KeepEdge);
+            }
+            for(int i=0;i<7;i++)
+            {
+                float x=(i-3)*side*.275f;
+                g.Bevel(V(x,height-.57f,-1.63f),V(.23f,.48f,.31f),.058f,Stonework);
+            }
+            g.Box(V(0,height-.23f,-1.69f),V(2*side+.30f,.31f,.53f),KeepEdge);
+        }
+
+        static void HangingStandard(Geometry g,Vector3 top,float length)
+        {
+            float w=length*.32f;
+            g.Cylinder(top+V(-w*.69f,0,.02f),top+V(w*.69f,0,.02f),.038f,OldGold,8);
+            Vector3 Point(int i,int row)
+            {
+                float u=i/8f,v=row/6f;
+                return top+V((u-.5f)*w+.09f*v*v,v*(-length)+v*v*Mathf.Abs(u-.5f)*.25f,
+                    -.056f-.13f*v-.065f*Mathf.Sin(u*10+v*2.2f)*(.3f+.7f*v));
+            }
+            g.surface=Surface.Cloth;
+            for(int row=0;row<6;row++)for(int i=0;i<8;i++)
+            {
+                var dye=i==0||i==7||row==5||row==2&&i>=3&&i<=4||row==3&&i==4?OldGold:KeepRed;
+                g.Quad(Point(i,row),Point(i+1,row),Point(i+1,row+1),Point(i,row+1),dye,true);
+            }
+            g.surface=Surface.Auto;
         }
 
         static Geometry CastleSilhouette(int level)
@@ -107,6 +167,8 @@ namespace Frontline.Editor
             wall.Box(V(0,height-.14f,0),V(span+.12f,.23f,depth+.17f),KeepEdge);
             if(fine)
             {
+                wall.Box(V(0,height+.025f,depth*.18f),V(span,.11f,depth*.76f),Stonework);
+                wall.Box(V(0,height+.14f,depth*.48f),V(span,.30f,.12f),KeepEdge);
                 int merlons=Mathf.Max(3,Mathf.RoundToInt(span/.67f));
                 for(int tooth=0;tooth<merlons;tooth++)
                 {
@@ -120,7 +182,7 @@ namespace Frontline.Editor
 
         static void CastleTower(Geometry g,Vector3 at,float radius,float height,float roof,bool timber,bool fine)
         {
-            int sides=fine?8:4;
+            int sides=fine?14:4;
             var baseShape=V(radius*2,0,radius*2);
             var turret=V(radius*1.82f,0,radius*1.82f);
             g.Frustum(at+Vector3.up*.40f,baseShape,at+Vector3.up*height,turret,KeepStone,sides);

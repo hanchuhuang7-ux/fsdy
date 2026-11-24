@@ -356,6 +356,17 @@ namespace Frontline.UnityGame
             }
         }
 
+        MeshSet shoulderGusset;
+        void CoverShoulder(in Matrix4x4 torso,in Matrix4x4 arm,float scale,Color tint)
+        {
+            var a=torso.MultiplyPoint3x4(RightShoulder);
+            var b=arm.MultiplyPoint3x4(RightShoulder);
+            var axis=b-a;
+            if(axis.sqrMagnitude<.0049f*scale*scale)return;
+            Add(shoulderGusset,Pose((a+b)*.5f,Quaternion.FromToRotation(Vector3.up,axis),
+                new Vector3(.158f*scale,axis.magnitude+.088f*scale,.185f*scale)),tint);
+        }
+
         void SubmitPose(in PoseInput input,in PoseOutput pose,in PoseDraw draw)
         {
             if(!pose.visible)return;
@@ -378,13 +389,14 @@ namespace Frontline.UnityGame
             else
             {
                 Add(leg,pose.leftLeg,White);Add(leg,pose.rightLeg,White);
+                if(!lowActors&&input.action.stage!=ActionStage.Idle)CoverShoulder(pose.root,pose.rightArm,scale,input.color);
                 if(!lowActors)Add(armLeft,pose.leftArm,input.color);
                 if(pose.emptyThrowHand)Add(armLeft,pose.rightArm*Matrix4x4.Translate(new Vector3(.72f,0,0)),input.color);
                 else Add(draw.model.right,pose.rightArm,input.color);
                 if(input.kind==SoldierKind.Shield&&!lowActors)Add(shield,pose.guardOrCatapultArm,input.color);
                 if(input.kind==SoldierKind.Cavalry)
                 {
-                    Add(horse,pose.horse,White);
+                    Add(horse,pose.horse,input.color);
                     Add(horseLeg,pose.nearLeft,White);Add(horseLeg,pose.nearRight,White);
                     Add(horseLeg,pose.farLeft,White);Add(horseLeg,pose.farRight,White);
                 }

@@ -15,6 +15,7 @@ namespace Frontline.UnityGame
         FrontierTerrainAsset worldTerrain;
         MaterialPropertyBlock terrainProperties;
         Material lakeMaterial;
+        internal bool LakeShoreReady => lakeMaterial&&lakeMaterial.GetTexture("_ShoreDistance");
         static readonly int LakeColorId=Shader.PropertyToID("_Water"),LakeMistId=Shader.PropertyToID("_Mist");
         Bounds[] closeBounds,wideBounds;
         Mesh[] visibleTerrain;
@@ -44,6 +45,9 @@ namespace Frontline.UnityGame
                 worldTerrain=Resources.Load<FrontierTerrainAsset>(FrontierTerrainAsset.Resource);
                 if(!worldTerrain)throw new System.InvalidOperationException("Run ModelBaker to bake the frontier coast.");
                 lakeMaterial=new Material(Resources.Load<Shader>("FrontlineLake"));
+                lakeMaterial.SetTexture("_ShoreDistance",Resources.Load<Texture2D>("Textures/ShoreDistance"));
+                lakeMaterial.SetTexture("_WaveNormals",Resources.Load<Texture2D>("Textures/LakeNormals"));
+                lakeMaterial.SetVector("_ShoreRect",worldTerrain.shoreRect);
                 terrainProperties=new MaterialPropertyBlock();
                 terrainProperties.SetFloatArray(HitId,terrainEffect);
                 terrainProperties.SetFloatArray(WindId,terrainEffect);
@@ -219,9 +223,6 @@ namespace Frontline.UnityGame
             float height=stack?3.15f+1.45f*variation:1.08f+variation*.55f;
             Still(rock,center,Quaternion.Euler(0,index*137.5f,0),new Vector3(width,height,width*(stack?.64f:.85f)),
                 Color.Lerp(new Color(.56f,.63f,.60f),new Color(.77f,.73f,.56f),variation));
-            if(QualityLevel>0&&index%3==0)
-                Still(Load("water_ripple"),shore+outward*(offshore+3.4f)+Vector3.down*1.60f,Quaternion.Euler(0,index*29,0),
-                    new Vector3(3.3f+variation,1,1.48f),new Color(.52f,.71f,.70f),.07f);
         }
 
         static bool PickFrontierGround(Ray ray,out Vector3 point)
