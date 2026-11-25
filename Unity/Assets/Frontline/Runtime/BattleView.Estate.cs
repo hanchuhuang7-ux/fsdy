@@ -28,7 +28,6 @@ namespace Frontline.UnityGame
         readonly int[] specialistLevels=new int[Manor.SpecialistIds.Length];
         readonly Vector3[] specialistPoints=new Vector3[Manor.SpecialistIds.Length];
         readonly bool[] heroBayClear=new bool[3];
-        MeshSet specialistLeg;
         MeshSet retinueGuard;
         int manorGuardsAway;
         internal int VisibleRetinue {get;private set;}
@@ -114,7 +113,6 @@ namespace Frontline.UnityGame
             }
             for(int i=0;i<specialistMeshes.Length;i++)
                 specialistMeshes[i]=Load("specialist_"+Manor.SpecialistIds[i]).WithoutShadows();
-            specialistLeg=leg.WithoutShadows();
         }
 
         void DrawUnclearedPlot(int index,Vector3 center,Quaternion facing)
@@ -202,11 +200,13 @@ namespace Frontline.UnityGame
                 float music=role==Manor.SpecialistIds.Length-1?gait.breath*1.45f:0;
                 var root=hips*Pose(new Vector3(.013f*gait.sway,gait.bob,0),
                     Quaternion.Euler(gait.lean*.83f,gait.twist*.66f,gait.roll*.80f+music),Vector3.one);
-                Add(specialistMeshes[role],root,SpecialistTrim[rank-1]);
                 ContactAt(specialistPoints[role],.90f);
-                if(lowActors)continue;
-                for(int side=-1;side<=1;side+=2)
-                    Add(specialistLeg,WalkingLeg(hips,gait,new Vector3(side*.124f,-.50f,0),side>0),White);
+                if(lowActors){Add(specialistMeshes[role],root,SpecialistTrim[rank-1]);continue;}
+                QueuePose(new PoseInput {town=TownRole.Specialist,survey=true,id=SpecialistFirst+role,
+                    position=specialistPoints[role]+Vector3.up*.735f,angle=heading*Mathf.Deg2Rad,scale=.96f,
+                    gait=phase/.96f,speed=pace,maxSpeed=2.8f,direction=1,hp=1,nod=music,
+                    leftHand=new Vector3(-.19f,-.027f,.31f),rightHand=role==3?new Vector3(.39f,-.04f,.13f):new Vector3(.19f,-.034f,.31f),
+                    color=SpecialistTrim[rank-1]},new PoseDraw{coat=specialistMeshes[role],portrait=artisanPortraits[role]});
             }
         }
 
@@ -227,7 +227,8 @@ namespace Frontline.UnityGame
                 stance.m01=.012f*Mathf.Sin(manorTime*1.32f+i*2.39f);
                 stance.m11=1+.008f*breath;
                 stance.m21=.016f*breath;
-                Add(retinueGuard,Pose(point,facing,Vector3.one)*stance,RetinueCloth);
+                if(lowActors)Add(retinueGuard,Pose(point,facing,Vector3.one)*stance,RetinueCloth);
+                else WatchAt(point,i%2==0?174:186,300+i,RetinueCloth);
                 ContactAt(point,.92f);
                 VisibleRetinue++;
             }

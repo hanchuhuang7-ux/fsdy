@@ -37,8 +37,12 @@ namespace Frontline.Editor
                     V(-.041f,.323f,.566f),V(0,.379f,.72f),V(.032f,.319f,.817f)},
                 new[]{Section(.05f,.05f),Section(.072f,.084f),Section(.062f,.094f),Section(.055f,.074f),
                     Section(.042f,.041f),Section(.012f,.019f)},8,2,hair);
+            g.WeightSince(0,V(0,-.20f,.41f),V(0,.23f,.75f),true);
+            int tail=g.Mark;
             g.Loft(new[]{V(0,-.34f,-.66f),V(.027f,-.45f,-.84f),V(.063f,-.71f,-.94f),V(.109f,-.96f,-.986f)},
                 new[]{Section(.045f,.048f),Section(.091f,.12f),Section(.102f,.125f),Section(.029f,.035f)},8,2,hair);
+            g.WeightSince(tail,V(0,-.34f,0),V(0,-.96f,0));
+            int skirt=g.Mark;
             // Caparison panels drape from the spine over the flank and clear the four animated hocks.
             g.surface=Surface.Cloth;
             for(int side=-1;side<=1;side+=2)for(int j=0;j<8;j++)for(int k=0;k<3;k++)
@@ -55,6 +59,7 @@ namespace Frontline.Editor
                 g.Quad(ClothPoint(j,k),ClothPoint(j+1,k),ClothPoint(j+1,k+1),ClothPoint(j,k+1),dye,true);
             }
             g.surface=Surface.Hide;
+            g.WeightSince(skirt,V(0,-.16f,0),V(0,-.91f,0));
             g.Bevel(V(0,-.143f,-.045f),V(.46f,.126f,.49f),.051f,Walnut);
             g.Ellipsoid(V(0,-.089f,-.233f),V(.219f,.093f,.078f),Walnut,10,4);
             g.surface=Surface.Auto;

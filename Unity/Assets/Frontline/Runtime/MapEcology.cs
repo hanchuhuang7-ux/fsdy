@@ -39,6 +39,7 @@ namespace Frontline.UnityGame
                 Put(rows,p.bridge?"platform":"arena_ground",new Vector3(p.x,p.y,p.z),new Vector3(p.hx*2,p.hy*2,p.hz*2),tint:p.bridge?new Color(.57f,.4f,.24f):ground,rotation:q);
                 if(!p.bridge&&!p.ramp)
                 {
+                    Talus(rows,data,id,p,rock);
                     float depth=island?6:bridge?5.2f:2.5f;
                     Put(rows,island?"island_root":"base",new Vector3(p.x,p.y-p.hy-depth*.5f+.03f,p.z),new Vector3(p.hx*1.98f,depth,p.hz*1.98f),tint:rock);
                     Put(rows,"cliff",new Vector3(p.x,p.y-p.hy-.45f,p.z),new Vector3(p.hx*2.01f,.85f,p.hz*2.01f),tint:rock*.85f);
@@ -69,8 +70,9 @@ namespace Frontline.UnityGame
                 float x=Range(rng,-20.2f,20.2f),z=(i%2==0?-1:1)*Range(rng,12.7f,15.3f),scale=Range(rng,.9f,1.55f);
                 if(bridge&&Mathf.Abs(x)<3.3f)continue;
                 string mesh=snow?"pine":marsh||ruins?"dead_tree":"tree";
-                Put(rows,mesh,new Vector3(x,-.15f,z),Vector3.one*scale,Range(rng,0,360),White,.012f);
-                Put(rows,"rock",new Vector3(x,-.45f,z),new Vector3(2.2f,.9f,2),Range(rng,0,360),rock,castsShadow:false);
+                float bankHeight=-.18f-.41f*Mathf.Max(0,Mathf.Abs(z)-12.5f)-.23f*Mathf.Max(0,Mathf.Abs(x)-18);
+                Put(rows,mesh,new Vector3(x,bankHeight,z),Vector3.one*scale,Range(rng,0,360),White,.012f);
+                Put(rows,"rock",new Vector3(x,bankHeight-.21f,z),new Vector3(2.2f,.9f,2),Range(rng,0,360),rock,castsShadow:false);
             }
             ArenaTrails(rows,data,id);
             switch(id)
@@ -91,6 +93,32 @@ namespace Frontline.UnityGame
         {
             float h=data.Height(id,x,z);
             if(Catalog.Finite(h))Put(rows,"platform",new Vector3(x,h+lift,z),new Vector3(width,.010f,length),yaw,tint);
+        }
+
+        static void Talus(List<Decoration> rows,Catalog data,string map,Platform platform,Color rock)
+        {
+            // Only skirt exposed edges. Shared terraces and the channel under the bridge stay open.
+            for(int side=0;side<4;side++)
+            {
+                var turn=Quaternion.Euler(0,side*90,0);
+                float half=side%2==0?platform.hx:platform.hz,reach=side%2==0?platform.hz:platform.hx;
+                int spans=Mathf.Max(2,Mathf.CeilToInt(half*.53f));
+                for(int i=0;i<spans;i++)
+                {
+                    float x=(2*(i+.5f)/spans-1)*half;
+                    var edge=new Vector3(platform.x,platform.y+platform.hy-.029f,platform.z)+turn*new Vector3(x,0,reach);
+                    var outwards=turn*Vector3.forward;
+                    var beyond=edge+outwards*.36f;
+                    if(Catalog.Finite(data.Height(map,beyond.x,beyond.z)))continue;
+                    float spread=4.75f+1.08f*Mathf.Sin(i*1.83f+side*.73f);
+                    if(map=="bridge"&&Mathf.Abs(edge.x)<3.4f)spread=Mathf.Min(1.05f,spread);
+                    Put(rows,"arena_scree",edge,new Vector3(half*2/spans+.045f,2.8f,spread),tint:rock,
+                        rotation:turn,castsShadow:false);
+                    if((i+side)%3==1)
+                        Put(rows,"shrub",edge+outwards*.54f-Vector3.up*.12f,new Vector3(.73f,.49f,.63f),
+                            37*i,rock*.96f,.018f,castsShadow:false);
+                }
+            }
         }
 
         static void ArenaTrails(List<Decoration> rows,Catalog data,string id)

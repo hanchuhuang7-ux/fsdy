@@ -24,7 +24,8 @@ namespace Frontline.Editor
             ProceduralTextureBaker.BakeAtlas();
             for(int lod=0;lod<2;lod++)
             {
-                foreach(string type in Types){Save("body_"+type,lod,lod==0?FieldSoldier(type):DistantBody(type));Save("arm_right_"+type,lod,lod==0?Arm(type,false,lod):DistantArm(type));}
+                foreach(string type in Types){Save("body_"+type,lod,lod==0?FieldSoldier(type,null,type!="catapult"):DistantBody(type));Save("arm_right_"+type,lod,lod==0?Arm(type,false,lod):DistantArm(type));}
+                BakeJoints(lod);
                 Save("horse_shoulder",lod,ScapularMuscle(lod));
                 Save("arm_braced_left",lod,Arm("shield",true,lod));
                 Save("arm_left",lod,Arm("militia",true,lod));Save("leg",lod,Leg(lod));Save("horse_leg",lod,HorseLeg(lod));Save("horse",lod,Horse(lod));
@@ -53,7 +54,7 @@ namespace Frontline.Editor
                 BakeVillageRoads(lod);
                 foreach(string type in Manor.HeroIds)
                 {
-                    Save("body_"+type,lod,lod==0?FieldSoldier(type=="hero_ranger"?"archer":Equipment(type),type):DistantBody(type));
+                    Save("body_"+type,lod,lod==0?FieldSoldier(type=="hero_ranger"?"archer":Equipment(type),type,true):DistantBody(type));
                     Save("arm_right_"+type,lod,lod==0?ForgedArm(type,0):DistantArm(type));
                     Save("crest_"+type,lod,ArmamentCrest(type,lod));
                     for(int tier=1;tier<=Manor.MaxHeroArmament;tier++)
@@ -64,12 +65,19 @@ namespace Frontline.Editor
                 }
             }
             BakeCoast();
-            AssetDatabase.SaveAssets();File.WriteAllText("Assets/Frontline/Models/model-manifest.json",JsonUtility.ToJson(new Manifest{generator="Frontline.Editor.ModelBaker",version=PlayerSettings.bundleVersion,vertexColor="rgb=albedo; alpha=faction multiply weight",surfaceChannels="UV0=projected detail; UV1=surface ID, metallic, roughness, AO; legacy ID 0 is untextured",textures=new[]{"Textures/SurfaceAlbedoRoughness","Textures/SurfaceNormals","Textures/ShoreDistance","Textures/LakeNormals","Textures/LaneDetail"},resources=Written.ToArray()},true));AssetDatabase.Refresh();Debug.Log("FRONTLINE_MODELS_OK "+Written.Count+" prebaked meshes, two LODs, PBR surfaces, independent shadow proxies");
+            AssetDatabase.SaveAssets();File.WriteAllText("Assets/Frontline/Models/model-manifest.json",JsonUtility.ToJson(new Manifest{generator="Frontline.Editor.ModelBaker",version=PlayerSettings.bundleVersion,vertexColor="rgb=albedo; alpha=faction multiply weight",surfaceChannels="UV0=projected detail; UV1=surface ID, metallic, roughness, AO; optional UV2=cloth travel, poll or string weight, pelvis blend, planted boot; legacy ID 0 is untextured",textures=new[]{"Textures/SurfaceAlbedoRoughness","Textures/SurfaceNormals","Textures/ShoreDistance","Textures/LakeNormals","Textures/LaneDetail"},resources=Written.ToArray()},true));AssetDatabase.Refresh();Debug.Log("FRONTLINE_MODELS_OK "+Written.Count+" prebaked meshes, two LODs, PBR surfaces, independent shadow proxies");
         }
         [Serializable] sealed class Manifest{public string generator,version,vertexColor,surfaceChannels;public string[] textures,resources;}
         static void Save(string name,int lod,Geometry g)
         {
-            string key=name+(lod==1?"_lod1":""),path=Folder+"/"+key+".asset";var mesh=lod==0?g.SurfaceMesh(key):g.ProxyMesh(key);if(mesh.vertexCount==0||mesh.normals.Length!=mesh.vertexCount||mesh.colors.Length!=mesh.vertexCount)throw new InvalidDataException("Incomplete baked mesh "+key);foreach(var v in mesh.vertices)if(float.IsNaN(v.x)||float.IsNaN(v.y)||float.IsNaN(v.z)||float.IsInfinity(v.x)||float.IsInfinity(v.y)||float.IsInfinity(v.z))throw new InvalidDataException("Non-finite baked vertex "+key);foreach(var n in mesh.normals)if(n.sqrMagnitude<.98f)throw new InvalidDataException("Invalid baked normal "+key);var old=AssetDatabase.LoadAssetAtPath<Mesh>(path);if(old){EditorUtility.CopySerialized(mesh,old);UnityEngine.Object.DestroyImmediate(mesh);EditorUtility.SetDirty(old);}else AssetDatabase.CreateAsset(mesh,path);Written.Add("Models/"+key);
+            string key=name+(lod==1?"_lod1":""),path=Folder+"/"+key+".asset";var mesh=lod==0?g.SurfaceMesh(key):g.ProxyMesh(key);if(mesh.vertexCount==0||mesh.normals.Length!=mesh.vertexCount||mesh.colors.Length!=mesh.vertexCount)throw new InvalidDataException("Incomplete baked mesh "+key);foreach(var v in mesh.vertices)if(float.IsNaN(v.x)||float.IsNaN(v.y)||float.IsNaN(v.z)||float.IsInfinity(v.x)||float.IsInfinity(v.y)||float.IsInfinity(v.z))throw new InvalidDataException("Non-finite baked vertex "+key);foreach(var n in mesh.normals)if(n.sqrMagnitude<.98f)throw new InvalidDataException("Invalid baked normal "+key);var old=AssetDatabase.LoadAssetAtPath<Mesh>(path);if(old&&key=="rock_lod1")
+            {
+                if(!System.Linq.Enumerable.SequenceEqual(old.vertices,mesh.vertices)||
+                    !System.Linq.Enumerable.SequenceEqual(old.triangles,mesh.triangles))
+                    throw new InvalidDataException("Frozen rock proxy geometry differs");
+                UnityEngine.Object.DestroyImmediate(mesh);
+            }
+            else if(old){EditorUtility.CopySerialized(mesh,old);UnityEngine.Object.DestroyImmediate(mesh);EditorUtility.SetDirty(old);}else AssetDatabase.CreateAsset(mesh,path);Written.Add("Models/"+key);
         }
         static Vector3 V(float x,float y,float z){return new Vector3(x,y,z);}
         static Geometry Leg(int lod)
@@ -99,7 +107,7 @@ namespace Frontline.Editor
             float x=left?-.36f:.36f;
             if(lod==0)
             {
-                ArticulatedSleeve(g,type,left);
+                if(left||type=="catapult")ArticulatedSleeve(g,type,left);
             }
             else
             {
@@ -225,9 +233,9 @@ namespace Frontline.Editor
             else if(name=="tree"||name=="pine"||name=="dead_tree")CanopyLayers(g,name,lod);
             else if(name=="column"){g.Bevel(V(0,.12f,0),V(1,.24f,1),.07f,Rock);g.Cylinder(V(0,.24f,0),V(.03f,1.95f,0),.31f,Rock,n);g.Bevel(V(0,1.96f,0),V(.83f,.22f,.83f),.04f,Rock);g.Bevel(V(0,.3f,0),V(.78f,.13f,.78f),.025f,LightSteel);}
             else if(name=="arch"){foreach(float x in new[]{-.85f,.85f}){g.Bevel(V(x,.7f,0),V(.45f,1.4f,.55f),.06f,Rock);g.Bevel(V(x,.12f,0),V(.68f,.24f,.74f),.05f,Rock);}int parts=lod==0?7:5;for(int i=0;i<parts;i++){float a=i*Mathf.PI/parts,b=(i+1)*Mathf.PI/parts;g.Cylinder(V(Mathf.Cos(a)*.85f,1.35f+Mathf.Sin(a)*.65f,0),V(Mathf.Cos(b)*.85f,1.35f+Mathf.Sin(b)*.65f,0),.26f,Rock,5);}}
-            else if(name=="brazier"){for(int i=0;i<3;i++){float a=i*Mathf.PI*2/3;g.Cylinder(V(Mathf.Sin(a)*.26f,0,Mathf.Cos(a)*.26f),V(Mathf.Sin(a)*.18f,.65f,Mathf.Cos(a)*.18f),.035f,Dark,5);}g.Frustum(V(0,.49f,0),V(.3f,0,.3f),V(0,.68f,0),V(.7f,0,.7f),Dark,n);g.Cone(V(0,.66f,0),.23f,.5f,new Color(1,.44f,.1f,0),6);g.Cone(V(.04f,.68f,0),.12f,.7f,Gold,5);}
+            else if(name=="brazier"){for(int i=0;i<3;i++){float a=i*Mathf.PI*2/3;g.Cylinder(V(Mathf.Sin(a)*.26f,0,Mathf.Cos(a)*.26f),V(Mathf.Sin(a)*.18f,.65f,Mathf.Cos(a)*.18f),.035f,Dark,5);}g.Frustum(V(0,.49f,0),V(.3f,0,.3f),V(0,.68f,0),V(.7f,0,.7f),Dark,n);if(lod==0)g.surface=Surface.Ember;g.Cone(V(0,.66f,0),.23f,.5f,new Color(1,.44f,.1f,0),6);g.Cone(V(.04f,.68f,0),.12f,.7f,Gold,5);}
             else if(name=="icicle")g.Cone(Vector3.zero,.18f,1.1f,new Color(.55f,.79f,.88f,0),5);
-            else if(name=="flame"){g.Cone(Vector3.zero,.4f,1,new Color(1,.47f,.12f,0),6);g.Cone(V(.05f,0,0),.19f,1.3f,Gold,5);}
+            else if(name=="flame"){if(lod==0)g.surface=Surface.Ember;g.Cone(Vector3.zero,.4f,1,new Color(1,.47f,.12f,0),6);g.Cone(V(.05f,0,0),.19f,1.3f,Gold,5);}
             else if(name=="snow"){g.Quad(V(-.05f,0,0),V(.05f,0,0),V(.05f,.1f,0),V(-.05f,.1f,0),Snow,true);g.Quad(V(0,0,-.05f),V(0,0,.05f),V(0,.1f,.05f),V(0,.1f,-.05f),Snow,true);}
             else if(name=="arrow"||name=="bolt"){g.Cylinder(V(0,0,-.5f),V(0,0,.35f),name=="arrow"?.014f:.022f,name=="arrow"?WoodLight:Steel,5);g.Spear(V(0,0,.33f),V(0,0,.5f),.05f,LightSteel);g.Quad(V(-.07f,0,-.48f),V(.07f,0,-.48f),V(.035f,0,-.3f),V(-.035f,0,-.3f),Snow,true);}
             else if(name=="bomb"){g.Ellipsoid(Vector3.zero,Vector3.one*.5f,Dark,n,4);g.Cylinder(V(0,.45f,0),V(.07f,.68f,0),.035f,WoodLight,5);g.Ellipsoid(V(.07f,.69f,0),Vector3.one*.05f,Gold,5,2);}
@@ -352,7 +360,9 @@ namespace Frontline.Editor
                 g.Box(V(x,y+side*.17f,face-.059f),V(.34f,.065f,.10f),WoodLight);
                 g.Box(V(x+side*.243f,y,face-.063f),V(.09f,.33f,.065f),Green);
             }
-            g.Box(V(x,y,face-.055f),V(.25f,.246f,.025f),Glass);
+            if(lod==0)g.surface=Surface.WindowLight;
+            g.Box(V(x,y,face-.055f),V(.25f,.246f,.025f),lod==0?new Color(.76f,.52f,.30f,0):Glass);
+            g.surface=Surface.Auto;
             if(lod==0)
             {
                 g.Box(V(x,y,face-.076f),V(.027f,.243f,.025f),Linen);
@@ -377,11 +387,12 @@ namespace Frontline.Editor
         {
             var top=foot+Vector3.up*height;
             g.Cylinder(foot,top,.045f,WoodLight,lod==0?7:5);
+            int cloth=g.Mark;
             Vector3 upper=top-Vector3.up*.09f,lower=upper-Vector3.up*(span*.55f);
             g.Quad(upper,upper+V(span*.70f,-.045f,.10f),lower+V(span*.70f,.05f,.10f),lower,field,true);
             g.Triangle(upper+V(span*.70f,-.045f,.10f),upper+V(span,-.11f,.04f),lower+V(span*.70f,.05f,.10f),field);
             g.Triangle(lower+V(span*.70f,.05f,.10f),upper+V(span,-.11f,.04f),upper+V(span*.70f,-.045f,.10f),field);
-            if(lod==0)g.Cone(top,.07f,.14f,Gold,6);
+            if(lod==0){g.WeightSince(cloth,upper,upper+Vector3.right*span);g.Cone(top,.07f,.14f,Gold,6);}
         }
 
         static void Cottages(Geometry g,int lod)
@@ -547,8 +558,24 @@ namespace Frontline.Editor
             Chimney(g,.77f,.31f,2.45f,.55f,lod);
             g.Bevel(V(.88f,.43f,-.30f),V(1.14f,.86f,.96f),.12f,Stonework);
             g.Box(V(.88f,.50f,-.80f),V(.70f,.48f,.08f),Dark);
+            if(lod==0)g.surface=Surface.Ember;
             g.Box(V(.88f,.33f,-.86f),V(.56f,.16f,.11f),new Color(.95f,.40f,.10f,0));
+            g.surface=Surface.Auto;
             g.Box(V(.86f,.32f,-.89f),V(.40f,.07f,.06f),Copper);
+            if(lod==0)
+            {
+                // Incandescent coals sit behind the grate. Keep stone, iron and unlit fuel dark.
+                g.surface=Surface.Ember;
+                for(int i=0;i<7;i++)
+                {
+                    float x=.65f+i*.073f;
+                    g.Ellipsoid(V(x,.343f+.027f*Mathf.Sin(i*2.4f),-.926f),V(.046f,.031f+(i%3)*.009f,.025f),
+                        i%2==0?Amber:new Color(.72f,.24f,.06f,0),7,3);
+                }
+                g.surface=Surface.Metal;
+                for(int i=0;i<5;i++)g.Cylinder(V(.625f+i*.125f,.238f,-.935f),V(.641f+i*.125f,.479f,-.891f),.011f,Dark,5);
+                g.surface=Surface.Auto;
+            }
             g.Bevel(V(.88f,.76f,-.77f),V(.92f,.14f,.16f),.037f,Rock);
             for(int i=0;i<(lod==0?4:2);i++)
                 g.Box(V(.60f+i*(lod==0?.18f:.41f),.27f,-.862f),V(.034f,.14f,.024f),Dark);
@@ -677,7 +704,7 @@ namespace Frontline.Editor
             }
             void ConvexTriangle(Vector3 a,Vector3 b,Vector3 c,Color color){if(Vector3.Dot(Vector3.Cross(b-a,c-a),a+b+c)<0)Triangle(c,b,a,color);else Triangle(a,b,c,color);}
             void ConvexQuad(Vector3 a,Vector3 b,Vector3 c,Vector3 d,Color color){ConvexTriangle(a,b,c,color);ConvexTriangle(a,c,d,color);}
-            public void Append(Geometry other,Matrix4x4 matrix){int offset=vertices.Count;foreach(var tag in other.faceSurfaces)faceSurfaces.Add(surface==Surface.Auto?tag:surface);foreach(var uv in other.loftUV)loftUV.Add(offset+uv.Key,uv.Value);for(int i=0;i<other.vertices.Count;i++){vertices.Add(matrix.MultiplyPoint3x4(other.vertices[i]));normals.Add(matrix.MultiplyVector(other.normals[i]).normalized);colors.Add(other.colors[i]);}foreach(int i in other.indices)indices.Add(offset+i);}
+            public void Append(Geometry other,Matrix4x4 matrix){int offset=vertices.Count;foreach(var w in other.flexibility)flexibility[offset+w.Key]=w.Value;foreach(var tag in other.faceSurfaces)faceSurfaces.Add(surface==Surface.Auto?tag:surface);foreach(var uv in other.loftUV)loftUV.Add(offset+uv.Key,uv.Value);for(int i=0;i<other.vertices.Count;i++){vertices.Add(matrix.MultiplyPoint3x4(other.vertices[i]));normals.Add(matrix.MultiplyVector(other.normals[i]).normalized);colors.Add(other.colors[i]);}foreach(int i in other.indices)indices.Add(offset+i);}
             public void Bevel(Vector3 p,Vector3 size,float bevel,Color color,Quaternion rotation=default)
             {
                 if(rotation.x*rotation.x+rotation.y*rotation.y+rotation.z*rotation.z+rotation.w*rotation.w<.5f)rotation=Quaternion.identity;float x=size.x*.5f,y=size.y*.5f,z=size.z*.5f,b=Mathf.Min(bevel,Mathf.Min(x,Mathf.Min(y,z))*.8f);var local=new Geometry();Vector3[] low=new Vector3[8],high=new Vector3[8];float[] xx={-x+b,x-b,x,x,x-b,-x+b,-x,-x},zz={-z,-z,-z+b,z-b,z,z,z-b,-z+b};for(int i=0;i<8;i++){low[i]=V(xx[i],-y+b,zz[i]);high[i]=V(xx[i],y-b,zz[i]);}for(int i=0;i<8;i++)local.ConvexQuad(low[i],high[i],high[(i+1)%8],low[(i+1)%8],color);Vector3[] bottom={V(-x+b,-y,-z+b),V(x-b,-y,-z+b),V(x-b,-y,z-b),V(-x+b,-y,z-b)},top={V(-x+b,y,-z+b),V(x-b,y,-z+b),V(x-b,y,z-b),V(-x+b,y,z-b)};local.ConvexQuad(bottom[3],bottom[2],bottom[1],bottom[0],color);local.ConvexQuad(top[0],top[1],top[2],top[3],color);for(int i=0;i<4;i++){int a=i*2,bb=(i*2+1)%8;local.ConvexQuad(bottom[i],bottom[(i+1)%4],low[bb],low[a],color);local.ConvexQuad(top[(i+1)%4],top[i],high[a],high[bb],color);local.ConvexTriangle(bottom[(i+1)%4],low[(bb+1)%8],low[bb],color);local.ConvexTriangle(top[(i+1)%4],high[bb],high[(bb+1)%8],color);}Append(local,Matrix4x4.TRS(p,rotation,Vector3.one));

@@ -34,6 +34,7 @@ namespace Frontline.UnityGame
         internal long MainVertices {get;private set;}
         internal int ShadowOnlySubmissions {get;private set;}
         bool splitFineShadows=false;
+        static readonly int RigLayoutId=Shader.PropertyToID("_RigAttributes");
         static readonly int HitId=Shader.PropertyToID("_HitFlash"),TeamId=Shader.PropertyToID("_TeamColor"),WindId=Shader.PropertyToID("_Wind"),SoftnessId=Shader.PropertyToID("_Softness");
         static readonly Color Red=new Color(.82f,.22f,.17f),Blue=new Color(.17f,.43f,.79f),Gold=new Color(1,.75f,.27f),White=Color.white;
         sealed class MeshSet
@@ -42,25 +43,36 @@ namespace Frontline.UnityGame
             public int highVertices,lowVertices;
             public Batch moving,still,grid,ambient,outer;
             MeshSet shadowless;
-            public bool atmosphere,road,castShadow=true,receiveShadow=true,nearDetail,detailProxy;
+            public MeshSet distant;
+            public bool hasRig,atmosphere,road,castShadow=true,receiveShadow=true,nearDetail,detailProxy;
             public Bounds localBounds;
             public MeshSet Variant(bool cast,bool receive,bool near=false) => new MeshSet {
-                high=high,low=low,highVertices=highVertices,lowVertices=lowVertices,atmosphere=atmosphere,road=road,
+                high=high,low=low,highVertices=highVertices,lowVertices=lowVertices,atmosphere=atmosphere,road=road,hasRig=hasRig,
                 localBounds=localBounds,castShadow=cast,receiveShadow=receive,nearDetail=near,detailProxy=detailProxy
             };
             public MeshSet WithoutShadows()=>castShadow?(shadowless??=Variant(false,receiveShadow,nearDetail)):this;
         }
         sealed class Batch
         {
-            public MeshSet mesh;public readonly Matrix4x4[] matrices=new Matrix4x4[Capacity];public readonly Vector4[] colors=new Vector4[Capacity];public readonly float[] flashes=new float[Capacity];public readonly float[] winds=new float[Capacity];public readonly MaterialPropertyBlock properties=new MaterialPropertyBlock();
-            public int count,visibilityVersion=-1;
+            public MeshSet mesh;
+            public readonly Matrix4x4[] matrices;
+            public readonly Vector4[] colors;
+            public readonly float[] flashes,winds;
+            public readonly MaterialPropertyBlock properties=new MaterialPropertyBlock();
+
+            public Batch(int capacity=Capacity)
+            {
+                matrices=new Matrix4x4[capacity];colors=new Vector4[capacity];
+                flashes=new float[capacity];winds=new float[capacity];
+            }
+            public int count,visibilityVersion=-1,rigLayout=-1;
             public bool fixedPage,visible,hasWind,colorDirty=true,flashDirty=true,windDirty=true;
             public Bounds bounds;public Batch next;
             public StaticChunks chunks;
             public void Clear(){count=0;if(fixedPage)visibilityVersion=-1;hasWind=false;chunks?.Clear();if(next!=null)next.Clear();}
             public void Add(Matrix4x4 matrix,Color color,float wind,float flash=0,int chunk=-1)
             {
-                if(count==Capacity){if(next==null)next=new Batch{mesh=mesh,fixedPage=fixedPage};next.Add(matrix,color,wind,flash,chunk);return;}
+                if(count==matrices.Length){if(next==null)next=new Batch(matrices.Length){mesh=mesh,fixedPage=fixedPage};next.Add(matrix,color,wind,flash,chunk);return;}
                 matrices[count]=matrix;
                 Vector4 rgba=color;
                 if(!colors[count].Equals(rgba)){colors[count]=rgba;colorDirty=true;}
@@ -87,6 +99,7 @@ namespace Frontline.UnityGame
         sealed class UnitVisual
         {
             public readonly MeshSet body,right;
+            public MeshSet portrait;
             public readonly MeshSet[] forgedArms,insignia;
             public readonly SoldierKind kind;
             public readonly AttackStyle attackStyle;
@@ -106,7 +119,7 @@ namespace Frontline.UnityGame
         }
         readonly Dictionary<string,MeshSet> meshes=new Dictionary<string,MeshSet>();readonly Dictionary<string,MeshSet> fxMeshes=new Dictionary<string,MeshSet>();readonly Dictionary<string,UnitVisual> units=new Dictionary<string,UnitVisual>();readonly Dictionary<string,MeshSet> props=new Dictionary<string,MeshSet>();
         readonly List<Batch> moving=new List<Batch>(),still=new List<Batch>(),grid=new List<Batch>();
-        Material material,atmosphere,groundingMaterial,sky,roadMaterial;Light sun;MeshSet armLeft,armBracedLeft,leg,horse,horseLeg,catapult,catapultArm,shield,ring,dot,torso,head,limb,wreckHorse,wreckCart,arrow,bolt,bomb,stone;MapEcology.Mote[] motes;
+        Material material,atmosphere,groundingMaterial,sky,roadMaterial;Light sun;MeshSet armLeft,leg,horse,horseLeg,catapult,catapultArm,shield,ring,dot,torso,head,limb,wreckHorse,wreckCart,arrow,bolt,bomb,stone;MapEcology.Mote[] motes;
         MeshSet dust;float activeFlash;struct MotionSample {public Vector3 p;public float time,speed,phase,direction;public bool valid;}readonly MotionSample[] oldMotion=new MotionSample[VisualUnitSlots];
         struct GroundSample {public string map;public float x,z,height;}
         readonly GroundSample[] unitFloors=new GroundSample[2*Catalog.MaxUnits+1];
@@ -118,6 +131,7 @@ namespace Frontline.UnityGame
         Matrix4x4 previousClip;
         int visibilityVersion;
         bool lowScenery,lowActors;
+        readonly bool[] distantSoldier=new bool[VisualUnitSlots];
         internal bool LowActorLod => lowActors;
         internal bool LowSceneryLod => lowScenery;
         internal float CameraDistance => distance;
@@ -171,16 +185,9 @@ namespace Frontline.UnityGame
             foreach(string type in new[]{"militia","shield","spear","archer","crossbow","bomber","medic","giant","cavalry","catapult"})units.Add(type,new UnitVisual(type,Load("body_"+type),Load("arm_right_"+type)));
             foreach(string hero in Manor.HeroIds)RegisterHeroVisual(hero);
             foreach(string type in new[]{"barrel","barricade","banner","spikes","spring"})props.Add(type,Load("prop_"+type));
-            dust=Load("mist",true);armBracedLeft=Load("arm_braced_left");armLeft=Load("arm_left");leg=Load("leg");horse=Load("horse");horseLeg=Load("horse_leg");catapult=Load("catapult");catapultArm=Load("catapult_arm");shield=Load("shield");ring=Load("ring");dot=Load("dot");torso=Load("torso");head=Load("head");limb=Load("limb");wreckHorse=Load("wreck_horse");wreckCart=Load("wreck_catapult");arrow=Load("arrow");bolt=Load("bolt");bomb=Load("bomb");stone=Load("stone");
+            dust=Load("mist",true);armLeft=Load("arm_left");leg=Load("leg");horse=Load("horse");horseLeg=Load("horse_leg");catapult=Load("catapult");catapultArm=Load("catapult_arm");shield=Load("shield");ring=Load("ring");dot=Load("dot");torso=Load("torso");head=Load("head");limb=Load("limb");wreckHorse=Load("wreck_horse");wreckCart=Load("wreck_catapult");arrow=Load("arrow");bolt=Load("bolt");bomb=Load("bomb");stone=Load("stone");
             weatherPage=new Batch { mesh=Load("snow",true) };
-            horseShoulder=Load("horse_shoulder").WithoutShadows();
-            var forelegs=Buffer(horseShoulder,moving,0);
-            for(int reserved=Capacity;reserved<480;reserved+=Capacity)
-            {forelegs.next=new Batch{mesh=horseShoulder};forelegs=forelegs.next;}
-            shoulderGusset=Load("shoulder_gusset").WithoutShadows();
-            var sleeves=Buffer(shoulderGusset,moving,0);
-            for(int reserved=Capacity;reserved<240;reserved+=Capacity)
-            {sleeves.next=new Batch{mesh=shoulderGusset};sleeves=sleeves.next;}
+            InitializeJoints();
             InitializeAccents();
 
             // Reserve up to 12 strokes per effect and two marks per health bar before contact.
@@ -228,6 +235,7 @@ namespace Frontline.UnityGame
             string key=transparent?name+"_transparent":name;if(meshes.TryGetValue(key,out var set))return set;
             var high=Resources.Load<Mesh>("Models/"+name);var low=Resources.Load<Mesh>("Models/"+name+"_lod1");if(!high)throw new InvalidOperationException("Missing baked visual mesh Models/"+name+". Run ModelBaker.Bake before building.");
             set=new MeshSet{high=high,low=low?low:high,atmosphere=transparent,localBounds=high.bounds};
+            set.hasRig=high.HasVertexAttribute(VertexAttribute.TexCoord2);
             set.localBounds.Encapsulate(set.low.bounds);
             set.highVertices=set.high.vertexCount;set.lowVertices=set.low.vertexCount;
             bool small=name=="grass"||name=="flowers"||name=="reeds"||
@@ -243,18 +251,19 @@ namespace Frontline.UnityGame
             meshes.Add(key,set);return set;
         }
         static bool DetailedCaster(string name) =>
-            name.StartsWith("body_",StringComparison.Ordinal)||name.StartsWith("arm_right_",StringComparison.Ordinal)||
+            name.StartsWith("thigh",StringComparison.Ordinal)||name.StartsWith("shin",StringComparison.Ordinal)||
+            name=="horse_upper"||name=="horse_cannon"||name.StartsWith("body_",StringComparison.Ordinal)||name.StartsWith("arm_right_",StringComparison.Ordinal)||
             name=="frontier_palisade"||name=="arm_left"||name=="arm_braced_left"||name=="leg"||name=="horse"||name=="horse_leg"||name=="wreck_horse"||name=="shield"||
             name=="catapult"||name=="catapult_arm"||name=="wreck_catapult"||name=="retinue_guard"||name=="frontier_gate"||name=="manor_hall"||
             name=="head"||name=="tree"||name=="pine"||name=="rock"||name=="prop_barrel"||name=="prop_barricade"||name=="prop_banner"||
             name.StartsWith("specialist_",StringComparison.Ordinal)||
             System.Array.IndexOf(Manor.Buildings,name)>=0||name.EndsWith("_wing",StringComparison.Ordinal)||name.EndsWith("_tower",StringComparison.Ordinal);
-        Batch Buffer(MeshSet mesh,List<Batch> list,int category)
+        Batch Buffer(MeshSet mesh,List<Batch> list,int category,int capacity=Capacity)
         {
             var b=category==0?mesh.moving:category==1?mesh.still:category==2?mesh.grid:mesh.outer;
             if(b==null)
             {
-                b=new Batch{mesh=mesh,fixedPage=category!=0};
+                b=new Batch(capacity){mesh=mesh,fixedPage=category!=0};
                 if(category==0)mesh.moving=b;else if(category==1)mesh.still=b;else if(category==2)mesh.grid=b;else mesh.outer=b;
                 list.Add(b);
             }
@@ -282,8 +291,8 @@ namespace Frontline.UnityGame
             units.Add(type,new UnitVisual(type,Load("body_"+type),Load("arm_right_"+type),forged,insignia));
             void Reserve(MeshSet set)
             {
-                Buffer(set,moving,0);
-                set.ambient=new Batch{mesh=set};
+                Buffer(set,moving,0,4);
+                set.ambient=new Batch(4){mesh=set};
                 ambient.Add(set.ambient);
             }
         }
@@ -301,7 +310,7 @@ namespace Frontline.UnityGame
         void Draw(Batch b,bool isStatic)
         {
             var set=b.mesh;
-            if(manor!=null&&(set.nearDetail&&lowScenery||set==raidPennant&&!manor.raidReady))return;
+            if(manor!=null&&(set.nearDetail&&lowScenery||set==campSentries&&!lowActors||set==raidPennant&&!manor.raidReady))return;
             bool showLow=isStatic?lowScenery:lowActors;
             var mesh=showLow?set.low:set.high;
             int mainVertexCount=showLow?set.lowVertices:set.highVertices;
@@ -315,6 +324,8 @@ namespace Frontline.UnityGame
                     page=VisibleStaticPage(source);
                     if(page==null)continue;
                 }
+                int layout=!showLow&&set.hasRig?1:0;
+                if(page.rigLayout!=layout){page.properties.SetFloat(RigLayoutId,layout);page.rigLayout=layout;}
                 if(page.colorDirty){page.properties.SetVectorArray(TeamId,page.colors);page.colorDirty=false;}
                 if(page.flashDirty&&!set.atmosphere){page.properties.SetFloatArray(HitId,page.flashes);page.flashDirty=false;}
                 if(page.windDirty){page.properties.SetFloatArray(set.atmosphere?SoftnessId:WindId,page.winds);page.windDirty=false;}
@@ -380,6 +391,7 @@ namespace Frontline.UnityGame
             for(int i=-16;i<=16;i+=2)for(int j=-10;j<=10;j+=2){float h=Data.Height(Config.map,i,j);if(Catalog.Finite(h))Buffer(dot,grid,2).Add(Matrix4x4.TRS(new Vector3(i,h+.027f,j),Quaternion.identity,new Vector3(.095f,.025f,.095f)),i<0?new Color(.91f,.53f,.37f):new Color(.4f,.71f,.94f),0);}
             for(int j=-11;j<=11;j++){float h=Data.Height(Config.map,0,j);if(Catalog.Finite(h))Buffer(dot,grid,2).Add(Matrix4x4.TRS(new Vector3(0,h+.03f,j),Quaternion.identity,new Vector3(.065f,.025f,.35f)),new Color(.91f,.91f,.76f),0);}
             motes=MapEcology.Particles(Config.map,QualityLevel);foreach(var m in motes)if(!fxMeshes.ContainsKey(m.mesh))fxMeshes.Add(m.mesh,Load(m.mesh,true));
+            material.SetFloat("_LakeEnvironment",0);
             bool snow=Config.map=="highland",marsh=Config.map=="marsh",ruins=Config.map=="ruins";
             Color horizon=snow?new Color(.7f,.8f,.86f):marsh?new Color(.54f,.65f,.58f):ruins?new Color(.69f,.59f,.47f):new Color(.67f,.77f,.73f);
             sky.SetColor("_Horizon",horizon);sky.SetColor("_Zenith",snow?new Color(.27f,.43f,.61f):new Color(.19f,.36f,.43f));sky.SetColor("_Nadir",new Color(.17f,.23f,.26f));RenderSettings.fog=true;RenderSettings.fogMode=FogMode.ExponentialSquared;RenderSettings.fogColor=horizon;RenderSettings.fogDensity=marsh?.012f:.0068f;
@@ -474,7 +486,7 @@ namespace Frontline.UnityGame
         {
             PrepareSnapshotMotion();
             bool jobs=false;
-            if(Current.units.Count>=ParallelPoseThreshold&&ParallelPoseWorkers>1)
+            if((Current.units.Count>=ParallelPoseThreshold||!lowActors)&&ParallelPoseWorkers>1)
             {
                 int alive=0;
                 foreach(var u in Current.units)if(u.alive&&u.t!=null)alive++;

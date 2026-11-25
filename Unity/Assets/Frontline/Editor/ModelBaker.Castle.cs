@@ -72,6 +72,19 @@ namespace Frontline.Editor
                 HangingStandard(g,V(-1.50f,citadel+.58f,-1.53f),duke?2.67f:1.79f);
                 if(duke)HangingStandard(g,V(1.92f,4.72f,-.57f),1.46f);
             }
+            for(int side=-1;side<=1;side+=2)
+            {
+                // Wall-mounted iron baskets flank the gate above the walking clearance.
+                var mount=V(side*1.31f,1.26f,-3.58f);
+                g.surface=Surface.Metal;
+                g.Cylinder(mount,mount+V(0,.09f,-.19f),.032f,WroughtIron,6);
+                var bowl=mount+V(0,.085f,-.18f);
+                g.Frustum(bowl,V(.19f,0,.19f),bowl+Vector3.up*.13f,V(.34f,0,.34f),WroughtIron,9);
+                g.surface=Surface.Ember;
+                g.Ellipsoid(bowl+Vector3.up*.138f,V(.136f,.048f,.132f),Amber,8,3);
+                g.Cone(bowl+V(.024f,.14f,0),.085f,.22f,new Color(1,.47f,.13f,0),7);
+                g.surface=Surface.Auto;
+            }
             for(int step=0;step<3;step++)
                 g.Box(V(0,.058f+step*.059f,-3.61f+step*.168f),V(2.21f-step*.063f,.116f+step*.118f,.35f),KeepEdge);
             g.FitFootprint(FrontierMap.CastleHalfWidth,FrontierMap.CastleHalfDepth);
@@ -109,6 +122,7 @@ namespace Frontline.Editor
         {
             float w=length*.32f;
             g.Cylinder(top+V(-w*.69f,0,.02f),top+V(w*.69f,0,.02f),.038f,OldGold,8);
+            int cloth=g.Mark;
             Vector3 Point(int i,int row)
             {
                 float u=i/8f,v=row/6f;
@@ -121,6 +135,7 @@ namespace Frontline.Editor
                 var dye=i==0||i==7||row==5||row==2&&i>=3&&i<=4||row==3&&i==4?OldGold:KeepRed;
                 g.Quad(Point(i,row),Point(i+1,row),Point(i+1,row+1),Point(i,row+1),dye,true);
             }
+            g.WeightSince(cloth,top,top+Vector3.down*length);
             g.surface=Surface.Auto;
         }
 

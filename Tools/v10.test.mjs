@@ -8,21 +8,23 @@ const read = path => readFileSync(url(path),'utf8');
 const sha = path => createHash('sha256').update(read(path).replaceAll('\r\n','\n')).digest('hex');
 const root = 'Unity/Assets/Frontline/';
 
-test('3.1.0 ships the same single Unity scene and matching player, package and model versions', () => {
+test('3.2.0 ships the same single Unity scene and matching player, package and model versions', () => {
   for (const p of ['package.json','package-lock.json',root+'Models/model-manifest.json'])
-    assert.equal(JSON.parse(read(p)).version,'3.1.0',p);
-  assert.match(read(root+'Editor/BuildTools.cs'),/bundleVersion="3\.1\.0"/);
-  assert.match(read('Unity/ProjectSettings/ProjectSettings.asset'),/^  bundleVersion: 3\.1\.0\r?$/m);
+    assert.equal(JSON.parse(read(p)).version,'3.2.0',p);
+  assert.match(read(root+'Editor/BuildTools.cs'),/bundleVersion="3\.2\.0"/);
+  assert.match(read('Unity/ProjectSettings/ProjectSettings.asset'),/^  bundleVersion: 3\.2\.0\r?$/m);
   assert.deepEqual(readdirSync(url('Unity/Assets/Scenes/')).filter(s => s.endsWith('.unity')),['Frontline.unity']);
 });
 test('manor buildings, hero equipment and civilian props all have unique baked mesh pairs', () => {
   const {resources} = JSON.parse(read(root+'Models/model-manifest.json'));
-  assert.equal(resources.length,374);
+  assert.equal(resources.length,436);
   assert.equal(new Set(resources).size,resources.length);
   const heroes=JSON.parse(read(root+'Resources/catalog.json')).heroes;
   assert.equal(heroes.length,3);
   const heroMeshes=heroes.flatMap(({id})=>['body_'+id,'arm_right_'+id,'crest_'+id]);
-  for (const name of ['manor_hall','cottage','farm','timber_camp','smithy','barracks','stables','civilian_hat','civilian_pack',
+  for (const name of ['thigh','shin','upper_arm','forearm','thigh_plate','shin_plate','upper_arm_plate','forearm_plate','horse_upper','horse_cannon','arena_scree','steel_arc','head_watch',
+    ...['militia','shield','spear','archer','crossbow','bomber','giant','cavalry','medic','steward','merchant','herbalist','watchman','mason','minstrel',...heroes.map(x=>x.id)].map(x=>'head_'+x),
+    'manor_hall','cottage','farm','timber_camp','smithy','barracks','stables','civilian_hat','civilian_pack',
     'irrigated_field','pasture','tavern','drill_yard','granary','chapel','bakery','weaver','frontier_gate','bridge_fittings','mill_sails','farmer_clothes','villager_clothes','villager_wrap','resident_sleeve',
     'farm_fallow','farm_rich','irrigated_field_fallow','irrigated_field_rich','retinue_guard',
     ...['steward','merchant','herbalist','watchman','mason','minstrel'].map(id=>'specialist_'+id),
@@ -68,7 +70,7 @@ test('material channels, shadow proxies and the frozen rock hull survive the ful
     const stride=data.length/vertices, kinds=new Set();
     for (let at=channels[5].offset;at<data.length;at+=stride) {
       const id=data.readFloatLE(at);kinds.add(id);
-      assert.ok(Number.isInteger(id)&&id>=1&&id<=13,name);
+      assert.ok(Number.isInteger(id)&&id>=1&&id<=15,name);
       for(const i of [4,8,12])assert.ok(data.readFloatLE(at+i)>=0&&data.readFloatLE(at+i)<=1,name);
     }
     if(name==='body_shield'||name==='arm_right_spear')assert.ok(kinds.has(5)&&kinds.has(6),name);
@@ -115,4 +117,34 @@ test('the baked village lanes meet at their survey endpoints and every hero has 
   assert.match(shader,/Blend SrcAlpha OneMinusSrcAlpha ZWrite Off/);
   assert.match(shader,/only_renderers gles3/);
   assert.match(shader,/forcemaxcount:64/);
+});
+
+test('close-up bone meshes have matching bind lengths, fixed cloth pins and separate head geometry', () => {
+  function vertices(name) {
+    const source=read(root+'Models/Resources/Models/'+name+'.asset');
+    const count=+source.match(/m_VertexCount: (\d+)/)[1];
+    const bytes=Buffer.from(source.match(/_typelessdata: ([a-f0-9]+)/i)[1],'hex');
+    const layout=[...source.matchAll(/- stream: (\d+)\s+offset: (\d+)\s+format: (\d+)\s+dimension: (\d+)/g)];
+    return (channel,component=0)=>layout[channel][4]==='0'?[]:Array.from({length:count},(_,i)=>
+      bytes.readFloatLE(i*bytes.length/count+Number(layout[channel][2])+component*4));
+  }
+  for(const [key,length] of [['thigh',.29],['shin',.263],['upper_arm',.27],['forearm',.25],
+    ['horse_upper',.49],['horse_cannon',.48]]) {
+    const y=vertices(key)(0,1);
+    assert.ok(Math.max(...y)>=0 && Math.min(...y)<=-length+.001,key);
+    assert.equal(vertices(key+'_lod1')(5).length,0,key);
+  }
+  assert.ok(Math.max(...vertices('body_shield')(0,1))<.47);
+  assert.ok(Math.max(...vertices('head_shield')(0,1))>.73);
+  for(const key of ['body_shield','body_hero_ranger','horse','prop_banner','arm_right_spear']) {
+    const weights=vertices(key)(6);
+    assert.ok(weights.length&&Math.min(...weights)===0&&Math.max(...weights)>.75,key);
+  }
+  assert.ok(Math.min(...vertices('arm_right_archer')(6,1))<-.98,'bow string nock');
+  assert.ok(Math.max(...vertices('horse')(6,1))>.95,'poll');
+  const shoe=vertices('shin_plate')(6,3);
+  assert.equal(Math.min(...shoe),0);assert.equal(Math.max(...shoe),1);
+  assert.deepEqual(vertices('head_archer')(6),[],'rigid head has no deformation stream');
+  for(const [key,id] of [['tavern',14],['bakery',15],['smithy',15],['manor_hall_tower',15]])
+    assert.ok(vertices(key)(5).includes(id),key);
 });

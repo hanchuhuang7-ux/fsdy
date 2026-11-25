@@ -12,9 +12,9 @@ namespace Frontline.Editor
             new Color(.23f,.14f,.09f,0),new Color(.40f,.22f,.12f,0),new Color(.16f,.13f,.12f,0),
             new Color(.55f,.44f,.32f,0)
         };
-        static readonly float[] FaceHeights={-.91f,-.49f,-.02f,.55f,.88f};
-        static readonly float[] FaceWidths={.54f,.86f,1,.96f,.61f};
-        static readonly float[] FaceDepths={.62f,.86f,1,.94f,.67f};
+        static readonly float[] FaceHeights={-.94f,-.72f,-.44f,-.12f,.19f,.50f,.77f,.93f};
+        static readonly float[] FaceWidths={.39f,.62f,.79f,.94f,.96f,.97f,.82f,.54f};
+        static readonly float[] FaceDepths={.47f,.70f,.85f,.97f,1,.99f,.86f,.58f};
 
         static void FaceBust(Geometry g,Vector3 at,Vector3 size,int style,bool helmet,bool collar=true)
         {
@@ -22,20 +22,23 @@ namespace Frontline.Editor
             Vector3 P(float x,float y,float z)=>at+Vector3.Scale(V(x,y,z),size);
             Vector3 Rim(int side,int ring)
             {
-                float a=(side%8)*Mathf.PI*.25f;
-                return P(Mathf.Sin(a)*FaceWidths[ring],FaceHeights[ring],Mathf.Cos(a)*FaceDepths[ring]);
+                float a=(side%16)*Mathf.PI*.125f;
+                float cheek=1+.055f*Mathf.Sin(a)*Mathf.Sin(a)*(ring==3?1:0);
+                return P(Mathf.Sin(a)*FaceWidths[ring]*cheek,FaceHeights[ring],
+                    Mathf.Cos(a)*FaceDepths[ring]+(ring<3?.17f*(3-ring)/3f:-.025f));
             }
-            for(int side=0;side<8;side++)
+            g.surface=Surface.Hide;
+            for(int side=0;side<16;side++)
             {
-                for(int row=0;row<4;row++)
+                for(int row=0;row<7;row++)
                 {
-                    Color shade=side==2||side==5?skin*.91f:skin;
-                    if(row==3&&side!=0&&side!=7||row==2&&side>=2&&side<=5)shade=hair;
-                    else if(row==0)shade=style%3==0?hair:skin*.84f;
+                    Color shade=Pigment(skin,.91f+.09f*(row/7f));
+                    if(row>=5&&side>=2&&side<=13||row>=4&&side>=5&&side<=10)shade=hair;
+                    else if(row<=1&&style%3==0)shade=Color.Lerp(hair,skin,.26f);
                     g.Quad(Rim(side,row),Rim(side+1,row),Rim(side+1,row+1),Rim(side,row+1),shade);
                 }
                 g.Triangle(P(0,-.96f,.06f),Rim(side+1,0),Rim(side,0),skin*.87f);
-                g.Triangle(P(0,.98f,-.045f),Rim(side,4),Rim(side+1,4),hair);
+                g.Triangle(P(0,.98f,-.045f),Rim(side,7),Rim(side+1,7),hair);
             }
             foreach(int side in new[]{-1,1})
             {
@@ -43,8 +46,13 @@ namespace Frontline.Editor
                 float x=side*.36f;
                 Vector3 Inner(float y)=>P(x-side*.18f,y,.94f);
                 Vector3 Outer(float y)=>P(x+side*.20f,y,.79f);
-                g.Quad(Inner(.23f),Outer(.29f),Outer(.15f),Inner(.11f),hair,true);
-                g.Quad(Inner(.072f),Outer(.12f),Outer(.008f),Inner(-.043f),skin*.45f,true);
+                var brow=Vector3.Lerp(Inner(.20f),Outer(.25f),.52f)+V(0,0,.002f);
+                g.Loft(new[]{Inner(.16f),brow,Outer(.17f)},new[]{Section(.002f,.002f),Section(.005f,.005f),
+                    Section(.002f,.002f)},6,2,Color.Lerp(skin,hair,.65f));
+                var eye=P(x,.064f,.951f);
+                g.Ellipsoid(eye,Vector3.Scale(size,V(.163f,.055f,.049f)),new Color(.72f,.64f,.52f,0),11,4);
+                g.Ellipsoid(eye+V(0,0,size.z*.050f),Vector3.Scale(size,V(.050f,.050f,.024f)),Pigment(hair,.73f),9,4);
+                g.Ellipsoid(eye+V(-.0015f,.0017f,size.z*.070f),Vector3.one*.0016f,UndyedLinen,6,3);
                 g.Triangle(P(x-side*.11f,.039f,.936f),P(x+side*.107f,.066f,.862f),P(x,-.014f,.910f),skin*1.17f);
                 g.Triangle(P(x-side*.039f,.064f,.916f),P(x+side*.063f,.073f,.878f),P(x,-.016f,.918f),Dark);
                 g.Triangle(P(side*.32f,-.20f,.891f),P(side*.689f,-.266f,.729f),
@@ -52,16 +60,25 @@ namespace Frontline.Editor
                 if(!helmet)g.Triangle(P(side*.86f,.19f,.46f),P(side*1.07f,-.04f,.35f),
                     P(side*.78f,-.40f,.47f),skin*.91f);
             }
-            g.Triangle(P(0,.255f,.99f),P(.18f,-.29f,1.015f),P(0,-.20f,1.265f),skin*1.10f);
-            g.Triangle(P(0,.255f,.99f),P(0,-.20f,1.265f),P(-.18f,-.29f,1.015f),skin*.91f);
-            g.Triangle(P(0,-.20f,1.265f),P(.18f,-.29f,1.015f),P(-.18f,-.29f,1.015f),skin*.76f);
+            g.Loft(new[]{P(0,-.25f,1.075f),P(0,-.185f,1.19f),P(0,.01f,1.10f),P(0,.27f,.964f)},
+                new[]{Section(size.x*.147f,size.z*.084f),Section(size.x*.145f,size.z*.107f),
+                    Section(size.x*.10f,size.z*.09f),Section(size.x*.11f,size.z*.052f)},9,2,skin);
+            g.Ellipsoid(P(0,-.73f,.71f),Vector3.Scale(size,V(.32f,.19f,.11f)),Pigment(skin,.91f),11,4);
             g.Quad(P(-.25f,-.49f,.822f),P(.25f,-.49f,.822f),P(.14f,-.57f,.84f),P(-.12f,-.57f,.84f),skin*.52f,true);
             if(style%3!=1)
             {
                 g.Triangle(P(-.45f,-.38f,.75f),P(0,-.34f,.963f),P(-.14f,-.51f,.91f),hair);
                 g.Triangle(P(0,-.34f,.963f),P(.46f,-.38f,.75f),P(.12f,-.52f,.912f),hair);
                 g.Triangle(P(-.29f,-.61f,.734f),P(.29f,-.61f,.734f),P(0,-.85f,.77f),hair);
+                for(int lockIndex=-2;lockIndex<=2;lockIndex++)
+                {
+                    float u=lockIndex*.18f,z=.82f-.31f*Mathf.Abs(u);
+                    g.Loft(new[]{P(u,-.57f,z),P(u*.92f,-.72f,z+.028f),P(u*.8f,-.89f+.16f*Mathf.Abs(u),z-.11f)},
+                        new[]{Section(size.x*.104f,size.z*.08f),Section(size.x*.111f,size.z*.089f),
+                            Section(.0017f,.002f)},6,2,Pigment(hair,.88f+.035f*(lockIndex+2)));
+                }
             }
+            g.surface=Surface.Auto;
             if(collar)
             {
                 g.Frustum(P(0,-1.32f,0),V(.21f,0,.18f),P(0,-.76f,.02f),V(.19f,0,.16f),skin*.79f,6);

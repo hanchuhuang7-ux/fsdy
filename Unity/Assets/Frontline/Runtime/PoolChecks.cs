@@ -21,6 +21,7 @@ namespace Frontline.UnityGame
         }
         public static void Run(Catalog data,IWorldFactory factory)
         {
+            BattleView.CheckJointRig();
             var config=new Deployment{red=new List<UnitPlacement>{new UnitPlacement("archer",-6,0)},blue=new List<UnitPlacement>{new UnitPlacement("archer",6,0)}};
             using(var battle=new Battle(data,config,factory))
             {

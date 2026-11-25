@@ -10,8 +10,10 @@ namespace Frontline.Editor
         {
             if(type=="spear"||type=="cavalry")
             {
+                int tassel=g.Mark;
                 g.Quad(V(x,.052f,1.34f),V(x-.035f,.043f,1.25f),V(x-.042f,-.18f,1.14f),V(x,-.13f,1.29f),Gold,true);
                 g.Quad(V(x,.05f,1.34f),V(x+.039f,.033f,1.24f),V(x+.081f,-.13f,1.17f),V(x+.029f,-.17f,1.23f),Cloth,true);
+                g.WeightSince(tassel,V(x,.042f,0),V(x,-.18f,0));
             }
             else if(type=="archer"||type=="crossbow")
             {

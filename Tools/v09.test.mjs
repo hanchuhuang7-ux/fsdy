@@ -8,12 +8,13 @@ test('0.8 seed selects frozen battle and factory without upgrading identity',()=
 test('cavalry entrance filters layers and teams; walls own secondary feedback listeners',()=>{const s=read('Unity/Assets/Frontline/Runtime/UnityPhysics.cs');const entrance=s.slice(s.indexOf('public void UnitContact'),s.indexOf('public void ObstacleContact'));assert.match(entrance,/layer!=UnitLayer/);assert.match(entrance,/other.team==body.team/);assert.match(entrance,/if\(!body.fast\)return/);assert.match(s,/class ObstacleContacts/);assert.match(s,/collision.GetContact\(0\)/);assert.match(s,/if\(d.id=="cavalry"\)/);assert.match(s,/rigidbody.MoveRotation/);});
 test('wall feedback and visible batched strokes require no new physics or texture',()=>{
   const s=read('Unity/Assets/Frontline/Runtime/BattleView.cs');
-  const poses=read('Unity/Assets/Frontline/Runtime/BattleView.Poses.cs');
+  const joints=read('Unity/Assets/Frontline/Runtime/BattleView.IK.cs');
+  const meshes=read('Unity/Assets/Frontline/Runtime/BattleView.JointMeshes.cs');
   assert.match(s,/e.type=="wall"/);
   assert.match(s,/e.type=="sweep"/);
-  assert.match(poses,/float block=Ease\(input\.guard\)/);
-  assert.match(poses,/pose\.guardOrCatapultArm=pose\.root\*ArmPivot\([^\n]+guard,shift\)/);
-  assert.match(poses,/Add\(shield,pose\.guardOrCatapultArm,input\.color\)/);
+  assert.match(joints,/float block=Ease\(input\.guard\)/);
+  assert.match(joints,/rig\.shield=pose\.root\*AtGrip\(left,shieldTurn,/);
+  assert.match(meshes,/Add\(shield,rig\.shield,input\.color\)/);
   assert.match(read('Unity/Assets/Frontline/Runtime/BattleAudio.cs'),/"wall"/);
 });
 

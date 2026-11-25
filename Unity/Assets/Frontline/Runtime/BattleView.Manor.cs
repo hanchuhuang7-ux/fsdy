@@ -47,7 +47,7 @@ namespace Frontline.UnityGame
         internal bool WalkingResidentVisible {get;private set;}
         int builtReclaimedPlots,builtNobility;
         int homeCount,tavernSlot,builtSeason=-1;
-        MeshSet countryLane,shortLane,pavedLane,grassTrace,surveyRopes,earthBlock,surveyBlock, hat, parcel, farmerCoat, villagerCoat, wrap, sleeve, sails;
+        MeshSet countryLane,shortLane,pavedLane,grassTrace,surveyRopes,earthBlock,surveyBlock, hat, parcel, farmerCoat, villagerCoat, wrap, sails;
         MeshSet smithCoat,smithHammer,hoe,sickle,bucket,basket,crate,jug;
         readonly Vector3[] millHubs=new Vector3[Manor.PlotCount];
         readonly int[] millPlots=new int[Manor.PlotCount],forgePlots=new int[Manor.PlotCount];
@@ -402,13 +402,14 @@ namespace Frontline.UnityGame
             parcel = Load("civilian_pack");
             sails=Load("mill_sails");forgeFlame=Load("flame",true);
             farmerCoat=Load("farmer_clothes");villagerCoat=Load("villager_clothes");
-            wrap=Load("villager_wrap");sleeve=Load("resident_sleeve");
+            wrap=Load("villager_wrap");
             smithCoat=Load("smith_clothes");smithHammer=Load("carry_hammer");
             hoe=Load("carry_hoe");sickle=Load("carry_sickle");bucket=Load("carry_bucket");
             basket=Load("carry_basket");crate=Load("carry_crate");jug=Load("carry_jug");
             builtSeason = manor.Season;
             builtReclaimedPlots=manor.reclaimedPlots;
             builtNobility=manor.nobility;
+            material.SetFloat("_LakeEnvironment",1);
             PrepareOuterWorld();
             MeadowBorder();
             Lane(new Vector3(WestLaneX,0,-LaneZ),LaneMouth(Gate),.78f);
@@ -692,38 +693,35 @@ namespace Frontline.UnityGame
                 ResidentHeading=heading;
                 WalkingResidentVisible=striding;
             }
-            var hips=Pose(ManorOrigin+pos+Vector3.up*.74f,Quaternion.Euler(0,heading,0),Vector3.one*.91f);
-            var root=hips*Pose(new Vector3(.016f*gait.sway,gait.bob,0),
-                Quaternion.Euler(gait.lean+nod,gait.twist,gait.roll),Vector3.one);
-            Add(forge?smithCoat:farmer?farmerCoat:villagerCoat,root,tint);
+            var origin=ManorOrigin+pos+Vector3.up*.74f;
+            var coat=forge?smithCoat:farmer?farmerCoat:villagerCoat;
             ContactAt(ManorOrigin+pos,.92f);
-            if(lowActors)return;
-            Add(head,root*Matrix4x4.Translate(new Vector3(0,.549f,.026f)),White);
+            if(lowActors)
+            {
+                var hips=Pose(origin,Quaternion.Euler(0,heading,0),Vector3.one*.91f);
+                var root=hips*Pose(new Vector3(.016f*gait.sway,gait.bob,0),Quaternion.Euler(gait.lean+nod,gait.twist,gait.roll),Vector3.one);
+                Add(coat,root,tint);return;
+            }
             bool straw=farmer&&id%4!=2||!farmer&&id%5==0;
-            Add(straw?hat:wrap,root*Matrix4x4.Translate(new Vector3(0,.60f,0)),straw?White:tint);
-            if(farmer&&returning)Add(parcel,root*Matrix4x4.Translate(new Vector3(0,-.03f,-.27f)),White);
             MeshSet prop=forge?smithHammer:farmer?(kind=="pasture"?bucket:kind=="irrigated_field"?hoe:sickle):
                 (id%4==0?basket:id%4==1?crate:id%4==2?jug:null);
+            var input=new PoseInput{town=TownRole.Resident,survey=true,id=id,scale=.91f,position=origin,
+                angle=heading*Mathf.Deg2Rad,gait=metres/.91f,speed=walking?speed*ease:0,maxSpeed=2.6f,
+                direction=1,hp=1,color=tint,nod=nod,toolPitch=prop==hoe||prop==sickle?39:0};
             for(int side=-1;side<=1;side+=2)
             {
-                Add(leg,WalkingLeg(hips,gait,new Vector3(side*.135f,-.51f,0),side>0),White);
                 bool carrying=side>0&&prop!=null;
-                float swing=-gait.sway*side*(carrying?6:20);
-                if(carrying)swing-=prop==bucket?7:17;
-                swing+=gait.breath*.8f*(1-gait.weight);
+                float swing=-gait.sway*side*(carrying?6:20)-(carrying?(prop==bucket?7:17):0);
                 if(side==1&&atWork)swing=farmer&&prop!=bucket?-48+gesture*38:-17+gesture*13;
                 if(atWork&&loom)swing=-24+gesture*21*side;
                 else if(atWork&&bakery)swing=-38+gesture*18;
                 else if(atWork&&forge&&side==1)swing=-10-68*Mathf.Max(0,gesture);
-                var shoulder=root*Pose(new Vector3(side*.275f,.25f,0),
-                    Quaternion.Euler(swing,carrying?side*-7+gait.sway*1.8f:0,side*(carrying?6:9)),Vector3.one);
-                Add(sleeve,shoulder,tint);
-                if(side==1&&prop!=null)
-                {
-                    var hand=shoulder*Matrix4x4.Translate(new Vector3(.018f,-.39f,.12f));
-                    Add(prop,hand*Matrix4x4.Rotate(Quaternion.Euler(prop==hoe||prop==sickle?39:0,0,0)),White);
-                }
+                var hand=new Vector3(side*.275f,.25f,0)+Quaternion.Euler(swing,carrying?side*-7:0,side*6)*
+                    new Vector3(side*.016f,-.39f,.12f);
+                if(side>0){input.rightHand=hand;input.toolPitch+=swing;}else input.leftHand=hand;
             }
+            QueuePose(input,new PoseDraw{coat=coat,cap=straw?hat:wrap,capColor=straw?White:tint,
+                pack=farmer&&returning?parcel:null,tool=prop});
         }
 
         bool FreeWalkSpace(Vector3 p)
@@ -802,7 +800,6 @@ namespace Frontline.UnityGame
             DrawRetinue();
             ReserveHeroBays();
             DrawSpecialists();
-            if(residentRosterDirty)RefreshResidentRoster();
             for(int i=0;i<residentCount;i++)DrawResident(residents[i]);
             for(int heroIndex=0;heroIndex<Manor.HeroIds.Length;heroIndex++)
             {
@@ -888,8 +885,11 @@ namespace Frontline.UnityGame
                 DrawWorkshopActivity();
                 DrawWetWeatherLights();
                 DrawWinterSmoke();
+                if(residentRosterDirty)RefreshResidentRoster();
+                bool jobs=!lowActors&&BeginSoldierPoses(residentCount+Manor.SpecialistIds.Length+Manor.HeroIds.Length+32);
                 DrawVillagePeople();
                 if(Current==null||Config.map!=FrontierMap.Id)DrawPreviewGuards();
+                if(jobs)FinishSoldierPoses();
                 fillingAmbient=false;ambientDirty=!lowActors;
                 nextAmbient=Time.unscaledTime+.08f;ambientCameraVersion=visibilityVersion;
             }

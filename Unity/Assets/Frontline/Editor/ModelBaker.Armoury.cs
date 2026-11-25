@@ -18,7 +18,9 @@ namespace Frontline.Editor
                     new[]{Section(.032f,.039f),Section(.027f,.034f),Section(.022f,.029f),Section(.016f,.020f),Section(.009f,.012f)},
                     7,2,steel?WroughtIron:WoodLight);
                 var rest=steel?V(x,.102f,.22f):V(x,.102f,tip.z);
+                int stringStart=g.Mark;
                 g.Cylinder(tip,rest,.006f,Linen,4);
+                if(!steel)g.WeightSince(stringStart,tip,rest,stringNock:true);
                 if(tier>0)g.Cylinder(Limb(.77f,-.081f),Limb(.84f,-.115f),.023f,OldGold,6);
             }
             if(steel)
@@ -33,8 +35,10 @@ namespace Frontline.Editor
             {
                 g.surface=Surface.Hide;
                 g.Cylinder(center-Vector3.up*.065f,center+Vector3.up*.075f,.038f,Walnut,8);
+                int arrow=g.Mark;
                 g.Cylinder(V(x,.109f,.20f),V(x,.109f,.86f),.009f,WoodLight,5);
                 Fletching(g,V(x,.109f,.24f),Vector3.back,.109f);
+                g.WeightSince(arrow,V(0,-.20f,0),V(0,-.16f,0),stringNock:true);
             }
             g.surface=Surface.Auto;
         }
@@ -115,11 +119,7 @@ namespace Frontline.Editor
             bool iron=hero=="hero_vanguard",ranger=hero=="hero_ranger";
             string tool=iron?"giant":ranger?(rank>0&&rank<3?"archer":"crossbow"):"medic";
             var g=new Geometry();
-            ArticulatedSleeve(g,tool,false);FieldImplement(g,tool,rank);
-            g.surface=Surface.Metal;
-            var shoulder=V(.282f,.288f,.010f);
-            g.Frustum(shoulder-V(0,.021f,0),V(.225f,0,.234f),shoulder+V(0,.017f,0),V(.185f,0,.205f),
-                rank==3?OldGold:WroughtIron,12);
+            FieldImplement(g,tool,rank);
             return g;
         }
 
@@ -146,12 +146,12 @@ namespace Frontline.Editor
                     var q=V(-.101f+side*.036f,.25f,-.228f);
                     g.Cylinder(q,q+V(.044f,.32f,-.053f),.012f,WoodLight,5);
                     Fletching(g,q+V(.034f,.24f,-.042f),Vector3.up,.104f);
-                    if(rank==3)g.Spear(V(side*.106f,.665f,-.042f),V(side*.189f,.806f,-.090f),.043f,OldGold);
+                    if(rank==3)g.Spear(V(side*.184f,.251f,-.042f),V(side*.235f,.357f,-.063f),.043f,OldGold);
                 }
                 else
                 {
                     g.Cylinder(V(side*.15f,.286f,.146f),V(side*.064f,.118f,.205f),.015f,OldGold,7);
-                    if(rank==3)g.Spear(V(side*.111f,.670f,-.018f),V(side*.126f,.785f,-.022f),.031f,OldGold);
+                    if(rank==3)g.Spear(V(side*.155f,.270f,-.018f),V(side*.187f,.352f,-.022f),.031f,OldGold);
                 }
             }
             if(!iron&&!ranger)g.Bevel(V(0,.070f,.215f),V(.115f,.147f,.058f),.020f,rank==3?OldGold:LightSteel);
@@ -186,6 +186,10 @@ namespace Frontline.Editor
                     g.Bevel(V(.115f-i*.109f,-.197f,.146f),V(.101f,.113f,.042f),.019f,unit=="giant"?Steel:Walnut);
                 g.surface=Surface.Auto;
             }
+        }
+
+        static void HeroFeathers(Geometry g,string hero)
+        {
             if(hero!=null)
             {
                 var dye=hero=="hero_ranger"?Moss:hero=="hero_vanguard"?Madder:Indigo;

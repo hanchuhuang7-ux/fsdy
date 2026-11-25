@@ -82,7 +82,11 @@ namespace Frontline.Editor
                 for(int i=0;i<3;i++)g.Cylinder(V(.31f+i*.047f,.29f,.20f),V(.31f+i*.047f,.29f,.48f),.013f,LightSteel,4);
             if(type=="giant")g.Bevel(V(.36f,.64f,.565f),V(.30f,.16f,.032f),.013f,LightSteel);
             if(type=="spear"||type=="cavalry")
+            {
+                int fringe=g.Mark;
                 g.Quad(V(.36f,.04f,1.40f),V(.36f,.04f,1.21f),V(.36f,-.23f,1.02f),V(.36f,-.17f,1.31f),Cloth,true);
+                g.WeightSince(fringe,V(0,.04f,0),V(0,-.23f,0));
+            }
         }
 
         static void WeaponGrip(Geometry g,string type,int lod)
@@ -154,6 +158,7 @@ namespace Frontline.Editor
             g.Cylinder(Vector3.zero,V(0,2.64f,0),.058f,WoodLight,lod==0?8:6);
             g.Spear(V(0,2.61f,0),V(0,ContactShape.BannerHeight,0),.075f,Gold);
             g.Cylinder(V(0,2.44f,0),V(.82f,2.44f,0),.025f,Wood,5);
+            int cloth=g.Mark;
             int parts=lod==0?6:3;
             for(int i=0;i<parts;i++)
             {
@@ -172,6 +177,7 @@ namespace Frontline.Editor
                 g.Cylinder(V(.797f,2.42f,-.018f),V(.862f,2.42f,-.018f),.040f,Gold,6);
                 for(int i=0;i<3;i++)g.Triangle(V(.16f+i*.14f,1.90f+i*.037f,0),
                     V(.197f+i*.14f,1.91f+i*.037f,0),V(.177f+i*.14f,1.83f+i*.037f,.007f),Gold);
+                g.WeightSince(cloth,V(0,2.43f,0),V(0,1.82f,0));
             }
         }
 

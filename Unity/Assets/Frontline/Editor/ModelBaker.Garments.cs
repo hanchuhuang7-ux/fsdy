@@ -17,6 +17,7 @@ namespace Frontline.Editor
 
         static void TailoredTunic(Geometry g,Color dye,bool split)
         {
+            int skirt=g.Mark;
             const int sides=14;
             Vector3 Point(int row,int i)
             {
@@ -38,6 +39,7 @@ namespace Frontline.Editor
                     g.Gradient(a,b,c,hem,hem,shoulder);
                     g.Gradient(a,c,d,hem,shoulder,shoulder);
                 }
+            g.WeightSince(skirt,V(0,-.25f,0),V(0,-.91f,0));
         }
 
         static void Portrait(Geometry g,int style,bool helmet)
@@ -50,7 +52,26 @@ namespace Frontline.Editor
 
         static void WoolHood(Geometry g,Color wool,bool tail)
         {
-            g.Ellipsoid(V(0,.588f,-.029f),V(.151f,.148f,.141f),wool,8,3);
+            // Open cowl around the temples and jaw. The face remains visible between the two selvages.
+            g.surface=Surface.Cloth;
+            for(int i=0;i<13;i++)
+            {
+                Vector3 Edge(int j,int band)
+                {
+                    float a=Mathf.Lerp(.72f,2*Mathf.PI-.72f,j/13f);
+                    float radial=band==0?.85f:band==1?1.05f:band==2?.94f:.39f;
+                    return V(Mathf.Sin(a)*.145f*radial,band==0?.459f:band==1?.578f:band==2?.677f:.718f,
+                        -.012f+Mathf.Cos(a)*.143f*radial);
+                }
+                for(int j=0;j<3;j++)g.Quad(Edge(i,j),Edge(i+1,j),Edge(i+1,j+1),Edge(i,j+1),wool,true);
+                g.Triangle(Edge(i,3),Edge(i+1,3),V(0,.729f,-.025f),wool);
+                if(i==0||i==12)
+                {
+                    int edge=i==0?0:13;
+                    for(int j=0;j<3;j++)g.Cylinder(Edge(edge,j),Edge(edge,j+1),.009f,Pigment(wool,1.19f),6);
+                }
+            }
+            g.surface=Surface.Auto;
             g.Frustum(V(0,.224f,-.026f),V(.448f,0,.358f),V(0,.465f,-.026f),V(.25f,0,.226f),wool,8);
             g.Quad(V(-.055f,.419f,.107f),V(.055f,.419f,.107f),V(.137f,.280f,.139f),V(-.137f,.280f,.139f),
                 Pigment(wool,.91f),true);
@@ -105,6 +126,7 @@ namespace Frontline.Editor
 
         static void ShoulderMantle(Geometry g,Color dye,float length)
         {
+            int cloth=g.Mark;
             // A lofted strip of wool follows the clavicle, shoulder blades and flared hem.
             Vector3 OnFold(float u,float t)
             {
@@ -123,6 +145,7 @@ namespace Frontline.Editor
                 float u=i/12f-.5f,v=(i+1)/12f-.5f,t=j/6f,s=(j+1)/6f;
                 g.Quad(OnFold(v,t),OnFold(u,t),OnFold(u,s),OnFold(v,s),Pigment(dye,.96f+.04f*Mathf.Cos(u*19)),true);
             }
+            g.WeightSince(cloth,V(0,.22f,0),V(0,length,0));
             g.surface=Surface.Auto;
         }
 
@@ -171,7 +194,7 @@ namespace Frontline.Editor
             g.surface=Surface.Auto;
         }
 
-        static Geometry FieldSoldier(string unit,string hero=null)
+        static Geometry FieldSoldier(string unit,string hero=null,bool headless=false)
         {
             var g=new Geometry();
             bool armored=unit=="shield"||unit=="spear"||unit=="cavalry"||unit=="giant";
@@ -192,19 +215,14 @@ namespace Frontline.Editor
                 g.Ellipsoid(V(side*.114f,-.351f,-.01f),V(.125f,.165f,.148f),Pigment(wool,.85f),8,4);
             }
             g.surface=Surface.Auto;
-            Portrait(g,(hero!=null?11:0)+System.Array.IndexOf(Types,unit),armored);
-            if(unit=="shield"||unit=="cavalry"||unit=="giant")
-                Bascinet(g,WroughtIron,hero!=null?OldGold:Steel);
-            else if(unit=="archer"||unit=="medic")
-                WoolHood(g,hero=="hero_commander"?Indigo:unit=="archer"?Moss:UndyedLinen,true);
-            else
-                KettleHat(g,unit=="militia"?Walnut:WroughtIron);
+            if(!headless)g.Append(SoldierPortrait(unit,hero),Matrix4x4.identity);
+            else g.Frustum(V(0,.306f,0),V(.252f,0,.223f),V(0,.439f,.018f),V(.163f,0,.157f),armored?WroughtIron:wool,12);
 
             if(armored)
             {
                 g.surface=Surface.Metal;
                 g.Loft(new[]{V(0,-.157f,.012f),V(0,-.058f,.032f),V(0,.091f,.054f),V(0,.201f,.034f),V(0,.293f,.009f)},
-                    new[]{Section(.186f,.143f),Section(.207f,.165f),Section(.244f,.181f),Section(.247f,.170f),Section(.145f,.115f)},
+                    new[]{Section(.159f,.136f),Section(.181f,.156f),Section(.239f,.182f),Section(.254f,.168f),Section(.145f,.115f)},
                     14,2,WroughtIron);
                 for(int i=0;i<3;i++)
                 {
@@ -246,15 +264,14 @@ namespace Frontline.Editor
                 V(.133f,-.174f,.171f),Walnut,true);
 
             CampaignDress(g,unit,hero);
+            if(unit=="militia"&&hero==null)ShoulderMantle(g,DyedWool,-.46f);
             if(hero=="hero_vanguard")
             {
                 ShoulderMantle(g,Madder,-.63f);
-                g.Spear(V(-.073f,.748f,-.042f),V(-.257f,.972f,-.122f),.063f,OldGold);
             }
             else if(hero=="hero_ranger")
             {
                 ShoulderMantle(g,Moss,-.58f);
-                g.Triangle(V(.112f,.652f,-.066f),V(.356f,.924f,-.209f),V(.176f,.687f,-.223f),UndyedLinen);
             }
             else if(hero=="hero_commander")
             {

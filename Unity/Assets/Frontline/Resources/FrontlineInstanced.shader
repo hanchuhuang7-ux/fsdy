@@ -8,12 +8,59 @@ Shader "Frontline/Instanced" {
  UNITY_DEFINE_INSTANCED_PROP(float,_HitFlash)
  UNITY_INSTANCING_BUFFER_END(Props)
  float4 _Color,_SkyLight,_GroundLight,_FillColor,_FillDirection;
- struct appdata {float4 vertex:POSITION;float3 normal:NORMAL;fixed4 color:COLOR;float2 uv:TEXCOORD0;float4 surface:TEXCOORD1;UNITY_VERTEX_INPUT_INSTANCE_ID};
+ float _LakeEnvironment,_RigAttributes;
+ struct appdata {float4 vertex:POSITION;float3 normal:NORMAL;fixed4 color:COLOR;float2 uv:TEXCOORD0;float4 surface:TEXCOORD1;float4 flex:TEXCOORD2;UNITY_VERTEX_INPUT_INSTANCE_ID};
  float4 WindVertex(appdata v) {
    float strength=UNITY_ACCESS_INSTANCED_PROP(Props,_Wind);
-   if(strength==0)return v.vertex;
-   float3 origin=mul(unity_ObjectToWorld,float4(0,0,0,1)).xyz;
-   float phase=_Time.y*1.65+origin.x*.57+origin.z*.38;
+   // Platforms can alias missing texture coordinates to an earlier vertex stream.
+   // Only authored LOD0 pages own UV2. In particular, no proxy interprets UV0 as a hinge weight.
+   #if defined(UNITY_PASS_SHADOWCASTER)
+   if(strength<=0)return v.vertex;
+   v.flex=0;
+   #else
+   if(_RigAttributes<.5) {
+     if(strength<=0)return v.vertex;
+     v.flex=0;
+   } else {
+     v.flex=clamp(v.flex,float4(0,-1,0,0),float4(1,1,1,1));
+     if(strength<-6){
+       if(v.flex.w>0){
+         float a=(strength+8)*3.141593*v.flex.w;
+         float s,c;sincos(a,s,c);
+         float2 yz=v.vertex.yz+float2(.263,0);
+         v.vertex.yz=float2(c*yz.x-s*yz.y,s*yz.x+c*yz.y)-float2(.263,0);
+       }
+       return v.vertex;
+     }
+     if(strength==0 && max(v.flex.x,v.flex.y)<=0)return v.vertex;
+   }
+   #endif
+   float3 origin=unity_ObjectToWorld._m03_m13_m23;
+   float seed=dot(origin.xz,float2(.57,.38));
+   // Negative values use the existing wind slot for an actor's motion. Pins and rigid steel stay fixed.
+   if(strength<0 || max(v.flex.x,v.flex.y)>0) {
+     float draw=saturate(-strength-3);
+     float drive=strength<=-3?0:saturate(-strength-1);
+     float tintCode=UNITY_ACCESS_INSTANCED_PROP(Props,_TeamColor).a;
+     float turn=strength<0?(tintCode>=4?fmod(tintCode-4,4)-1:tintCode-1):0;
+     if(v.flex.z>0 && tintCode>=4) {
+       float yaw=radians(floor((tintCode-4)*.25)-48)*v.flex.z;
+       float s,c;sincos(yaw,s,c);
+       v.vertex.xz=float2(c*v.vertex.x+s*v.vertex.z,-s*v.vertex.x+c*v.vertex.z);
+     }
+     v.vertex.z-=.34*draw*saturate(-v.flex.y);
+     float t=_Time.y*(2.1+4.8*drive)+seed;
+     float wave=sin(t+v.vertex.x*8.3+v.vertex.y*4.7);
+     v.vertex.xyz+=float3(wave*(.033+.092*drive)+.115*turn,drive*(.15+.065*wave)+.011*wave,
+       -.27*drive+cos(t*.83+v.vertex.y*7)*(.025+.059*drive))*v.flex.x;
+     if(v.flex.y>0) {
+       float nod=(.035*sin(t*.64)+.092*pow(saturate(sin(t*.27)),6))*(1-drive);
+       v.vertex.y-=nod*(v.vertex.z-.38)*v.flex.y;
+       v.vertex.x+=.035*sin(t*.43)*v.flex.y*(1-drive);
+     }
+     return v.vertex;
+   }
+   float phase=_Time.y*1.65+seed;
    float height=max(0,v.vertex.y);
    v.vertex.x+=sin(phase+height*1.6)*height*strength;
    v.vertex.z+=cos(phase*.83+height)*height*strength*.36;
@@ -116,6 +163,13 @@ Shader "Frontline/Instanced" {
        rough=clamp(rough+(detail.a-.65)*.24,.17,.97);
      }
    }
+   half shore=0;
+   if(_LakeEnvironment>.5 && (id==7 || id==9 || id==13)) {
+     // The lake plane sits at -1.70 m. Wetting ends below the inhabited shelf.
+     shore=1-smoothstep(-1.67,-1.08,i.world.y+.045*sin(i.world.x*3.7+i.world.z));
+     pigment*=lerp(half3(1,1,1),half3(.65,.73,.74),shore);
+     rough=lerp(rough,.28,shore);
+   }
    half3 v=normalize(_WorldSpaceCameraPos-i.world),l=_WorldSpaceLightPos0.xyz;
    half3 h=normalize(l+v);
    half nl=saturate(dot(n,l)),nv=saturate(dot(n,v)),nh=saturate(dot(n,h));
@@ -136,6 +190,15 @@ Shader "Frontline/Instanced" {
    half3 sum=diffuse*((ambient*.62+fill)*ao+direct*.84)*(1-.74*metal);
    sum+=reflection*(min(5.5,distribution*visibility)*direct+ambient*(.18+.36*metal)*ao);
    sum+=rim*(.018+.039*metal)*lerp(half3(.58,.68,.81),_LightColor0.rgb,nl);
+   if(id==8) {
+     half through=saturate(dot(-v,l)*.75+.25)*(1-nl);
+     sum+=pigment*half3(.23,.32,.105)*through*(.36+.64*light);
+   }
+   if(id==14 || id==15) {
+     half pulse=.90+.075*sin(_Time.y*(id==15?8.1:1.7)+dot(i.world.xz,float2(2,3)))+.025*sin(_Time.y*13+i.world.y*9);
+     sum+=(id==15?half3(1.38,.32,.044):half3(.51,.255,.079))*pulse;
+   }
+   sum+=shore*.055*rim*_SkyLight.rgb;
    fixed4 c=fixed4(lerp(Film(sum),half3(1,.97,.90),saturate(i.dye.a)*.88),1);
    UNITY_APPLY_FOG(i.fogCoord,c);return c;
  }

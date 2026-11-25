@@ -8,7 +8,7 @@ namespace Frontline.Editor
     public static partial class ModelBaker
     {
         // Positive IDs are the shader ABI; zero is reserved for meshes authored before 3.0.
-        enum Surface : byte { Auto, Stone, Oak, Plaster, Roof, Metal, Cloth, Terrain, Leaf, Earth, Hide, Thatch, Glass, Outcrop }
+        enum Surface : byte { Auto, Stone, Oak, Plaster, Roof, Metal, Cloth, Terrain, Leaf, Earth, Hide, Thatch, Glass, Outcrop, WindowLight, Ember }
         static Dictionary<Color,Surface> pigments;
         static readonly Dictionary<Color,Surface> matched=new Dictionary<Color,Surface>();
         static Surface PigmentSurface(Color c)
@@ -46,8 +46,46 @@ namespace Frontline.Editor
         sealed partial class Geometry
         {
             internal Surface surface;
+            readonly Dictionary<int,Vector2> flexibility=new Dictionary<int,Vector2>();
+            public int Mark => vertices.Count;
+
+            // Channel x is free cloth/tail length. Channel y articulates the charger's poll.
+            public void WeightSince(int start,Vector3 fixedPoint,Vector3 freePoint,bool poll=false,bool stringNock=false)
+            {
+                var axis=freePoint-fixedPoint;
+                float inverse=1f/axis.sqrMagnitude;
+                for(int i=start;i<vertices.Count;i++)
+                {
+                    float w=Mathf.Clamp01(Vector3.Dot(vertices[i]-fixedPoint,axis)*inverse);
+                    flexibility.TryGetValue(i,out var weights);
+                    if(stringNock)weights.y=-w;else if(poll)weights.y=w*w*(3-2*w);else weights.x=w*w;
+                    flexibility[i]=weights;
+                }
+            }
             readonly List<Surface> faceSurfaces=new List<Surface>();
             readonly Dictionary<int,Vector2> loftUV=new Dictionary<int,Vector2>();
+            // Tool shafts are outside the head envelope. Keep the gorget on the torso.
+            public Geometry PortraitPart(bool head)
+            {
+                var result=new Geometry();
+                for(int i=0;i<vertices.Count;i+=3)
+                {
+                    var center=(vertices[i]+vertices[i+1]+vertices[i+2])/3f;
+                    bool crown=center.y>.395f&&Mathf.Abs(center.x)<.32f&&Mathf.Abs(center.z)<.31f;
+                    if(crown!=head)continue;
+                    int dest=result.Mark;
+                    result.surface=faceSurfaces[i/3];
+                    result.SmoothFace(vertices[i],vertices[i+1],vertices[i+2],colors[i],colors[i+1],colors[i+2],
+                        normals[i],normals[i+1],normals[i+2]);
+                    for(int k=0;k<3;k++)
+                    {
+                        if(loftUV.TryGetValue(i+k,out var uv))result.loftUV[dest+k]=uv;
+                        if(flexibility.TryGetValue(i+k,out var w))result.flexibility[dest+k]=w;
+                    }
+                }
+                return result;
+            }
+
             static Vector3Int Cell(Vector3 p,float scale)=>Vector3Int.FloorToInt(p*scale);
 
             public Mesh SurfaceMesh(string name)
@@ -79,7 +117,10 @@ namespace Frontline.Editor
                 }
                 var points=new List<Vector3>();var shading=new List<Vector3>();var tint=new List<Color32>();
                 var uv=new List<Vector2>();var properties=new List<Vector4>();
-                var corners=new Dictionary<(Vector3,Vector3,Color32,Vector2,Vector4),int>();
+                bool pelvis=name.StartsWith("body_",StringComparison.Ordinal)&&name!="body_catapult"||name.EndsWith("_clothes",StringComparison.Ordinal)||name.StartsWith("specialist_",StringComparison.Ordinal);
+                bool ankle=name=="shin"||name=="shin_plate";
+                var flex=flexibility.Count==0&&!pelvis&&!ankle?null:new List<Vector4>();
+                var corners=new Dictionary<(Vector3,Vector3,Color32,Vector2,Vector4,Vector2),int>();
                 var faces=new int[indices.Count];
                 for(int i=0;i<indices.Count;i++)
                 {
@@ -97,17 +138,20 @@ namespace Frontline.Editor
                     float metal=s==Surface.Metal?.91f:0;
                     var channels=new Vector4((int)s,metal,rough,Occlusion(p,rounded));
                     Color32 dye=colors[source];
-                    var key=(p,rounded,dye,tex,channels);
+                    flexibility.TryGetValue(source,out var weights);
+                    var key=(p,rounded,dye,tex,channels,weights);
                     if(!corners.TryGetValue(key,out int dest))
                     {
                         corners.Add(key,dest=points.Count);points.Add(p);shading.Add(rounded);tint.Add(dye);
                         uv.Add(tex);properties.Add(channels);
+                        flex?.Add(new Vector4(weights.x,weights.y,pelvis?Mathf.SmoothStep(0,1,(-.04f-p.y)/.29f):0,
+                            ankle?Mathf.SmoothStep(0,1,(-.20f-p.y)/.058f):0));
                     }
                     faces[i]=dest;
                 }
                 mesh.indexFormat=points.Count>65535?IndexFormat.UInt32:IndexFormat.UInt16;
                 mesh.SetVertices(points);mesh.SetNormals(shading);mesh.SetColors(tint);
-                mesh.SetUVs(0,uv);mesh.SetUVs(1,properties);mesh.SetTriangles(faces,0);mesh.RecalculateBounds();
+                mesh.SetUVs(0,uv);mesh.SetUVs(1,properties);if(flex!=null)mesh.SetUVs(2,flex);mesh.SetTriangles(faces,0);mesh.RecalculateBounds();
                 return mesh;
 
                 float Occlusion(Vector3 p,Vector3 n)

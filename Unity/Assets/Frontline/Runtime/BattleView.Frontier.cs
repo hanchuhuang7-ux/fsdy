@@ -357,7 +357,13 @@ namespace Frontline.UnityGame
             var roster=FrontierMap.Roster(manor.frontierTier);
             for(int i=0;i<guards.Count;i+=FrontierMap.GroupSize)
             {
-                if(manor.ClaimedSector(i/FrontierMap.GroupSize))continue;
+                int sector=i/FrontierMap.GroupSize;
+                if(manor.ClaimedSector(sector))
+                {
+                    var post=CampSentryAt(sector);
+                    if(!lowActors&&InView(post,2.4f))WatchAt(post,201+sector*7,330+sector,OutpostRed);
+                    continue;
+                }
                 if(!InView(UnityWorld.Vector(guards[i].camp),9))continue;
                 var offset=guards[i].PatrolOffset(manorTime,out var heading);
                 for(int j=i;j<i+FrontierMap.GroupSize;j++)

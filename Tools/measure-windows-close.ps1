@@ -100,6 +100,16 @@ public static class FrontlineCloseTest
         finally { if(awareness!=IntPtr.Zero)SetThreadDpiAwarenessContext(awareness); }
     }
 
+    [DllImport("kernel32.dll")] static extern void GetSystemTimePreciseAsFileTime(out long utc);
+    public static long InputUtc { get; private set; }
+    public static long InputStamp { get; private set; }
+    static void MarkInput()
+    {
+        GetSystemTimePreciseAsFileTime(out long utc);
+        InputUtc=utc;
+        InputStamp=Stopwatch.GetTimestamp();
+    }
+
     public static void Click(IntPtr window,Point point,int holdMilliseconds)
     {
         Point cursor;
@@ -113,10 +123,13 @@ public static class FrontlineCloseTest
             int size=Marshal.SizeOf<Input>();
             if(holdMilliseconds==0)
             {
-                if(SendInput(2,new[]{down,up},size)!=2)throw new Win32Exception(Marshal.GetLastWin32Error());
+                var events=new[]{down,up};
+                MarkInput();
+                if(SendInput(2,events,size)!=2)throw new Win32Exception(Marshal.GetLastWin32Error());
             }
             else
             {
+                MarkInput();
                 if(SendInput(1,new[]{down},size)!=1)throw new Win32Exception(Marshal.GetLastWin32Error());
                 Thread.Sleep(holdMilliseconds);
                 if(SendInput(1,new[]{up},size)!=1)throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -128,6 +141,7 @@ public static class FrontlineCloseTest
     public static void SendCloseCommand(IntPtr window)
     {
         // This variant preserves WM_SYSCOMMAND's synchronous delivery. It never posts WM_CLOSE.
+        MarkInput();
         SendMessageTimeout(window,0x0112,(IntPtr)0xf060,(IntPtr)(-1),2,18000,out _);
     }
 }
@@ -166,14 +180,19 @@ $samples=for($n=1;$n -le $Runs;$n++){
         $watch=[Diagnostics.Stopwatch]::StartNew()
         if($point){[FrontlineCloseTest]::Click($window,$point,$HoldMilliseconds)}else{[FrontlineCloseTest]::SendCloseCommand($window)}
         if(!$app.WaitForExit(25000)){throw 'Player did not exit within 25 seconds of the close request.'}
+        $exitStamp=[Diagnostics.Stopwatch]::GetTimestamp()
         $watch.Stop()
+        # The kernel exit timestamp is independent of when the measuring PowerShell thread awakens.
+        $kernelMs=($app.ExitTime.ToUniversalTime().ToFileTimeUtc()-[FrontlineCloseTest]::InputUtc)/10000.0
+        $inputToWaitMs=1000*($exitStamp-[FrontlineCloseTest]::InputStamp)/[Diagnostics.Stopwatch]::Frequency
         # The crash handler can finish writing a dump after the game process signals.
         Start-Sleep -Milliseconds 1500
         $new=@(CrashInventory | Where-Object {$_.name -notin $previous.name})
         $markers=@(Select-String -LiteralPath $log -Pattern 'FRONTLINE_WINDOW_CLOSE|FRONTLINE_SHUTDOWN|CodeReloadManager destroyed|Crash!!!|uxtheme|SendMessageW|fb69|Access violation' |
             ForEach-Object {$_.Line})
         [ordered]@{run=$n;pid=$app.Id;method=$Method;captionPoint=$point;hitTest=if($point){'HTCLOSE'}else{$null};
-            elapsedMs=[Math]::Round($watch.Elapsed.TotalMilliseconds,2);exitCode=$app.ExitCode;newCrashDirectories=$new;
+            elapsedMs=[Math]::Round($watch.Elapsed.TotalMilliseconds,2);kernelExitMs=[Math]::Round($kernelMs,2);
+            inputToWaitMs=[Math]::Round($inputToWaitMs,2);exitCode=$app.ExitCode;newCrashDirectories=$new;
             crashCount=$new.Count;dumpCount=@($new | ForEach-Object {$_.dumps}).Count;log=$log;markers=$markers}
         Write-Host ("{0} {1}/{2}: {3:N2} ms; exit={4}; new crash directories={5}" -f $Method,$n,$Runs,$watch.Elapsed.TotalMilliseconds,$app.ExitCode,$new.Count)
     }

@@ -50,7 +50,12 @@ namespace Frontline.Editor
             Save("manor_roof_snow",lod,CottageSnow(lod));
             BakeBackyards(lod);
             for(int i=0;i<Manor.SpecialistIds.Length;i++)
-                Save("specialist_"+Manor.SpecialistIds[i],lod,Specialist(i,lod));
+            {
+                var person=Specialist(i,lod);
+                string id=Manor.SpecialistIds[i];
+                Save("specialist_"+id,lod,lod==0?person.PortraitPart(false):person);
+                Save("head_"+id,lod,lod==0?person.PortraitPart(true):SmallProxy(.21f,.21f,Skin));
+            }
         }
 
         static void Bakery(Geometry g,int lod)
@@ -486,10 +491,12 @@ namespace Frontline.Editor
             Vector3 left=V(-.30f,.21f,.015f),right=V(.30f,.21f,.015f);
             var leftHand=V(-.19f,-.027f,.31f);
             var rightHand=role==3?V(.39f,-.04f,.13f):V(.19f,-.034f,.31f);
-            if(lod==0){WorkerArms(g,left,leftHand,coat);WorkerArms(g,right,rightHand,coat);}
-            else{g.Cylinder(left,leftHand,.080f,coat,n);g.Cylinder(right,rightHand,.080f,coat,n);}
-            g.Ellipsoid(leftHand,V(.073f,.065f,.076f),Skin,6,2);
-            g.Ellipsoid(rightHand,V(.073f,.065f,.076f),Skin,6,2);
+            if(lod!=0)
+            {
+                g.Cylinder(left,leftHand,.080f,coat,n);g.Cylinder(right,rightHand,.080f,coat,n);
+                g.Ellipsoid(leftHand,V(.073f,.065f,.076f),Skin,6,2);
+                g.Ellipsoid(rightHand,V(.073f,.065f,.076f),Skin,6,2);
+            }
             if(role==0)
             {
                 g.Cylinder(V(0,lod==0?.648f:.608f,.009f),V(0,.76f,.006f),lod==0?.132f:.168f,Indigo,n);

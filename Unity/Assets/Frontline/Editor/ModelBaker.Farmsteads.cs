@@ -196,7 +196,7 @@ namespace Frontline.Editor
                 oven.Quad(Edge(a,.225f),Edge(b,.225f),Edge(b,.315f),Edge(a,.315f),k%3==0?KeepEdge:FiredClay,true);
             }
             oven.Box(V(0,.257f,-.469f),V(.58f,.063f,.25f),Stonework);
-            oven.surface=Surface.Glass;oven.Box(V(0,.261f,-.421f),V(.38f,.037f,.03f),Amber);
+            oven.surface=Surface.Ember;oven.Box(V(0,.261f,-.421f),V(.38f,.037f,.03f),Amber);
             g.Append(oven,Matrix4x4.TRS(at,Quaternion.identity,Vector3.one*s));
         }
     }

@@ -58,6 +58,7 @@ namespace Frontline.UnityGame
                 Array.Clear(attackClocks,0,attackClocks.Length);
                 Array.Clear(healGestures,0,healGestures.Length);
                 Array.Clear(oldMotion,0,oldMotion.Length);
+                Array.Clear(headingSamples,0,headingSamples.Length);
                 poseTimeline=Config;
                 poseTick=-1;
             }
@@ -237,8 +238,14 @@ namespace Frontline.UnityGame
                 return AttackKey.Blend(default,clip.draw,Ease(t));
             if(t<clip.impactAt)
                 return AttackKey.Blend(clip.draw,clip.strike,.72f+.28f*Ease(t/clip.impactAt));
+            float arrest=style==AttackStyle.Hammer?.075f:style==AttackStyle.Slash?.048f:0;
+            if(t<clip.impactAt+arrest)
+            {
+                float rebound=Mathf.Sin((t-clip.impactAt)/arrest*Mathf.PI)*.035f;
+                return AttackKey.Blend(clip.strike,clip.draw,rebound);
+            }
             if(t<clip.settleAt)
-                return AttackKey.Blend(clip.strike,clip.follow,Ease((t-clip.impactAt)/(clip.settleAt-clip.impactAt)));
+                return AttackKey.Blend(clip.strike,clip.follow,Ease((t-clip.impactAt-arrest)/(clip.settleAt-clip.impactAt-arrest)));
             return AttackKey.Blend(clip.follow,default,Ease((t-clip.settleAt)/(1-clip.settleAt)));
         }
 

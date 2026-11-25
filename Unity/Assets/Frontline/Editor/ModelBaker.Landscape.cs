@@ -37,18 +37,65 @@ namespace Frontline.Editor
                 var dye=conifer?Color.Lerp(new Color(.19f,.31f,.215f,.4f),new Color(.39f,.47f,.30f,.47f),t):
                     Color.Lerp(new Color(.295f,.405f,.195f,.51f),new Color(.53f,.57f,.302f,.58f),t);
                 var radii=conifer?V(.60f,.43f,.61f)*(1-.49f*t):V(.71f,.61f,.70f)*(1-.17f*t);
-                LeafCrown(g,end+Vector3.up*(conifer?.20f:.14f),radii,k,dye);
+                // Two offset fans per bough leave a real sky gap beside the woody fork.
+                var tangent=new Vector3(outwards.z,0,-outwards.x);
+                for(int twig=-1;twig<=1;twig+=2)
+                {
+                    var tip=end+outwards*.16f+tangent*(twig*.29f)+Vector3.up*(twig>0?.22f:-.04f);
+                    g.surface=Surface.Oak;g.Cylinder(end-outwards*.19f,tip,.024f,bark,5);
+                    g.surface=Surface.Leaf;
+                    LeafSprays(g,tip,radii*(conifer?.86f:.94f),outwards,2*k+(twig+1)/2,Pigment(dye,twig>0?1.06f:.94f),conifer);
+                }
             }
             g.surface=Surface.Leaf;
-            LeafCrown(g,crown,conifer?V(.30f,.51f,.31f):V(.69f,.53f,.68f),18,
-                conifer?new Color(.38f,.47f,.31f,.5f):new Color(.49f,.58f,.32f,.56f));
+            LeafSprays(g,crown,conifer?V(.30f,.51f,.31f):V(.67f,.52f,.66f),Vector3.forward,18,
+                conifer?new Color(.38f,.47f,.31f,.5f):new Color(.49f,.58f,.32f,.56f),conifer);
             g.surface=Surface.Auto;
+        }
+
+        static void LeafSprays(Geometry g,Vector3 center,Vector3 size,Vector3 outward,int seed,Color dye,bool pine)
+        {
+            int clusters=pine?9:13;
+            for(int j=0;j<clusters;j++)
+            {
+                float azimuth=j*2.39996f+seed*.781f;
+                float height=(j+.5f)/clusters*1.72f-.82f;
+                float span=Mathf.Sqrt(1-height*height);
+                var radial=V(Mathf.Cos(azimuth)*span,height,Mathf.Sin(azimuth)*span);
+                var along=(radial+outward*.48f+Vector3.down*(pine?.41f:.10f)).normalized;
+                var across=Vector3.Cross(Vector3.up,along).normalized;
+                var shoot=center+Vector3.Scale(size,radial)*.73f;
+                var foot=center;
+                var mid=Vector3.Lerp(foot,shoot,.54f)+Vector3.up*.053f;
+                g.surface=Surface.Oak;
+                g.Loft(new[]{foot,mid,shoot},new[]{Section(.015f,.015f),Section(.008f,.009f),Section(.002f,.003f)},4,1,Pigment(Walnut,1.34f));
+                g.surface=Surface.Leaf;
+                int leaves=8;
+                for(int k=0;k<leaves;k++)
+                {
+                    float t=(k+.42f)/leaves,side=k%2==0?-1:1;
+                    var bud=Vector3.Lerp(foot,shoot,.36f+.64f*t);
+                    float length=size.magnitude*(pine?.30f:.213f)*(1-.28f*t);
+                    var line=(along+across*(side*(pine?.58f:.91f))+Vector3.down*(pine?.44f:.13f)).normalized;
+                    var tip=bud+line*length+Vector3.down*(.018f*(k%3));
+                    var flank=Vector3.Cross(Vector3.up,line).normalized*length*(pine?.30f:.46f);
+                    var ridge=Vector3.Lerp(bud,tip,.47f)+Vector3.up*(length*.17f);
+                    Vector3 left=ridge+flank,right=ridge-flank*.86f;
+                    // Broad light on both faces of a spray, with open air between its neighbour's leaf tips.
+                    var normal=(radial*.73f+Vector3.up*.68f+across*side*.16f).normalized;
+                    Color top=Pigment(dye,1.07f+.10f*height),baseDye=Pigment(dye,.82f+.07f*height);
+                    Face(bud,left,tip,baseDye,top,top);Face(bud,tip,right,baseDye,top,baseDye);
+                    Face(tip,left,bud,top,top,baseDye);Face(right,tip,bud,baseDye,top,baseDye);
+                    void Face(Vector3 a,Vector3 b,Vector3 c,Color first,Color second,Color third)
+                        =>g.SmoothFace(a,b,c,first,second,third,normal,normal,normal);
+                }
+            }
         }
 
         // Shading normals come from the surrounding botanical crown, not the tiny boundary lobes.
         static void LeafCrown(Geometry g,Vector3 center,Vector3 extent,int seed,Color leaf)
         {
-            const int sides=9,bands=4;
+            const int sides=8,bands=4;
             Vector3 Point(int k,int j)
             {
                 k%=sides;
@@ -67,21 +114,22 @@ namespace Frontline.Editor
             for(int j=0;j<bands;j++)for(int k=0;k<sides;k++)
             {
                 var a=Point(k,j);var b=Point(k+1,j);var c=Point(k+1,j+1);var d=Point(k,j+1);
+                if((seed+3*k+j)%7==0)continue;
                 if(j>0)Face(a,b,c);
                 if(j+1<bands)Face(a,c,d);
             }
 
             // Leaf sprays break the silvery outline into individual leaves. Their normals continue
             // the crown lighting so that strips at the silhouette never turn into black cutouts.
-            for(int spray=0;spray<14;spray++)
+            for(int spray=0;spray<10;spray++)
             {
                 float a=spray*2.39996f+seed*.61f,level=-.36f+.13f*(spray%7);
                 var radial=V(Mathf.Cos(a),level,Mathf.Sin(a)).normalized;
                 var tip=center+Vector3.Scale(extent,radial)*(1.04f+.10f*Mathf.Sin(spray+seed));
                 var tangent=V(-radial.z,0,radial.x);
-                for(int blade=0;blade<5;blade++)
+                for(int blade=0;blade<4;blade++)
                 {
-                    float s=blade/4f;
+                    float s=blade/3f;
                     var foot=tip+Vector3.Scale(extent,tangent)*((s-.5f)*.64f)-radial*.065f;
                     var direction=(radial+tangent*(s-.5f)*1.8f+Vector3.down*.48f).normalized;
                     float length=(.13f+.05f*Mathf.Sin(spray*3f+blade))*Mathf.Min(extent.x,extent.z)+.051f;

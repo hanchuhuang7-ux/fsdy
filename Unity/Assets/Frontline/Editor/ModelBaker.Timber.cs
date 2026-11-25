@@ -47,7 +47,7 @@ namespace Frontline.Editor
             var frame=new Geometry();
             half=Mathf.Clamp(half,.145f,.36f);
             frame.Box(V(0,y,0),V(2*half,.33f,.07f),Walnut);
-            frame.surface=Surface.Glass;
+            frame.surface=Surface.WindowLight;
             frame.Box(V(0,y,-.039f),V(half*1.65f,.245f,.023f),new Color(.78f,.58f,.34f,0));
             frame.surface=Surface.Oak;
             for(int i=-1;i<=1;i++)frame.Box(V(i*half*.50f,y,-.062f),V(.022f,.27f,.035f),Walnut);

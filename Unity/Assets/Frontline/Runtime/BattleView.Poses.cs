@@ -15,6 +15,8 @@ namespace Frontline.UnityGame
         internal int ParallelPoseWorkers=>Math.Min(CpuWork.TargetWorkers,CpuWork.UnityWorkers+1);
         internal bool CheckParallelPoses {get;set;}
         internal int CheckedParallelPoses {get;private set;}
+        internal int CheckedJointActors {get;private set;}
+        internal int CheckedDistantActors {get;private set;}
         internal int CheckedWindupStyles {get;private set;}
         internal int CheckedReleaseStyles {get;private set;}
 
@@ -40,6 +42,8 @@ namespace Frontline.UnityGame
 
         PoseFrustum poseFrustum;
 
+        enum TownRole : byte { None,Resident,Specialist,Watch }
+
         struct PoseInput
         {
             public Vector3 position;
@@ -49,7 +53,10 @@ namespace Frontline.UnityGame
             public ActionSample action;
             public float angle,scale,maxSpeed,speed,direction,gait,hitTiltX,hitTiltZ,charge,guard,hp,terrainTilt;
             public int id;
-            public bool useMotionSample,stockWeapon;
+            public bool useMotionSample,stockWeapon,survey,distant;
+            public TownRole town;
+            public Vector3 rightHand,leftHand;
+            public float slope,crossSlope,ground,nod,toolPitch,turn;
             public MotionSample previousMotion;
         }
 
@@ -59,7 +66,8 @@ namespace Frontline.UnityGame
             public Vector3 position;
             public float speed,gait;
             public MotionSample motion;
-            public Matrix4x4 root,leftLeg,rightLeg,leftArm,rightArm,guardOrCatapultArm;
+            public JointPose joints;
+            public Matrix4x4 root,leftLeg,rightLeg,rightArm,guardOrCatapultArm;
             public Matrix4x4 horse,nearLeft,nearRight,farLeft,farRight;
             public Matrix4x4 hpBackground,hpFill;
         }
@@ -67,6 +75,8 @@ namespace Frontline.UnityGame
         struct PoseDraw
         {
             public UnitVisual model;
+            public MeshSet coat,portrait,cap,pack,tool;
+            public Color capColor;
             public string stance;
             public float floor,hitFlash;
             public int armament;
@@ -101,12 +111,12 @@ namespace Frontline.UnityGame
         bool BeginSoldierPoses(int count)
         {
 #if !UNITY_WEBGL
-            if(count>=ParallelPoseThreshold&&ParallelPoseWorkers>1)
+            if(count>0&&(count>=ParallelPoseThreshold||!lowActors)&&ParallelPoseWorkers>1)
             {
                 if(!poseInputs.IsCreated||poseInputs.Length<count)
                 {
                     DisposeSoldierPoses();
-                    int capacity=Mathf.NextPowerOfTwo(count);
+                    int capacity=Mathf.NextPowerOfTwo(Mathf.Max(256,count));
                     poseInputs=new NativeArray<PoseInput>(capacity,Allocator.Persistent,NativeArrayOptions.UninitializedMemory);
                     poseOutputs=new NativeArray<PoseOutput>(capacity,Allocator.Persistent,NativeArrayOptions.UninitializedMemory);
                     poseDraws=new PoseDraw[capacity];
@@ -123,8 +133,9 @@ namespace Frontline.UnityGame
         {
 #if !UNITY_WEBGL
             collectingPoses=false;
+            if(poseCount==0)return;
             int workers=ParallelPoseWorkers;
-            int batch=Mathf.Max(8,(poseCount+workers-1)/workers);
+            int batch=Mathf.Max(1,(poseCount+workers-1)/workers);
             var poses=new PoseJob{inputs=poseInputs,outputs=poseOutputs,frustum=poseFrustum,
                 time=PoseTime(),deploying=Deploying,lowDetail=lowActors};
             poseHandle=poses.Schedule(poseCount,batch);
@@ -142,6 +153,7 @@ namespace Frontline.UnityGame
                     CheckedParallelPoses++;
                     if(output.visible)
                     {
+                        if(input.distant||lowActors)CheckedDistantActors++;else if(input.kind!=SoldierKind.Catapult)CheckedJointActors++;
                         if(input.action.stage==ActionStage.Draw)CheckedWindupStyles|=1<<(int)input.style;
                         if(input.action.stage==ActionStage.Release)CheckedReleaseStyles|=1<<(int)input.style;
                     }
@@ -157,6 +169,7 @@ namespace Frontline.UnityGame
             poseHandle.Complete();
             if(poseInputs.IsCreated)poseInputs.Dispose();
             if(poseOutputs.IsCreated)poseOutputs.Dispose();
+            poseDraws=null;poseCount=0;collectingPoses=false;
 #endif
         }
 
@@ -173,22 +186,56 @@ namespace Frontline.UnityGame
             var input=new PoseInput {
                 position=p,color=Team(team),kind=model.kind,style=model.attackStyle,stockWeapon=model.stockWeapon&&!(model.attackStyle==AttackStyle.Aim&&tier>0&&tier<3),
                 action=action,id=id,angle=angle,scale=scale,maxSpeed=model.definition.speed,
-                speed=speed,direction=direction,gait=gait,hitTiltX=hitTiltX,hitTiltZ=hitTiltZ,charge=charge,guard=guard,hp=hp
+                speed=speed,direction=direction,gait=gait,hitTiltX=hitTiltX,hitTiltZ=hitTiltZ,charge=charge,guard=guard,hp=hp,survey=!recorded
             };
+            if(!lowActors)
+            {
+                // About 40 projected pixels for a person at desktop FOV. Tall silhouettes stay detailed
+                // longer. Hysteresis is per actor, so the front files keep their rig when the rear files recede.
+                float reach=(QualityLevel==2?38f:29f)*scale;
+                bool wasFar=(uint)id<distantSoldier.Length&&distantSoldier[id];
+                reach+=wasFar?-1.3f:1.3f;
+                input.distant=(cameraPosition-p).sqrMagnitude>reach*reach;
+                if((uint)id<distantSoldier.Length)distantSoldier[id]=input.distant;
+            }
             if(recorded&&speed==0&&gait==0&&(uint)id<oldMotion.Length)
             {
                 input.useMotionSample=true;
                 input.previousMotion=oldMotion[id];
             }
-            if(model.kind==SoldierKind.Cavalry&&variedTerrain&&InView(p,5*scale))
+            bool frontierSurface=Config.map==FrontierMap.Id;
+            if((!lowActors&&!input.distant||model.kind==SoldierKind.Cavalry)&&(frontierSurface||variedTerrain&&manor==null)&&InView(p,5*scale))
             {
-                // The terrain catalog belongs to the main thread. Only sample horses that can be drawn.
+                // Sample the contact plane before scheduling. Workers only receive numeric heights.
                 float dx=Mathf.Sin(angle)*.6f*scale,dz=Mathf.Cos(angle)*.6f*scale;
-                float front=Data.Height(Config.map,p.x+dx,p.z+dz),back=Data.Height(Config.map,p.x-dx,p.z-dz);
+                float front=PoseGround(frontierSurface,p.x+dx,p.z+dz),back=PoseGround(frontierSurface,p.x-dx,p.z-dz);
                 RenderHeightSamples+=2;
-                if(Catalog.Finite(front)&&Catalog.Finite(back))input.terrainTilt=Mathf.Atan2(front-back,1.2f*scale)*Mathf.Rad2Deg;
+                if(Catalog.Finite(front)&&Catalog.Finite(back))
+                {
+                    input.slope=Mathf.Clamp((front-back)/(1.2f*scale),-.65f,.65f);
+                    input.terrainTilt=Mathf.Atan(input.slope)*Mathf.Rad2Deg;
+                }
+                if(!lowActors&&!input.distant)
+                {
+                    float right=PoseGround(frontierSurface,p.x+dz,p.z-dx),left=PoseGround(frontierSurface,p.x-dz,p.z+dx);
+                    RenderHeightSamples+=2;
+                    if(Catalog.Finite(right)&&Catalog.Finite(left))
+                        input.crossSlope=Mathf.Clamp((right-left)/(1.2f*scale),-.65f,.65f);
+                    if(Catalog.Finite(front)&&Catalog.Finite(back))
+                        input.ground=Mathf.Clamp(((front+back)*.5f-p.y)/scale+.80f,-.11f,.13f);
+                }
             }
             var draw=new PoseDraw{model=model,stance=stance,floor=floor,hitFlash=hitFlash,armament=tier,inspired=inspired,fortified=fortified};
+            input.turn=recorded&&!lowActors&&!input.distant?TurnRate(id,angle):0;
+            input.color.a=1+input.turn;
+            QueuePose(input,draw);
+        }
+
+        float PoseGround(bool frontier,float x,float z) =>
+            frontier?(FrontierMap.HasGround(x,z)?FrontierMap.SurfaceHeight(x,z):float.NaN):Data.Height(Config.map,x,z);
+
+        void QueuePose(in PoseInput input,in PoseDraw draw)
+        {
 #if !UNITY_WEBGL
             if(collectingPoses)
             {
@@ -204,6 +251,7 @@ namespace Frontline.UnityGame
         static void ComputePose(in PoseInput input,in PoseFrustum frustum,float time,bool deploying,bool lowDetail,out PoseOutput pose)
         {
             pose=default;
+            lowDetail|=input.distant;
             var p=input.position;
             float scale=input.scale;
             if(!frustum.Contains(p,5*scale))return;
@@ -239,11 +287,17 @@ namespace Frontline.UnityGame
             }
             else
             {
-                var step=new BipedGait(gait,deploying?0:speed,input.maxSpeed,direction,time,input.id);
+                var step=new BipedGait(gait,deploying&&!input.survey?0:speed,input.maxSpeed,direction,time,input.id);
                 var attack=AttackPose(input.style,input.action);
                 float actionWeight=ActionWeight(input.action);
                 float couch=0;
-                if(input.kind==SoldierKind.Cavalry)
+                if(!lowDetail)
+                {
+                    bool riding=input.kind==SoldierKind.Cavalry;
+                    var stride=riding?new HorseStride(gait,deploying&&!input.survey?0:speed,input.charge,input.terrainTilt,step.breath,input.id):default;
+                    SolveJoints(input,step,attack,actionWeight,time,facing,p,stride,riding,ref pose);
+                }
+                else if(input.kind==SoldierKind.Cavalry)
                 {
                     var horse=new HorseStride(gait,deploying?0:speed,input.charge,input.terrainTilt,step.breath,input.id);
                     p.y+=(.55f+horse.bob)*scale;
@@ -271,7 +325,7 @@ namespace Frontline.UnityGame
                     if(input.style==AttackStyle.Aim&&input.stockWeapon)spine.y-=14*actionWeight;
                     pose.root=hips*Pose(shift,Quaternion.Euler(spine),Vector3.one);
                 }
-                PoseArms(input,step,attack,actionWeight,couch,lowDetail,ref pose);
+                if(lowDetail)PoseDistantWeapon(input,step,attack,actionWeight,couch,ref pose);
                 p=pose.root.GetColumn(3);
                 pose.position=p;
             }
@@ -291,7 +345,6 @@ namespace Frontline.UnityGame
         };
 
         static readonly Vector3 RightShoulder=new Vector3(.282f,.251f,.009f),LeftShoulder=new Vector3(-.282f,.251f,.009f);
-        static readonly Vector3 LeftPalm=new Vector3(-.36f,-.14f,.078f);
 
         static Matrix4x4 ArmPivot(Vector3 shoulder,Vector3 angles,Vector3 shift)
         {
@@ -299,84 +352,19 @@ namespace Frontline.UnityGame
             return Pose(shoulder+shift-rotation*shoulder,rotation,Vector3.one);
         }
 
-        static Matrix4x4 ReachLeftHand(Vector3 target)
+        static void PoseDistantWeapon(in PoseInput input,in BipedGait step,in AttackKey attack,float weight,float couch,
+            ref PoseOutput pose)
         {
-            var resting=LeftPalm-LeftShoulder;
-            var reach=target-LeftShoulder;
-            float reachRatio=Mathf.Clamp(reach.magnitude/resting.magnitude,.67f,1.29f);
-            var rotation=Quaternion.FromToRotation(resting,reach);
-            var stretch=new Vector3(1,reachRatio,1);
-            return Pose(LeftShoulder-rotation*Vector3.Scale(LeftShoulder,stretch),rotation,stretch);
-        }
-
-        static void PoseArms(in PoseInput input,in BipedGait step,in AttackKey attack,float actionWeight,float couch,
-            bool distant,ref PoseOutput pose)
-        {
-            float stride=step.sway*(13+step.run*11)*step.direction*(1-actionWeight);
-            float block=Ease(input.guard);
+            float stride=step.sway*(13+step.run*11)*step.direction*(1-weight);
             var angles=attack.weapon+new Vector3(stride,-couch*6,-6-couch*6);
             var travel=Vector3.Scale(attack.hand,new Vector3(.82f,.74f,.64f))+new Vector3(-.026f,.01f,.105f)*couch;
             if(input.style==AttackStyle.Aim&&input.stockWeapon)
             {
-                angles.y+=14*actionWeight;
-                angles.x+=8*actionWeight;
-                travel.z-=.055f*actionWeight;
+                angles.y+=14*weight;angles.x+=8*weight;travel.z-=.055f*weight;
             }
-            if(input.style==AttackStyle.Bless&&input.stockWeapon)angles.x-=17*actionWeight;
-            var right=ArmPivot(RightShoulder,angles,travel);
-            pose.rightArm=pose.root*right;
+            if(input.style==AttackStyle.Bless&&input.stockWeapon)angles.x-=17*weight;
+            pose.rightArm=pose.root*ArmPivot(RightShoulder,angles,travel);
             pose.emptyThrowHand=input.style==AttackStyle.Throw&&input.action.stage==ActionStage.Release&&input.action.progress<.86f;
-            if(distant)return;
-            if(input.kind==SoldierKind.Shield)
-            {
-                float cover=Mathf.Max(block,actionWeight*.62f);
-                var shift=new Vector3(.014f,.091f,.142f)*cover;
-                var guard=new Vector3(-18*cover-stride*.12f,11*cover,-7*cover);
-                pose.leftArm=pose.root*ArmPivot(LeftShoulder,guard,shift*.55f);
-                pose.guardOrCatapultArm=pose.root*ArmPivot(new Vector3(-.30f,-.03f,.291f),guard,shift);
-            }
-            else if((input.style==AttackStyle.Aim||input.style==AttackStyle.Hammer)&&actionWeight>.001f)
-            {
-                Vector3 grip;
-                if(input.style==AttackStyle.Hammer)grip=right.MultiplyPoint3x4(new Vector3(.36f,-.145f,.36f));
-                else
-                {
-                    grip=right.MultiplyPoint3x4(new Vector3(.36f,.10f,input.stockWeapon?.37f:.441f));
-                    if(!input.stockWeapon)
-                    {
-                        float pull=input.action.stage==ActionStage.Release?1-Ease(input.action.progress/.44f):Ease(input.action.progress);
-                        grip+=new Vector3(-.20f,.10f,-.43f)*pull;
-                    }
-                }
-                pose.leftArm=pose.root*ReachLeftHand(Vector3.LerpUnclamped(LeftPalm,grip,actionWeight));
-            }
-            else
-            {
-                float balance=input.style==AttackStyle.Bless?61:input.style==AttackStyle.Throw?34:18;
-                pose.leftArm=pose.root*ArmPivot(LeftShoulder,new Vector3(-stride-balance*actionWeight-couch*18,
-                    actionWeight*11,5+actionWeight*9),Vector3.zero);
-            }
-        }
-
-        MeshSet shoulderGusset,horseShoulder;
-        void CoverForeleg(in Matrix4x4 horseBody,in Matrix4x4 legPose,bool right,float scale)
-        {
-            var top=horseBody.MultiplyPoint3x4(new Vector3(right?.199f:-.199f,-.391f,.325f));
-            var lower=legPose.MultiplyPoint3x4(new Vector3(0,.036f,.006f));
-            var axis=top-lower;
-            float distance=axis.magnitude;
-            if(distance<.015f*scale)return;
-            Add(horseShoulder,Pose((top+lower)*.5f,Quaternion.FromToRotation(Vector3.up,axis),
-                new Vector3(scale,distance,scale)),White);
-        }
-        void CoverShoulder(in Matrix4x4 torso,in Matrix4x4 arm,float scale,Color tint)
-        {
-            var a=torso.MultiplyPoint3x4(RightShoulder);
-            var b=arm.MultiplyPoint3x4(RightShoulder);
-            var axis=b-a;
-            if(axis.sqrMagnitude<.0049f*scale*scale)return;
-            Add(shoulderGusset,Pose((a+b)*.5f,Quaternion.FromToRotation(Vector3.up,axis),
-                new Vector3(.136f*scale,axis.magnitude+.060f*scale,.153f*scale)),tint);
         }
 
         void SubmitPose(in PoseInput input,in PoseOutput pose,in PoseDraw draw)
@@ -384,42 +372,49 @@ namespace Frontline.UnityGame
             if(!pose.visible)return;
             var p=pose.position;
             float scale=input.scale;
-            if(manor!=null&&FrontierMap.HasGround(p.x,p.z))ContactAt(input.position,scale*1.5f);
+            if(input.town==TownRole.None&&manor!=null&&FrontierMap.HasGround(p.x,p.z))ContactAt(input.position,scale*1.5f);
             if(input.useMotionSample)oldMotion[input.id]=pose.motion;
+            if(input.town!=TownRole.None)
+            {
+                SubmitTown(input,pose,draw);
+                return;
+            }
             activeFlash=draw.hitFlash;
-            Add(draw.model.body,pose.root,input.color);
+            bool distant=input.distant;
+            Add(distant?draw.model.body.distant:draw.model.body,pose.root,pose.joints.wind==0?input.color:ClothTint(input.color,pose.joints.hipTwist,input.turn),pose.joints.wind);
             if(draw.armament!=0)
             {
                 var dye=draw.armament==3?new Color(1,.91f,.45f):draw.armament==2?Gold:new Color(.73f,.47f,.24f);
-                Add(draw.model.insignia[draw.armament],pose.root,dye);
+                var badge=draw.model.insignia[draw.armament];
+                Add(distant?badge.distant:badge,pose.root,dye);
             }
             if(input.kind==SoldierKind.Catapult)
             {
-                Add(catapult,pose.root,White);
-                Add(catapultArm,pose.guardOrCatapultArm,White);
+                Add(distant?catapult.distant:catapult,pose.root,White);
+                Add(distant?catapultArm.distant:catapultArm,pose.guardOrCatapultArm,White);
             }
+            else if(!lowActors&&!distant)SubmitJoints(input,pose,draw);
             else
             {
-                Add(leg,pose.leftLeg,White);Add(leg,pose.rightLeg,White);
-                if(!lowActors&&input.action.stage!=ActionStage.Idle)CoverShoulder(pose.root,pose.rightArm,scale,input.color);
-                if(!lowActors)Add(draw.model.armoured?armBracedLeft:armLeft,pose.leftArm,input.color);
-                if(pose.emptyThrowHand)Add(armLeft,pose.rightArm*Matrix4x4.Translate(new Vector3(.72f,0,0)),input.color);
-                else Add(draw.armament==0?draw.model.right:draw.model.forgedArms[draw.armament],pose.rightArm,input.color);
-                if(input.kind==SoldierKind.Shield&&!lowActors)Add(shield,pose.guardOrCatapultArm,input.color);
+                var greave=distant?leg.distant:leg;
+                Add(greave,pose.leftLeg,White);Add(greave,pose.rightLeg,White);
+                if(pose.emptyThrowHand)Add(distant?armLeft.distant:armLeft,pose.rightArm*Matrix4x4.Translate(new Vector3(.72f,0,0)),input.color);
+                else
+                {
+                    var arm=draw.armament==0?draw.model.right:draw.model.forgedArms[draw.armament];
+                    Add(distant?arm.distant:arm,pose.rightArm,input.color);
+                }
                 if(input.kind==SoldierKind.Cavalry)
                 {
-                    Add(horse,pose.horse,input.color);
-                    if(!lowActors)
-                    {
-                        CoverForeleg(pose.horse,pose.farLeft,false,scale);
-                        CoverForeleg(pose.horse,pose.farRight,true,scale);
-                    }
-                    Add(horseLeg,pose.nearLeft,White);Add(horseLeg,pose.nearRight,White);
-                    Add(horseLeg,pose.farLeft,White);Add(horseLeg,pose.farRight,White);
+                    var fetlock=distant?horseLeg.distant:horseLeg;
+                    Add(distant?horse.distant:horse,pose.horse,input.color);
+                    Add(fetlock,pose.nearLeft,White);Add(fetlock,pose.nearRight,White);
+                    Add(fetlock,pose.farLeft,White);Add(fetlock,pose.farRight,White);
                 }
             }
             activeFlash=0;
-            bool tracks=!Deploying&&input.kind==SoldierKind.Cavalry&&input.charge>.55f&&pose.speed>3.8f;
+            bool tracks=!Deploying&&(input.kind==SoldierKind.Cavalry&&input.charge>.55f&&pose.speed>3.8f||
+                !lowActors&&draw.model.armoured&&pose.speed>input.maxSpeed*.83f);
             bool selected=Selection.Contains(input.id),showStance=Deploying&&draw.stance!="advance";
             if(tracks||selected||showStance||draw.inspired||draw.fortified)
             {
@@ -433,7 +428,7 @@ namespace Frontline.UnityGame
                         float age=Mathf.Repeat(pose.gait*.65f+i*.5f,1);
                         var dp=foot-new Vector3(Mathf.Sin(input.angle),0,Mathf.Cos(input.angle))*(.5f+age*.9f);
                         dp.y+=.12f+age*.22f;
-                        Add(dust,Pose(dp,Quaternion.Euler(0,input.id*37,0),Vector3.one*(.25f+age*.45f)),new Color(.66f,.57f,.39f,.24f*(1-age)));
+                        Accent(accentMist,Pose(dp,Quaternion.Euler(0,input.id*37,0),Vector3.one*(.25f+age*.45f)),new Color(.66f,.57f,.39f,.24f*(1-age)));
                     }
                 }
                 if(selected)Ring(foot,.7f*scale,Gold);else if(showStance)Ring(foot,.48f*scale,draw.stance=="hold"?new Color(.64f,.72f,.75f):White);
@@ -455,14 +450,14 @@ namespace Frontline.UnityGame
 
         static void VerifyPose(in PoseOutput job,in PoseOutput inline)
         {
-            if(job.visible!=inline.visible||job.emptyThrowHand!=inline.emptyThrowHand||
+            if(!EqualJoints(job.joints,inline.joints)||job.visible!=inline.visible||job.emptyThrowHand!=inline.emptyThrowHand||
                 !EqualBits(job.position,inline.position)||!EqualBits(job.speed,inline.speed)||!EqualBits(job.gait,inline.gait)||
                 job.motion.valid!=inline.motion.valid||!EqualBits(job.motion.p,inline.motion.p)||
                 !EqualBits(job.motion.time,inline.motion.time)||!EqualBits(job.motion.speed,inline.motion.speed)||
                 !EqualBits(job.motion.phase,inline.motion.phase)||!EqualBits(job.motion.direction,inline.motion.direction)||
                 !EqualBits(job.root,inline.root)||!EqualBits(job.horse,inline.horse)||
                 !EqualBits(job.leftLeg,inline.leftLeg)||!EqualBits(job.rightLeg,inline.rightLeg)||
-                !EqualBits(job.leftArm,inline.leftArm)||!EqualBits(job.rightArm,inline.rightArm)||
+                !EqualBits(job.rightArm,inline.rightArm)||
                 !EqualBits(job.guardOrCatapultArm,inline.guardOrCatapultArm)||
                 !EqualBits(job.nearLeft,inline.nearLeft)||!EqualBits(job.nearRight,inline.nearRight)||
                 !EqualBits(job.farLeft,inline.farLeft)||!EqualBits(job.farRight,inline.farRight)||

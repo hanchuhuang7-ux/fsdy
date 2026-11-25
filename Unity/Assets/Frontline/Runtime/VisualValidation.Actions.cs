@@ -8,7 +8,7 @@ namespace Frontline.UnityGame
 {
     public sealed partial class VisualValidation
     {
-        enum MotionMoment { Draw,Strike,Guard,Gallop,Heal }
+        enum MotionMoment { Draw,Strike,Guard,Gallop,Heal,FoldedGallop }
 
         sealed class MotionCapture
         {
@@ -23,7 +23,7 @@ namespace Frontline.UnityGame
                 this.type=type;this.name=name;this.moment=moment;this.hold=hold;
             }
 
-            public bool Matches(Frame frame,UnitFrame actor)
+            public bool Matches(Frame frame,UnitFrame actor,float topSpeed)
             {
                 switch(moment)
                 {
@@ -34,6 +34,8 @@ namespace Frontline.UnityGame
                         return actor.attack>.88f&&actor.attack<.99f;
                     case MotionMoment.Guard:
                         return actor.guard>.75f&&actor.guard<.91f;
+                    case MotionMoment.FoldedGallop:
+                        return actor.moveSpeed>4.1f&&actor.charge>.55f&&BattleView.CaptureFold(actor,true,topSpeed)>82;
                     case MotionMoment.Gallop:
                         return actor.moveSpeed>4.1f&&actor.charge>.55f;
                     case MotionMoment.Heal:
@@ -179,6 +181,29 @@ namespace Frontline.UnityGame
             }
         }
 
+        float ClearActionAngle(Frame frame,UnitFrame subject,Vector3 focus,float pitch,float preferred,float zoom)
+        {
+            float best=preferred,minimum=float.MaxValue;
+            for(int i=0;i<13;i++)
+            {
+                float angle=preferred+((i+1)/2)*(i%2==0?-19:19);
+                var dir=Quaternion.Euler(pitch,angle,0)*Vector3.back;
+                float penalty=i*.014f;
+                foreach(var actor in frame.units)
+                {
+                    if(actor.id==subject.id||!actor.alive||actor.t==null)continue;
+                    var offset=new Vector3(actor.t[0],actor.t[1]+.15f,actor.t[2])-focus;
+                    float along=Vector3.Dot(offset,dir);
+                    if(along<.15f||along>zoom+.55f)continue;
+                    float gap=(offset-along*dir).magnitude;
+                    float radius=(actor.type=="catapult"?1.35f:actor.type=="cavalry"?1.15f:.88f)*app.Data.Unit(actor.type).scale;
+                    penalty+=Mathf.Max(0,radius-gap)*(1+.9f*along/zoom);
+                }
+                if(penalty<minimum){minimum=penalty;best=angle;}
+            }
+            return best;
+        }
+
         IEnumerator RecordActionMatch(MotionCapture[] shots,List<object> records,string series="220")
         {
             var battle=app.Battle;
@@ -196,7 +221,7 @@ namespace Frontline.UnityGame
                     if(capture.captured)continue;
                     foreach(var actor in snapshot.units)
                     {
-                        if(!actor.alive||actor.t==null||actor.team!="red"||actor.type!=capture.type||!capture.Matches(snapshot,actor))continue;
+                        if(!actor.alive||actor.t==null||actor.team!="red"||actor.type!=capture.type||!capture.Matches(snapshot,actor,app.Data.Unit(actor.type).speed))continue;
                         var center=new Vector3(actor.t[0],actor.t[1],actor.t[2]);
                         float angle=actor.angle*Mathf.Rad2Deg;
                         bool horse=actor.type=="cavalry",siege=actor.type=="catapult";
@@ -213,8 +238,16 @@ namespace Frontline.UnityGame
                             view.Focus(center+Vector3.up*(horse?.40f:siege?.37f:.24f)+forward*.19f,
                                 horse?5.21f:siege?7.3f:actor.type=="giant"?5.35f:4.25f,
                                 horse?13:siege?23:17,angle+(horse?132:siege?-68:focusSword?103:127));
+                        if(series=="320")
+                        {
+                            float viewAngle=horse?-77:aim?-116:focusSword?-119:110;
+                            var focus=center+Vector3.up*(horse?.19f:.10f)+forward*.13f;
+                            float zoom=horse?5.25f:actor.type=="giant"?4.85f:4.10f;
+                            float pitch=horse?12:17;
+                            view.Focus(focus,zoom,pitch,ClearActionAngle(snapshot,actor,focus,pitch,angle+viewAngle,zoom));
+                        }
                         yield return ManorShot(series+"-"+capture.name);
-                        if((series=="300"||series=="310")&&capture.type=="shield")
+                        if((series=="300"||series=="310"||series=="320"&&capture.moment==MotionMoment.Strike)&&capture.type=="shield")
                         {
                             view.Focus(new Vector3(0,.71f,-1.7f),24,30,-47);
                             yield return ManorShot(series+"-arena-engagement");
