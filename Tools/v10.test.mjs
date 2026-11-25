@@ -8,11 +8,11 @@ const read = path => readFileSync(url(path),'utf8');
 const sha = path => createHash('sha256').update(read(path).replaceAll('\r\n','\n')).digest('hex');
 const root = 'Unity/Assets/Frontline/';
 
-test('4.0.0 ships the same single Unity scene and matching player, package and model versions', () => {
+test('4.1.0 ships the same single Unity scene and matching player, package and model versions', () => {
   for (const p of ['package.json','package-lock.json',root+'Models/model-manifest.json'])
-    assert.equal(JSON.parse(read(p)).version,'4.0.0',p);
-  assert.match(read(root+'Editor/BuildTools.cs'),/bundleVersion="4\.0\.0"/);
-  assert.match(read('Unity/ProjectSettings/ProjectSettings.asset'),/^  bundleVersion: 4\.0\.0\r?$/m);
+    assert.equal(JSON.parse(read(p)).version,'4.1.0',p);
+  assert.match(read(root+'Editor/BuildTools.cs'),/bundleVersion="4\.1\.0"/);
+  assert.match(read('Unity/ProjectSettings/ProjectSettings.asset'),/^  bundleVersion: 4\.1\.0\r?$/m);
   assert.deepEqual(readdirSync(url('Unity/Assets/Scenes/')).filter(s => s.endsWith('.unity')),['Frontline.unity']);
 });
 const manifest=()=>JSON.parse(read(root+'Models/model-manifest.json'));
@@ -128,4 +128,16 @@ test('all shipped FBXs are curated, credited and tied to a pinned CC0 artist sou
   const shader=read(root+'Resources/FrontlineInstanced.shader');
   assert.match(shader,/JointRows\(v\.joints\.w,row,v\.weights\.w/);
   assert.match(shader,/#pragma only_renderers gles3/);assert.match(shader,/forcemaxcount:64/);
+});
+
+test('the village ships authored working takes and each crowd palette supports outgoing and incoming clips',()=>{
+  const m=manifest();
+  for(const name of ['Yeoman','Goodwife']){
+    const rig=m.skeletons.find(r=>r.name===name);
+    for(const motion of ['Tend','Lift','Haul','Converse'])assert.ok(rig.takes.includes(motion),name+' '+motion);
+  }
+  assert.ok(m.costumes.some(c=>c.name==='woodcutter'&&c.attachments>0));
+  assert.ok(m.resources.includes('Models/arena_scree_corner_lod1'));
+  const shader=read(root+'Resources/FrontlineInstanced.shader');
+  for(const source of ['SkinRows(v,row','SkinRows(v,(blend.x+.5)','lerp(a,oldA,blend.y)'])assert.ok(shader.includes(source));
 });

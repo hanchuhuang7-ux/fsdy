@@ -78,14 +78,31 @@ namespace Frontline.Editor
                 norm=Matrix4x4.Scale(Vector3.one*(height/bounds.size.y))*Matrix4x4.Rotate(facing)*
                     Matrix4x4.Translate(-new Vector3(bounds.center.x,bounds.min.y,bounds.center.z));
                 body.Add(raw,norm,project:true);
+                if(horse)
+                    for(int v=0;v<body.p.Count;v++)
+                    {
+                        var p=body.p[v];Color pigment=body.color[v];
+                        float dapples=.5f+.5f*Mathf.Sin(p.z*18+p.y*7)*Mathf.Sin(p.x*23-p.y*14);
+                        float light=.79f+.17f*Mathf.Clamp01(p.y)+.10f*dapples;
+                        pigment.r*=light; pigment.g*=light; pigment.b*=light*.96f;
+                        if(p.y>.64f&&p.y<1.43f&&Mathf.Abs(p.z+.085f)<.049f&&Mathf.Abs(p.x)>.15f)
+                        {
+                            pigment=new Color(.235f,.154f,.101f,0);
+                            if(p.y<.82f&&Mathf.Abs(p.z+.085f)>.031f)
+                            {pigment=new Color(.44f,.435f,.392f,0);body.surface[v]=new Vector4(5,.76f,.46f,.85f);}
+                        }
+                        body.color[v]=pigment;
+                    }
                 cooked=new ArtistSkeleton{name=id,boneCount=bones.Count,skinnedVertices=body.p.Count,
                     takes=new ArtistTake[Enum.GetValues(typeof(ArtistMotion)).Length]};
                 Sample(id);
                 VerifyNativeSkin(id);
             }
             Vector3 BindPos(int b)=>rest[b].GetColumn(3);
-            string ResolveTake(ArtistMotion motion)
+            string ResolveTake(ArtistMotion motion,Dictionary<string,AnimationClip> clips)
             {
+                if(motion>=ArtistMotion.Tend)
+                    return clips.ContainsKey(motion.ToString())?motion.ToString():horse?"Idle":"Work";
                 if(!horse)return motion==ArtistMotion.Trot?"Walk":motion==ArtistMotion.Lance?"Thrust":motion.ToString();
                 return motion switch {ArtistMotion.Slash or ArtistMotion.Thrust or ArtistMotion.Heavy or ArtistMotion.Throw or ArtistMotion.Lance=>"Heavy",
                     ArtistMotion.Bow or ArtistMotion.Cast or ArtistMotion.Block=>"Idle",ArtistMotion.Trot=>"Walk",_=>motion.ToString()};
@@ -107,7 +124,7 @@ namespace Frontline.Editor
                 for(int i=0;i<lower.Length;i++){string key=bones[i].name.ToLowerInvariant();lower[i]=key.Contains("leg")||key.Contains("foot")||key.Contains("toe")||key=="hips"||key=="pelvis"||key.Contains("calf")||key.Contains("thigh")||key.Contains("ball_")||key=="body"||key=="root";}
                 foreach(ArtistMotion motion in Enum.GetValues(typeof(ArtistMotion)))
                 {
-                    string take=ResolveTake(motion);var clip=clips[take];int start=(int)motion*(Intervals+1);
+                    string take=ResolveTake(motion,clips);var clip=clips[take];int start=(int)motion*(Intervals+1);
                     cooked.takes[(int)motion]=new ArtistTake{first=start,intervals=Intervals,seconds=clip.length,source=horse&&motion==ArtistMotion.Trot?"Walk + Gallop (derived trot)":!horse&&motion==ArtistMotion.Lance?"Thrust + Ride (mounted)":take};
                     for(int i=0;i<=Intervals;i++)
                     {
@@ -162,7 +179,7 @@ namespace Frontline.Editor
                     weightedVertices+=renderer.sharedMesh.boneWeights.Count(w=>w.weight1>.015f);
                 foreach(var motion in new[]{ArtistMotion.Walk,ArtistMotion.Run,ArtistMotion.Hit,ArtistMotion.Death})
                 {
-                    var clip=clips[ResolveTake(motion)];
+                    var clip=clips[ResolveTake(motion,clips)];
                     foreach(int step in new[]{2,9,18,23})
                     {
                         clip.SampleAnimation(root,step/(float)Intervals*clip.length);
@@ -241,6 +258,20 @@ namespace Frontline.Editor
                     }
                 }
             }
+            public void SaddleBags(ArtData gear)
+            {
+                int bone=Bone("Back","Body");
+                var neutral=samples[(int)ArtistMotion.Idle*(Intervals+1)][bone];
+                var seat=cooked.saddle[0];
+                var pannier=ReadPart("Pouch");
+                var box=pannier.Bounds();
+                for(int side=-1;side<=1;side+=2)
+                {
+                    var fit=Matrix4x4.TRS(seat+new Vector3(side*.26f,-.145f,-.29f),
+                        Quaternion.Euler(-7,side*85,7*side),new Vector3(.27f/box.size.x,.31f/box.size.y,.19f/box.size.z));
+                    gear.Add(pannier,neutral.inverse*fit*Matrix4x4.Translate(-box.center),bone,new Color(.54f,.40f,.29f),true);
+                }
+            }
             public ArtData RestPose(ArtData src,ArtistMotion take)
             {
                 var result=new ArtData();result.Add(src,Matrix4x4.identity);
@@ -317,7 +348,7 @@ namespace Frontline.Editor
                 foreach(string name in sources)
                 {
                     var rig=new RigBake(name);drafts.Add(rig);
-                    var main=rig.body.Mesh(name);var mid=Cluster(rig.body,.078f,true).Mesh(name);
+                    var main=rig.body.Mesh(name);var mid=Cluster(rig.body,.089f,true).Mesh(name);
                     main.bounds=mid.bounds=new Bounds(new Vector3(0,.90f,0),new Vector3(4,4,5));
                     rig.cooked.body=Store(main,name+"_source");rig.cooked.mid=Store(mid,name+"_source_mid");
                     rig.cooked.proxy=Store(Cluster(rig.RestPose(rig.body,ArtistMotion.Idle),.125f,false).Mesh(name),name+"_source_proxy");
@@ -326,6 +357,7 @@ namespace Frontline.Editor
                 {
                     int idx=Array.IndexOf(sources,rig);var bake=drafts[idx];var art=new ArtData();
                     bool hero=key.StartsWith("hero_",StringComparison.Ordinal);
+                    if(key=="charger")bake.SaddleBags(art);
                     if(hero||key=="watch"||key=="cavalry")bake.Accessory(art,"Mantle","back",hero?.94f:.78f,"clasp",ArtistMotion.Idle,new Vector3(0,-.12f,-.16f));
                     if(hero&&tier>=2)bake.Accessory(art,"Crown","head",.33f,"hat",ArtistMotion.Idle,new Vector3(0,.112f,0));
                     if(tool!=null)
@@ -377,7 +409,7 @@ namespace Frontline.Editor
                     Dress("hero_commander"+suffix,"Forester","staff","spellbook_open",t);
                 }
                 Dress("villager","Goodwife");Dress("farmer","Yeoman","Shovel");Dress("carrier","Yeoman","bucket_water");
-                Dress("smith","Yeoman","Hammer_Small");Dress("steward","Forester","Parchment");Dress("merchant","Yeoman","Pouch");
+                Dress("woodcutter","Yeoman","axe_2handed");Dress("smith","Yeoman","Hammer_Small");Dress("steward","Forester","Parchment");Dress("merchant","Yeoman","Pouch");
                 Dress("herbalist","Goodwife","spellbook_open");Dress("watchman","Castellan","Spear");
                 Dress("mason","Yeoman","Hammer_Small","Parchment");Dress("minstrel","Forester","Lute");
                 roster.skeletons=drafts.Select(x=>x.cooked).ToArray();roster.costumes=costumes.ToArray();

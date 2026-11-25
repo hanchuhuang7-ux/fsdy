@@ -31,8 +31,8 @@ namespace Frontline.Core
     public sealed partial class Manor
     {
         public const int SeasonDays = 12, BuildingMaxLevel = 3, OriginalPlotCount = 14, FirstOuterPlot = 18, PlotCount = 36;
-        public const float PlateauHalfWidth = 42, PlateauHalfDepth = 28;
-        public const float TownScaleX = 1.27f, TownScaleZ = 1.40f;
+        public const float PlateauHalfWidth = 50, PlateauHalfDepth = 34;
+        public const float TownScaleX = 1.51f, TownScaleZ = 1.65f;
         const int MaxValue = 1000000;
         public string format = "frontline-manor";
         public int version = SaveVersion;
@@ -51,7 +51,7 @@ namespace Frontline.Core
             9.8f, 5.35f, -5.35f, -9.8f, 14.85f, 14.85f, -14.85f, -14.85f, 6.1f, -6.1f,
             5.9f, -5.9f, 14.85f, -14.85f, 14.85f, -14.85f, 14.85f, -14.85f, 12.1f, -12.1f, 17.2f, -17.2f };
         public static float SlotX(int index) => xs[index]*TownScaleX;
-        public static float SlotZ(int index) => index==8?-9.65f:zs[index]*TownScaleZ;
+        public static float SlotZ(int index) => index==8?-11.38f:zs[index]*TownScaleZ;
         public static int PickSlot(float x, float z)
         {
             for (int i = 0; i < xs.Length; i++)

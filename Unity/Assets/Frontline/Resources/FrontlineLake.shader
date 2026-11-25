@@ -47,16 +47,16 @@ Shader "Frontline/Lake"
                 water=lerp(water,lakeBed*half3(.58,.72,.57),shallows*shallows*.44);
                 water+=shallows*(.014*cos(crossWave+longWave)+.010*cos(2.3*longWave));
                 half3 ray=reflect(-v,n);
-                half3 sky=lerp(_Mist.rgb,half3(.41,.58,.67),saturate(ray.y*2.8));
+                half3 sky=lerp(_Mist.rgb,half3(.39,.54,.65),saturate(ray.y*2.8));
                 half sunward=saturate(dot(ray,_FrontlineSunDirection.xyz));
-                sky=lerp(sky,half3(.96,.80,.56),pow(sunward,5)*.52);
+                sky=lerp(sky,half3(.98,.79,.53),pow(sunward,5)*.52);
                 half3 color=lerp(water,sky,.12+.80*fresnel);
-                float glint=pow(sunward,160.0);
+                float glint=pow(sunward,136.0);
                 color+=half3(1,.77,.44)*glint*(.13+.31*saturate((broad.x+fine.y)*2.4+.23));
                 float front=shore-.68-.33*sin(longWave*.59)-.22*cos(crossWave*.47);
                 float foam=(1-smoothstep(.10,.56,abs(front)))*(.38+.32*cos(crossWave)*cos(longWave));
                 color=lerp(color,half3(.80,.85,.73),saturate(foam)*saturate(1-i.depth*.0025));
-                float mist=saturate(i.depth*.00059);
+                float mist=saturate(i.depth*.00034);
                 return half4(lerp(color,_Mist.rgb,mist*(2-mist)),1);
             }
             ENDCG

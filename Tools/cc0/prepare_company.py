@@ -15,6 +15,8 @@ DEST=ART.parent/"Actors"
 UNIVERSAL=CACHE/"universal"
 DIRECT={"Idle":"Idle_Loop","Walk":"Walk_Loop","Run":"Sprint_Loop","Slash":"Sword_Attack",
         "Hit":"Hit_Chest","Death":"Death01","Cast":"Spell_Simple_Shoot","Ride":"Sitting_Idle_Loop","Work":"Interact"}
+# Quaternius' native hands, shoulders and load-bearing poses, kept on their original bind rig.
+VILLAGE={"Tend":"Fixing_Kneeling","Lift":"PickUp_Table","Haul":"Push_Loop","Converse":"Idle_Talking_Loop"}
 RETARGET={"Thrust":"1H_Melee_Attack_Stab","Heavy":"2H_Melee_Attack_Chop","Bow":"2H_Ranged_Shooting",
           "Block":"Block_Hit","Throw":"Throw"}
 
@@ -190,6 +192,8 @@ def company(name,sex,garment,plate=False):
     lib,_,bank=import_set(UNIVERSAL/'UAL1_Standard.fbx')
     driver,_,donor=import_set(CACHE/'kaykit/Knight.fbx')
     clips={label:bank[src] for label,src in DIRECT.items()}
+    if name in ('Yeoman','Goodwife'):
+        for label,source in VILLAGE.items():clips[label]=bank[source]
     if plate:clips["Idle"]=bank["Sword_Idle"]
     for label,src in RETARGET.items():clips[label]=retarget_arms(target,driver,donor[src],label,bank['Sword_Idle'])
     disconnect(target);rest(target);target.data.pose_position='POSE'

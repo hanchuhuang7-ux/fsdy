@@ -15,7 +15,7 @@ namespace Frontline.UnityGame
 
         CameraBookmark blendFrom,blendTo;
         bool cameraBlending;
-        internal const float MaxFrontierDistance=915;
+        internal const float MaxFrontierDistance=1120;
         float blendElapsed,zoomTarget;
         MeshSet campRings,campFlags,campSentries,campSupplies;
         readonly Bounds[] campFlagPickBounds=new Bounds[Manor.Sectors.Count];
@@ -249,6 +249,20 @@ namespace Frontline.UnityGame
                 campFlags=props["banner"].Variant(true,true);
                 campSentries=Load("retinue_guard").Variant(true,true);
                 campSupplies=crate.Variant(false,true);
+            }
+            for(int i=0;i<6;i++)
+            {
+                // Garners and roadside inns sit on the outer side of the surveyed post road.
+                double angle=.69+i*.99;
+                var road=UnityWorld.Vector(FrontierMap.SurveyRoad(angle,true));
+                var outward=(road-ManorOrigin).normalized;
+                var across=new Vector3(outward.z,0,-outward.x);
+                for(int hut=0;hut<3;hut++)
+                {
+                    var point=RoadSurface(road+outward*(7.5f+hut%2*2.3f)+across*((hut-1)*5.1f));
+                    Still(Load(hut==0?"tavern":hut==1?"cottage":"granary").WithoutShadows(),point,
+                        Quaternion.LookRotation(outward),Vector3.one*(1.15f+.12f*hut),White);
+                }
             }
             AlertCampMask=-1;
             for(int sector=0;sector<Manor.Sectors.Count;sector++)

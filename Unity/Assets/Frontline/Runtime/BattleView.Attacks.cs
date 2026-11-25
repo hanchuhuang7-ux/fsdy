@@ -58,6 +58,7 @@ namespace Frontline.UnityGame
                 Array.Clear(attackClocks,0,attackClocks.Length);
                 Array.Clear(healGestures,0,healGestures.Length);
                 Array.Clear(oldMotion,0,oldMotion.Length);
+                Array.Clear(motionHistory,0,motionHistory.Length);
                 Array.Clear(headingSamples,0,headingSamples.Length);
                 poseTimeline=Config;
                 poseTick=-1;

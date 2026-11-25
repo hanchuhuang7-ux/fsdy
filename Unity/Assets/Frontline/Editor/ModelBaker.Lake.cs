@@ -59,7 +59,7 @@ namespace Frontline.Editor
         static void FarForests(Action<Vector3,Vector3,Vector3,Color> face)
         {
             for(int i=0;i<FrontierMap.ShoreStations;i++)
-                for(int tree=0;tree<16;tree++)
+                for(int tree=0;tree<24;tree++)
                 {
                     float seed=i*35.7f+tree*17.9f;
                     double bearing=(i+Fract(Mathf.Sin(seed)*3671.24f))*Math.PI*2/FrontierMap.ShoreStations;
@@ -91,7 +91,7 @@ namespace Frontline.Editor
         static Geometry DistantRelief()
         {
             var mesh=new Geometry();
-            const int stations=FrontierMap.ShoreStations,bands=6;
+            const int stations=FrontierMap.ShoreStations*4,bands=14;
             var points=new Vector3[stations,bands+1];
             var normals=new Vector3[stations,bands+1];
             var tints=new Color[stations,bands+1];
@@ -100,6 +100,7 @@ namespace Frontline.Editor
                 {
                     points[i,band]=ReliefPoint(i,band);
                     tints[i,band]=ReliefTint(points[i,band],band);
+                    tints[i,band].a=band/(float)bands;
                 }
             for(int i=0;i<stations;i++)
                 for(int band=0;band<=bands;band++)
@@ -121,29 +122,19 @@ namespace Frontline.Editor
 
             Vector3 ReliefPoint(int i,int band)
             {
-                var bank=UnityWorld.Vector(FrontierMap.OuterBank[i]);
+                int j=i/4;
+                var bank=UnityWorld.Vector(FrontierMap.OuterBank[j]+(FrontierMap.OuterBank[(j+1)%FrontierMap.ShoreStations]-FrontierMap.OuterBank[j])*((i%4)*.25f));
                 if(band==0)return bank;
                 float a=i/(float)stations*2*Mathf.PI;
-                float spur=Mathf.Sin(a*(4+band)+.73f*band)*Mathf.Cos(a*7.0f-band);
-                float range=.52f+.25f*Mathf.Sin(a*3.0f+.47f*band)+.23f*Mathf.Cos(a*11+band*.61f);
-                float extension=band switch {
-                    1=>23+16*range,
-                    2=>63+64*range,
-                    3=>136+134*range,
-                    4=>299+228*range,
-                    5=>669+200*range,
-                    _=>1680+330*range
-                };
-                float altitude=band switch {
-                    1=>9+15*range,
-                    2=>19+66*range+8*spur,
-                    3=>17+114*range+32*spur,
-                    4=>28+190*range+44*spur,
-                    5=>18+173*range+58*spur,
-                    _=>-1.77f
-                };
+                float spur=Mathf.Sin(a*11+band*.58f)+.48f*Mathf.Cos(a*23-band*.39f)+.22f*Mathf.Sin(a*39+band*.71f);
+                float range=.54f+.24f*Mathf.Cos(a*3+band*.40f)+.15f*Mathf.Sin(a*9-band*.49f)+.07f*spur;
+                float extension=11.5f*band+6.8f*band*band+range*(3.5f*band);
+                float crest=.5f+.5f*Mathf.Cos(band*1.64f+a*2+.69f*Mathf.Sin(a*6-.53f*band));
+                // Outside the surveyed mainland only the very last horizon skirt descends to water.
+                float altitude=band==bands?-2:Mathf.Max(1.5f,(5+15*band)*(.25f+.72f*crest)*range+3.5f*spur);
                 float radius=(bank-V(FrontierMap.ManorX,0,0)).magnitude+extension;
-                return V(FrontierMap.ManorX+Mathf.Cos(a)*radius,altitude,Mathf.Sin(a)*radius);
+                var direction=(bank-V(FrontierMap.ManorX,0,0)).normalized;
+                return V(FrontierMap.ManorX+direction.x*radius,altitude,direction.z*radius);
             }
 
             Color ReliefTint(Vector3 p,int band)
@@ -152,7 +143,8 @@ namespace Frontline.Editor
                 float pockets=.5f+.29f*Mathf.Sin(p.x*.067f+p.z*.031f)+.19f*Mathf.Cos(p.z*.091f-p.x*.036f);
                 var forest=Color.Lerp(new Color(.292f,.429f,.323f,.59f),new Color(.54f,.623f,.472f,.59f),pockets);
                 var rock=Color.Lerp(new Color(.467f,.505f,.422f,.32f),new Color(.654f,.693f,.59f,.31f),pockets);
-                return Color.Lerp(forest,rock,Mathf.Clamp01((p.y-15)/103+band*.051f));
+                var near=Color.Lerp(forest,rock,Mathf.Clamp01((p.y-15)/103+band*.051f));
+                return Color.Lerp(near,new Color(.435f,.525f,.624f,near.a),Mathf.Clamp01((band-1)*.096f));
             }
         }
     }

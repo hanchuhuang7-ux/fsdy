@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Frontline.UnityGame
 {
-    public enum ArtistMotion : byte { Idle,Walk,Run,Slash,Thrust,Heavy,Bow,Block,Hit,Death,Cast,Throw,Ride,Work,Trot,Lance }
+    public enum ArtistMotion : byte { Idle,Walk,Run,Slash,Thrust,Heavy,Bow,Block,Hit,Death,Cast,Throw,Ride,Work,Trot,Lance,Tend,Lift,Haul,Converse }
     [Serializable] public struct ArtistTake
     {
         public int first,intervals;

@@ -29,9 +29,9 @@ namespace Frontline.UnityGame
 
         static readonly SeasonalLight ArenaLight=new SeasonalLight(48,-32,new Color(1,.92f,.8f),.95f);
         static readonly SeasonalLight[] Seasons={
-            new SeasonalLight(37,-42,new Color(1,.91f,.76f),1.02f),
-            new SeasonalLight(52,-29,new Color(1,.94f,.82f),1.04f),
-            new SeasonalLight(31,-47,new Color(1,.82f,.63f),1.01f),
+            new SeasonalLight(33,-49,new Color(1,.884f,.732f),1.03f),
+            new SeasonalLight(45,-37,new Color(1,.921f,.793f),1.04f),
+            new SeasonalLight(28,-51,new Color(1,.82f,.63f),1.01f),
             new SeasonalLight(31,-18,new Color(.83f,.90f,1),.90f)
         };
 

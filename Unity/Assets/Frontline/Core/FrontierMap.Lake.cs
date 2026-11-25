@@ -6,7 +6,7 @@ namespace Frontline.Core
     public static partial class FrontierMap
     {
         public const int ShoreStations=64,TerrainBands=9;
-        public const float TerrainCeiling=25;
+        public const float TerrainCeiling=36;
         const double FullTurn=Math.PI*2,StationAngle=FullTurn/ShoreStations;
         const float InlandMargin=2.05f;
         static V3 WestCamp => new V3(71,0,5);
@@ -37,7 +37,7 @@ namespace Frontline.Core
                 // the radial survey. The three east stations form the bridge abutment.
                 double profile=lake?1+.079*Math.Sin(a*3+.35)+.061*Math.Cos(a*5+.81)+.037*Math.Sin(a*9+.6)
                     :1+.082*Math.Sin(a*3-.6)+.047*Math.Cos(a*5+1.1)+.024*Math.Sin(a*9);
-                double width=lake?106:235,depth=lake?83:171;
+                double width=lake?117:290,depth=lake?89:218;
                 double radius=profile/Math.Sqrt(x*x/(width*width)+z*z/(depth*depth));
                 if(lake&&(i<=1||i==bank.Length-1))radius=(Boundary-ManorX)/x;
                 float easting=ManorX+(float)(x*radius),northing=(float)(z*radius);
@@ -100,6 +100,8 @@ namespace Frontline.Core
                     float roll=(float)(2.7+1.75*Math.Sin(p.x*.038+p.z*.028)+1.1*Math.Cos(p.z*.048-p.x*.031));
                     float ridge=Math.Max(Knoll(p,-217,84,94,73,19),Knoll(p,-217,-92,88,69,20));
                     ridge=Math.Max(ridge,Math.Max(Knoll(p,99,91,83,71,21),Knoll(p,116,-69,75,65,18)));
+                    ridge=Math.Max(ridge,Math.Max(Knoll(p,-305,41,96,86,30),Knoll(p,-160,159,91,62,32)));
+                    ridge=Math.Max(ridge,Knoll(p,15,-178,89,57,28));
                     float grading=Math.Min(Grade(p,WestCamp,20),Math.Min(Grade(p,NorthCamp,20),Grade(p,EastCamp,20)));
                     grading=Math.Min(grading,Grade(p,new V3(Boundary,0,0),20));
                     p.y=band==0||band==TerrainBands?0:Math.Max(0,roll+ridge)*relief*grading;

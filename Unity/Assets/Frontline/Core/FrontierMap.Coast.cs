@@ -13,20 +13,15 @@ namespace Frontline.Core
 
         // The island survey keeps the same 36 plots, approaches and dock.
         static readonly ShoreSlice[] Island={
-            new ShoreSlice(IslandWest,-14,16),
-            new ShoreSlice(-103,-24,22),
-            new ShoreSlice(-99,-25,26),
-            new ShoreSlice(-92,-28,27),
-            new ShoreSlice(-85,-28,28),
-            new ShoreSlice(-77,-27,27),
-            new ShoreSlice(-68,-27,28),
-            new ShoreSlice(-57,-28,27),
-            new ShoreSlice(-48,-26,28),
-            new ShoreSlice(-39,-27,27),
-            new ShoreSlice(-33,-25,25),
-            new ShoreSlice(-28,-23,24),
-            new ShoreSlice(-24,-14,15),
-            new ShoreSlice(BridgeStart,-5,5),
+            new ShoreSlice(IslandWest,-9,12),
+            new ShoreSlice(-120,-19,22), new ShoreSlice(-116,-25,27),
+            new ShoreSlice(-111,-30,29), new ShoreSlice(-106,-29,32),
+            new ShoreSlice(-99,-33,33), new ShoreSlice(-91,-34,32),
+            new ShoreSlice(-84,-32,34), new ShoreSlice(-75,-33,33),
+            new ShoreSlice(-67,-34,32), new ShoreSlice(-58,-32,34),
+            new ShoreSlice(-49,-31,33), new ShoreSlice(-41,-33,31),
+            new ShoreSlice(-35,-30,30), new ShoreSlice(-29,-26,27),
+            new ShoreSlice(-25,-18,18), new ShoreSlice(BridgeStart,-5,5)
         };
         public static IReadOnlyList<ShoreSlice> ManorCoast {get;}=Array.AsReadOnly(Island);
         public static readonly double ManorArea=IslandArea();

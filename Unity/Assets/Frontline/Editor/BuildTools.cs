@@ -15,7 +15,7 @@ namespace Frontline.Editor
         public const string Scene="Assets/Scenes/Frontline.unity";
         [MenuItem("Frontline/Prepare project")] public static void Prepare()
         {
-            PlayerSettings.companyName="Frontline Lab";PlayerSettings.productName="Frontline Lab";PlayerSettings.bundleVersion="4.0.0";PlayerSettings.defaultScreenWidth=1280;PlayerSettings.defaultScreenHeight=800;PlayerSettings.fullScreenMode=FullScreenMode.Windowed;PlayerSettings.resizableWindow=true;PlayerSettings.runInBackground=true;PlayerSettings.colorSpace=ColorSpace.Gamma;
+            PlayerSettings.companyName="Frontline Lab";PlayerSettings.productName="Frontline Lab";PlayerSettings.bundleVersion="4.1.0";PlayerSettings.defaultScreenWidth=1280;PlayerSettings.defaultScreenHeight=800;PlayerSettings.fullScreenMode=FullScreenMode.Windowed;PlayerSettings.resizableWindow=true;PlayerSettings.runInBackground=true;PlayerSettings.colorSpace=ColorSpace.Gamma;
             PlayerSettings.MTRendering=true;
             // With D3D11 windowed on the target Intel GPU, flip presentation paced even uncapped
             // frames to the desktop refresh interval. Use the measured windowed presentation path.

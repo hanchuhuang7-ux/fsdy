@@ -14,7 +14,7 @@ namespace Frontline.UnityGame
         readonly float[] terrainEffect=new float[1];
         FrontierTerrainAsset worldTerrain;
         MaterialPropertyBlock terrainProperties;
-        Material lakeMaterial;
+        Material lakeMaterial,reliefMaterial;
         internal bool LakeShoreReady => lakeMaterial&&lakeMaterial.GetTexture("_ShoreDistance");
         static readonly int LakeColorId=Shader.PropertyToID("_Water"),LakeMistId=Shader.PropertyToID("_Mist");
         Bounds[] closeBounds,wideBounds;
@@ -45,6 +45,7 @@ namespace Frontline.UnityGame
                 worldTerrain=Resources.Load<FrontierTerrainAsset>(FrontierTerrainAsset.Resource);
                 if(!worldTerrain)throw new System.InvalidOperationException("Run ModelBaker to bake the frontier coast.");
                 lakeMaterial=new Material(Resources.Load<Shader>("FrontlineLake"));
+                reliefMaterial=new Material(Resources.Load<Shader>("FrontlineHighlands"));
                 lakeMaterial.SetTexture("_ShoreDistance",Resources.Load<Texture2D>("Textures/ShoreDistance"));
                 lakeMaterial.SetTexture("_WaveNormals",Resources.Load<Texture2D>("Textures/LakeNormals"));
                 lakeMaterial.SetVector("_ShoreRect",worldTerrain.shoreRect);
@@ -98,7 +99,8 @@ namespace Frontline.UnityGame
             }
             for(int i=0;i<TerrainChunksDrawn;i++)
                 DrawTerrain(visibleTerrain[i],!wide);
-            DrawTerrain(worldTerrain.distantRelief,false);
+            Graphics.DrawMesh(worldTerrain.distantRelief,Matrix4x4.identity,reliefMaterial,0,ViewCamera,0,null,ShadowCastingMode.Off,false,null,LightProbeUsage.Off);
+            RenderSubmissions++;RenderInstances++;if(MeasureCasterVertices)MainVertices+=worldTerrain.distantRelief.vertexCount;
             foreach(var page in outerStill)Draw(page,true);
             if(!wide)foreach(var page in outerVegetation)Draw(page,true);
         }
@@ -160,12 +162,12 @@ namespace Frontline.UnityGame
             var pine=Load("pine").WithoutShadows();
             var grass=Load("grass");
             var shrub=Load("shrub").WithoutShadows();
-            int perCell=QualityLevel==0?4:QualityLevel==1?7:10;
-            for(int x=-10;x<6;x++)
-                for(int z=-6;z<6;z++)
+            int perCell=QualityLevel==0?4:QualityLevel==1?8:12;
+            for(int x=MinChunkX;x<=MaxChunkX;x++)
+                for(int z=MinChunkZ;z<=MaxChunkZ;z++)
                     for(int i=0;i<perCell;i++)
                     {
-                        uint seed=(uint)(((x+10)*12+z+6)*33+i+11)*0x9e3779b9u;
+                        uint seed=(uint)(((x-MinChunkX)*RegionsDeep+z-MinChunkZ)*33+i+11)*0x9e3779b9u;
                         float px=(x+Scatter(seed))*ChunkSize,pz=(z+Scatter(seed+29))*ChunkSize;
                         float depth=FrontierMap.MainlandDepth(px,pz,out float bankDistance);
                         if(bankDistance<2||!FrontierMap.OnMainland(px,pz))continue;

@@ -28,7 +28,7 @@ namespace Frontline.Editor
                 foreach(string key in new[]{"platform","ring","dot","cliff","base","flame","snow","island_root","mist","icicle"})
                     Save(key,lod,EnvironmentMesh(key,lod));
                 var ground=new Geometry{surface=Surface.Terrain};ground.Box(Vector3.zero,Vector3.one,Cloth);Save("arena_ground",lod,ground);
-                Save("arena_scree",lod,ArenaScree(lod));Save("steel_arc",lod,SteelArc());
+                Save("arena_scree",lod,ArenaScree(lod));Save("arena_scree_corner",lod,ScreeCorner(lod));Save("steel_arc",lod,SteelArc());
                 Save("road_path",lod,RoadRibbon(0,lod));Save("road_link",lod,RoadRibbon(.125f,lod));
                 Save("road_setts",lod,RoadRibbon(.5f,lod));Save("road_grass",lod,RoadRibbon(1,lod));Save("plot_ropes",lod,SurveyRopes(lod));
             }

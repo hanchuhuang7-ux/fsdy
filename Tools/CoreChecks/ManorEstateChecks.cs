@@ -9,9 +9,9 @@ static partial class ManorChecks
     {
         check("all 36 save slots and the dock retain the island survey and west bridge abutment",() => {
             var bridge=data.Frontier.platforms.Single();
-            Expect(Manor.PlotCount==36&&Manor.PlateauHalfWidth==42&&Manor.PlateauHalfDepth==28&&FrontierMap.IslandWest==-106,"shelf bounds");
+            Expect(Manor.PlotCount==36&&Manor.PlateauHalfWidth==50&&Manor.PlateauHalfDepth==34&&FrontierMap.IslandWest==-122,"shelf bounds");
             Expect(FrontierMap.BridgeStart==-22&&FrontierMap.Boundary==45&&Math.Abs(bridge.x-11.5f)<.001f&&bridge.hz==3.6f,"bridge abutments");
-            Expect(FrontierMap.HasGround(-100,19)&&!FrontierMap.HasGround(-105,23)&&!FrontierMap.HasGround(-17,4)&&
+            Expect(FrontierMap.HasGround(-116,25)&&!FrontierMap.HasGround(-121,23)&&!FrontierMap.HasGround(-17,4)&&
                 FrontierMap.HasGround(-17,3.58f)&&FrontierMap.Safe(44.99f,0)&&!FrontierMap.Safe(45,0),"ground or safe line");
             for(int i=0;i<Manor.PlotCount;i++)
             {
@@ -24,8 +24,20 @@ static partial class ManorChecks
             Expect(order.z==16&&FrontierMap.HasGround(order.x,order.z),"patrol could not use the expanded shelf");
         });
 
+        check("v13 production plot IDs survive the expanded survey with every grant and building tier",() => {
+            // Exported by the shipped 4.0.0 Frontline.Core.dll, including every grant, plot and tier.
+            string saved=System.IO.File.ReadAllText("Tools/fixtures/manor-4.0.0-v13.json").TrimEnd();
+            var loaded=Manor.Import(saved);
+            var original=System.Text.Json.Nodes.JsonNode.Parse(saved);
+            var roundTrip=System.Text.Json.Nodes.JsonNode.Parse(loaded.Export());
+            Expect(Manor.SaveVersion==13&&System.Text.Json.Nodes.JsonNode.DeepEquals(original,roundTrip)&&loaded.slots.Length==36,"v13 data changed");
+            for(int id=0;id<36;id++)Expect(Manor.PickSlot(Manor.SlotX(id),Manor.SlotZ(id))==id&&
+                loaded.slots[id].kind==(id==0?"manor_hall":Manor.Buildings[id*5%Manor.Buildings.Length])&&
+                loaded.slots[id].level==1+id%3,"wrong plot "+id);
+        });
+
         check("surveyed continent encloses the lake on every bearing and exceeds twenty times the island area",() => {
-            Expect(FrontierMap.ManorArea==4325&&FrontierMap.LakeArea>=21000&&
+            Expect(FrontierMap.ManorArea>=4325*1.35&&FrontierMap.ManorArea<=4325*1.50&&FrontierMap.LakeArea>=24000&&FrontierMap.FrontierArea>98930*1.35&&
                 FrontierMap.FrontierArea/FrontierMap.ManorArea>=20,"coastline area budget");
             var origin=new V3(FrontierMap.ManorX,0,0);
             for(int i=0;i<FrontierMap.ShoreStations;i++)

@@ -31,6 +31,7 @@ namespace Frontline.Editor
                 var result=new ArtData();
                 foreach(var part in plan)
                 {
+                    if(low&&part.detailOnly)continue;
                     var high=ReadPart(part.name,false,part.filter);var src=low?ReadPart(part.name,true,part.filter):high;
                     result.Add(src,Fit(high.Bounds(),part),project:true);
                 }
@@ -77,7 +78,8 @@ namespace Frontline.Editor
             if(kind=="manor_hall")
             {
                 float keepWidth=level==1?4.25f:level==2?5.3f:6.6f;
-                yield return Exact("building_castle_red",keepWidth,level==1?5.8f:level==2?8.3f:10.6f,keepWidth*.81f,-.44f,0,.40f,180);
+                yield return Exact("building_castle_red",keepWidth,level==1?5.2f:level==2?7.25f:9.20f,keepWidth*.81f,-.44f,0,.40f,180);
+                yield return Exact("Path_Square",level==1?4.95f:8.45f,.21f,level==1?4.52f:6.85f,0,-.14f,0);
                 if(level>=2)
                 {
                     yield return P("LargeTower",2.3f,6.6f,2.25f,3.07f,0,2.22f);
@@ -93,6 +95,8 @@ namespace Frontline.Editor
                 if(level==3)
                 {
                     yield return Exact("LargeSquareTowerBricks",1.68f,5.6f,1.73f,-3.5f,0,2.79f);
+                    yield return Exact("Banner",.64f,1.42f,.28f,-3.48f,3.49f,-2.89f,-17);
+                    yield return Exact("Banner",.54f,1.24f,.27f,3.44f,3.68f,-2.86f,13);
                     yield return P("House_3",2.1f,3.65f,2.1f,2.52f,0,-.22f,180);
                 }
                 yield return P("wooden_lantern_01",.27f,.57f,.25f,-.98f,1.16f,-3.52f);
@@ -160,9 +164,22 @@ namespace Frontline.Editor
                     break;
                 default:throw new ArgumentException(kind);
             }
+            foreach(var prop in Courtyard(kind,level)){prop.detailOnly=true;yield return prop;}
             if(kind=="farm"||kind=="irrigated_field"||kind=="cottage"||kind=="bakery")yield break;
             if(level>1)yield return P(kind=="tavern"?"wine_barrel_01":"wooden_crate_01",.52f,.57f,.45f,-1.40f,0,-.97f);
             if(level==3)yield return P(kind=="barracks"||kind=="drill_yard"?"weaponrack":kind=="tavern"?"Bench_1":"wheelbarrow",.82f,.58f,.50f,.33f,0,-1.10f,180);
+        }
+        static IEnumerable<Part> Courtyard(string kind,int level)
+        {
+            bool masonry=kind=="chapel"||kind=="smithy"||kind=="tavern";
+            yield return Exact(masonry?"fence_stone_straight":"Fence",.82f,.32f,.16f,kind=="cottage"?-1.24f:1.26f,0,-1.24f);
+            yield return Exact("Path_Square",.64f,.036f,.36f,-.08f,.004f,-1.15f);
+            string cargo=kind switch {"smithy" or "timber_camp"=>"Logs","barracks" or "drill_yard"=>"weaponrack",
+                "chapel"=>"Flower_4","tavern"=>"wine_barrel_01","farm" or "pasture" or "irrigated_field"=>"Hay",
+                "weaver" or "cottage"=>"bucket_water","bakery"=>"Bags",_=>"wooden_crate_01"};
+            yield return P(cargo,.53f,.49f,.41f,1.43f,0,kind=="cottage"?.35f:-.83f,17);
+            if(level>=2)yield return P("Flower_4",.42f,.41f,.36f,1.46f,0,1.06f,-19);
+            if(level>=3)yield return Exact("Fence",.66f,.33f,.14f,1.64f,0,.32f,90);
         }
         static Part MillBuilding(Vector3 hub)
         {
@@ -181,7 +198,15 @@ namespace Frontline.Editor
             {
                 float x=-length*.5f+(i+.5f)*segment;
                 yield return Exact(i%3==0?"bridge-straight-pillar":"bridge-straight",segment+.025f,2.7f,9.30f,x,-2.389f,0);
-                for(int side=-1;side<=1;side+=2)yield return Exact("Fence",segment,.85f,.21f,x,0,side*(FrontierMap.BridgeHalfWidth+.18f));
+                for(int side=-1;side<=1;side+=2)
+                {
+                    float z=side*(FrontierMap.BridgeHalfWidth+.26f);
+                    yield return Exact("Fence",segment,.85f,.21f,x,0,z);
+                    if(i%3!=0)continue;
+                    yield return Exact("Column",.72f,2.37f,.66f,x,-1.63f,z);
+                    yield return Exact("Arch",segment-.06f,1.16f,.37f,x,-1.42f,z,0);
+                    if(i==0||i==9)yield return P("Bonfire_Lit",.52f,.47f,.51f,x,.72f,z);
+                }
             }
         }
         static void CheckBridgeDeck(ArtData mesh,bool low)

@@ -35,8 +35,9 @@ namespace Frontline.UnityGame
         internal int ShadowOnlySubmissions {get;private set;}
         bool splitFineShadows=false;
         static readonly int RigLayoutId=Shader.PropertyToID("_RigAttributes");
+        static readonly int BlendId=Shader.PropertyToID("_PreviousPose");
         static readonly int HitId=Shader.PropertyToID("_HitFlash"),TeamId=Shader.PropertyToID("_TeamColor"),WindId=Shader.PropertyToID("_Wind"),SoftnessId=Shader.PropertyToID("_Softness");
-        static readonly Color Red=new Color(.82f,.22f,.17f),Blue=new Color(.17f,.43f,.79f),Gold=new Color(1,.75f,.27f),White=Color.white;
+        static readonly Color Red=new Color(.63f,.172f,.129f),Blue=new Color(.143f,.304f,.49f),Gold=new Color(1,.75f,.27f),White=Color.white;
         sealed class MeshSet
         {
             public Mesh high,low;
@@ -45,10 +46,10 @@ namespace Frontline.UnityGame
             public Batch moving,still,grid,ambient,outer;
             MeshSet shadowless;
             public MeshSet distant;
-            public bool cutout,hasRig,atmosphere,road,castShadow=true,receiveShadow=true,nearDetail,detailProxy;
+            public bool field,cutout,hasRig,atmosphere,road,castShadow=true,receiveShadow=true,nearDetail,detailProxy;
             public Bounds localBounds;
             public MeshSet Variant(bool cast,bool receive,bool near=false) => new MeshSet {
-                high=high,low=low,highVertices=highVertices,lowVertices=lowVertices,atmosphere=atmosphere,road=road,hasRig=hasRig,cutout=cutout,
+                high=high,low=low,highVertices=highVertices,lowVertices=lowVertices,atmosphere=atmosphere,road=road,hasRig=hasRig,cutout=cutout,field=field,
                 localBounds=localBounds,castShadow=cast,receiveShadow=receive,nearDetail=near,detailProxy=detailProxy
             };
             public MeshSet WithoutShadows()=>castShadow?(shadowless??=Variant(false,receiveShadow,nearDetail)):this;
@@ -57,12 +58,14 @@ namespace Frontline.UnityGame
         {
             public MeshSet mesh;
             public readonly Matrix4x4[] matrices;
-            public readonly Vector4[] colors;
+            public readonly Vector4[] colors,blends;
+            public bool blendDirty;
             public readonly float[] flashes,winds;
             public readonly MaterialPropertyBlock properties=new MaterialPropertyBlock();
 
-            public Batch(int capacity=Capacity)
+            public Batch(int capacity=Capacity,bool skinned=false)
             {
+                if(skinned){blends=new Vector4[capacity];blendDirty=true;}
                 matrices=new Matrix4x4[capacity];colors=new Vector4[capacity];
                 flashes=new float[capacity];winds=new float[capacity];
             }
@@ -71,10 +74,11 @@ namespace Frontline.UnityGame
             public Bounds bounds;public Batch next;
             public StaticChunks chunks;
             public void Clear(){count=0;if(fixedPage)visibilityVersion=-1;hasWind=false;chunks?.Clear();if(next!=null)next.Clear();}
-            public void Add(Matrix4x4 matrix,Color color,float wind,float flash=0,int chunk=-1)
+            public void Add(Matrix4x4 matrix,Color color,float wind,float flash=0,int chunk=-1,Vector4 blend=default)
             {
-                if(count==matrices.Length){if(next==null)next=new Batch(matrices.Length){mesh=mesh,fixedPage=fixedPage};next.Add(matrix,color,wind,flash,chunk);return;}
+                if(count==matrices.Length){if(next==null)next=new Batch(matrices.Length,blends!=null){mesh=mesh,fixedPage=fixedPage};next.Add(matrix,color,wind,flash,chunk,blend);return;}
                 matrices[count]=matrix;
+                if(blends!=null&&!blends[count].Equals(blend)){blends[count]=blend;blendDirty=true;}
                 Vector4 rgba=color;
                 if(!colors[count].Equals(rgba)){colors[count]=rgba;colorDirty=true;}
                 if(winds[count]!=wind){winds[count]=wind;windDirty=true;}
@@ -119,7 +123,7 @@ namespace Frontline.UnityGame
         }
         readonly Dictionary<string,MeshSet> meshes=new Dictionary<string,MeshSet>();readonly Dictionary<string,MeshSet> fxMeshes=new Dictionary<string,MeshSet>();readonly Dictionary<string,UnitVisual> units=new Dictionary<string,UnitVisual>();readonly Dictionary<string,MeshSet> props=new Dictionary<string,MeshSet>();
         readonly List<Batch> moving=new List<Batch>(),still=new List<Batch>(),grid=new List<Batch>();
-        Material material,foliageMaterial,atmosphere,groundingMaterial,sky,roadMaterial;Light sun;MeshSet catapult,catapultArm,ring,dot,wreckCart,arrow,bolt,bomb,stone;MapEcology.Mote[] motes;
+        Material material,fieldMaterial,foliageMaterial,atmosphere,groundingMaterial,sky,roadMaterial;Light sun;MeshSet catapult,catapultArm,ring,dot,wreckCart,arrow,bolt,bomb,stone;MapEcology.Mote[] motes;
         MeshSet dust;float activeFlash;struct MotionSample {public Vector3 p;public float time,speed,phase,direction;public bool valid;}readonly MotionSample[] oldMotion=new MotionSample[VisualUnitSlots];
         struct GroundSample {public string map;public float x,z,height;}
         readonly GroundSample[] unitFloors=new GroundSample[2*Catalog.MaxUnits+1];
@@ -152,6 +156,9 @@ namespace Frontline.UnityGame
         }
         Vector3 target=Vector3.zero;float yaw,distance=40,pitch=51;int cameraWidth,cameraHeight,cachedQuality=-1;string cachedMap;Vector3 cameraPosition;
         float sidebarWeight;
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+        int defaultPresentQueue;
+#endif
         bool autoArenaDistance=true;
         bool HasDesktopDeck => !Viewport.Compact&&manor==null&&Deploying&&Config!=null&&Config.manorHall==0;
 
@@ -167,7 +174,7 @@ namespace Frontline.UnityGame
         void Awake()
         {
             ViewCamera=new GameObject("Battle camera").AddComponent<Camera>();ViewCamera.transform.SetParent(transform,false);ViewCamera.clearFlags=CameraClearFlags.Skybox;ViewCamera.fieldOfView=Viewport.Compact?65:42;ViewCamera.nearClipPlane=.5f;ViewCamera.farClipPlane=160;ViewCamera.gameObject.AddComponent<AudioListener>();
-            sun=new GameObject("Warm key light").AddComponent<Light>();sun.transform.SetParent(transform,false);sun.transform.rotation=Quaternion.Euler(48,-32,0);sun.type=LightType.Directional;sun.color=new Color(1,.92f,.8f);sun.intensity=.95f;sun.shadows=LightShadows.Soft;sun.shadowStrength=.62f;sun.shadowBias=.045f;
+            sun=new GameObject("Warm key light").AddComponent<Light>();sun.transform.SetParent(transform,false);sun.transform.rotation=Quaternion.Euler(48,-32,0);sun.type=LightType.Directional;sun.color=new Color(1,.92f,.8f);sun.intensity=.95f;sun.shadows=LightShadows.Soft;sun.shadowStrength=.62f;sun.shadowBias=.035f;sun.shadowNormalBias=.30f;
 #if !UNITY_WEBGL
             splitFineShadows=SystemInfo.graphicsDeviceType==GraphicsDeviceType.Direct3D11;
 #endif
@@ -191,6 +198,7 @@ namespace Frontline.UnityGame
             ring=Load("ring");dot=Load("dot");wreckCart=Load("wreck_catapult");arrow=Load("arrow");bolt=Load("bolt");bomb=Load("bomb");stone=Load("stone");
             weatherPage=new Batch { mesh=Load("snow",true) };
             foliageMaterial=new Material(material){name="Scanned foliage",enableInstancing=true};foliageMaterial.EnableKeyword("FRONTLINE_FOLIAGE");
+            fieldMaterial=new Material(material){name="Meadow and battle ground",enableInstancing=true};fieldMaterial.EnableKeyword("FRONTLINE_FIELD");
             InitializeArtists();
             InitializeAccents();
 
@@ -200,6 +208,9 @@ namespace Frontline.UnityGame
             for(int reserved=Capacity;reserved<feedbackInstances;reserved+=Capacity)
             {feedback.next=new Batch{mesh=dot};feedback=feedback.next;}
             ViewCamera.allowMSAA=true;
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+            defaultPresentQueue=QualitySettings.maxQueuedFrames;
+#endif
             if(VisualValidation.Requested)
             {
                 qualityKey="frontline.qa.visual.quality";
@@ -228,6 +239,8 @@ namespace Frontline.UnityGame
             Add(material.shader,PassType.ForwardBase,"DIRECTIONAL","SHADOWS_SCREEN");
             Add(material.shader,PassType.ForwardBase,"DIRECTIONAL","FRONTLINE_SKIN");
             Add(material.shader,PassType.ForwardBase,"DIRECTIONAL","SHADOWS_SCREEN","FRONTLINE_SKIN");
+            Add(material.shader,PassType.ForwardBase,"DIRECTIONAL","FRONTLINE_FIELD");
+            Add(material.shader,PassType.ForwardBase,"DIRECTIONAL","SHADOWS_SCREEN","FRONTLINE_FIELD");
             Add(material.shader,PassType.ForwardBase,"DIRECTIONAL","FRONTLINE_FOLIAGE");
             Add(material.shader,PassType.ForwardBase,"DIRECTIONAL","SHADOWS_SCREEN","FRONTLINE_FOLIAGE");
             Add(material.shader,PassType.ShadowCaster,"SHADOWS_DEPTH","FRONTLINE_FOLIAGE");
@@ -252,6 +265,7 @@ namespace Frontline.UnityGame
             bool secondary=name=="base"||name=="island_root"||name=="cliff"||name=="icicle"||name=="shrub"||
                 name=="snow"||name=="flame"||name=="mist"||name=="civilian_hat"||name=="villager_wrap"||
                 name=="resident_sleeve"||name=="civilian_pack"||name.StartsWith("carry_",StringComparison.Ordinal);
+            set.field=name=="arena_ground";
             set.cutout=name=="tree"||name=="pine"||name=="grass"||name=="reeds"||name=="shrub";
             set.road=name.StartsWith("road_",StringComparison.Ordinal);
             set.castShadow=!set.road&&!transparent&&!small&&!secondary&&name!="platform"&&name!="arena_ground";
@@ -273,20 +287,20 @@ namespace Frontline.UnityGame
             var b=category==0?mesh.moving:category==1?mesh.still:category==2?mesh.grid:mesh.outer;
             if(b==null)
             {
-                b=new Batch(capacity){mesh=mesh,fixedPage=category!=0};
+                b=new Batch(capacity,mesh.skin!=null){mesh=mesh,fixedPage=category!=0};
                 if(category==0)mesh.moving=b;else if(category==1)mesh.still=b;else if(category==2)mesh.grid=b;else mesh.outer=b;
                 list.Add(b);
             }
             return b;
         }
-        void Add(MeshSet mesh,Matrix4x4 matrix,Color color,float wind=0)
+        void Add(MeshSet mesh,Matrix4x4 matrix,Color color,float wind=0,Vector4 blend=default)
         {
             if(fillingAmbient)
             {
                 if(mesh.ambient==null){mesh.ambient=new Batch{mesh=mesh};ambient.Add(mesh.ambient);}
-                mesh.ambient.Add(matrix,color,wind,activeFlash);
+                mesh.ambient.Add(matrix,color,wind,activeFlash,blend:blend);
             }
-            else (mesh.moving??Buffer(mesh,moving,0)).Add(matrix,color,wind,activeFlash);
+            else (mesh.moving??Buffer(mesh,moving,0)).Add(matrix,color,wind,activeFlash,blend:blend);
         }
         UnitVisual Model(string type)
         {
@@ -298,41 +312,45 @@ namespace Frontline.UnityGame
         {
             var set=b.mesh;
             if(manor!=null&&(set.nearDetail&&lowScenery||set==campSentries&&!lowActors||set==raidPennant&&!manor.raidReady))return;
-            bool showLow=(isStatic?lowScenery:lowActors)&&!set.skin;
+            for(var source=b;source!=null;source=source.next)
+            {
+                if(source.count==0)continue;
+                if(!isStatic){SubmitPage(set,source,false,false);continue;}
+                var page=VisibleStaticPage(source,out var far);
+                if(page!=null)SubmitPage(set,page,true,false);
+                if(far!=null)SubmitPage(set,far,true,true);
+            }
+        }
+        void SubmitPage(MeshSet set,Batch page,bool isStatic,bool coarse)
+        {
+            bool showLow=coarse||(isStatic?lowScenery:lowActors)&&!set.skin;
+            bool cast=set.castShadow&&!coarse;
             var mesh=showLow?set.low:set.high;
             int mainVertexCount=showLow?set.lowVertices:set.highVertices;
-            bool detailProxy=!showLow&&set.castShadow&&set.detailProxy;
-            bool eligible=splitFineShadows&&QualityLevel==2&&!showLow&&set.castShadow&&set.lowVertices<set.highVertices;
-            for(var source=b;source!=null;source=source.next)if(source.count>0)
+            bool detailProxy=!showLow&&cast&&set.detailProxy;
+            bool eligible=splitFineShadows&&QualityLevel==2&&!showLow&&cast&&set.lowVertices<set.highVertices;
+            int layout=!showLow&&set.hasRig?1:0;
+            if(page.rigLayout!=layout){page.properties.SetFloat(RigLayoutId,layout);page.rigLayout=layout;}
+            if(page.blendDirty){page.properties.SetVectorArray(BlendId,page.blends);page.blendDirty=false;}
+            if(page.colorDirty){page.properties.SetVectorArray(TeamId,page.colors);page.colorDirty=false;}
+            if(page.flashDirty&&!set.atmosphere){page.properties.SetFloatArray(HitId,page.flashes);page.flashDirty=false;}
+            if(page.windDirty){page.properties.SetFloatArray(set.atmosphere?SoftnessId:WindId,page.winds);page.windDirty=false;}
+            var surface=!showLow&&set.skin?set.skin:set==contactShade?groundingMaterial:set.road?roadMaterial:set.atmosphere?atmosphere:set.cutout?foliageMaterial:set.field?fieldMaterial:material;
+            bool split=detailProxy||eligible&&(set.highVertices-set.lowVertices)*page.count>=MinShadowVertexSavings;
+            Graphics.DrawMeshInstanced(mesh,0,surface,page.matrices,page.count,page.properties,
+                cast&&!split?ShadowCastingMode.On:ShadowCastingMode.Off,set.receiveShadow,0,ViewCamera,LightProbeUsage.Off);
+            RenderSubmissions++;RenderInstances+=page.count;
+            if(split)
             {
-                var page=source;
-                if(isStatic)
-                {
-                    page=VisibleStaticPage(source);
-                    if(page==null)continue;
-                }
-                int layout=!showLow&&set.hasRig?1:0;
-                if(page.rigLayout!=layout){page.properties.SetFloat(RigLayoutId,layout);page.rigLayout=layout;}
-                if(page.colorDirty){page.properties.SetVectorArray(TeamId,page.colors);page.colorDirty=false;}
-                if(page.flashDirty&&!set.atmosphere){page.properties.SetFloatArray(HitId,page.flashes);page.flashDirty=false;}
-                if(page.windDirty){page.properties.SetFloatArray(set.atmosphere?SoftnessId:WindId,page.winds);page.windDirty=false;}
-                var surface=!showLow&&set.skin?set.skin:set==contactShade?groundingMaterial:set.road?roadMaterial:set.atmosphere?atmosphere:set.cutout?foliageMaterial:material;
-                bool split=detailProxy||eligible&&(set.highVertices-set.lowVertices)*page.count>=MinShadowVertexSavings;
-                Graphics.DrawMeshInstanced(mesh,0,surface,page.matrices,page.count,page.properties,
-                    set.castShadow&&!split?ShadowCastingMode.On:ShadowCastingMode.Off,set.receiveShadow,0,ViewCamera,LightProbeUsage.Off);
-                RenderSubmissions++;RenderInstances+=page.count;
-                if(split)
-                {
-                    // Preserve the visible mesh, placement and receiving shadows. Only change the caster mesh.
-                    Graphics.DrawMeshInstanced(set.low,0,set.skin?material:surface,page.matrices,page.count,page.hasWind&&!set.skin?page.properties:null,
-                        ShadowCastingMode.ShadowsOnly,false,0,ViewCamera,LightProbeUsage.Off);
-                    RenderSubmissions++;ShadowOnlySubmissions++;
-                }
-                if(MeasureCasterVertices)
-                {
-                    MainVertices+=(long)mainVertexCount*page.count;
-                    if(set.castShadow)CasterVertices+=(long)(split?set.lowVertices:mainVertexCount)*page.count;
-                }
+                // Preserve the visible mesh, placement and receiving shadows. Only change the caster mesh.
+                Graphics.DrawMeshInstanced(set.low,0,set.skin?material:surface,page.matrices,page.count,page.hasWind&&!set.skin?page.properties:null,
+                    ShadowCastingMode.ShadowsOnly,false,0,ViewCamera,LightProbeUsage.Off);
+                RenderSubmissions++;ShadowOnlySubmissions++;
+            }
+            if(MeasureCasterVertices)
+            {
+                MainVertices+=(long)mainVertexCount*page.count;
+                if(cast)CasterVertices+=(long)(split?set.lowVertices:mainVertexCount)*page.count;
             }
         }
         bool InView(Vector3 point,float radius)
@@ -364,6 +382,7 @@ namespace Frontline.UnityGame
         void RebuildMap()
         {
             foreach(var b in still)b.Clear();foreach(var b in grid)b.Clear();
+            roadMaterial.SetVector("_Court",Vector4.zero);
             var map=Data.Maps[Config.map];
             int propCapacity=map.props.Count+2*Catalog.MaxProps;
             if(propFloors.Length<propCapacity)propFloors=new GroundSample[propCapacity];
@@ -373,7 +392,9 @@ namespace Frontline.UnityGame
             foreach(var d in MapEcology.Build(Data,Config.map,QualityLevel))
             {
                 var set=Load(d.mesh,d.atmosphere);
-                Buffer(d.castsShadow?set:set.WithoutShadows(),still,1).Add(d.matrix,d.tint,d.wind);
+                var at=d.matrix.GetColumn(3);
+                int region=ArenaRegion(at);
+                Buffer(d.castsShadow?set:set.WithoutShadows(),still,1).Add(d.matrix,d.tint,d.wind,chunk:region);
             }
             for(int i=-16;i<=16;i+=2)for(int j=-10;j<=10;j+=2){float h=Data.Height(Config.map,i,j);if(Catalog.Finite(h))Buffer(dot,grid,2).Add(Matrix4x4.TRS(new Vector3(i,h+.027f,j),Quaternion.identity,new Vector3(.095f,.025f,.095f)),i<0?new Color(.91f,.53f,.37f):new Color(.4f,.71f,.94f),0);}
             for(int j=-11;j<=11;j++){float h=Data.Height(Config.map,0,j);if(Catalog.Finite(h))Buffer(dot,grid,2).Add(Matrix4x4.TRS(new Vector3(0,h+.03f,j),Quaternion.identity,new Vector3(.065f,.025f,.35f)),new Color(.91f,.91f,.76f),0);}
@@ -511,7 +532,17 @@ namespace Frontline.UnityGame
         void DrawFrame()
         {
             if(Data==null||Config==null)return;SkinnedInstances=ProxyActors=0;foreach(var b in moving)b.Clear();RenderSubmissions=RenderInstances=RenderHeightSamples=ShadowOnlySubmissions=CulledStaticInstances=0;CasterVertices=MainVertices=0;
-            if(cameraWidth!=Screen.width||cameraHeight!=Screen.height){cameraWidth=Screen.width;cameraHeight=Screen.height;if(manor==null){ViewCamera.fieldOfView=Viewport.Compact?65:42;sidebarWeight=HasDesktopDeck?1:0;}else FrameManor();}
+            if(cameraWidth!=Screen.width||cameraHeight!=Screen.height)
+            {
+                cameraWidth=Screen.width;cameraHeight=Screen.height;
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+                // High pixel counts saturate the windowed copy queue. At smaller sizes the simulation
+                // and renderer benefit from working on successive frames at the same time.
+                QualitySettings.maxQueuedFrames=(long)cameraWidth*cameraHeight>1920*1080?1:defaultPresentQueue;
+#endif
+                if(manor==null){ViewCamera.fieldOfView=Viewport.Compact?65:42;sidebarWeight=HasDesktopDeck?1:0;}
+                else FrameManor();
+            }
             if(manor==null&&CameraMode==2&&Current!=null){UnitFrame best=null;float bestCost=0;foreach(var u in Current.units)if(u.alive){float cost=Model(u.type).definition.cost;if(best==null||cost>bestCost){best=u;bestCost=cost;}}if(best?.t!=null)target=Vector3.Lerp(target,new Vector3(best.t[0],1,best.t[2]),.1f);}
             AdvanceCameraBlend();
             AdvanceFrontierZoom();
@@ -534,7 +565,7 @@ namespace Frontline.UnityGame
             ViewCamera.transform.SetPositionAndRotation(cameraPosition,rotation);
             if(manor!=null)
             {
-                float farPlane=Mathf.Max(2600,distance*5.5f);
+                float farPlane=Mathf.Max(3000,distance*5.65f);
                 if(!Mathf.Approximately(ViewCamera.farClipPlane,farPlane))ViewCamera.farClipPlane=farPlane;
             }
             var clip=ViewCamera.projectionMatrix*ViewCamera.worldToCameraMatrix;
@@ -610,7 +641,7 @@ namespace Frontline.UnityGame
             if(ViewCamera)ViewCamera.enabled=false;
             DisposeSoldierPoses();ReleaseArtists();
         }
-        void OnDestroy(){StopPresentation();if(RenderSettings.skybox==sky)RenderSettings.skybox=null;if(material)Destroy(material);if(foliageMaterial)Destroy(foliageMaterial);if(atmosphere)Destroy(atmosphere);if(groundingMaterial)Destroy(groundingMaterial);if(sky)Destroy(sky);if(lakeMaterial)Destroy(lakeMaterial);if(roadMaterial)Destroy(roadMaterial);}
+        void OnDestroy(){StopPresentation();if(RenderSettings.skybox==sky)RenderSettings.skybox=null;if(material)Destroy(material);if(foliageMaterial)Destroy(foliageMaterial);if(fieldMaterial)Destroy(fieldMaterial);if(reliefMaterial)Destroy(reliefMaterial);if(atmosphere)Destroy(atmosphere);if(groundingMaterial)Destroy(groundingMaterial);if(sky)Destroy(sky);if(lakeMaterial)Destroy(lakeMaterial);if(roadMaterial)Destroy(roadMaterial);}
     }
 }
 

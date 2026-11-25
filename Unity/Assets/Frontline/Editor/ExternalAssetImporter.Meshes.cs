@@ -18,7 +18,7 @@ namespace Frontline.Editor
         {
             public string name,filter;
             public Vector3 at,box,angles;
-            public bool exact,center;
+            public bool exact,center,detailOnly;
             public Part(string model,float w,float h,float d,float x=0,float y=0,float z=0,float yaw=0,string filter=null,
                 bool exact=false,bool center=false)
             {name=model;box=new Vector3(w,h,d);at=new Vector3(x,y,z);angles=new Vector3(0,yaw,0);this.filter=filter;this.exact=exact;this.center=center;}
@@ -112,10 +112,10 @@ namespace Frontline.Editor
         {
             if(tag>=112)return new Color(1,1,1,tag<=113?1:0);
             if(tag>=32)return Color.white;
-            if(model=="Mantle")return new Color(.65f,.61f,.56f,.83f);
-            if(model.StartsWith("shield")&&tag==6||model=="Banner"&&!slot.ToLowerInvariant().Contains("wood"))return new Color(.76f,.72f,.65f,1);
+            if(model=="Mantle")return new Color(.55f,.52f,.46f,.90f);
+            if(model.StartsWith("shield")&&tag==6||model=="Banner"&&!slot.ToLowerInvariant().Contains("wood"))return new Color(.63f,.60f,.54f,1);
             if(model=="Horse")return slot switch {"Hair" or "Hooves"=>new Color(.20f,.15f,.12f,0),"Muzzle"=>new Color(.38f,.27f,.20f,0),"Eye_White"=>new Color(.71f,.66f,.54f,0),"Eye_Black"=>new Color(.073f,.062f,.046f,0),"Main_Dark"=>new Color(.39f,.245f,.156f,0),_=>new Color(.51f,.322f,.20f,0)};
-            if(slot.StartsWith("Court_"))return slot.Contains("Gold")?new Color(.68f,.53f,.29f,0):slot.Contains("Leather")?new Color(.33f,.25f,.19f,0):new Color(.70f,.73f,.73f,0);
+            if(slot.StartsWith("Court_"))return slot.Contains("Gold")?new Color(.61f,.46f,.25f,0):slot.Contains("Leather")?new Color(.249f,.166f,.111f,0):new Color(.48f,.506f,.516f,0);
             float y=c.grayscale;
             if(actor)
             {
@@ -154,7 +154,7 @@ namespace Frontline.Editor
                         if(model.StartsWith("bridge-straight",StringComparison.Ordinal))tag=n.y>.70f?2:1;
                         result.p.Add(p);result.n.Add(n);result.uv.Add(uvs.Length==points.Length?uvs[index]:Project(p,n));
                         float ao=.96f;
-                        result.surface.Add(new Vector4(tag,tag==5?.81f:0,tag==5?.34f:.82f,ao));
+                        result.surface.Add(new Vector4(tag,tag==5?.81f:0,tag==5?.46f:.82f,ao));
                         result.color.Add(Pigment(original,tag,actor,part,slot,model));
                         if(bones!=null)
                         {

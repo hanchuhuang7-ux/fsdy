@@ -37,7 +37,7 @@ namespace Frontline.UnityGame
         int manorSelection = -1, manorPace = 1;
         internal int HoveredPlot {get;set;}=-1;
         bool manorDirty,winterHeating;
-        float manorTime, manorScreenShift;
+        float manorTime, villageTime, manorScreenShift;
         readonly string[] builtKinds = new string[Manor.PlotCount], builtBackyards=new string[Manor.PlotCount];
         readonly int[] builtLevels = new int[Manor.PlotCount], homes = new int[Manor.PlotCount];
         readonly CropAppearance[] builtCrops = new CropAppearance[Manor.PlotCount];
@@ -45,13 +45,18 @@ namespace Frontline.UnityGame
         internal Vector3 ResidentPoint {get;private set;}
         internal float ResidentHeading {get;private set;}
         internal bool WalkingResidentVisible {get;private set;}
+        internal bool ResidentsPassing {get;private set;}
+        internal Vector3 PassingPoint {get;private set;}
+        Vector3 nearestPedestrian;
+        bool yieldingToPedestrian;
+        internal void PreviewVillageTime(float clock){villageTime=clock;ambientDirty=true;}
         int builtReclaimedPlots,builtNobility;
         int homeCount,tavernSlot,builtSeason=-1;
         MeshSet countryLane,shortLane,pavedLane,grassTrace,surveyRopes,earthBlock,surveyBlock, sails;
         MeshSet crate,basket;
         readonly Vector3[] millHubs=new Vector3[Manor.PlotCount];
         readonly int[] millPlots=new int[Manor.PlotCount],forgePlots=new int[Manor.PlotCount];
-        readonly Vector3[] occupiedWalkSpace=new Vector3[OrdinaryResidentLimit+Manor.SpecialistIds.Length+Manor.HeroIds.Length];
+        readonly Vector3[] occupiedWalkSpace=new Vector3[OrdinaryResidentLimit+Manor.SpecialistIds.Length+Manor.HeroIds.Length+6];
         readonly Vector3[] heroBays=new Vector3[Manor.HeroIds.Length];
         int forgeCount,occupiedWalkCount;
         MeshSet forgeFlame;
@@ -117,6 +122,8 @@ namespace Frontline.UnityGame
                 zoomTarget=0;
                 ClearAmbient();
                 System.Array.Clear(headingSet,0,headingSet.Length);
+                System.Array.Clear(watchProgress,0,watchProgress.Length);
+                watchTick=-1;
                 if (manor == null) arenaCamera = Bookmark();
                 else villageCamera = Bookmark();
                 cachedMap = null;
@@ -200,6 +207,7 @@ namespace Frontline.UnityGame
         static Vector3 Plot(int index) => new Vector3(Manor.SlotX(index), 0, Manor.SlotZ(index));
         const float LaneZ=4.95f,CrossX=5.48f,WestLaneX=-20.65f*Manor.TownScaleX,OuterLaneZ=12.35f*Manor.TownScaleZ;
         const float BridgeLocalX=Manor.PlateauHalfWidth;
+        const int WellSite=Manor.PlotCount+1,MarketSite=WellSite+1,RouteCount=MarketSite+1;
         const int Gate=Manor.PlotCount, WestOuterStart=Manor.FirstNoblePlot-2;
         const float OuterLaneEast=24.65f*Manor.TownScaleX;
 
@@ -211,6 +219,7 @@ namespace Frontline.UnityGame
 
         static Vector3 LaneMouth(int plot)
         {
+            if(plot==MarketSite||plot==WellSite)return new Vector3(plot==WellSite?-CrossX:CrossX,0,-LaneZ);
             if (plot == Gate) return new Vector3(BridgeLocalX-6.65f,0,-LaneZ);
             var p=Plot(plot);
             if(WestPlot(plot))return new Vector3(WestLaneX,0,p.z);
@@ -221,6 +230,8 @@ namespace Frontline.UnityGame
 
         static Vector3 Door(int plot)
         {
+            if(plot==MarketSite)return new Vector3(CrossX,0,MarketSouth.z);
+            if(plot==WellSite)return new Vector3(-CrossX,0,WellOrigin.z);
             if (plot == Gate) return new Vector3(BridgeLocalX-.38f,0,0);
             var p=Plot(plot);
             var mouth=LaneMouth(plot);
@@ -278,16 +289,16 @@ namespace Frontline.UnityGame
             var rock = Load("rock").WithoutShadows();
             var grass = Load("grass");
             var flowers = Load("flowers");
-            int sprigs=QualityLevel==0?48:QualityLevel==1?94:144;
+            int sprigs=QualityLevel==0?62:QualityLevel==1?119:182;
             for(int i=0;i<sprigs;i++)
             {
                 float along=Mathf.Repeat(.62f+i*.618034f,1),inset=Mathf.Repeat(.3f+i*.414214f,1);
-                float x=-39+77*along;
+                float x=(along*2-1)*(Manor.PlateauHalfWidth-3.0f);
                 FrontierMap.ShoreAt(ManorOrigin.x+x,out float south,out float north);
                 bool sunny=(i&1)!=0;
                 float z=sunny?north-1.1f-2.8f*inset:south+1.1f+2.8f*inset;
                 if(!sunny&&Mathf.Abs(x-DockOrigin.x)<3.8f)continue;
-                if(x>34f&&Mathf.Abs(z)<7.5f)continue;
+                if(x>BridgeLocalX-8&&Mathf.Abs(z)<7.5f)continue;
                 var point=new Vector3(x,0,z);
                 var rotation=Quaternion.Euler(0,i*137.5f,0);
                 bool blocked=false;
@@ -345,8 +356,8 @@ namespace Frontline.UnityGame
             if(i==0)
             {
                 ManorStill(Load("manor_hall"+upgrade),basePoint,facing,Vector3.one,White);
-                if(plot.level==3)ManorStill(props["banner"].WithoutShadows(),basePoint+new Vector3(0,10.29f,.25f),
-                    Quaternion.Euler(0,-24,0),new Vector3(2.0f,1.7f,2.0f),new Color(.78f,.22f,.16f),.023f);
+                if(plot.level==3)ManorStill(props["banner"].WithoutShadows(),basePoint+new Vector3(-.5f,8.05f,.30f),
+                    Quaternion.Euler(0,-24,0),new Vector3(1.25f,.62f,1.25f),new Color(.78f,.22f,.16f),.023f);
             }
             else
             {
@@ -394,8 +405,10 @@ namespace Frontline.UnityGame
             builtReclaimedPlots=manor.reclaimedPlots;
             builtNobility=manor.nobility;
             material.SetFloat("_LakeEnvironment",1);
+            roadMaterial.SetVector("_Court",new Vector4(ManorOrigin.x,0,1,0));
             PrepareOuterWorld();
             MeadowBorder();
+            PlantOrchards();
             Lane(new Vector3(WestLaneX,0,-LaneZ),LaneMouth(Gate),.78f);
             Lane(new Vector3(WestLaneX,0,LaneZ),new Vector3(LaneMouth(Gate).x,0,LaneZ),.68f);
             Lane(LaneMouth(Gate),Door(Gate),1.08f);
@@ -441,7 +454,7 @@ namespace Frontline.UnityGame
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.fogColor = ManorHorizons[builtSeason];
-            RenderSettings.fogDensity = .00155f;
+            RenderSettings.fogDensity = .00137f;
             material.SetColor("_SkyLight",Color.Lerp(ManorHorizons[builtSeason],new Color(.52f,.54f,.55f),.45f));
             material.SetColor("_GroundLight",Color.Lerp(ManorSoils[builtSeason],new Color(.16f,.18f,.16f),.70f));
             cachedQuality = QualityLevel;
@@ -515,14 +528,15 @@ namespace Frontline.UnityGame
         void BuildRoutes()
         {
             // Each route follows the actual lanes and stops at doorsteps.
-            walks = new WalkRoute[(Gate+1)*(Gate+1)];
-            for (int home = 0; home <= Gate; home++)
-                for (int dest = 0; dest <= Gate; dest++)
+            walks = new WalkRoute[RouteCount*RouteCount];
+            for (int home = 0; home < RouteCount; home++)
+                for (int dest = 0; dest < RouteCount; dest++)
                 {
                     if (home == dest) continue;
-                    walks[home * (Gate+1) + dest] = WalkBetween(home,dest);
+                    walks[home * RouteCount + dest] = WalkBetween(home,dest);
                 }
             BuildSpecialistRoutes();
+            for(int i=0;i<watchRoutes.Length;i++)watchRoutes[i]=WatchRoute(i);
         }
 
         static Vector3 MainLaneJoin(int plot,Vector3 mouth)
@@ -578,8 +592,13 @@ namespace Frontline.UnityGame
         void ContactAt(Vector3 point,float width)
         {
             point.y=.057f;
-            if((point-cameraPosition).sqrMagnitude>fadeStartSquared)
-                Add(contactShade,Pose(point,Quaternion.identity,new Vector3(width,1,width*.76f)),GroundShade,1);
+            bool distant=(point-cameraPosition).sqrMagnitude>fadeStartSquared;
+            if(!distant)
+            {
+                Add(dust,Pose(point,Quaternion.identity,new Vector3(width*.76f,1,width*.53f)),new Color(.13f,.105f,.067f,.215f),1);
+                return;
+            }
+            Add(contactShade,Pose(point,Quaternion.identity,new Vector3(width,1,width*.76f)),GroundShade,1);
         }
         float LocalHeading(int index,float desired)
         {
@@ -591,100 +610,123 @@ namespace Frontline.UnityGame
 
         readonly struct ResidentVisit
         {
-            public readonly WalkRoute route;
-            public readonly int id, dest, lane;
+            public readonly WalkRoute outbound,errand,homeward;
+            public readonly int id,work,social,lane;
             public readonly bool idle;
-            public readonly float marketStop;
+            public ResidentVisit(WalkRoute first,WalkRoute second,WalkRoute third,int id,int work,int social,int lane,bool idle)
+            {outbound=first;errand=second;homeward=third;this.id=id;this.work=work;this.social=social;this.lane=lane;this.idle=idle;}
 
-            public ResidentVisit(WalkRoute route,int id,int dest,int lane,bool idle)
+            public void Sample(float clock,out WalkRoute route,out int site,out float along,out int stage)
             {
-                this.route=route;this.id=id;this.dest=dest;this.lane=lane;this.idle=idle;
-                marketStop=idle&&id%3!=0?route.MarketStop():-1;
+                float speed=.85f+(id%4)*.09f;
+                float a=outbound.total/speed,b=errand.total/speed,c=homeward.total/speed;
+                float workTime=idle?5.5f:8.4f,socialTime=4.2f+id%3;
+                float t=Mathf.Repeat(clock,Lap);
+                if(t<a+workTime){route=outbound;site=work;along=Mathf.Min(outbound.total,t*speed);stage=t<a?0:1;return;}
+                t-=a+workTime;
+                if(t<b+socialTime){route=errand;site=social;along=Mathf.Min(errand.total,t*speed);stage=t<b?2:3;return;}
+                t-=b+socialTime;route=homeward;site=-1;along=Mathf.Min(homeward.total,t*speed);stage=t<c?4:5;
             }
+            public float Offset=>outbound.total/(.85f+id%4*.09f)+(lane*.21f+id*.137f)*Lap;
+            public float Lap=>(outbound.total+errand.total+homeward.total)/(.85f+(id%4)*.09f)+(idle?5.5f:8.4f)+4.2f+id%3+2.4f;
+        }
+
+        internal static object CheckVillageSchedule()
+        {
+            var a=WalkBetween(1,2);var b=WalkBetween(2,MarketSite);var c=WalkBetween(MarketSite,1);
+            var visit=new ResidentVisit(a,b,c,5,2,MarketSite,0,false);
+            int mask=0;float largest=0;var previous=Door(1);
+            // Warm JIT outside the measured loop, including the route sampler.
+            visit.Sample(0,out var path,out _,out var at,out _);path.Sample(at,out _,out _);
+            long before=System.GC.GetAllocatedBytesForCurrentThread();
+            for(float t=0;t<visit.Lap+.2f;t+=.0625f)
+            {
+                visit.Sample(t,out path,out _,out at,out int stage);path.Sample(at,out var position,out _);
+                largest=Mathf.Max(largest,Vector3.Distance(position,previous));previous=position;mask|=1<<stage;
+            }
+            long bytes=System.GC.GetAllocatedBytesForCurrentThread()-before;
+            if(mask!=63||largest>.15f||bytes!=0)throw new System.InvalidOperationException("Resident path, shift or allocation regression: "+mask+"/"+largest+"/"+bytes);
+            return new {stages=mask,loopSeconds=visit.Lap,maximumStepMetres=largest,allocatedBytes=bytes};
         }
 
         void AddResident(int id,int home,int dest,int lane,bool idle)
         {
             if(home==dest)home=dest==0?Gate:0;
-            residents[residentCount++]=new ResidentVisit(walks[home*(Gate+1)+dest],id,dest,lane,idle);
+            int social=(id&1)==0?WellSite:MarketSite;
+            if(id%4>=2)
+            {
+                string venue=id%4==2?"chapel":"tavern";
+                for(int i=1;i<Manor.PlotCount;i++)
+                    if(i!=home&&i!=dest&&manor.slots[i].kind==venue){social=i;break;}
+            }
+            residents[residentCount++]=new ResidentVisit(walks[home*RouteCount+dest],walks[dest*RouteCount+social],
+                walks[social*RouteCount+home],id,dest,social,lane,idle);
+        }
+
+        static ArtistMotion WorkGesture(string trade,int site)
+        {
+            if(site==WellSite||site==MarketSite||trade==Manor.Bakery||trade=="granary")return ArtistMotion.Lift;
+            if(trade=="smithy"||trade=="timber_camp")return ArtistMotion.Heavy;
+            if(IsFarm(trade)||trade==Manor.Weaver)return ArtistMotion.Tend;
+            return trade=="tavern"||trade=="chapel"?ArtistMotion.Converse:ArtistMotion.Work;
         }
 
         void DrawResident(in ResidentVisit visit)
         {
-            int id=visit.id,dest=visit.dest,lane=visit.lane;
-            var route=visit.route;
-            string kind=dest==Gate?null:manor.slots[dest].kind;
-            bool farmer=!visit.idle&&IsFarm(kind);
-            bool nearby=!lowActors&&distance<=43;
-            bool bakery=nearby&&!visit.idle&&kind==Manor.Bakery,loom=nearby&&!visit.idle&&kind==Manor.Weaver,
-                forge=nearby&&!visit.idle&&kind=="smithy";
-            float speed=.85f+(id%4)*.09f;
-            float travel=route.total/speed;
-            float dwell=farmer?7f:bakery||loom||forge?5.3f:3.7f;
-            float pause=nearby&&visit.marketStop>=0?1.02f+(id%3)*.22f:0;
-            float arriving=travel+pause,stopTime=visit.marketStop/speed;
-            float cycle=arriving+travel+dwell+1.8f;
-            float phase=Mathf.Repeat(manorTime+arriving+(farmer?lane*cycle/3f:id*2.19f),cycle);
-            bool atWork=phase>=arriving&&phase<arriving+dwell;
-            bool returning=phase>=arriving+dwell;
-            bool browsing=pause>0&&phase>=stopTime&&phase<stopTime+pause;
-            float walkingTime=pause>0?phase-Mathf.Clamp(phase-stopTime,0,pause):phase;
-            float along=returning?Mathf.Max(0,route.total-(phase-arriving-dwell)*speed):Mathf.Min(route.total,walkingTime*speed);
-            route.Sample(along,out var pos,out var direction);
-            if(returning)direction=-direction;
-            float spacing=(lane%3-1)*.38f;
-            // Keep to the right of the lane in each travel direction, with a small stable offset per resident.
-            float roadOffset=(.205f+(id%4)*.045f)*Mathf.Clamp01(Mathf.Min(along,route.total-along)/.8f);
-            pos+=new Vector3(direction.z,0,-direction.x)*roadOffset;
-            if(browsing)direction=MarketSouth-pos;
-            if(atWork)
+            int id=visit.id;
+            // Stagger shifts by household; the village clock integrates weather, so a shower never teleports walkers.
+            visit.Sample(villageTime+visit.Offset,
+                out var route,out int site,out float along,out int stage);
+            route.Sample(along,out var pos,out var dir);
+            bool walking=(stage&1)==0,working=stage==1&&!visit.idle;
+            string trade=visit.work<Gate?manor.slots[visit.work].kind:null;
+            bool farmer=!visit.idle&&IsFarm(trade);
+            string venue=site>=0&&site<Gate?manor.slots[site].kind:null;
+            float laneEase=Mathf.Clamp01(Mathf.Min(along,route.total-along)/.82f);
+            pos+=new Vector3(dir.z,0,-dir.x)*((.22f+id%3*.046f)*laneEase);
+            if(!walking&&site>=0)
             {
-                var door=Door(dest);
-                if(farmer)
-                {
-                    var facing=Quaternion.Euler(0,FacadeYaw(dest),0);
-                    float row=kind=="farm"?.70f:kind=="pasture"?.83f:.23f;
-                    float blend=Mathf.Clamp01(Mathf.Min(phase-arriving,arriving+dwell-phase)*2);
-                    pos=Vector3.Lerp(pos,Plot(dest)+facing*new Vector3(row+spacing,0,-2.07f),blend);
-                    direction=facing*Vector3.forward;
-                }
-                else
-                {
-                    float blend=Mathf.Clamp01(Mathf.Min(phase-arriving,arriving+dwell-phase)*2);
-                    float stop=kind=="tavern"?spacing:(id%2==0?-.36f:.36f)+spacing;
-                    var facade=dest==Gate?Quaternion.identity:Quaternion.Euler(0,FacadeYaw(dest),0);
-                    pos=Vector3.Lerp(pos,door+facade*new Vector3(stop,0,-.14f),blend);
-                    direction=facade*new Vector3(id%2==0?1:-1,0,.25f);
-                }
+                var look=site==WellSite?WellOrigin:site==MarketSite?MarketSouth:site==Gate?GatehouseOrigin:Plot(site);
+                dir=(look-pos).normalized;
+                pos+=new Vector3(dir.z,0,-dir.x)*(.24f*((visit.lane%3)-1));
             }
-            bool walking=!atWork&&!browsing&&!(returning&&along==0);
-            if(!InView(ManorOrigin+pos,3))return;
-            if(!TryPlaceWalker(pos,direction,out pos))return;
-            bool first=VisibleFarmers+VisibleVillagers==0;
+            if(!InView(ManorOrigin+pos,3)||!TryPlaceWalker(pos,dir,out pos))return;
+            if(walking&&yieldingToPedestrian)
+            {
+                PassingPoint=ManorOrigin+(pos+nearestPedestrian)*.5f;
+                ResidentsPassing=true;
+            }
+            float speed=walking?(.85f+id%4*.09f)*(WeatherMakesLampsVisible?1.16f:1)*Ease(Mathf.Min(along,route.total-along)/.42f):0;
+            float heading=LocalHeading(id,Mathf.Atan2(dir.x,dir.z)*Mathf.Rad2Deg);
+            if(VisibleFarmers+VisibleVillagers==0||!WalkingResidentVisible&&speed>.45f)
+            {ResidentPoint=ManorOrigin+pos;ResidentHeading=heading;WalkingResidentVisible=speed>.45f;}
             if(farmer)VisibleFarmers++;else VisibleVillagers++;
-            float ease=Ease(Mathf.Min(along,route.total-along)/.43f);
-            if(pause>0&&!returning)ease*=Ease(Mathf.Max(stopTime-phase,phase-stopTime-pause)/.35f);
-            float metres=returning?2*route.total-along:along;
-            var gait=new BipedGait(metres/.91f,walking?speed*ease:0,2.6f,1,manorTime,id);
-            float gesture=atWork||browsing?Mathf.Sin(manorTime*(forge?4.8f:loom?3.3f:bakery?2.8f:farmer?2.1f:1.3f)+id):0;
-            float nod=browsing?3+gesture*5:atWork&&bakery?7+gesture*6:farmer&&atWork?9+gesture*6:0;
-            var tint=Clothes[id%Clothes.Length];
-            float heading=LocalHeading(id,Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg);
-            bool striding=gait.weight>.48f;
-            if(first||striding&&!WalkingResidentVisible)
-            {
-                ResidentPoint=ManorOrigin+pos;
-                ResidentHeading=heading;
-                WalkingResidentVisible=striding;
-            }
-            var origin=ManorOrigin+pos+Vector3.up*.74f;
-            ContactAt(ManorOrigin+pos,.92f);
-            string role=forge?"smith":farmer?(kind=="pasture"?"carrier":"farmer"):id%4==0?"carrier":"villager";
-            QueuePose(new PoseInput{artist=true,working=atWork||browsing,town=TownRole.Resident,survey=true,id=id,
-                scale=.91f,position=origin,angle=heading*Mathf.Deg2Rad,gait=metres/.91f,speed=walking?speed*ease:0,
-                maxSpeed=2.6f,direction=1,hp=1,color=tint,nod=nod},new PoseDraw{costume=collection[role]});
+            var point=ManorOrigin+pos;ContactAt(point,.92f);
+            string role=trade=="smithy"?"smith":farmer?"farmer":trade=="timber_camp"?"woodcutter":
+                id%4==0||trade=="granary"||trade==Manor.Bakery?"carrier":"villager";
+            ArtistMotion duty=stage==1||stage==3?WorkGesture(venue,site):
+                walking&&stage!=0&&role=="carrier"?ArtistMotion.Haul:ArtistMotion.Idle;
+            if(working){WorkingResidentPoint=point;WorkingTrade=trade;}
+            QueuePose(new PoseInput{artist=true,working=!walking&&stage!=5,town=TownRole.Resident,survey=true,id=id,
+                duty=duty,scale=.78f,position=point+Vector3.up*(.78f*.79f),angle=heading*Mathf.Deg2Rad,gait=along/.91f,
+                speed=speed,maxSpeed=2.6f,direction=1,hp=1,color=Clothes[id%Clothes.Length],
+                nod=WeatherMakesLampsVisible?9:working?6:0},new PoseDraw{costume=collection[role]});
         }
-
+        internal Vector3 PreviewResidentVisit(int work,bool errand)
+        {
+            for(int i=0;i<residentCount;i++)
+            {
+                var visit=residents[i];if(visit.work!=work||visit.idle)continue;
+                float speed=.85f+visit.id%4*.09f;
+                float stop=visit.outbound.total/speed+2.1f;
+                if(errand)stop+=8.4f+visit.errand.total/speed;
+                villageTime=Mathf.Repeat(stop-visit.Offset,visit.Lap);ambientDirty=true;
+                return ManorOrigin+Door(errand?visit.social:work);
+            }
+            throw new System.InvalidOperationException("No assigned resident for plot "+work);
+        }
+        internal Vector3 WorkingResidentPoint {get;private set;}
+        internal string WorkingTrade {get;private set;}
         bool FreeWalkSpace(Vector3 p)
         {
             if(!FrontierMap.HasGround(ManorOrigin.x+p.x,p.z))return false;
@@ -700,6 +742,19 @@ namespace Frontline.UnityGame
 
         bool TryPlaceWalker(Vector3 wanted,Vector3 heading,out Vector3 chosen)
         {
+            var tangent=new Vector3(heading.z,0,-heading.x).normalized;
+            float shift=0,nearest=.94f*.94f;yieldingToPedestrian=false;
+            for(int i=0;i<occupiedWalkCount;i++)
+            {
+                var away=wanted-occupiedWalkSpace[i];float sq=away.sqrMagnitude;
+                if(sq>=.94f*.94f)continue;
+                if(sq<nearest){nearest=sq;nearestPedestrian=occupiedWalkSpace[i];}
+                float side=Vector3.Dot(away,tangent);
+                shift+=(side<-.015f?-1:1)*(.94f-Mathf.Sqrt(sq))*.53f;
+            }
+            var original=wanted;
+            var adjusted=wanted+tangent*Mathf.Clamp(shift,-.42f,.42f);
+            if(FreeWalkSpace(adjusted))wanted=adjusted;
             chosen=wanted;
             if(!FreeWalkSpace(wanted))
             {
@@ -712,6 +767,7 @@ namespace Frontline.UnityGame
                 else if(FreeWalkSpace(back))chosen=back;
                 else return false;
             }
+            yieldingToPedestrian=nearest<.85f*.85f&&(chosen-original).sqrMagnitude>.04f*.04f;
             occupiedWalkSpace[occupiedWalkCount++]=chosen;
             return true;
         }
@@ -757,7 +813,7 @@ namespace Frontline.UnityGame
         void DrawVillagePeople()
         {
             VisibleFarmers=VisibleVillagers=occupiedWalkCount=VisibleHeroMask=0;
-            WalkingResidentVisible=false;
+            WalkingResidentVisible=ResidentsPassing=false;WorkingTrade=null;
             DrawRetinue();
             ReserveHeroBays();
             DrawSpecialists();
@@ -770,10 +826,11 @@ namespace Frontline.UnityGame
                 var model=Model(id);
                 bool resting=manor.HeroRest(id)>0;
                 float pace=manorTime*.32f+heroIndex*1.7f;
-                var p=heroBays[heroIndex]+Vector3.up*(model.definition.scale*.8f);
+                const float townScale=.72f;
+                var p=heroBays[heroIndex]+Vector3.up*(model.definition.scale*townScale*.79f);
                 float desired=(heroIndex==0?-83:81)+(resting?4:13)*Mathf.Sin(pace);
                 float facing=LocalHeading(HeroFirst+heroIndex,desired+FacadeYaw(tavernSlot))*Mathf.Deg2Rad;
-                Soldier(model,"red",p+ManorOrigin,facing,200+heroIndex,armament:manor.HeroArmament(id));
+                Soldier(model,"red",p+ManorOrigin,facing,200+heroIndex,armament:manor.HeroArmament(id),townScale:townScale);
             }
         }
 
@@ -838,7 +895,9 @@ namespace Frontline.UnityGame
             SyncCampMarkers();
             DrawOuterWorld();
             foreach (var b in still) Draw(b,true);
-            manorTime += Mathf.Min(Time.unscaledDeltaTime,.2f)*Mathf.Max(.65f,manorPace);
+            float elapsed=Mathf.Min(Time.unscaledDeltaTime,.2f)*Mathf.Max(.65f,manorPace);
+            manorTime+=elapsed;
+            villageTime+=elapsed*(WeatherMakesLampsVisible?1.16f:1);
             if(!lowActors||ambientDirty||ambientCameraVersion!=visibilityVersion||Time.unscaledTime>=nextAmbient)
             {
                 fillingAmbient=lowActors;

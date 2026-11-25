@@ -5,6 +5,9 @@ Shader "Frontline/Instanced" {
  UNITY_INSTANCING_BUFFER_START(Props)
  UNITY_DEFINE_INSTANCED_PROP(float4,_TeamColor)
  UNITY_DEFINE_INSTANCED_PROP(float,_Wind)
+ #if defined(FRONTLINE_SKIN)
+ UNITY_DEFINE_INSTANCED_PROP(float4,_PreviousPose)
+ #endif
  UNITY_DEFINE_INSTANCED_PROP(float,_HitFlash)
  UNITY_INSTANCING_BUFFER_END(Props)
  UNITY_DECLARE_TEX2DARRAY(_LandscapeColor);
@@ -82,15 +85,24 @@ Shader "Frontline/Instanced" {
    b+=w*tex2Dlod(_BonePalette,float4(x+_BonePalette_TexelSize.x,row,0,0));
    c+=w*tex2Dlod(_BonePalette,float4(x+2*_BonePalette_TexelSize.x,row,0,0));
  }
- void ArtistVertex(inout appdata v)
+ void SkinRows(appdata v,float row,out float4 a,out float4 b,out float4 c)
  {
-   #if defined(FRONTLINE_SKIN)
-   float row=(UNITY_ACCESS_INSTANCED_PROP(Props,_Wind)+.5)*_BonePalette_TexelSize.y;
-   float4 a=0,b=0,c=0;
+   a=0;b=0;c=0;
    JointRows(v.joints.x,row,v.weights.x,a,b,c);
    if(v.weights.y>.0001)JointRows(v.joints.y,row,v.weights.y,a,b,c);
    if(v.weights.z>.0001)JointRows(v.joints.z,row,v.weights.z,a,b,c);
    if(v.weights.w>.0001)JointRows(v.joints.w,row,v.weights.w,a,b,c);
+ }
+ void ArtistVertex(inout appdata v)
+ {
+   #if defined(FRONTLINE_SKIN)
+   float row=(UNITY_ACCESS_INSTANCED_PROP(Props,_Wind)+.5)*_BonePalette_TexelSize.y;
+   float4 a,b,c;SkinRows(v,row,a,b,c);
+   float2 blend=UNITY_ACCESS_INSTANCED_PROP(Props,_PreviousPose).xy;
+   UNITY_BRANCH if(blend.y>0) {
+     float4 oldA,oldB,oldC;SkinRows(v,(blend.x+.5)*_BonePalette_TexelSize.y,oldA,oldB,oldC);
+     a=lerp(a,oldA,blend.y);b=lerp(b,oldB,blend.y);c=lerp(c,oldC,blend.y);
+   }
    v.vertex=float4(dot(a,v.vertex),dot(b,v.vertex),dot(c,v.vertex),1);
    v.normal=normalize(float3(dot(a.xyz,v.normal),dot(b.xyz,v.normal),dot(c.xyz,v.normal)));
    if(_RigAttributes>.5){float w=saturate(v.flex.x),drive=saturate(UNITY_ACCESS_INSTANCED_PROP(Props,_TeamColor).a-1);
@@ -126,7 +138,18 @@ Shader "Frontline/Instanced" {
  {
    v2f o; UNITY_SETUP_INSTANCE_ID(v); ArtistVertex(v);
    o.world=mul(unity_ObjectToWorld,v.vertex).xyz;
-   o.pos=UnityObjectToClipPos(v.vertex);
+   if(v.surface.x==17) {
+     float drop=saturate(-v.vertex.y);
+     float2 w=o.world.xz;
+     o.world.xz+=drop*float2(.59*sin(w.y*.47+w.x*.19),.66*cos(w.x*.42-w.y*.23));
+     o.world.y+=drop*.24*sin(dot(w,float2(.35,.29)));
+   }
+   if(v.surface.x==43||v.surface.x==8&&v.vertex.y<.65){
+     float3 pivot=unity_ObjectToWorld._m03_m13_m23;
+     float fade=saturate((145-distance(_WorldSpaceCameraPos,pivot))*.0333333);
+     o.world=lerp(pivot,o.world,fade);
+   }
+   o.pos=UnityWorldToClipPos(o.world);
    #if defined(FRONTLINE_FOLIAGE)
    if(v.surface.x>=64&&v.surface.x<112&&!VisibleSlice(mul(unity_WorldToObject,float4(_WorldSpaceCameraPos,1)).xyz-float3(0,1.6,0),v.surface.x))o.pos=float4(2,2,2,1);
    #endif
@@ -151,10 +174,10 @@ Shader "Frontline/Instanced" {
  {
    float2 plane=p.xz*.32;
    half patch=Scan(p.xz*.041,7).g;
-   half moss=smoothstep(.39,.68,patch)*.21,beach=saturate((-p.y+.24)*.73);
+   half moss=smoothstep(.39,.68,patch)*.21,beach=_LakeEnvironment*saturate((-p.y+.24)*.73);
    half4 grass=Scan(plane,6),ground=Grain(plane,6);
    half3 soil=lerp(grass.rgb*half3(.92,1.06,.88),Scan(p.xz*.27,7).rgb,moss);
-   soil=lerp(soil,Scan(p.xz*.47,10).rgb,beach);
+   if(beach>.001)soil=lerp(soil,Scan(p.xz*.47,10).rgb,beach);
    half slope=smoothstep(.19,.64,1-abs(n.y));
    if(slope>.001) {
      float2 rock=abs(n.x)>abs(n.z)?p.zy:p.xy;
@@ -172,6 +195,17 @@ Shader "Frontline/Instanced" {
  }
  fixed4 frag(v2f i):SV_Target
  {
+   #if defined(FRONTLINE_FIELD)
+   half3 normal=normalize(i.normal);
+   half4 grass=Scan(i.world.xz*.32,6),grain=Grain(i.world.xz*.32,6);
+   half patch=Scan(i.world.xz*.041,7).g;
+   half3 soil=grass.rgb*lerp(half3(.93,1,.86),half3(.83,.83,.71),smoothstep(.38,.68,patch));
+   soil*=lerp(half3(.96,.97,.91),i.dye.rgb*1.42,.34);
+   normal=normalize(normal+half3(grain.x*2-1,0,grain.y*2-1)*.30);
+   half sun=saturate(dot(normal,_WorldSpaceLightPos0.xyz))*SHADOW_ATTENUATION(i);
+   half3 lit=soil*soil*(_SkyLight.rgb*.54+_LightColor0.rgb*(sun*.86))*lerp(.76,1,grain.a);
+   fixed4 fieldColor=fixed4(Film(lit),1);UNITY_APPLY_FOG(i.fogCoord,fieldColor);return fieldColor;
+   #else
    half id=floor(i.surface.x+.5);
    half3 n=normalize(i.normal);
    half3 pigment=i.dye.rgb;
@@ -183,7 +217,7 @@ Shader "Frontline/Instanced" {
        half4 fabric=UNITY_SAMPLE_TEX2DARRAY(_WardrobeColor,float3(i.uv,id-112));
        half4 grain=UNITY_SAMPLE_TEX2DARRAY(_WardrobeDetail,float3(i.uv,id-112));
        half grey=dot(fabric.rgb,half3(.24,.62,.14));
-       pigment=lerp(fabric.rgb,grey*(.19+1.50*i.dye.rgb),fabric.a*.86);
+       pigment=lerp(fabric.rgb,grey*(.15+1.36*i.dye.rgb),fabric.a*.88);
        n=DetailNormal(i.world,i.uv,n,(grain.rg*2-1)*.57);
        metal=0;rough=grain.b;ao*=lerp(.62,1,grain.a);
      } else if(id>=64) {
@@ -201,14 +235,17 @@ Shader "Frontline/Instanced" {
        #endif
        pigment=photo.rgb*lerp(half3(1,1,1),pigment,.38);
        n=DetailNormal(i.world,i.uv,n,(detail.rg*2-1)*.61);rough=detail.b;ao*=lerp(.61,1,detail.a);
-     } else if(id==16) {
+     } else if(id==16||id==17) {
        float3 p=i.world;
        half3 w=abs(n);w*=w;w/=max(.001,dot(w,half3(1,1,1)));
        float2 flat=p.xz*.48,side=p.zy*.48,front=p.xy*.48;
        half3 rock=w.x*Scan(side,14).rgb+w.y*Scan(flat,14).rgb+w.z*Scan(front,14).rgb;
        half sand=(1-smoothstep(-1.55,-.48,p.y))*(.38+.48*abs(n.y));
        half grass=smoothstep(-.49,.095,p.y)*(.43+.37*saturate(n.y));
-       pigment=lerp(lerp(rock,Scan(flat,10).rgb,sand),Scan(flat,6).rgb,grass);
+       if(id==17){
+         half turf=saturate(n.y*.69+.20+.28*(Scan(flat*.19,7).g-.4));
+         pigment=lerp(rock,Scan(flat,6).rgb,turf);
+       } else pigment=lerp(lerp(rock,Scan(flat,10).rgb,sand),Scan(flat,6).rgb,grass);
        rough=lerp(.87,.53,sand);
      } else if(id==7)Terrain(i.world,n,pigment,rough);
      else {
@@ -219,6 +256,7 @@ Shader "Frontline/Instanced" {
        half detail=id==5?.18:id==10?.13:id==6?.48:id==14||id==15?.16:.83;
        half3 albedo=id==6||id==10?lerp(half3(1,1,1),(.59+luma*1.40).xxx,detail)*pigment:
          lerp(pigment,photo*(.64+.59*pigment),detail);
+       if(id==5)albedo*=lerp(half3(.69,.705,.719),half3(.94,.929,.89),grain.a);
        pigment=albedo;ao*=lerp(.75,1,grain.a);
        n=DetailNormal(i.world,i.uv,n,(grain.rg*2-1)*(.44*detail));
        rough=clamp(lerp(rough,grain.b,id==5?.31:.67),.21,.95);
@@ -247,7 +285,9 @@ Shader "Frontline/Instanced" {
    float distribution=a2/max(.0001,3.14159*denominator*denominator);
    half visibility=rcp(max(.24,4*(nv*(1-alpha)+alpha)*(nl*(1-alpha)+alpha)));
    half rim=1-nv;rim*=rim;rim*=rim;
-   half3 direct=_LightColor0.rgb*nl*light;
+   half cloud=1;
+   if(_LakeEnvironment>.5)cloud=.955+.045*sin(i.world.x*.019+i.world.z*.011+_Time.y*.05)*cos(i.world.z*.024-_Time.y*.036);
+   half3 direct=_LightColor0.rgb*nl*light*cloud;
    half3 fill=_FillColor.rgb*saturate(dot(n,_FillDirection.xyz))*.32;
    half3 sum=diffuse*((ambient*.62+fill)*ao+direct*.84)*(1-.74*metal);
    sum+=metal*diffuse*ambient*.31;
@@ -263,7 +303,12 @@ Shader "Frontline/Instanced" {
    }
    sum+=shore*.055*rim*_SkyLight.rgb;
    fixed4 c=fixed4(lerp(Film(sum),half3(1,.97,.90),saturate(i.dye.a)*.88),1);
+   if(_LakeEnvironment>.5){
+     half valleyHaze=saturate((length(_WorldSpaceCameraPos-i.world)-180)*.00047);
+     c.rgb=lerp(c.rgb,half3(.51,.60,.62),valleyHaze*.63);
+   }
    UNITY_APPLY_FOG(i.fogCoord,c);return c;
+   #endif
  }
  #else
  struct shadowOut {V2F_SHADOW_CASTER;float3 specimen:TEXCOORD1;};
@@ -284,7 +329,7 @@ Shader "Frontline/Instanced" {
      CGPROGRAM
      #pragma exclude_renderers gles3
      #pragma target 3.5
-     #pragma multi_compile_local __ FRONTLINE_SKIN FRONTLINE_FOLIAGE
+     #pragma multi_compile_local __ FRONTLINE_SKIN FRONTLINE_FOLIAGE FRONTLINE_FIELD
      #pragma vertex vert
      #pragma fragment frag
      #pragma multi_compile_instancing
@@ -310,7 +355,7 @@ Shader "Frontline/Instanced" {
      CGPROGRAM
      #pragma only_renderers gles3
      #pragma target 3.5
-     #pragma multi_compile_local __ FRONTLINE_SKIN FRONTLINE_FOLIAGE
+     #pragma multi_compile_local __ FRONTLINE_SKIN FRONTLINE_FOLIAGE FRONTLINE_FIELD
      #pragma vertex vert
      #pragma fragment frag
      #pragma multi_compile_instancing

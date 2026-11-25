@@ -102,7 +102,7 @@ namespace Frontline.UnityGame
             var reed=Load("reeds").WithoutShadows();
             for(int i=0;i<13;i++)
             {
-                float x=-36+i*5.36f;
+                float x=(i/12f*2-1)*(Manor.PlateauHalfWidth-5.2f);
                 FrontierMap.ShoreAt(ManorOrigin.x+x,out float south,out float north);
                 var rotation=Quaternion.Euler(0,i*47,0);
                 ManorStill(hedge,new Vector3(x,0,north-.63f),rotation,new Vector3(1.17f,.43f,.63f),White,.016f);
@@ -175,7 +175,7 @@ namespace Frontline.UnityGame
                     {
                         int home=homes[i];
                         if(manor.slots[home].kind!="cottage")continue;
-                        route=walks[home*(Gate+1)]; break;
+                        route=walks[home*RouteCount]; break;
                     }
                 float speed=.87f+role*.07f;
                 float phase=Mathf.Repeat(manorTime*speed+role*3.17f,route.total*2);
@@ -191,23 +191,54 @@ namespace Frontline.UnityGame
                 float heading=LocalHeading(SpecialistFirst+role,Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg);
                 ContactAt(specialistPoints[role],.90f);
                 QueuePose(new PoseInput {artist=true,town=TownRole.Specialist,survey=true,id=SpecialistFirst+role,
-                    position=specialistPoints[role]+Vector3.up*.7584f,angle=heading*Mathf.Deg2Rad,scale=.96f,
-                    gait=phase/.96f,speed=pace,maxSpeed=2.8f,direction=1,hp=1,color=SpecialistTrim[rank-1]},
+                    position=specialistPoints[role]+Vector3.up*(.83f*.79f),angle=heading*Mathf.Deg2Rad,scale=.83f,
+                    gait=phase/.83f,speed=pace,maxSpeed=2.8f,direction=1,hp=1,color=SpecialistTrim[rank-1]},
                     new PoseDraw{costume=collection[Manor.SpecialistIds[role]]});
             }
+        }
+
+        readonly WalkRoute[] watchRoutes=new WalkRoute[6];
+        readonly float[] watchProgress=new float[6];
+        readonly Vector3[] watchPoints=new Vector3[6];
+        float watchTick=-1;
+        internal Vector3 GuardOnDuty(int i)=>ManorOrigin+watchPoints[i];
+
+        static WalkRoute WatchRoute(int index)
+        {
+            var post=RetinuePosts[index];
+            float lane=(index%2==0?-1:1)*(1.23f+.24f*(index/2));
+            return Trace(post,new Vector3(post.x,0,-LaneZ),LaneMouth(Gate),
+                new Vector3(BridgeLocalX-4.85f,0,lane),new Vector3(BridgeLocalX+.85f,0,lane),
+                new Vector3(FrontierMap.Boundary-ManorOrigin.x-1.80f,0,lane));
         }
 
         void DrawRetinue()
         {
             VisibleRetinue=0;
-            int ready=manor.RetinueReady;
-            for(int i=manorGuardsAway;i<ready;i++)
+            float dt=watchTick<0?0:Mathf.Clamp(manorTime-watchTick,0,.25f);watchTick=manorTime;
+            for(int i=manorGuardsAway;i<manor.RetinueReady;i++)
             {
-                var point=RetinuePost(i);
+                var path=watchRoutes[i];float length=path.total;
+                float pace=manor.raidReady?3.65f:1.46f;
+                float phase=Mathf.Repeat(manorTime+i*23,2*length/1.46f+33f);
+                float duty=phase<12?0:phase<12+length/1.46f?(phase-12)*1.46f:
+                    phase<33+length/1.46f?length:Mathf.Max(0,2*length-(phase-33)*1.46f);
+                float before=watchProgress[i];
+                float next=Mathf.MoveTowards(before,manor.raidReady?0:duty,pace*dt);
+                path.Sample(next,out var p,out var dir);
+                bool walking=Mathf.Abs(next-before)>.0005f;
+                if(next<before)dir=-dir;
+                float angle=walking?Mathf.Atan2(dir.x,dir.z)*Mathf.Rad2Deg:
+                    (next<.1f?180:88)+Mathf.Sin(manorTime*.48f+i*2.3f)*13;
+                // A second watch holds position until its file clears the narrow gate throat.
+                bool clear=true;
+                for(int j=0;j<occupiedWalkCount;j++)if((p-occupiedWalkSpace[j]).sqrMagnitude<.56f*.56f){clear=false;break;}
+                if(!clear){p=watchPoints[i];walking=false;}else watchProgress[i]=next;
+                watchPoints[i]=p;occupiedWalkSpace[occupiedWalkCount++]=p;
+                var point=ManorOrigin+p;
                 if(!InView(point,2.4f))continue;
-                WatchAt(point,i%2==0?174:186,300+i,RetinueCloth);
-                ContactAt(point,.92f);
-                VisibleRetinue++;
+                WatchAt(point,angle,300+i,RetinueCloth,walking?pace:0,next);
+                ContactAt(point,.92f);VisibleRetinue++;
             }
         }
 
@@ -270,6 +301,20 @@ namespace Frontline.UnityGame
                 for(int j=0;j<i;j++)
                     if((RetinuePosts[i]-RetinuePosts[j]).sqrMagnitude<4*guardRadius*guardRadius)
                         throw new InvalidOperationException("Retinue posts overlap");
+            int patrolPoints=0;
+            for(int i=0;i<RetinuePosts.Length;i++)
+            {
+                var route=WatchRoute(i);
+                for(float t=0;t<route.total;t+=.19f)
+                {
+                    route.Sample(t,out var point,out _);
+                    if(!FrontierMap.HasGround(ManorOrigin.x+point.x,point.z))
+                        throw new InvalidOperationException("Watch patrol leaves the road "+i+" "+point);
+                    foreach(var block in blockers)if(block.Contains(point,.27f))
+                        throw new InvalidOperationException("Watch patrol intersects "+block.center+" at "+point);
+                    patrolPoints++;
+                }
+            }
             foreach(var post in RetinuePosts)blockers.Add(new EstateObstacle(post,guardRadius,guardRadius));
             int checkedPoints=0,checkedRoutes=0;
             var sampledRoutes=new List<WalkRoute>();
@@ -288,8 +333,8 @@ namespace Frontline.UnityGame
                 }
                 checkedRoutes++;
             }
-            for(int first=0;first<=Gate;first++)
-                for(int last=0;last<=Gate;last++)
+            for(int first=0;first<RouteCount;first++)
+                for(int last=0;last<RouteCount;last++)
                     if(first!=last)Check(WalkBetween(first,last),first+"→"+last);
             var specialists=FixedSpecialistRoutes();
             for(int i=0;i<specialists.Length;i++)Check(specialists[i],Manor.SpecialistIds[i]);
@@ -301,7 +346,7 @@ namespace Frontline.UnityGame
                     side>0?"north fields":"south workshops");
             var verges=ChooseVillageVerges(sampledRoutes,System.Array.Empty<WalkRoute>());
             if(verges.Length<18)throw new InvalidOperationException("Too few clear planted verges: "+verges.Length);
-            return new {checkedRoutes,checkedPoints,plantedVerges=verges.Length,retinuePosts=RetinuePosts.Length,outerPlots=Manor.FirstNoblePlot-Manor.FirstOuterPlot,
+            return new {checkedRoutes,checkedPoints,patrolPoints,plantedVerges=verges.Length,retinuePosts=RetinuePosts.Length,outerPlots=Manor.FirstNoblePlot-Manor.FirstOuterPlot,
                 noblePlots=Manor.PlotCount-Manor.FirstNoblePlot,civicDetails=CivicDetails.Length,specialistRoutes=specialists.Length};
         }
     }

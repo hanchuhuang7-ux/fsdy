@@ -7,9 +7,9 @@ namespace Frontline.Core
     public static partial class FrontierMap
     {
         public const string Id = "frontier";
-        public const float ManorX = -64, BridgeStart = ManorX + Manor.PlateauHalfWidth, Boundary = 45, BridgeHalfWidth = 3.6f;
+        public const float ManorX = -72, BridgeStart = ManorX + Manor.PlateauHalfWidth, Boundary = 45, BridgeHalfWidth = 3.6f;
         public const float IslandWest = ManorX - Manor.PlateauHalfWidth;
-        public const float West = -325, East = 204, HalfDepth = 209, EnemyStop = Boundary + 1.15f;
+        public const float West = -408, East = 266, HalfDepth = 256, EnemyStop = Boundary + 1.15f;
         public const int MaxParty = 16, GroupSize = 5, MaxTier = 3;
         public const float AlertRadius = 18;
         public static V3 Rally => new V3(BridgeStart - 4,0,0);
@@ -36,7 +36,7 @@ namespace Frontline.Core
             },
             rocks = new List<Rock> {
                 new Rock { x=56,z=-16,r=1.1f }, new Rock { x=82,z=-14,r=1.15f },
-                new Rock { x=67,z=37,r=1.35f }, new Rock { x=-58,z=132,r=1.65f },
+                new Rock { x=106,z=49,r=1.35f }, new Rock { x=-58,z=132,r=1.65f },
                 new Rock { x=-188,z=-75,r=1.0f }, new Rock { x=77,z=-96,r=1.3f }
             }
         };

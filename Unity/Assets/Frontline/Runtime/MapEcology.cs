@@ -110,14 +110,18 @@ namespace Frontline.UnityGame
                     var outwards=turn*Vector3.forward;
                     var beyond=edge+outwards*.36f;
                     if(Catalog.Finite(data.Height(map,beyond.x,beyond.z)))continue;
-                    float spread=4.75f+1.08f*Mathf.Sin(i*1.83f+side*.73f);
+                    float spread=4.85f;
                     if(map=="bridge"&&Mathf.Abs(edge.x)<3.4f)spread=Mathf.Min(1.05f,spread);
-                    Put(rows,"arena_scree",edge,new Vector3(half*2/spans+.045f,2.8f,spread),tint:rock,
+                    Put(rows,"arena_scree",edge,new Vector3(half*2/spans,2.8f,spread),tint:rock,
                         rotation:turn,castsShadow:false);
                     if((i+side)%3==1)
                         Put(rows,"shrub",edge+outwards*.54f-Vector3.up*.12f,new Vector3(.73f,.49f,.63f),
                             37*i,rock*.96f,.018f,castsShadow:false);
                 }
+                var corner=new Vector3(platform.x,platform.y+platform.hy-.029f,platform.z)+turn*new Vector3(half,0,reach);
+                var probe=corner+turn*new Vector3(.32f,0,.32f);
+                if(!Catalog.Finite(data.Height(map,probe.x,probe.z)))
+                    Put(rows,"arena_scree_corner",corner,new Vector3(4.85f,2.8f,4.85f),tint:rock,rotation:turn,castsShadow:false);
             }
         }
 

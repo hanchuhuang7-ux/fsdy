@@ -221,6 +221,7 @@ namespace Frontline.UnityGame
                     submissions[i]=app.View.RenderSubmissions;instances[i]=app.View.RenderInstances;
                     casters[i]=app.View.CasterVertices;artistSkin[i]=app.View.SkinnedInstances;artistProxy[i]=app.View.ProxyActors;
                     mainVertices[i]=app.View.MainVertices;culledStaticInstances[i]=app.View.CulledStaticInstances;
+                    Require(culledStaticInstances[i]>=0,"Static instances were submitted twice during a scene change");
                     shadowSubmissions[i]=app.View.ShadowOnlySubmissions;
                     mainSubmissions[i]=app.View.RenderSubmissions-app.View.ShadowOnlySubmissions;
                     renderCpu[i]=app.View.PerformanceRenderTicks*millisecondsPerTick;

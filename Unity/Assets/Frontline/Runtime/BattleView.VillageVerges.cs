@@ -28,11 +28,36 @@ namespace Frontline.UnityGame
             }
         }
 
+        void PlantOrchards()
+        {
+            var oak=Load("tree");var herb=Load("flowers").WithoutShadows();var grass=Load("grass");
+            for(int grove=0;grove<3;grove++)for(int i=0;i<8;i++)
+            {
+                float x=(grove==0?-26:grove==1?9:-13)+(i%4-1.5f)*3.5f+.56f*Mathf.Sin(i*2.75f);
+                FrontierMap.ShoreAt(ManorOrigin.x+x,out float south,out float north);
+                float z=grove==2?south+2.4f+i/4*3.0f:north-2.8f-i/4*2.75f;
+                var p=new Vector3(x,0,z);
+                if(Mathf.Abs(x-DockOrigin.x)<3.6f||!ClearOrchardSite(p))continue;
+                var turn=Quaternion.Euler(0,i*133+grove*37,0);float scale=.68f+Scatter((uint)(i+grove*73))*.38f;
+                ManorStill(oak,p,turn,new Vector3(scale*1.12f,scale*.86f,scale),builtSeason==2?new Color(.96f,.79f,.53f):White,.012f);
+                if(QualityLevel>0)
+                {
+                    ManorStill(grass,p+turn*new Vector3(.72f,0,.42f),turn,Vector3.one*1.36f,White,.033f);
+                    if(builtSeason!=3)ManorStill(herb,p+turn*new Vector3(-.63f,0,.51f),turn,Vector3.one*.75f,White,.025f);
+                }
+            }
+        }
+        static bool ClearOrchardSite(Vector3 point)
+        {
+            for(int j=0;j<Manor.PlotCount;j++)if(PlotObstacle(j).Contains(point,1.4f))return false;
+            return Mathf.Abs(point.z)>OuterLaneZ+2.6f;
+        }
+
         static Vector3[] ChooseVillageVerges(IReadOnlyList<WalkRoute> roads,IReadOnlyList<WalkRoute> specialists)
         {
             var result=new List<Vector3>(72);
             var quay=Trace(new Vector3(DockOrigin.x,0,-OuterLaneZ),DockApproach);
-            for(int row=0;row<4;row++)for(int i=0;i<23;i++)
+            for(int row=0;row<4;row++)for(int i=0;i<30;i++)
             {
                 float lane=row==0?-OuterLaneZ:row==1?-LaneZ:row==2?LaneZ:OuterLaneZ;
                 float x=WestLaneX+1.4f+i*2.55f+.39f*Mathf.Sin(i*2.39f+row);

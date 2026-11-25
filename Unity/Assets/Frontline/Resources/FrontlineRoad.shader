@@ -9,6 +9,7 @@ Shader "Frontline/Road" {
  UNITY_INSTANCING_BUFFER_END(RoadProps)
  UNITY_DECLARE_TEX2DARRAY(_LandscapeColor);
  UNITY_DECLARE_TEX2DARRAY(_LandscapeDetail);
+ float4 _Court;
  struct appdata {float4 vertex:POSITION;half4 color:COLOR;UNITY_VERTEX_INPUT_INSTANCE_ID};
  struct v2f {float4 pos:SV_POSITION;float4 worldAndSpan:TEXCOORD0;half4 field:COLOR0;half3 dye:COLOR1;SHADOW_COORDS(1) UNITY_FOG_COORDS(2)};
  v2f vert(appdata v)
@@ -27,6 +28,11 @@ Shader "Frontline/Road" {
      half pave=step(.28,i.field.b)*(1-step(.78,i.field.b));
      half layer=i.field.b>.78?6:pave>.5?9:8;
      half4 ground=UNITY_SAMPLE_TEX2DARRAY(_LandscapeColor,float3(uv,layer));
+     if(_Court.z>.5&&pave<.5&&i.field.b<.78) {
+       float2 yard=abs(world-_Court.xy);
+       half apron=(1-smoothstep(7,11,yard.x))*(1-smoothstep(4.7,7.2,yard.y));
+       if(apron>.001)ground=lerp(ground,UNITY_SAMPLE_TEX2DARRAY(_LandscapeColor,float3(uv,9)),apron);
+     }
      half4 detail=UNITY_SAMPLE_TEX2DARRAY(_LandscapeDetail,float3(uv,layer));
      half drift=dot(ground.rgb,half3(.21,.65,.14))-.35;
      half lateral=abs(i.field.r*2-1);

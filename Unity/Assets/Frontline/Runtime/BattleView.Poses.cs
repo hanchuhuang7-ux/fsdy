@@ -56,6 +56,7 @@ namespace Frontline.UnityGame
             public bool useMotionSample,stockWeapon,survey,distant,artist,working;
             public float hit;
             public TownRole town;
+            public ArtistMotion duty;
             public Vector3 rightHand,leftHand;
             public float slope,crossSlope,ground,nod,toolPitch,turn;
             public MotionSample previousMotion;
@@ -180,9 +181,9 @@ namespace Frontline.UnityGame
         void Soldier(UnitVisual model,string team,Vector3 p,float angle,int id,float hp=1,
             bool inspired=false,bool fortified=false,string stance="advance",float speed=0,float direction=0,
             float gait=0,float hitFlash=0,float hitTiltX=0,float hitTiltZ=0,float charge=0,float guard=0,float floor=float.NaN,
-            int armament=0,ActionSample action=default,bool recorded=false)
+            int armament=0,ActionSample action=default,bool recorded=false,float townScale=1)
         {
-            float scale=model.definition.scale;
+            float scale=model.definition.scale*townScale;
             // Only a manor roster carries a forge tier. Ordinary arena fighters always select their stock arm.
             int tier=model.tiers==null?0:Mathf.Clamp(armament,0,Manor.MaxHeroArmament);
             var input=new PoseInput {
@@ -190,6 +191,8 @@ namespace Frontline.UnityGame
                 action=action,id=id,angle=angle,scale=scale,maxSpeed=model.definition.speed,
                 speed=speed,direction=direction,gait=gait,hitTiltX=hitTiltX,hitTiltZ=hitTiltZ,charge=charge,guard=guard,hp=hp,survey=!recorded
             };
+            if(fortified&&model.kind==SoldierKind.Shield&&action.stage==ActionStage.Idle)
+                input.guard=Mathf.Max(input.guard,.42f);
             if(!lowActors)
             {
                 // About 40 projected pixels for a person at desktop FOV. Tall silhouettes stay detailed
@@ -290,7 +293,10 @@ namespace Frontline.UnityGame
             else if(input.artist)
             {
                 pose.position=p;
-                pose.root=Pose(p-Vector3.up*(.79f*scale),facing,size);
+                float brace=input.kind==SoldierKind.Shield?input.guard:0;
+                float lean=input.kind==SoldierKind.Cavalry?input.charge*4.2f:input.nod*.34f;
+                pose.root=Pose(p-Vector3.up*((.79f+brace*.065f)*scale),
+                    facing*Quaternion.Euler(lean+brace*3.8f,0,0),size);
                 ChooseTake(input,speed,gait,time,deploying,ref pose);
             }
             else

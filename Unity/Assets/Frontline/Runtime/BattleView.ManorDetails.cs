@@ -16,7 +16,7 @@ namespace Frontline.UnityGame
             public CivicDetail(CivicKind kind,float x,float z,float halfWidth,float halfDepth,int rank=0)
             {
                 this.kind=kind;
-                Footprint=new EstateObstacle(new Vector3(x,0,z),halfWidth,halfDepth);
+                Footprint=new EstateObstacle(rank==0?new Vector3(x*Manor.TownScaleX/1.27f,0,z*Manor.TownScaleZ/1.40f):new Vector3(x,0,z),halfWidth,halfDepth);
                 this.rank=rank;
             }
         }

@@ -142,23 +142,38 @@ namespace Frontline.Editor
             return g;
         }
 
+        static Geometry ScreeCorner(int lod)
+        {
+            var g=new Geometry{surface=Surface.Talus};
+            int steps=lod==0?9:4;
+            for(int i=0;i<steps;i++)
+            {
+                float a=i*Mathf.PI*.5f/steps,b=(i+1)*Mathf.PI*.5f/steps;
+                var left=V(Mathf.Sin(a),0,Mathf.Cos(a));var right=V(Mathf.Sin(b),0,Mathf.Cos(b));
+                var mid=Vector3.down*.17f;
+                g.Triangle(Vector3.zero,left*.43f+mid,right*.43f+mid,Moss);
+                g.Quad(left*.43f+mid,right*.43f+mid,right*.88f+Vector3.down,left*.88f+Vector3.down,Rock,true);
+            }
+            return g;
+        }
+
         static Geometry ArenaScree(int lod)
         {
-            var g=new Geometry{surface=Surface.Outcrop};
+            var g=new Geometry{surface=Surface.Talus};
             int n=lod==0?12:5;
             Vector3 Edge(int i,int row)
             {
-                float u=i/(float)n,noise=Mathf.Sin(u*27+.2f)*Mathf.Sin(u*Mathf.PI);
+                float u=i/(float)n;
                 if(row==0)return V(u-.5f,0,-.025f);
-                if(row==1)return V(u-.5f,-.17f+.042f*noise,.43f+.095f*noise);
-                return V(u-.5f,-1.0f+.12f*noise,.88f+.18f*noise);
+                if(row==1)return V(u-.5f,-.17f,.43f);
+                return V(u-.5f,-1.0f,.88f);
             }
             for(int i=0;i<n;i++)
             {
-                g.surface=Surface.Terrain;
-                g.Quad(Edge(i,0),Edge(i,1),Edge(i+1,1),Edge(i+1,0),i%3==0?Moss:Green,true);
-                g.surface=Surface.Outcrop;
-                g.Quad(Edge(i,1),Edge(i,2),Edge(i+1,2),Edge(i+1,1),i%4==1?Rock:CliffStone,true);
+                g.surface=Surface.Talus;
+                g.Quad(Edge(i,0),Edge(i,1),Edge(i+1,1),Edge(i+1,0),Moss);
+                g.surface=Surface.Talus;
+                g.Quad(Edge(i,1),Edge(i,2),Edge(i+1,2),Edge(i+1,1),CliffStone);
             }
             return g;
         }

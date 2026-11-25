@@ -261,9 +261,10 @@ namespace Frontline.Editor
         static void CliffProfile(Vector3 point,Vector3 outward,out Vector3 ledge,out Vector3 tide,out Vector3 shelf)
         {
             float grit=.65f+.35f*Mathf.Sin(point.x*.281f+point.z*.352f);
-            ledge=point+outward*(.15f+grit*.45f)+Vector3.down*(.53f+grit*.42f);
-            tide=point+outward*(.94f+grit*.8f)+Vector3.down*1.62f;
-            shelf=point+outward*(2.9f+grit*2.2f)+Vector3.up*ShoreBottom;
+            float beach=Mathf.SmoothStep(0,1,Mathf.InverseLerp(-.14f,.71f,Mathf.Cos(point.x*.109f+point.z*.083f)));
+            ledge=point+outward*(.15f+grit*.45f+beach*1.45f)+Vector3.down*Mathf.Lerp(.53f+grit*.42f,.32f,beach);
+            tide=point+outward*(.94f+grit*.8f+beach*2.18f)+Vector3.down*1.62f;
+            shelf=point+outward*(2.9f+grit*2.2f+beach*3.1f)+Vector3.up*ShoreBottom;
         }
 
         static Color Ground(Vector3 p)
