@@ -148,7 +148,7 @@ namespace Frontline.Editor
             var a=new List<Vector3>(8);
             var b=new List<Vector3>(8);
 
-            void Patch(Vector3 a0,Vector3 b0,Vector3 c0,Vector3 d0,Color tint,bool ground=false)
+            void Patch(Vector3 a0,Vector3 b0,Vector3 c0,Vector3 d0,Color tint,bool ground=false,bool shore=false)
             {
                 float left=Mathf.Min(Mathf.Min(a0.x,b0.x),Mathf.Min(c0.x,d0.x));
                 float right=Mathf.Max(Mathf.Max(a0.x,b0.x),Mathf.Max(c0.x,d0.x));
@@ -169,7 +169,7 @@ namespace Frontline.Editor
                             face=Vector3.Cross(a[i-1]-a[0],a[i]-a[0]).sqrMagnitude>=1e-8f;
                         if(!face)continue;
                         if(!pages.TryGetValue((x,z),out var page))pages.Add((x,z),page=new Geometry());
-                        page.surface=ground?Surface.Terrain:tint.a>.5f?Surface.Leaf:tint.a>.10f?Surface.Earth:Surface.Outcrop;
+                        page.surface=ground?Surface.Terrain:shore?Surface.Shore:tint.a>.5f?Surface.Leaf:tint.a>.10f?Surface.Earth:Surface.Outcrop;
                         for(int i=2;i<a.Count;i++)
                         {
                             if(ground)page.Gradient(a[0],a[i-1],a[i],Ground(a[0]),Ground(a[i-1]),Ground(a[i]));
@@ -215,11 +215,11 @@ namespace Frontline.Editor
                 CliffProfile(end,bOut,out var b1,out var b2,out var b3);
                 if(detail)
                 {
-                    Patch(end,start,a1,b1,Color.Lerp(CliffStone,Turf,.23f*grit));
-                    Patch(b1,a1,a2,b2,Color.Lerp(CliffStone,SeaStone,grit*.75f));
-                    Patch(b2,a2,a3,b3,Sand);
+                    Patch(end,start,a1,b1,Color.Lerp(CliffStone,Turf,.23f*grit),shore:true);
+                    Patch(b1,a1,a2,b2,Color.Lerp(CliffStone,SeaStone,grit*.75f),shore:true);
+                    Patch(b2,a2,a3,b3,Sand,shore:true);
                 }
-                else Patch(end,start,a3,b3,Color.Lerp(CliffStone,SeaStone,grit*.65f));
+                else Patch(end,start,a3,b3,Color.Lerp(CliffStone,SeaStone,grit*.65f),shore:true);
             }
 
             IslandLand();

@@ -138,6 +138,18 @@ public static class FrontlineCloseTest
         finally { if(previous!=IntPtr.Zero)SetThreadDpiAwarenessContext(previous); }
     }
 
+    [DllImport("kernel32.dll",SetLastError=true)]
+    static extern uint WaitForSingleObject(IntPtr handle,uint milliseconds);
+
+    public static double InputToProcessSignal(IntPtr process,IntPtr window,Point point,bool mouse,int hold)
+    {
+        if(mouse) Click(window,point,hold); else SendCloseCommand(window);
+        uint status=WaitForSingleObject(process,25000);
+        long signal=Stopwatch.GetTimestamp();
+        if(status!=0)throw new InvalidOperationException("Player process handle did not signal normally: "+status);
+        return (signal-InputStamp)*1000.0/Stopwatch.Frequency;
+    }
+
     public static void SendCloseCommand(IntPtr window)
     {
         // This variant preserves WM_SYSCOMMAND's synchronous delivery. It never posts WM_CLOSE.
@@ -177,9 +189,10 @@ $samples=for($n=1;$n -le $Runs;$n++){
         Start-Sleep -Milliseconds 700
         $point=$null
         if($Method -eq 'Mouse'){$point=[FrontlineCloseTest]::PrepareClick($window)}
+        $processHandle=$app.Handle
+        $testedPoint=if($point){$point}else{[FrontlineCloseTest+Point]::new()}
         $watch=[Diagnostics.Stopwatch]::StartNew()
-        if($point){[FrontlineCloseTest]::Click($window,$point,$HoldMilliseconds)}else{[FrontlineCloseTest]::SendCloseCommand($window)}
-        if(!$app.WaitForExit(25000)){throw 'Player did not exit within 25 seconds of the close request.'}
+        $signalMs=[FrontlineCloseTest]::InputToProcessSignal($processHandle,$window,$testedPoint,($Method -eq 'Mouse'),$HoldMilliseconds)
         $exitStamp=[Diagnostics.Stopwatch]::GetTimestamp()
         $watch.Stop()
         # The kernel exit timestamp is independent of when the measuring PowerShell thread awakens.
@@ -191,10 +204,14 @@ $samples=for($n=1;$n -le $Runs;$n++){
         $markers=@(Select-String -LiteralPath $log -Pattern 'FRONTLINE_WINDOW_CLOSE|FRONTLINE_SHUTDOWN|CodeReloadManager destroyed|Crash!!!|uxtheme|SendMessageW|fb69|Access violation' |
             ForEach-Object {$_.Line})
         [ordered]@{run=$n;pid=$app.Id;method=$Method;captionPoint=$point;hitTest=if($point){'HTCLOSE'}else{$null};
-            elapsedMs=[Math]::Round($watch.Elapsed.TotalMilliseconds,2);kernelExitMs=[Math]::Round($kernelMs,2);
+            # Start the release metric at the actual native input injection. The outer
+            # stopwatch also includes PowerShell binding/JIT and target verification before the click.
+            elapsedMs=[Math]::Round($signalMs,2);nativeSignalMs=[Math]::Round($signalMs,2);kernelExitMs=[Math]::Round($kernelMs,2);
+            harnessMs=[Math]::Round($watch.Elapsed.TotalMilliseconds,2);
+            beforeInputMs=[Math]::Round($watch.Elapsed.TotalMilliseconds-$inputToWaitMs,2);
             inputToWaitMs=[Math]::Round($inputToWaitMs,2);exitCode=$app.ExitCode;newCrashDirectories=$new;
             crashCount=$new.Count;dumpCount=@($new | ForEach-Object {$_.dumps}).Count;log=$log;markers=$markers}
-        Write-Host ("{0} {1}/{2}: {3:N2} ms; exit={4}; new crash directories={5}" -f $Method,$n,$Runs,$watch.Elapsed.TotalMilliseconds,$app.ExitCode,$new.Count)
+        Write-Host ("{0} {1}/{2}: {3:N2} ms; exit={4}; new crash directories={5}" -f $Method,$n,$Runs,$signalMs,$app.ExitCode,$new.Count)
     }
     finally {
         try {
@@ -206,5 +223,5 @@ $runtime=Join-Path (Split-Path $exe) 'FrontlineLab_Data/Managed/Frontline.Runtim
 [ordered]@{player=$exe;fileVersion=(Get-Item -LiteralPath $exe).VersionInfo.ProductVersion;
     executableSha256=(Get-FileHash -LiteralPath $exe).Hash.ToLowerInvariant();
     runtimeSha256=(Get-FileHash -LiteralPath $runtime).Hash.ToLowerInvariant();
-    capturedAt=[DateTimeOffset]::Now.ToString('o');method=$Method;holdMilliseconds=$HoldMilliseconds;samples=@($samples)} |
+    capturedAt=[DateTimeOffset]::Now.ToString('o');clockScope='elapsedMs/nativeSignalMs measure SendInput/SC_CLOSE to WaitForSingleObject on the tested process, without returning to PowerShell. kernelExitMs uses the kernel exit timestamp. inputToWaitMs includes resuming the shell. harnessMs also includes pre-input target checks.';method=$Method;holdMilliseconds=$HoldMilliseconds;samples=@($samples)} |
     ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $directory 'timing.json') -Encoding utf8NoBOM

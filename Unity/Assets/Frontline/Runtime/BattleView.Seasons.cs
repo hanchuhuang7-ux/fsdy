@@ -25,7 +25,7 @@ namespace Frontline.UnityGame
         }
 
         static readonly int SunDirectionId=Shader.PropertyToID("_FrontlineSunDirection");
-        void PublishSunDirection()=>Shader.SetGlobalVector(SunDirectionId,-sun.transform.forward);
+        void PublishSunDirection(){Shader.SetGlobalVector(SunDirectionId,-sun.transform.forward);Shader.SetGlobalFloat("_EstateWinter",manor!=null&&manor.Season==3?1:0);}
 
         static readonly SeasonalLight ArenaLight=new SeasonalLight(48,-32,new Color(1,.92f,.8f),.95f);
         static readonly SeasonalLight[] Seasons={

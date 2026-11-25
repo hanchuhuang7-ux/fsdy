@@ -1,5 +1,5 @@
 Shader "Frontline/Instanced" {
- Properties { _SurfaceAtlas("Albedo and roughness",2D)="white" {} _NormalAtlas("Detail normals",2D)="bump" {} _Color("Material tint",Color)=(1,1,1,1) _SkyLight("Hemisphere sky",Color)=(.58,.65,.72,1) _GroundLight("Hemisphere ground",Color)=(.25,.27,.21,1) }
+ Properties { _BonePalette("Baked artist bones",2D)="black" {} _Color("Material tint",Color)=(1,1,1,1) _SkyLight("Hemisphere sky",Color)=(.58,.65,.72,1) _GroundLight("Hemisphere ground",Color)=(.25,.27,.21,1) }
  CGINCLUDE
  #include "UnityCG.cginc"
  UNITY_INSTANCING_BUFFER_START(Props)
@@ -7,9 +7,18 @@ Shader "Frontline/Instanced" {
  UNITY_DEFINE_INSTANCED_PROP(float,_Wind)
  UNITY_DEFINE_INSTANCED_PROP(float,_HitFlash)
  UNITY_INSTANCING_BUFFER_END(Props)
+ UNITY_DECLARE_TEX2DARRAY(_LandscapeColor);
+ UNITY_DECLARE_TEX2DARRAY(_LandscapeDetail);
+ UNITY_DECLARE_TEX2DARRAY(_SpecimenColor);
+ UNITY_DECLARE_TEX2DARRAY(_SpecimenDetail);
+ UNITY_DECLARE_TEX2DARRAY(_FoliageViews);
+ UNITY_DECLARE_TEX2DARRAY(_WardrobeColor);
+ UNITY_DECLARE_TEX2DARRAY(_WardrobeDetail);
+ sampler2D _BonePalette;
+ float4 _BonePalette_TexelSize;
  float4 _Color,_SkyLight,_GroundLight,_FillColor,_FillDirection;
- float _LakeEnvironment,_RigAttributes;
- struct appdata {float4 vertex:POSITION;float3 normal:NORMAL;fixed4 color:COLOR;float2 uv:TEXCOORD0;float4 surface:TEXCOORD1;float4 flex:TEXCOORD2;UNITY_VERTEX_INPUT_INSTANCE_ID};
+ float _LakeEnvironment,_RigAttributes,_EstateWinter;
+ struct appdata {float4 vertex:POSITION;float3 normal:NORMAL;fixed4 color:COLOR;float2 uv:TEXCOORD0;float4 surface:TEXCOORD1;float4 flex:TEXCOORD2;float4 joints:TEXCOORD3;float4 weights:TEXCOORD4;UNITY_VERTEX_INPUT_INSTANCE_ID};
  float4 WindVertex(appdata v) {
    float strength=UNITY_ACCESS_INSTANCED_PROP(Props,_Wind);
    // Platforms can alias missing texture coordinates to an earlier vertex stream.
@@ -66,6 +75,39 @@ Shader "Frontline/Instanced" {
    v.vertex.z+=cos(phase*.83+height)*height*strength*.36;
    return v.vertex;
  }
+ void JointRows(float bone,float row,float w,inout float4 a,inout float4 b,inout float4 c)
+ {
+   float x=(bone*3+.5)*_BonePalette_TexelSize.x;
+   a+=w*tex2Dlod(_BonePalette,float4(x,row,0,0));
+   b+=w*tex2Dlod(_BonePalette,float4(x+_BonePalette_TexelSize.x,row,0,0));
+   c+=w*tex2Dlod(_BonePalette,float4(x+2*_BonePalette_TexelSize.x,row,0,0));
+ }
+ void ArtistVertex(inout appdata v)
+ {
+   #if defined(FRONTLINE_SKIN)
+   float row=(UNITY_ACCESS_INSTANCED_PROP(Props,_Wind)+.5)*_BonePalette_TexelSize.y;
+   float4 a=0,b=0,c=0;
+   JointRows(v.joints.x,row,v.weights.x,a,b,c);
+   if(v.weights.y>.0001)JointRows(v.joints.y,row,v.weights.y,a,b,c);
+   if(v.weights.z>.0001)JointRows(v.joints.z,row,v.weights.z,a,b,c);
+   if(v.weights.w>.0001)JointRows(v.joints.w,row,v.weights.w,a,b,c);
+   v.vertex=float4(dot(a,v.vertex),dot(b,v.vertex),dot(c,v.vertex),1);
+   v.normal=normalize(float3(dot(a.xyz,v.normal),dot(b.xyz,v.normal),dot(c.xyz,v.normal)));
+   if(_RigAttributes>.5){float w=saturate(v.flex.x),drive=saturate(UNITY_ACCESS_INSTANCED_PROP(Props,_TeamColor).a-1);
+     float swing=sin(_Time.y*(2.5+4*drive)+v.vertex.y*6+unity_ObjectToWorld._m03*.62);
+     v.vertex.xyz+=float3(.034*swing,.082*drive,-.17*drive+.028*swing)*w;}
+   #else
+   v.vertex=WindVertex(v);
+   #endif
+ }
+ float VisibleSlice(float3 direction,float id)
+ {
+   float3 v=normalize(direction);
+   float4 scores=abs(float4(v.z,-.866025*v.x+.5*v.z,-.866025*v.x-.5*v.z,v.y));
+   float best=max(max(scores.x,scores.y),max(scores.z,scores.w));
+   float winner=best==scores.x?0:best==scores.y?1:best==scores.z?2:3;
+   return floor(fmod(id-64,16)*.25)==winner;
+ }
  #if !defined(UNITY_PASS_SHADOWCASTER)
  #include "Lighting.cginc"
  #include "AutoLight.cginc"
@@ -82,24 +124,20 @@ Shader "Frontline/Instanced" {
  };
  v2f vert(appdata v)
  {
-   v2f o; UNITY_SETUP_INSTANCE_ID(v); v.vertex=WindVertex(v);
+   v2f o; UNITY_SETUP_INSTANCE_ID(v); ArtistVertex(v);
    o.world=mul(unity_ObjectToWorld,v.vertex).xyz;
    o.pos=UnityObjectToClipPos(v.vertex);
+   #if defined(FRONTLINE_FOLIAGE)
+   if(v.surface.x>=64&&v.surface.x<112&&!VisibleSlice(mul(unity_WorldToObject,float4(_WorldSpaceCameraPos,1)).xyz-float3(0,1.6,0),v.surface.x))o.pos=float4(2,2,2,1);
+   #endif
    o.normal=UnityObjectToWorldNormal(v.normal);
    half3 team=UNITY_ACCESS_INSTANCED_PROP(Props,_TeamColor).rgb;
    o.dye=half4(v.color.rgb*lerp(half3(1,1,1),team,v.color.a)*_Color.rgb,UNITY_ACCESS_INSTANCED_PROP(Props,_HitFlash));
    o.surface=v.surface;o.uv=v.uv;
    TRANSFER_SHADOW(o); UNITY_TRANSFER_FOG(o,o.pos);return o;
  }
- sampler2D _SurfaceAtlas,_NormalAtlas;
- half4 Swatch(sampler2D atlas,float2 uv,half tile)
- {
-   float2 grid=float2(.25,.5), origin=float2(fmod(tile,4.0),floor(tile*.25));
-   // Analytic gradients are taken before wrapping; cap the footprint within the periodic gutter.
-   float2 dx=clamp(ddx(uv),-.055,.055)*(.875*grid);
-   float2 dy=clamp(ddy(uv),-.055,.055)*(.875*grid);
-   return tex2Dgrad(atlas,(origin+.0625+frac(uv)*.875)*grid,dx,dy);
- }
+ half4 Scan(float2 uv,half layer){return UNITY_SAMPLE_TEX2DARRAY(_LandscapeColor,float3(uv,layer));}
+ half4 Grain(float2 uv,half layer){return UNITY_SAMPLE_TEX2DARRAY(_LandscapeDetail,float3(uv,layer));}
  half3 DetailNormal(float3 pos,float2 uv,half3 n,half2 bump)
  {
    float3 dp1=ddx(pos),dp2=ddy(pos);
@@ -111,30 +149,20 @@ Shader "Frontline/Instanced" {
  }
  void Terrain(float3 p,inout half3 n,inout half3 color,out half rough)
  {
-   half3 weight=abs(n);weight*=weight;weight*=weight;weight/=max(.001,dot(weight,half3(1,1,1)));
-   float2 plane=p.xz*.53;
-   half4 grass=Swatch(_SurfaceAtlas,plane,6);
-   half2 flatNormal=Swatch(_NormalAtlas,plane,6).rg*2-1;
-   half3 bump=half3(flatNormal.x,0,flatNormal.y)*weight.y;
-   half3 pigment=grass.rgb*weight.y;
-   if(weight.y<.995)
-   {
-     float2 xProjection=p.zy*.61,zProjection=p.xy*.61;
-     half2 nr=Swatch(_NormalAtlas,xProjection,0).rg*2-1;
-     half2 nf=Swatch(_NormalAtlas,zProjection,0).rg*2-1;
-     pigment+=weight.x*Swatch(_SurfaceAtlas,xProjection,0).rgb+weight.z*Swatch(_SurfaceAtlas,zProjection,0).rgb;
-     bump+=weight.x*half3(0,nr.y,nr.x)+weight.z*half3(nf.x,nf.y,0);
+   float2 plane=p.xz*.32;
+   half patch=Scan(p.xz*.041,7).g;
+   half moss=smoothstep(.39,.68,patch)*.21,beach=saturate((-p.y+.24)*.73);
+   half4 grass=Scan(plane,6),ground=Grain(plane,6);
+   half3 soil=lerp(grass.rgb*half3(.92,1.06,.88),Scan(p.xz*.27,7).rgb,moss);
+   soil=lerp(soil,Scan(p.xz*.47,10).rgb,beach);
+   half slope=smoothstep(.19,.64,1-abs(n.y));
+   if(slope>.001) {
+     float2 rock=abs(n.x)>abs(n.z)?p.zy:p.xy;
+     soil=lerp(soil,Scan(rock*.45,14).rgb,slope);
    }
-   half patch=Swatch(_SurfaceAtlas,p.xz*.041,7).g;
-   half moss=smoothstep(.67,1.02,patch), path=smoothstep(.62,.95,1-grass.r*.65+(.82-patch));
-   half slope=saturate((1-n.y)*2.3+max(0,p.y-4)*.025);
-   half beach=saturate((-p.y+.19)*.71);
-   half3 biome=lerp(half3(.94,.96,.90),half3(.82,.88,.77),moss);
-   biome=lerp(biome,half3(1.07,.94,.82),path*.62);
-   biome=lerp(biome,half3(.87,.86,.81),slope);
-   biome=lerp(biome,half3(1.10,1.02,.85),beach);
-   color=lerp(dot(color,half3(.24,.59,.17)).xxx,color,.72)*pigment*1.06*biome;
-   n=normalize(n+bump*.46);rough=lerp(.89,.53,beach);
+   color=soil*lerp(half3(.95,.96,.90),color*1.52,.38);
+   n=normalize(n+half3(ground.x*2-1,0,ground.y*2-1)*.32);
+   color*=lerp(.82,1.05,ground.a);rough=lerp(ground.b,.42,beach);
  }
  half3 Film(half3 linearColor)
  {
@@ -151,20 +179,54 @@ Shader "Frontline/Instanced" {
    if(id>.5)
    {
      metal=i.surface.y;rough=i.surface.z;ao=i.surface.w;
-     if(id==7)Terrain(i.world,n,pigment,rough);
-     else
-     {
-       half tile=id<=8?id-1:id==9?6:id==10?5:id==11?1:id==13?6:2;
-       half4 detail=Swatch(_SurfaceAtlas,i.uv,tile);
-       half strength=id==10?.23:id==12?.12:1;
-       pigment*=lerp(half3(1,1,1),detail.rgb*1.13,strength);
-       half2 bump=(Swatch(_NormalAtlas,i.uv,tile).rg*2-1)*strength;
-       n=DetailNormal(i.world,i.uv,n,bump*.73);
-       rough=clamp(rough+(detail.a-.65)*.24,.17,.97);
+     if(id>=112) {
+       half4 fabric=UNITY_SAMPLE_TEX2DARRAY(_WardrobeColor,float3(i.uv,id-112));
+       half4 grain=UNITY_SAMPLE_TEX2DARRAY(_WardrobeDetail,float3(i.uv,id-112));
+       half grey=dot(fabric.rgb,half3(.24,.62,.14));
+       pigment=lerp(fabric.rgb,grey*(.19+1.50*i.dye.rgb),fabric.a*.86);
+       n=DetailNormal(i.world,i.uv,n,(grain.rg*2-1)*.57);
+       metal=0;rough=grain.b;ao*=lerp(.62,1,grain.a);
+     } else if(id>=64) {
+       half4 foliage=UNITY_SAMPLE_TEX2DARRAY(_FoliageViews,float3(i.uv,id-64));
+       #if defined(FRONTLINE_FOLIAGE)
+       clip(foliage.a-.27);
+       #endif
+       pigment=foliage.rgb*lerp(half3(1,1,1),pigment,.24);
+       n=normalize(n*.28+half3(0,.90,0));rough=.86;
+     } else if(id>=32) {
+       half4 photo=UNITY_SAMPLE_TEX2DARRAY(_SpecimenColor,float3(i.uv,id-32));
+       half4 detail=UNITY_SAMPLE_TEX2DARRAY(_SpecimenDetail,float3(i.uv,id-32));
+       #if defined(FRONTLINE_FOLIAGE)
+       if(id==34||id==36||id==37||id==43)clip(photo.a-.39);
+       #endif
+       pigment=photo.rgb*lerp(half3(1,1,1),pigment,.38);
+       n=DetailNormal(i.world,i.uv,n,(detail.rg*2-1)*.61);rough=detail.b;ao*=lerp(.61,1,detail.a);
+     } else if(id==16) {
+       float3 p=i.world;
+       half3 w=abs(n);w*=w;w/=max(.001,dot(w,half3(1,1,1)));
+       float2 flat=p.xz*.48,side=p.zy*.48,front=p.xy*.48;
+       half3 rock=w.x*Scan(side,14).rgb+w.y*Scan(flat,14).rgb+w.z*Scan(front,14).rgb;
+       half sand=(1-smoothstep(-1.55,-.48,p.y))*(.38+.48*abs(n.y));
+       half grass=smoothstep(-.49,.095,p.y)*(.43+.37*saturate(n.y));
+       pigment=lerp(lerp(rock,Scan(flat,10).rgb,sand),Scan(flat,6).rgb,grass);
+       rough=lerp(.87,.53,sand);
+     } else if(id==7)Terrain(i.world,n,pigment,rough);
+     else {
+       half tile=id<=6?id-1:id==8?6:id==9?8:id==10?15:id==11?12:id==13?14:2;
+       half3 photo=Scan(i.uv,tile).rgb;
+       half4 grain=Grain(i.uv,tile);
+       half luma=dot(photo,half3(.23,.62,.15));
+       half detail=id==5?.18:id==10?.13:id==6?.48:id==14||id==15?.16:.83;
+       half3 albedo=id==6||id==10?lerp(half3(1,1,1),(.59+luma*1.40).xxx,detail)*pigment:
+         lerp(pigment,photo*(.64+.59*pigment),detail);
+       pigment=albedo;ao*=lerp(.75,1,grain.a);
+       n=DetailNormal(i.world,i.uv,n,(grain.rg*2-1)*(.44*detail));
+       rough=clamp(lerp(rough,grain.b,id==5?.31:.67),.21,.95);
      }
    }
+   if(id==4||id==11)pigment=lerp(pigment,half3(.80,.84,.84),_EstateWinter*smoothstep(.28,.86,n.y)*.76);
    half shore=0;
-   if(_LakeEnvironment>.5 && (id==7 || id==9 || id==13)) {
+   if(_LakeEnvironment>.5 && (id==7 || id==9 || id==13 || id==16 || id==38)) {
      // The lake plane sits at -1.70 m. Wetting ends below the inhabited shelf.
      shore=1-smoothstep(-1.67,-1.08,i.world.y+.045*sin(i.world.x*3.7+i.world.z));
      pigment*=lerp(half3(1,1,1),half3(.65,.73,.74),shore);
@@ -188,13 +250,14 @@ Shader "Frontline/Instanced" {
    half3 direct=_LightColor0.rgb*nl*light;
    half3 fill=_FillColor.rgb*saturate(dot(n,_FillDirection.xyz))*.32;
    half3 sum=diffuse*((ambient*.62+fill)*ao+direct*.84)*(1-.74*metal);
+   sum+=metal*diffuse*ambient*.31;
    sum+=reflection*(min(5.5,distribution*visibility)*direct+ambient*(.18+.36*metal)*ao);
    sum+=rim*(.018+.039*metal)*lerp(half3(.58,.68,.81),_LightColor0.rgb,nl);
-   if(id==8) {
+   if(id==8||(id>=64&&id<112)||id==34||id==36) {
      half through=saturate(dot(-v,l)*.75+.25)*(1-nl);
      sum+=pigment*half3(.23,.32,.105)*through*(.36+.64*light);
    }
-   if(id==14 || id==15) {
+   if(id==14 || id==15 || id==40) {
      half pulse=.90+.075*sin(_Time.y*(id==15?8.1:1.7)+dot(i.world.xz,float2(2,3)))+.025*sin(_Time.y*13+i.world.y*9);
      sum+=(id==15?half3(1.38,.32,.044):half3(.51,.255,.079))*pulse;
    }
@@ -203,16 +266,25 @@ Shader "Frontline/Instanced" {
    UNITY_APPLY_FOG(i.fogCoord,c);return c;
  }
  #else
- struct shadowOut {V2F_SHADOW_CASTER;};
- shadowOut vertShadow(appdata v){shadowOut o;UNITY_SETUP_INSTANCE_ID(v);v.vertex=WindVertex(v);TRANSFER_SHADOW_CASTER_NORMALOFFSET(o);return o;}
- float4 fragShadow(shadowOut i):SV_Target {SHADOW_CASTER_FRAGMENT(i)}
+ struct shadowOut {V2F_SHADOW_CASTER;float3 specimen:TEXCOORD1;};
+ shadowOut vertShadow(appdata v){shadowOut o;UNITY_SETUP_INSTANCE_ID(v);v.vertex=WindVertex(v);o.specimen=float3(v.uv,v.surface.x);TRANSFER_SHADOW_CASTER_NORMALOFFSET(o);
+ #if defined(FRONTLINE_FOLIAGE)
+ if(v.surface.x>=64&&v.surface.x<112&&!VisibleSlice(mul((float3x3)unity_WorldToObject,_WorldSpaceLightPos0.xyz),v.surface.x))o.pos=float4(2,2,2,1);
+ #endif
+ return o;}
+ float4 fragShadow(shadowOut i):SV_Target {
+ #if defined(FRONTLINE_FOLIAGE)
+ if(i.specimen.z>=64&&i.specimen.z<112)clip(UNITY_SAMPLE_TEX2DARRAY(_FoliageViews,float3(i.specimen.xy,i.specimen.z-64)).a-.40);
+ #endif
+ SHADOW_CASTER_FRAGMENT(i)}
  #endif
  ENDCG
  SubShader { Tags {"RenderType"="Opaque"} LOD 150
    Pass { Tags {"LightMode"="ForwardBase"}
      CGPROGRAM
      #pragma exclude_renderers gles3
-     #pragma target 3.0
+     #pragma target 3.5
+     #pragma multi_compile_local __ FRONTLINE_SKIN FRONTLINE_FOLIAGE
      #pragma vertex vert
      #pragma fragment frag
      #pragma multi_compile_instancing
@@ -223,7 +295,8 @@ Shader "Frontline/Instanced" {
    Pass { Tags {"LightMode"="ShadowCaster"} ZWrite On ZTest LEqual
      CGPROGRAM
      #pragma exclude_renderers gles3
-     #pragma target 3.0
+     #pragma target 3.5
+     #pragma multi_compile_local __ FRONTLINE_FOLIAGE
      #pragma vertex vertShadow
      #pragma fragment fragShadow
      #pragma multi_compile_shadowcaster
@@ -236,7 +309,8 @@ Shader "Frontline/Instanced" {
    Pass { Tags {"LightMode"="ForwardBase"}
      CGPROGRAM
      #pragma only_renderers gles3
-     #pragma target 3.0
+     #pragma target 3.5
+     #pragma multi_compile_local __ FRONTLINE_SKIN FRONTLINE_FOLIAGE
      #pragma vertex vert
      #pragma fragment frag
      #pragma multi_compile_instancing
@@ -248,7 +322,8 @@ Shader "Frontline/Instanced" {
    Pass { Tags {"LightMode"="ShadowCaster"} ZWrite On ZTest LEqual
      CGPROGRAM
      #pragma only_renderers gles3
-     #pragma target 3.0
+     #pragma target 3.5
+     #pragma multi_compile_local __ FRONTLINE_FOLIAGE
      #pragma vertex vertShadow
      #pragma fragment fragShadow
      #pragma multi_compile_shadowcaster

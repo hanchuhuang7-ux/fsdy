@@ -9,12 +9,13 @@ test('cavalry entrance filters layers and teams; walls own secondary feedback li
 test('wall feedback and visible batched strokes require no new physics or texture',()=>{
   const s=read('Unity/Assets/Frontline/Runtime/BattleView.cs');
   const joints=read('Unity/Assets/Frontline/Runtime/BattleView.IK.cs');
-  const meshes=read('Unity/Assets/Frontline/Runtime/BattleView.JointMeshes.cs');
+  const meshes=read('Unity/Assets/Frontline/Runtime/BattleView.Artists.cs');
   assert.match(s,/e.type=="wall"/);
   assert.match(s,/e.type=="sweep"/);
   assert.match(joints,/float block=Ease\(input\.guard\)/);
   assert.match(joints,/rig\.shield=pose\.root\*AtGrip\(left,shieldTurn,/);
-  assert.match(meshes,/Add\(shield,rig\.shield,input\.color\)/);
+  assert.match(meshes,/input\.guard>\.17f.{0,30}pose\.take=ArtistMotion\.Block/);
+  assert.match(read('Unity/Assets/Frontline/Editor/ExternalAssetImporter.Skins.cs'),/bake\.Accessory\(art,left,"left"/);
   assert.match(read('Unity/Assets/Frontline/Runtime/BattleAudio.cs'),/"wall"/);
 });
 

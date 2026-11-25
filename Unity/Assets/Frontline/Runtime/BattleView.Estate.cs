@@ -23,12 +23,10 @@ namespace Frontline.UnityGame
             new Vector3(-3.24f,0,-6.23f),new Vector3(3.24f,0,-6.23f),
             new Vector3(-4.75f,0,-6.23f),new Vector3(4.75f,0,-6.23f)
         };
-        readonly MeshSet[] specialistMeshes=new MeshSet[Manor.SpecialistIds.Length];
         readonly WalkRoute[] specialistRoutes=new WalkRoute[Manor.SpecialistIds.Length];
         readonly int[] specialistLevels=new int[Manor.SpecialistIds.Length];
         readonly Vector3[] specialistPoints=new Vector3[Manor.SpecialistIds.Length];
         readonly bool[] heroBayClear=new bool[3];
-        MeshSet retinueGuard;
         int manorGuardsAway;
         internal int VisibleRetinue {get;private set;}
         internal static Vector3 RetinuePost(int index) => ManorOrigin+RetinuePosts[index];
@@ -111,8 +109,6 @@ namespace Frontline.UnityGame
                 if(Mathf.Abs(x-DockOrigin.x)>3.8f)
                     ManorStill(reed,new Vector3(x,-.35f,south-.17f),rotation,Vector3.one*.75f,White,.026f);
             }
-            for(int i=0;i<specialistMeshes.Length;i++)
-                specialistMeshes[i]=Load("specialist_"+Manor.SpecialistIds[i]).WithoutShadows();
         }
 
         void DrawUnclearedPlot(int index,Vector3 center,Quaternion facing)
@@ -139,8 +135,6 @@ namespace Frontline.UnityGame
             if(backyard!=null)
                 ManorStill(Load("backyard_"+backyard).WithoutShadows(),basePoint+facing*Vector3.Scale(ManorPlotArt.BackyardOrigin,scale),
                     facing,Vector3.Scale(ManorPlotArt.BackyardScale,scale),White);
-            if(kind=="cottage"&&builtSeason==3)
-                ManorStill(Load("manor_roof_snow").WithoutShadows(),basePoint,facing,scale,White);
         }
 
         static WalkRoute Trace(params Vector3[] points)
@@ -194,19 +188,12 @@ namespace Frontline.UnityGame
                 specialistPoints[role]=ManorOrigin+pos;
                 VisibleSpecialistMask|=1<<role;
                 float pace=speed*Ease(Mathf.Min(along,route.total-along)/.52f);
-                var gait=new BipedGait(phase/.96f,pace,2.8f,1,manorTime,SpecialistFirst+role);
                 float heading=LocalHeading(SpecialistFirst+role,Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg);
-                var hips=Pose(specialistPoints[role]+Vector3.up*.735f,Quaternion.Euler(0,heading,0),Vector3.one*.96f);
-                float music=role==Manor.SpecialistIds.Length-1?gait.breath*1.45f:0;
-                var root=hips*Pose(new Vector3(.013f*gait.sway,gait.bob,0),
-                    Quaternion.Euler(gait.lean*.83f,gait.twist*.66f,gait.roll*.80f+music),Vector3.one);
                 ContactAt(specialistPoints[role],.90f);
-                if(lowActors){Add(specialistMeshes[role],root,SpecialistTrim[rank-1]);continue;}
-                QueuePose(new PoseInput {town=TownRole.Specialist,survey=true,id=SpecialistFirst+role,
-                    position=specialistPoints[role]+Vector3.up*.735f,angle=heading*Mathf.Deg2Rad,scale=.96f,
-                    gait=phase/.96f,speed=pace,maxSpeed=2.8f,direction=1,hp=1,nod=music,
-                    leftHand=new Vector3(-.19f,-.027f,.31f),rightHand=role==3?new Vector3(.39f,-.04f,.13f):new Vector3(.19f,-.034f,.31f),
-                    color=SpecialistTrim[rank-1]},new PoseDraw{coat=specialistMeshes[role],portrait=artisanPortraits[role]});
+                QueuePose(new PoseInput {artist=true,town=TownRole.Specialist,survey=true,id=SpecialistFirst+role,
+                    position=specialistPoints[role]+Vector3.up*.7584f,angle=heading*Mathf.Deg2Rad,scale=.96f,
+                    gait=phase/.96f,speed=pace,maxSpeed=2.8f,direction=1,hp=1,color=SpecialistTrim[rank-1]},
+                    new PoseDraw{costume=collection[Manor.SpecialistIds[role]]});
             }
         }
 
@@ -218,17 +205,7 @@ namespace Frontline.UnityGame
             {
                 var point=RetinuePost(i);
                 if(!InView(point,2.4f))continue;
-                var facing=Quaternion.Euler(0,i%2==0?174:186,0);
-                retinueGuard??=Load("retinue_guard");
-                float breath=Mathf.Sin(manorTime*2.16f+i*1.82f);
-                var stance=Matrix4x4.identity;
-                // The watch mesh includes its boots and weapons. Anchor the
-                // foot plane and vary only the height and upper-body weight.
-                stance.m01=.012f*Mathf.Sin(manorTime*1.32f+i*2.39f);
-                stance.m11=1+.008f*breath;
-                stance.m21=.016f*breath;
-                if(lowActors)Add(retinueGuard,Pose(point,facing,Vector3.one)*stance,RetinueCloth);
-                else WatchAt(point,i%2==0?174:186,300+i,RetinueCloth);
+                WatchAt(point,i%2==0?174:186,300+i,RetinueCloth);
                 ContactAt(point,.92f);
                 VisibleRetinue++;
             }

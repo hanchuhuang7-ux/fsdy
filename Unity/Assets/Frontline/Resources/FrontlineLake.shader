@@ -11,10 +11,11 @@ Shader "Frontline/Lake"
         ZWrite On
         Pass {
             CGPROGRAM
-            #pragma target 3.0
+            #pragma target 3.5
             #pragma vertex vert
             #pragma fragment frag
             #include "UnityCG.cginc"
+            UNITY_DECLARE_TEX2DARRAY(_LandscapeColor);
             sampler2D _ShoreDistance,_WaveNormals;
             float4 _ShoreRect,_FrontlineSunDirection;
             half4 _Water,_Mist;
@@ -42,6 +43,8 @@ Shader "Frontline/Lake"
                 float shore=tex2D(_ShoreDistance,map).r*16;
                 half shallows=1-smoothstep(.5,11.8,shore);
                 half3 water=lerp(_Water.rgb*.82,half3(.46,.55,.378),shallows*.82);
+                half3 lakeBed=UNITY_SAMPLE_TEX2DARRAY(_LandscapeColor,float3(p*.45+slope*.32,10)).rgb;
+                water=lerp(water,lakeBed*half3(.58,.72,.57),shallows*shallows*.44);
                 water+=shallows*(.014*cos(crossWave+longWave)+.010*cos(2.3*longWave));
                 half3 ray=reflect(-v,n);
                 half3 sky=lerp(_Mist.rgb,half3(.41,.58,.67),saturate(ray.y*2.8));

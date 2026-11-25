@@ -40,14 +40,15 @@ namespace Frontline.UnityGame
         sealed class MeshSet
         {
             public Mesh high,low;
+            public Material skin;
             public int highVertices,lowVertices;
             public Batch moving,still,grid,ambient,outer;
             MeshSet shadowless;
             public MeshSet distant;
-            public bool hasRig,atmosphere,road,castShadow=true,receiveShadow=true,nearDetail,detailProxy;
+            public bool cutout,hasRig,atmosphere,road,castShadow=true,receiveShadow=true,nearDetail,detailProxy;
             public Bounds localBounds;
             public MeshSet Variant(bool cast,bool receive,bool near=false) => new MeshSet {
-                high=high,low=low,highVertices=highVertices,lowVertices=lowVertices,atmosphere=atmosphere,road=road,hasRig=hasRig,
+                high=high,low=low,highVertices=highVertices,lowVertices=lowVertices,atmosphere=atmosphere,road=road,hasRig=hasRig,cutout=cutout,
                 localBounds=localBounds,castShadow=cast,receiveShadow=receive,nearDetail=near,detailProxy=detailProxy
             };
             public MeshSet WithoutShadows()=>castShadow?(shadowless??=Variant(false,receiveShadow,nearDetail)):this;
@@ -98,17 +99,16 @@ namespace Frontline.UnityGame
         }
         sealed class UnitVisual
         {
-            public readonly MeshSet body,right;
-            public MeshSet portrait;
-            public readonly MeshSet[] forgedArms,insignia;
+            public readonly DressedActor artist;
+            public readonly DressedActor[] tiers;
             public readonly SoldierKind kind;
             public readonly AttackStyle attackStyle;
             public readonly bool stockWeapon,armoured;
             public readonly float windup;
             public UnitDef definition;
-            public UnitVisual(string type,MeshSet body,MeshSet right,MeshSet[] forgedArms=null,MeshSet[] insignia=null)
+            public UnitVisual(string type,DressedActor artist,DressedActor[] tiers=null)
             {
-                this.body=body;this.right=right;this.forgedArms=forgedArms;this.insignia=insignia;
+                this.artist=artist;this.tiers=tiers;
                 kind=type=="cavalry"?SoldierKind.Cavalry:type=="catapult"?SoldierKind.Catapult:
                     type=="shield"?SoldierKind.Shield:SoldierKind.Infantry;
                 armoured=type=="shield"||type=="spear"||type=="giant"||type=="cavalry"||type=="hero_vanguard";
@@ -119,7 +119,7 @@ namespace Frontline.UnityGame
         }
         readonly Dictionary<string,MeshSet> meshes=new Dictionary<string,MeshSet>();readonly Dictionary<string,MeshSet> fxMeshes=new Dictionary<string,MeshSet>();readonly Dictionary<string,UnitVisual> units=new Dictionary<string,UnitVisual>();readonly Dictionary<string,MeshSet> props=new Dictionary<string,MeshSet>();
         readonly List<Batch> moving=new List<Batch>(),still=new List<Batch>(),grid=new List<Batch>();
-        Material material,atmosphere,groundingMaterial,sky,roadMaterial;Light sun;MeshSet armLeft,leg,horse,horseLeg,catapult,catapultArm,shield,ring,dot,torso,head,limb,wreckHorse,wreckCart,arrow,bolt,bomb,stone;MapEcology.Mote[] motes;
+        Material material,foliageMaterial,atmosphere,groundingMaterial,sky,roadMaterial;Light sun;MeshSet catapult,catapultArm,ring,dot,wreckCart,arrow,bolt,bomb,stone;MapEcology.Mote[] motes;
         MeshSet dust;float activeFlash;struct MotionSample {public Vector3 p;public float time,speed,phase,direction;public bool valid;}readonly MotionSample[] oldMotion=new MotionSample[VisualUnitSlots];
         struct GroundSample {public string map;public float x,z,height;}
         readonly GroundSample[] unitFloors=new GroundSample[2*Catalog.MaxUnits+1];
@@ -163,6 +163,7 @@ namespace Frontline.UnityGame
             // Include the near corners of the 36 m arena and the desktop deployment sidebar.
             return Mathf.Clamp(7.2f+18f/(Mathf.Tan(21*Mathf.Deg2Rad)*aspect*span),35,58);
         }
+        static readonly string[] ScanGlobals={"_LandscapeColor","_LandscapeDetail","_SpecimenColor","_SpecimenDetail","_FoliageViews","_WardrobeColor","_WardrobeDetail"};
         void Awake()
         {
             ViewCamera=new GameObject("Battle camera").AddComponent<Camera>();ViewCamera.transform.SetParent(transform,false);ViewCamera.clearFlags=CameraClearFlags.Skybox;ViewCamera.fieldOfView=Viewport.Compact?65:42;ViewCamera.nearClipPlane=.5f;ViewCamera.farClipPlane=160;ViewCamera.gameObject.AddComponent<AudioListener>();
@@ -171,23 +172,26 @@ namespace Frontline.UnityGame
             splitFineShadows=SystemInfo.graphicsDeviceType==GraphicsDeviceType.Direct3D11;
 #endif
             material=new Material(Resources.Load<Shader>("FrontlineInstanced")){enableInstancing=true};atmosphere=new Material(Resources.Load<Shader>("FrontlineAtmosphere")){enableInstancing=true};sky=new Material(Resources.Load<Shader>("FrontlineSky"));RenderSettings.skybox=sky;
-            material.SetTexture("_SurfaceAtlas",Resources.Load<Texture2D>("Textures/SurfaceAlbedoRoughness"));
-            material.SetTexture("_NormalAtlas",Resources.Load<Texture2D>("Textures/SurfaceNormals"));
+            foreach(string id in ScanGlobals)
+            {
+                var scanned=Resources.Load<Texture2DArray>("Scans/"+id.Substring(1));
+                if(!scanned)throw new InvalidOperationException("Missing scanned material "+id);
+                Shader.SetGlobalTexture(id,scanned);
+            }
             RenderSettings.sun=sun;
             PublishSunDirection();
             roadMaterial=new Material(Resources.Load<Shader>("FrontlineRoad")){enableInstancing=true};
-            roadMaterial.SetTexture("_RoadDetail",Resources.Load<Texture2D>("Textures/LaneDetail"));
             groundingMaterial=new Material(atmosphere){enableInstancing=true};
             var fillDirection=(Quaternion.Euler(30,145,0)*Vector3.back).normalized;
             material.SetColor("_FillColor",new Color(.58f,.72f,1)*.28f);
             material.SetVector("_FillDirection",fillDirection);
             RenderSettings.ambientLight=new Color(.46f,.53f,.59f);
-            foreach(string type in new[]{"militia","shield","spear","archer","crossbow","bomber","medic","giant","cavalry","catapult"})units.Add(type,new UnitVisual(type,Load("body_"+type),Load("arm_right_"+type)));
-            foreach(string hero in Manor.HeroIds)RegisterHeroVisual(hero);
             foreach(string type in new[]{"barrel","barricade","banner","spikes","spring"})props.Add(type,Load("prop_"+type));
-            dust=Load("mist",true);armLeft=Load("arm_left");leg=Load("leg");horse=Load("horse");horseLeg=Load("horse_leg");catapult=Load("catapult");catapultArm=Load("catapult_arm");shield=Load("shield");ring=Load("ring");dot=Load("dot");torso=Load("torso");head=Load("head");limb=Load("limb");wreckHorse=Load("wreck_horse");wreckCart=Load("wreck_catapult");arrow=Load("arrow");bolt=Load("bolt");bomb=Load("bomb");stone=Load("stone");
+            dust=Load("mist",true);catapult=Load("catapult");catapultArm=Load("catapult_arm");
+            ring=Load("ring");dot=Load("dot");wreckCart=Load("wreck_catapult");arrow=Load("arrow");bolt=Load("bolt");bomb=Load("bomb");stone=Load("stone");
             weatherPage=new Batch { mesh=Load("snow",true) };
-            InitializeJoints();
+            foliageMaterial=new Material(material){name="Scanned foliage",enableInstancing=true};foliageMaterial.EnableKeyword("FRONTLINE_FOLIAGE");
+            InitializeArtists();
             InitializeAccents();
 
             // Reserve up to 12 strokes per effect and two marks per health bar before contact.
@@ -222,6 +226,11 @@ namespace Frontline.UnityGame
             }
             Add(material.shader,PassType.ForwardBase,"DIRECTIONAL");
             Add(material.shader,PassType.ForwardBase,"DIRECTIONAL","SHADOWS_SCREEN");
+            Add(material.shader,PassType.ForwardBase,"DIRECTIONAL","FRONTLINE_SKIN");
+            Add(material.shader,PassType.ForwardBase,"DIRECTIONAL","SHADOWS_SCREEN","FRONTLINE_SKIN");
+            Add(material.shader,PassType.ForwardBase,"DIRECTIONAL","FRONTLINE_FOLIAGE");
+            Add(material.shader,PassType.ForwardBase,"DIRECTIONAL","SHADOWS_SCREEN","FRONTLINE_FOLIAGE");
+            Add(material.shader,PassType.ShadowCaster,"SHADOWS_DEPTH","FRONTLINE_FOLIAGE");
             Add(material.shader,PassType.ShadowCaster,"SHADOWS_DEPTH");
             Add(atmosphere.shader,PassType.Normal);
             double started=Time.realtimeSinceStartupAsDouble;
@@ -243,6 +252,7 @@ namespace Frontline.UnityGame
             bool secondary=name=="base"||name=="island_root"||name=="cliff"||name=="icicle"||name=="shrub"||
                 name=="snow"||name=="flame"||name=="mist"||name=="civilian_hat"||name=="villager_wrap"||
                 name=="resident_sleeve"||name=="civilian_pack"||name.StartsWith("carry_",StringComparison.Ordinal);
+            set.cutout=name=="tree"||name=="pine"||name=="grass"||name=="reeds"||name=="shrub";
             set.road=name.StartsWith("road_",StringComparison.Ordinal);
             set.castShadow=!set.road&&!transparent&&!small&&!secondary&&name!="platform"&&name!="arena_ground";
             set.receiveShadow=!transparent&&!small;
@@ -278,32 +288,9 @@ namespace Frontline.UnityGame
             }
             else (mesh.moving??Buffer(mesh,moving,0)).Add(matrix,color,wind,activeFlash);
         }
-        void RegisterHeroVisual(string type)
-        {
-            var forged=new MeshSet[Manor.MaxHeroArmament+1];
-            var insignia=new MeshSet[forged.Length];
-            for(int tier=1;tier<forged.Length;tier++)
-            {
-                forged[tier]=Load("arm_right_"+type+"_t"+tier);
-                insignia[tier]=Load("crest_"+type+(tier==1?"":"_t"+tier)).WithoutShadows();
-                Reserve(forged[tier]);Reserve(insignia[tier]);
-            }
-            units.Add(type,new UnitVisual(type,Load("body_"+type),Load("arm_right_"+type),forged,insignia));
-            void Reserve(MeshSet set)
-            {
-                Buffer(set,moving,0,4);
-                set.ambient=new Batch(4){mesh=set};
-                ambient.Add(set.ambient);
-            }
-        }
-
         UnitVisual Model(string type)
         {
-            if(!units.TryGetValue(type,out var model))
-            {
-                model=new UnitVisual(type,Load("body_"+type),Load("arm_right_"+type));
-                units.Add(type,model);
-            }
+            var model=units[type];
             if(model.definition==null)model.definition=Data.Unit(type);
             return model;
         }
@@ -311,7 +298,7 @@ namespace Frontline.UnityGame
         {
             var set=b.mesh;
             if(manor!=null&&(set.nearDetail&&lowScenery||set==campSentries&&!lowActors||set==raidPennant&&!manor.raidReady))return;
-            bool showLow=isStatic?lowScenery:lowActors;
+            bool showLow=(isStatic?lowScenery:lowActors)&&!set.skin;
             var mesh=showLow?set.low:set.high;
             int mainVertexCount=showLow?set.lowVertices:set.highVertices;
             bool detailProxy=!showLow&&set.castShadow&&set.detailProxy;
@@ -329,7 +316,7 @@ namespace Frontline.UnityGame
                 if(page.colorDirty){page.properties.SetVectorArray(TeamId,page.colors);page.colorDirty=false;}
                 if(page.flashDirty&&!set.atmosphere){page.properties.SetFloatArray(HitId,page.flashes);page.flashDirty=false;}
                 if(page.windDirty){page.properties.SetFloatArray(set.atmosphere?SoftnessId:WindId,page.winds);page.windDirty=false;}
-                var surface=set==contactShade?groundingMaterial:set.road?roadMaterial:set.atmosphere?atmosphere:material;
+                var surface=!showLow&&set.skin?set.skin:set==contactShade?groundingMaterial:set.road?roadMaterial:set.atmosphere?atmosphere:set.cutout?foliageMaterial:material;
                 bool split=detailProxy||eligible&&(set.highVertices-set.lowVertices)*page.count>=MinShadowVertexSavings;
                 Graphics.DrawMeshInstanced(mesh,0,surface,page.matrices,page.count,page.properties,
                     set.castShadow&&!split?ShadowCastingMode.On:ShadowCastingMode.Off,set.receiveShadow,0,ViewCamera,LightProbeUsage.Off);
@@ -337,7 +324,7 @@ namespace Frontline.UnityGame
                 if(split)
                 {
                     // Preserve the visible mesh, placement and receiving shadows. Only change the caster mesh.
-                    Graphics.DrawMeshInstanced(set.low,0,surface,page.matrices,page.count,page.hasWind?page.properties:null,
+                    Graphics.DrawMeshInstanced(set.low,0,set.skin?material:surface,page.matrices,page.count,page.hasWind&&!set.skin?page.properties:null,
                         ShadowCastingMode.ShadowsOnly,false,0,ViewCamera,LightProbeUsage.Off);
                     RenderSubmissions++;ShadowOnlySubmissions++;
                 }
@@ -504,12 +491,7 @@ namespace Frontline.UnityGame
             if(jobs)FinishSoldierPoses();
             foreach(var p in Current.props)if(p.alive)Prop(p.type,p.team,p.x,p.z,p.floor,p.active);
             foreach(var s in Current.projectiles){var t=s.t;var mesh=s.type=="stone"?stone:s.type=="bomb"?bomb:s.type=="bolt"?bolt:arrow;var velocity=UnityWorld.Vector(s.v);Add(mesh,Pose(new Vector3(t[0],t[1],t[2]),velocity.sqrMagnitude>.0001f?Quaternion.LookRotation(velocity):Quaternion.identity,Vector3.one),White);}
-            foreach(var r in Current.ragdolls)
-            {
-                float scale=Model(r.type).definition.scale;
-                if(r.wreck!=null&&r.wreck.Length==4&&Catalog.Finite(r.wreck[1])){var w=r.wreck;Add(r.type=="cavalry"?wreckHorse:wreckCart,Pose(new Vector3(w[0],w[1],w[2]),Quaternion.Euler(0,w[3]*Mathf.Rad2Deg,0),Vector3.one*scale),Team(r.team));}
-                foreach(var part in r.parts){var t=part.t;Add(part.name=="torso"?torso:part.name=="head"?head:limb,Pose(new Vector3(t[0],t[1],t[2]),new Quaternion(t[3],t[4],t[5],t[6]),Vector3.one*scale),part.name=="head"?White:Team(r.team));}
-            }
+            foreach(var corpse in Current.ragdolls)DrawArtistRemains(corpse);
             foreach(var e in Current.effects)Impact(e);
             DrawBattleAccents(Current);
         }
@@ -528,7 +510,7 @@ namespace Frontline.UnityGame
 
         void DrawFrame()
         {
-            if(Data==null||Config==null)return;foreach(var b in moving)b.Clear();RenderSubmissions=RenderInstances=RenderHeightSamples=ShadowOnlySubmissions=CulledStaticInstances=0;CasterVertices=MainVertices=0;
+            if(Data==null||Config==null)return;SkinnedInstances=ProxyActors=0;foreach(var b in moving)b.Clear();RenderSubmissions=RenderInstances=RenderHeightSamples=ShadowOnlySubmissions=CulledStaticInstances=0;CasterVertices=MainVertices=0;
             if(cameraWidth!=Screen.width||cameraHeight!=Screen.height){cameraWidth=Screen.width;cameraHeight=Screen.height;if(manor==null){ViewCamera.fieldOfView=Viewport.Compact?65:42;sidebarWeight=HasDesktopDeck?1:0;}else FrameManor();}
             if(manor==null&&CameraMode==2&&Current!=null){UnitFrame best=null;float bestCost=0;foreach(var u in Current.units)if(u.alive){float cost=Model(u.type).definition.cost;if(best==null||cost>bestCost){best=u;bestCost=cost;}}if(best?.t!=null)target=Vector3.Lerp(target,new Vector3(best.t[0],1,best.t[2]),.1f);}
             AdvanceCameraBlend();
@@ -626,9 +608,9 @@ namespace Frontline.UnityGame
         {
             enabled=false;
             if(ViewCamera)ViewCamera.enabled=false;
-            DisposeSoldierPoses();
+            DisposeSoldierPoses();ReleaseArtists();
         }
-        void OnDestroy(){StopPresentation();if(RenderSettings.skybox==sky)RenderSettings.skybox=null;if(material)Destroy(material);if(atmosphere)Destroy(atmosphere);if(groundingMaterial)Destroy(groundingMaterial);if(sky)Destroy(sky);if(lakeMaterial)Destroy(lakeMaterial);if(roadMaterial)Destroy(roadMaterial);}
+        void OnDestroy(){StopPresentation();if(RenderSettings.skybox==sky)RenderSettings.skybox=null;if(material)Destroy(material);if(foliageMaterial)Destroy(foliageMaterial);if(atmosphere)Destroy(atmosphere);if(groundingMaterial)Destroy(groundingMaterial);if(sky)Destroy(sky);if(lakeMaterial)Destroy(lakeMaterial);if(roadMaterial)Destroy(roadMaterial);}
     }
 }
 

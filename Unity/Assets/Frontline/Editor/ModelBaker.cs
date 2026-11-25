@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Frontline.Core;
 using Frontline.UnityGame;
 using UnityEditor;
@@ -21,53 +22,29 @@ namespace Frontline.Editor
         public static void Bake()
         {
             Directory.CreateDirectory(Folder);Written.Clear();
-            ProceduralTextureBaker.BakeAtlas();
+            ProceduralTextureBaker.BakeLakeNormals();
             for(int lod=0;lod<2;lod++)
             {
-                foreach(string type in Types){Save("body_"+type,lod,lod==0?FieldSoldier(type,null,type!="catapult"):DistantBody(type));Save("arm_right_"+type,lod,lod==0?Arm(type,false,lod):DistantArm(type));}
-                BakeJoints(lod);
-                Save("horse_shoulder",lod,ScapularMuscle(lod));
-                Save("arm_braced_left",lod,Arm("shield",true,lod));
-                Save("arm_left",lod,Arm("militia",true,lod));Save("leg",lod,Leg(lod));Save("horse_leg",lod,HorseLeg(lod));Save("horse",lod,Horse(lod));
-                Save("catapult",lod,Catapult(lod));Save("catapult_arm",lod,CatapultArm(lod));Save("wreck_horse",lod,WreckHorse(lod));Save("wreck_catapult",lod,WreckCatapult(lod));Save("shield",lod,Shield(lod));
-                foreach(string name in new[]{"barrel","barricade","banner","spikes","spring"})Save("prop_"+name,lod,Prop(name,lod));
-                foreach(string name in new[]{"rock","wall","platform","grass","flowers","shrub","tree","pine","dead_tree","reeds","column","arch","brazier","icicle","ring","dot","arrow","bolt","bomb","stone","torso","head","limb","cliff","base","flame","snow","island_root","mist"})Save(name,lod,EnvironmentMesh(name,lod));
+                foreach(string key in new[]{"platform","ring","dot","cliff","base","flame","snow","island_root","mist","icicle"})
+                    Save(key,lod,EnvironmentMesh(key,lod));
+                var ground=new Geometry{surface=Surface.Terrain};ground.Box(Vector3.zero,Vector3.one,Cloth);Save("arena_ground",lod,ground);
+                Save("arena_scree",lod,ArenaScree(lod));Save("steel_arc",lod,SteelArc());
+                Save("road_path",lod,RoadRibbon(0,lod));Save("road_link",lod,RoadRibbon(.125f,lod));
+                Save("road_setts",lod,RoadRibbon(.5f,lod));Save("road_grass",lod,RoadRibbon(1,lod));Save("plot_ropes",lod,SurveyRopes(lod));
             }
-            for(int lod=0;lod<2;lod++)
-            {
-                var gusset=new Geometry {surface=Surface.Cloth};
-                gusset.Frustum(V(0,-.5f,0),V(.80f,0,.92f),V(0,.5f,0),V(1,0,1),DyedWool,lod==0?8:4);
-                Save("shoulder_gusset",lod,gusset);
-                var ground=new Geometry {surface=Surface.Terrain};
-                ground.Box(Vector3.zero,Vector3.one,Cloth);Save("arena_ground",lod,ground);
-                Save("manor_hall",lod,ManorBuilding("manor_hall",lod));
-                foreach(string kind in Manor.Buildings)Save(kind,lod,ManorBuilding(kind,lod));
-                foreach(string kind in new[]{"farm","irrigated_field"})
-                    foreach(var state in new[]{CropAppearance.Fallow,CropAppearance.Rich})
-                        Save(ManorPlotArt.CropModel(kind,state),lod,ManorBuilding(kind,lod,state));
-                Save("retinue_guard",lod,RetinueGuard(lod));
-                Save("civilian_hat",lod,CivilianHat(lod));
-                Save("civilian_pack",lod,CivilianPack(lod));
-                Save("frontier_gate",lod,FrontierGate(lod));
-                Save("bridge_fittings",lod,BridgeFittings(lod));
-                BakeManorArt(lod);
-                BakeVillageRoads(lod);
-                foreach(string type in Manor.HeroIds)
-                {
-                    Save("body_"+type,lod,lod==0?FieldSoldier(type=="hero_ranger"?"archer":Equipment(type),type,true):DistantBody(type));
-                    Save("arm_right_"+type,lod,lod==0?ForgedArm(type,0):DistantArm(type));
-                    Save("crest_"+type,lod,ArmamentCrest(type,lod));
-                    for(int tier=1;tier<=Manor.MaxHeroArmament;tier++)
-                    {
-                        Save("arm_right_"+type+"_t"+tier,lod,lod==0?ForgedArm(type,tier):DistantArm(type));
-                        if(tier>1)Save("crest_"+type+"_t"+tier,lod,lod==0?AchievementBadge(type,tier):ArmamentCrest(type,lod));
-                    }
-                }
-            }
-            BakeCoast();
-            AssetDatabase.SaveAssets();File.WriteAllText("Assets/Frontline/Models/model-manifest.json",JsonUtility.ToJson(new Manifest{generator="Frontline.Editor.ModelBaker",version=PlayerSettings.bundleVersion,vertexColor="rgb=albedo; alpha=faction multiply weight",surfaceChannels="UV0=projected detail; UV1=surface ID, metallic, roughness, AO; optional UV2=cloth travel, poll or string weight, pelvis blend, planted boot; legacy ID 0 is untextured",textures=new[]{"Textures/SurfaceAlbedoRoughness","Textures/SurfaceNormals","Textures/ShoreDistance","Textures/LakeNormals","Textures/LaneDetail"},resources=Written.ToArray()},true));AssetDatabase.Refresh();Debug.Log("FRONTLINE_MODELS_OK "+Written.Count+" prebaked meshes, two LODs, PBR surfaces, independent shadow proxies");
+            BakeCoast();ExternalAssetImporter.BakeArt();
+            Written.AddRange(ExternalAssetImporter.Exported);
+            var roster=Resources.Load<ArtistRoster>("CC0/ArtistRoster");
+            var manifest=new {generator="Frontline.Editor.ExternalAssetImporter",version=PlayerSettings.bundleVersion,
+                credits="Assets/Frontline/ThirdParty/CREDITS-CC0.md",surfaceChannels="UV0 photographic projection or original specimen UV; UV1 material, metal, roughness, AO; UV3 and UV4 original skeleton indices and weights",
+                textures=new[]{"Scans/LandscapeColor","Scans/LandscapeDetail","Scans/SpecimenColor","Scans/SpecimenDetail","Scans/FoliageViews","Scans/WardrobeColor","Scans/WardrobeDetail","Textures/ShoreDistance","Textures/LakeNormals"},
+                sources=ExternalAssetImporter.UsedSources.ToArray(),resources=Written.ToArray(),
+                skeletons=Array.ConvertAll(roster.skeletons,a=>new {a.name,a.boneCount,a.skinnedVertices,takes=Array.ConvertAll(a.takes,t=>t.source)}),
+                costumes=Array.ConvertAll(roster.costumes,a=>new {a.name,rig=roster.skeletons[a.skeleton].name,main=roster.skeletons[a.skeleton].body.vertexCount+(a.high?a.high.vertexCount:0),mid=roster.skeletons[a.skeleton].mid.vertexCount+(a.mid?a.mid.vertexCount:0),proxy=roster.skeletons[a.skeleton].proxy.vertexCount+(a.proxy?a.proxy.vertexCount:0),attachments=a.high?a.high.vertexCount:0,attachmentHash=ExternalAssetImporter.Fingerprint(a.high)})};
+            File.WriteAllText("Assets/Frontline/Models/model-manifest.json",Json.Write(manifest));
+            AssetDatabase.SaveAssets();AssetDatabase.Refresh();
+            Debug.Log("FRONTLINE_MODELS_OK "+Written.Count+" static mesh references, "+roster.costumes.Length+" artist costumes");
         }
-        [Serializable] sealed class Manifest{public string generator,version,vertexColor,surfaceChannels;public string[] textures,resources;}
         static void Save(string name,int lod,Geometry g)
         {
             string key=name+(lod==1?"_lod1":""),path=Folder+"/"+key+".asset";var mesh=lod==0?g.SurfaceMesh(key):g.ProxyMesh(key);if(mesh.vertexCount==0||mesh.normals.Length!=mesh.vertexCount||mesh.colors.Length!=mesh.vertexCount)throw new InvalidDataException("Incomplete baked mesh "+key);foreach(var v in mesh.vertices)if(float.IsNaN(v.x)||float.IsNaN(v.y)||float.IsNaN(v.z)||float.IsInfinity(v.x)||float.IsInfinity(v.y)||float.IsInfinity(v.z))throw new InvalidDataException("Non-finite baked vertex "+key);foreach(var n in mesh.normals)if(n.sqrMagnitude<.98f)throw new InvalidDataException("Invalid baked normal "+key);var old=AssetDatabase.LoadAssetAtPath<Mesh>(path);if(old&&key=="rock_lod1")

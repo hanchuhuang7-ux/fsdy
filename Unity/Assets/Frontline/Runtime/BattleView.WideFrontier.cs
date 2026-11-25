@@ -215,7 +215,7 @@ namespace Frontline.UnityGame
 
         void ShoreProp(Vector3 shore,Vector3 outward,int index,bool stack)
         {
-            var rock=Load("rock").WithoutShadows();
+            var rock=Load("shore_rock").WithoutShadows();
             float variation=Scatter((uint)(index*33+74));
             float offshore=1.35f+5.25f*variation;
             var center=shore+outward*offshore+Vector3.up*(stack?-1.89f:-1.46f);

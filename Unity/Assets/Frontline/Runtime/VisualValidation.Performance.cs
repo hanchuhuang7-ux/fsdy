@@ -183,7 +183,7 @@ namespace Frontline.UnityGame
             var milliseconds=new double[count];var submissions=new double[count];var instances=new double[count];
             var draws=new double[count];var bytes=new double[count];var casters=new double[count];
             var mainVertices=new double[count];var mainSubmissions=new double[count];var shadowSubmissions=new double[count];
-            var culledStaticInstances=new double[count];
+            var culledStaticInstances=new double[count];var artistSkin=new double[count];var artistProxy=new double[count];
             var gpuMilliseconds=new List<double>(count);
             ulong lastGpuStamp=0;
             var renderCpu=new double[count];var simulationCpu=new double[count];
@@ -219,7 +219,7 @@ namespace Frontline.UnityGame
                     }
                     milliseconds[i]=(now-previous)*1000;previous=now;
                     submissions[i]=app.View.RenderSubmissions;instances[i]=app.View.RenderInstances;
-                    casters[i]=app.View.CasterVertices;
+                    casters[i]=app.View.CasterVertices;artistSkin[i]=app.View.SkinnedInstances;artistProxy[i]=app.View.ProxyActors;
                     mainVertices[i]=app.View.MainVertices;culledStaticInstances[i]=app.View.CulledStaticInstances;
                     shadowSubmissions[i]=app.View.ShadowOnlySubmissions;
                     mainSubmissions[i]=app.View.RenderSubmissions-app.View.ShadowOnlySubmissions;
@@ -268,7 +268,7 @@ namespace Frontline.UnityGame
                     renderJobFrames,targetScanTicks,targetScanFallbacks,targetScanWarmupTicks=startScanJobs,
                     renderSubmissions=Median(submissions),mainSubmissions=Median(mainSubmissions),
                     shadowOnlySubmissions=Median(shadowSubmissions),renderInstances=Median(instances),
-                    submittedMainVertices=Median(mainVertices),culledStaticInstances=Median(culledStaticInstances),drawCalls=Median(draws),
+                    skinnedActors=Median(artistSkin),farProxyActors=Median(artistProxy),submittedMainVertices=Median(mainVertices),culledStaticInstances=Median(culledStaticInstances),drawCalls=Median(draws),
                     gcBytes=Median(bytes),meanGcBytes=total/count,unityDrawCounter=draw.Valid&&draw.Count>0,unityGcCounter=gc.Valid&&gc.Count>0,
                     threadAllocationCounter=AllocationMeter.Available,submittedCasterVertices=Median(casters),shadowDistance=QualitySettings.shadowDistance,
                     staticRebuilds=app.View.StaticRebuilds-staticRebuilds,

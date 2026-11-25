@@ -34,4 +34,13 @@ test('Frozen legacy source trees remain byte-identical to the handoff trees',()=
 test('Visual ecology cannot instantiate colliders, mutate terrain or consume battle RNG',()=>{const source=read('Unity/Assets/Frontline/Runtime/MapEcology.cs');assert.doesNotMatch(source,/new GameObject|AddComponent|\.Height\s*=|Random\.Next/);assert.match(source,/new System.Random/);assert.doesNotMatch(read('Unity/Assets/Frontline/Runtime/BattleView.cs'),/CreatePrimitive|Resources.Load<Mesh>\("(?:Cube|Sphere|Cylinder)"/);});
 test('Shaders retain instancing, vertex colour, fog and wind on both platforms',()=>{const shader=read('Unity/Assets/Frontline/Resources/FrontlineInstanced.shader');for(const feature of ['multi_compile_instancing','multi_compile_fog','color:COLOR','UNITY_DEFINE_INSTANCED_PROP','WindVertex','SHADOWCASTER'])assert.ok(shader.toUpperCase().includes(feature.toUpperCase()),feature);});
 test('Historical v0.6/v0.7 engines remain accepted while v0.9 has a distinct identity',()=>{const replay=read('Unity/Assets/Frontline/Core/Replay.cs');assert.match(replay,/Engine="unity-0.9.0"/);assert.match(replay,/p.engineVersion=="unity-0.6.0"/);assert.match(replay,/p.engineVersion=="unity-0.7.0"/);assert.match(read('Unity/Assets/Frontline/Runtime/FrontlineApp.cs'),/replay.engineVersion=="unity-0.6.0"\?\(IWorldFactory\)new LegacyUnityWorldFactory/);});
-test('Baked resource manifest has both LODs for all required assets',()=>{const manifest=JSON.parse(read('Unity/Assets/Frontline/Models/model-manifest.json'));for(const name of ['body_militia','body_shield','body_spear','body_archer','body_crossbow','body_bomber','body_medic','body_giant','body_cavalry','body_catapult','horse','wreck_horse','catapult','wreck_catapult','prop_barrel','prop_barricade','prop_banner','prop_spikes','prop_spring','ring','island_root','mist'])for(const suffix of ['', '_lod1'])assert.ok(manifest.resources.includes('Models/'+name+suffix));});
+test('baked resources cover every historical actor, wreck and prop at both detail levels',()=>{
+  const m=JSON.parse(read('Unity/Assets/Frontline/Models/model-manifest.json'));
+  for(const id of ['militia','shield','spear','archer','crossbow','bomber','medic','giant','cavalry','charger']){
+    const costume=m.costumes.find(x=>x.name===id);
+    assert.ok(costume&&costume.main>costume.mid&&costume.mid>costume.proxy&&costume.proxy>0,id);
+    assert.ok(m.skeletons.find(r=>r.name===costume.rig).takes.includes('Death'),id+' death');
+  }
+  for(const name of ['catapult','catapult_arm','wreck_catapult','prop_barrel','prop_barricade','prop_banner','prop_spikes','prop_spring','ring','island_root','mist'])
+    for(const suffix of ['','_lod1'])assert.ok(m.resources.includes('Models/'+name+suffix),name+suffix);
+});

@@ -48,7 +48,6 @@ namespace Frontline.UnityGame
             new Color(.67f,.19f,.31f),new Color(.54f,.27f,.79f)
         };
         static readonly Color CutLimestone=new Color(.58f,.57f,.48f), StoneCap=new Color(.76f,.71f,.54f);
-        static readonly Color LanternGlass=new Color(1,.64f,.20f);
         static readonly Vector3[] HallLanterns={
             new Vector3(-1.33f,1.41f,-3.71f),new Vector3(1.33f,1.41f,-3.71f)
         };
@@ -73,12 +72,6 @@ namespace Frontline.UnityGame
         void BuildCivicDetails()
         {
             NobleBoundaryCount=NobleDetailCount=0;
-            foreach(var light in HallLanterns)
-            {
-                DetailBlock(light,new Vector3(.17f,.22f,.18f),LanternGlass);
-                DetailBlock(light+Vector3.up*.14f,new Vector3(.24f,.073f,.27f),Timber);
-                DetailBlock(light-Vector3.up*.13f,new Vector3(.23f,.062f,.23f),Timber);
-            }
             foreach(var detail in CivicDetails)
             {
                 if(detail.rank>manor.nobility)continue;
@@ -94,10 +87,7 @@ namespace Frontline.UnityGame
                     case CivicKind.Flowers:
                         ManorStill(Load("verge_flowers").WithoutShadows(),at,Quaternion.identity,Vector3.one,White,.032f);break;
                     case CivicKind.Bench:
-                        DetailBlock(at+Vector3.up*.37f,new Vector3(1.43f,.13f,.45f),StoneCap);
-                        for(int side=-1;side<=1;side+=2)
-                            DetailBlock(at+new Vector3(side*.49f,.15f,0),new Vector3(.23f,.31f,.32f),CutLimestone);
-                        break;
+                        ManorStill(Load("manor_bench").WithoutShadows(),at,Quaternion.identity,Vector3.one,White);break;
                     case CivicKind.Barrel:
                         ManorStill(props["barrel"].WithoutShadows(),at,Quaternion.identity,Vector3.one*.71f,White);
                         break;
@@ -107,21 +97,13 @@ namespace Frontline.UnityGame
                                 Quaternion.Euler(0,side*21,0),Vector3.one*.92f,White);
                         break;
                     case CivicKind.Waypost:
-                        DetailBlock(at+Vector3.up*.10f,new Vector3(.54f,.18f,.44f),CutLimestone);
-                        DetailBlock(at+Vector3.up*.64f,new Vector3(.12f,1.1f,.12f),Timber);
-                        DetailBlock(at+new Vector3(.025f,1.08f,0),new Vector3(.48f,.16f,.075f),StoneCap);
-                        break;
+                        ManorStill(Load("waypost").WithoutShadows(),at,Quaternion.identity,Vector3.one,White);break;
                     case CivicKind.Banner:
                         ManorStill(props["banner"].WithoutShadows(),at,Quaternion.Euler(0,at.x<0?-12:166,0),
                             Vector3.one*1.23f,NobleHeraldry[manor.nobility],.024f);
                         break;
                     case CivicKind.LanternPillar:
-                        DetailBlock(at+Vector3.up*.12f,new Vector3(.48f,.24f,.48f),CutLimestone);
-                        DetailBlock(at+Vector3.up*.50f,new Vector3(.28f,.72f,.29f),CutLimestone);
-                        DetailBlock(at+Vector3.up*.92f,new Vector3(.39f,.13f,.39f),StoneCap);
-                        DetailBlock(at+Vector3.up*1.055f,new Vector3(.18f,.16f,.18f),LanternGlass);
-                        DetailBlock(at+Vector3.up*1.17f,new Vector3(.28f,.08f,.28f),Timber);
-                        break;
+                        ManorStill(Load("manor_pillar").WithoutShadows(),at,Quaternion.identity,Vector3.one,White);break;
                     case CivicKind.Planter:
                         DetailBlock(at+Vector3.up*.12f,new Vector3(1.28f,.22f,.55f),CutLimestone);
                         for(int side=-1;side<=1;side+=2)

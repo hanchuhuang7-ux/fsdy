@@ -53,7 +53,8 @@ namespace Frontline.UnityGame
             public ActionSample action;
             public float angle,scale,maxSpeed,speed,direction,gait,hitTiltX,hitTiltZ,charge,guard,hp,terrainTilt;
             public int id;
-            public bool useMotionSample,stockWeapon,survey,distant;
+            public bool useMotionSample,stockWeapon,survey,distant,artist,working;
+            public float hit;
             public TownRole town;
             public Vector3 rightHand,leftHand;
             public float slope,crossSlope,ground,nod,toolPitch,turn;
@@ -67,6 +68,8 @@ namespace Frontline.UnityGame
             public float speed,gait;
             public MotionSample motion;
             public JointPose joints;
+            public ArtistMotion take,horseMotion;
+            public float phase,horsePhase;
             public Matrix4x4 root,leftLeg,rightLeg,rightArm,guardOrCatapultArm;
             public Matrix4x4 horse,nearLeft,nearRight,farLeft,farRight;
             public Matrix4x4 hpBackground,hpFill;
@@ -75,8 +78,7 @@ namespace Frontline.UnityGame
         struct PoseDraw
         {
             public UnitVisual model;
-            public MeshSet coat,portrait,cap,pack,tool;
-            public Color capColor;
+            public DressedActor costume;
             public string stance;
             public float floor,hitFlash;
             public int armament;
@@ -182,9 +184,9 @@ namespace Frontline.UnityGame
         {
             float scale=model.definition.scale;
             // Only a manor roster carries a forge tier. Ordinary arena fighters always select their stock arm.
-            int tier=model.forgedArms==null?0:Mathf.Clamp(armament,0,Manor.MaxHeroArmament);
+            int tier=model.tiers==null?0:Mathf.Clamp(armament,0,Manor.MaxHeroArmament);
             var input=new PoseInput {
-                position=p,color=Team(team),kind=model.kind,style=model.attackStyle,stockWeapon=model.stockWeapon&&!(model.attackStyle==AttackStyle.Aim&&tier>0&&tier<3),
+                position=p,color=Team(team),kind=model.kind,artist=true,hit=hitFlash,style=model.attackStyle,stockWeapon=model.stockWeapon&&!(model.attackStyle==AttackStyle.Aim&&tier>0&&tier<3),
                 action=action,id=id,angle=angle,scale=scale,maxSpeed=model.definition.speed,
                 speed=speed,direction=direction,gait=gait,hitTiltX=hitTiltX,hitTiltZ=hitTiltZ,charge=charge,guard=guard,hp=hp,survey=!recorded
             };
@@ -285,6 +287,12 @@ namespace Frontline.UnityGame
                 pose.guardOrCatapultArm=pose.root*Pose(new Vector3(0,.59f,0),
                     Quaternion.Euler(SiegePitch(input.action),0,0),Vector3.one);
             }
+            else if(input.artist)
+            {
+                pose.position=p;
+                pose.root=Pose(p-Vector3.up*(.79f*scale),facing,size);
+                ChooseTake(input,speed,gait,time,deploying,ref pose);
+            }
             else
             {
                 var step=new BipedGait(gait,deploying&&!input.survey?0:speed,input.maxSpeed,direction,time,input.id);
@@ -374,44 +382,13 @@ namespace Frontline.UnityGame
             float scale=input.scale;
             if(input.town==TownRole.None&&manor!=null&&FrontierMap.HasGround(p.x,p.z))ContactAt(input.position,scale*1.5f);
             if(input.useMotionSample)oldMotion[input.id]=pose.motion;
-            if(input.town!=TownRole.None)
-            {
-                SubmitTown(input,pose,draw);
-                return;
-            }
             activeFlash=draw.hitFlash;
-            bool distant=input.distant;
-            Add(distant?draw.model.body.distant:draw.model.body,pose.root,pose.joints.wind==0?input.color:ClothTint(input.color,pose.joints.hipTwist,input.turn),pose.joints.wind);
-            if(draw.armament!=0)
-            {
-                var dye=draw.armament==3?new Color(1,.91f,.45f):draw.armament==2?Gold:new Color(.73f,.47f,.24f);
-                var badge=draw.model.insignia[draw.armament];
-                Add(distant?badge.distant:badge,pose.root,dye);
-            }
             if(input.kind==SoldierKind.Catapult)
             {
-                Add(distant?catapult.distant:catapult,pose.root,White);
-                Add(distant?catapultArm.distant:catapultArm,pose.guardOrCatapultArm,White);
+                Add(catapult,pose.root,White);Add(catapultArm,pose.guardOrCatapultArm,White);
             }
-            else if(!lowActors&&!distant)SubmitJoints(input,pose,draw);
-            else
-            {
-                var greave=distant?leg.distant:leg;
-                Add(greave,pose.leftLeg,White);Add(greave,pose.rightLeg,White);
-                if(pose.emptyThrowHand)Add(distant?armLeft.distant:armLeft,pose.rightArm*Matrix4x4.Translate(new Vector3(.72f,0,0)),input.color);
-                else
-                {
-                    var arm=draw.armament==0?draw.model.right:draw.model.forgedArms[draw.armament];
-                    Add(distant?arm.distant:arm,pose.rightArm,input.color);
-                }
-                if(input.kind==SoldierKind.Cavalry)
-                {
-                    var fetlock=distant?horseLeg.distant:horseLeg;
-                    Add(distant?horse.distant:horse,pose.horse,input.color);
-                    Add(fetlock,pose.nearLeft,White);Add(fetlock,pose.nearRight,White);
-                    Add(fetlock,pose.farLeft,White);Add(fetlock,pose.farRight,White);
-                }
-            }
+            else DrawArtistActor(input,pose,draw);
+            if(input.town!=TownRole.None){activeFlash=0;return;}
             activeFlash=0;
             bool tracks=!Deploying&&(input.kind==SoldierKind.Cavalry&&input.charge>.55f&&pose.speed>3.8f||
                 !lowActors&&draw.model.armoured&&pose.speed>input.maxSpeed*.83f);
@@ -450,7 +427,8 @@ namespace Frontline.UnityGame
 
         static void VerifyPose(in PoseOutput job,in PoseOutput inline)
         {
-            if(!EqualJoints(job.joints,inline.joints)||job.visible!=inline.visible||job.emptyThrowHand!=inline.emptyThrowHand||
+            if(job.take!=inline.take||job.horseMotion!=inline.horseMotion||!EqualBits(job.phase,inline.phase)||!EqualBits(job.horsePhase,inline.horsePhase)||
+                !EqualJoints(job.joints,inline.joints)||job.visible!=inline.visible||job.emptyThrowHand!=inline.emptyThrowHand||
                 !EqualBits(job.position,inline.position)||!EqualBits(job.speed,inline.speed)||!EqualBits(job.gait,inline.gait)||
                 job.motion.valid!=inline.motion.valid||!EqualBits(job.motion.p,inline.motion.p)||
                 !EqualBits(job.motion.time,inline.motion.time)||!EqualBits(job.motion.speed,inline.motion.speed)||

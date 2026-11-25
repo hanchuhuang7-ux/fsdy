@@ -8,7 +8,7 @@ namespace Frontline.Editor
     public static partial class ModelBaker
     {
         // Positive IDs are the shader ABI; zero is reserved for meshes authored before 3.0.
-        enum Surface : byte { Auto, Stone, Oak, Plaster, Roof, Metal, Cloth, Terrain, Leaf, Earth, Hide, Thatch, Glass, Outcrop, WindowLight, Ember }
+        enum Surface : byte { Auto, Stone, Oak, Plaster, Roof, Metal, Cloth, Terrain, Leaf, Earth, Hide, Thatch, Glass, Outcrop, WindowLight, Ember, Shore }
         static Dictionary<Color,Surface> pigments;
         static readonly Dictionary<Color,Surface> matched=new Dictionary<Color,Surface>();
         static Surface PigmentSurface(Color c)

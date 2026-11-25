@@ -71,9 +71,8 @@ namespace Frontline.UnityGame
             var gallery=new List<string>();
             var actions=new List<object>();
             var meshList=new List<object>();
-            var studyMeshes=joints?new[]{"head_militia","head_hero_ranger","thigh_plate","shin_plate","upper_arm","forearm_plate",
-                "horse","horse_upper","horse_cannon","tree","pine","brazier","arena_scree","steel_arc"}:new[]{"farm","farm_fallow","irrigated_field_rich","bakery","chapel","mill_sails","manor_market",
-                "catapult","horse","arm_braced_left","market_cart","plot_ropes","road_path","road_setts"};
+            var studyMeshes=joints?new[]{"retinue_guard","prop_banner","catapult","tree","pine","brazier","arena_scree","steel_arc"}:new[]{"farm","farm_fallow","irrigated_field_rich","bakery","chapel","mill_sails","manor_market",
+                "catapult","retinue_guard","prop_banner","market_cart","plot_ropes","road_path","road_setts"};
             foreach(string key in studyMeshes)
             {
                 var mesh=Resources.Load<Mesh>("Models/"+key);

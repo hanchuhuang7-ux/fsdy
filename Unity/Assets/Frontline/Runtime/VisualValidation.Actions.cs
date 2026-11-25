@@ -238,11 +238,11 @@ namespace Frontline.UnityGame
                             view.Focus(center+Vector3.up*(horse?.40f:siege?.37f:.24f)+forward*.19f,
                                 horse?5.21f:siege?7.3f:actor.type=="giant"?5.35f:4.25f,
                                 horse?13:siege?23:17,angle+(horse?132:siege?-68:focusSword?103:127));
-                        if(series=="320")
+                        if(series=="320"||series=="400")
                         {
-                            float viewAngle=horse?-77:aim?-116:focusSword?-119:110;
-                            var focus=center+Vector3.up*(horse?.19f:.10f)+forward*.13f;
-                            float zoom=horse?5.25f:actor.type=="giant"?4.85f:4.10f;
+                            float viewAngle=series=="400"?(horse?108:aim?148:focusSword?137:141):(horse?-77:aim?-116:focusSword?-119:110);
+                            var focus=center+Vector3.up*(horse&&series=="400"?.65f:horse?.19f:.10f)+forward*.13f;
+                            float zoom=horse?(series=="400"?6.2f:5.25f):actor.type=="giant"?4.85f:4.10f;
                             float pitch=horse?12:17;
                             view.Focus(focus,zoom,pitch,ClearActionAngle(snapshot,actor,focus,pitch,angle+viewAngle,zoom));
                         }

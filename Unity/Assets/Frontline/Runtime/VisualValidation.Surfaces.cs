@@ -18,7 +18,7 @@ namespace Frontline.UnityGame
             if(!shell)shell=Object.FindAnyObjectByType<Canvas>();
             Require(shell&&QualitySettings.antiAliasing==4&&QualitySettings.shadowCascades==4,"Desktop art capture requires the Q2 player");
             var rows=new List<object>();
-            foreach(string key in new[]{"manor_hall_tower","cottage","bakery","tree","pine","body_shield","horse","arm_right_spear","arena_ground"})
+            foreach(string key in new[]{"manor_hall_tower","cottage","bakery","tree","pine","retinue_guard","catapult","prop_banner","arena_ground"})
             {
                 var mesh=Resources.Load<Mesh>("Models/"+key);
                 Require(mesh&&mesh.HasVertexAttribute(VertexAttribute.TexCoord0)&&

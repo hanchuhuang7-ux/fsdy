@@ -47,8 +47,8 @@ namespace Frontline.UnityGame
         internal bool WalkingResidentVisible {get;private set;}
         int builtReclaimedPlots,builtNobility;
         int homeCount,tavernSlot,builtSeason=-1;
-        MeshSet countryLane,shortLane,pavedLane,grassTrace,surveyRopes,earthBlock,surveyBlock, hat, parcel, farmerCoat, villagerCoat, wrap, sails;
-        MeshSet smithCoat,smithHammer,hoe,sickle,bucket,basket,crate,jug;
+        MeshSet countryLane,shortLane,pavedLane,grassTrace,surveyRopes,earthBlock,surveyBlock, sails;
+        MeshSet crate,basket;
         readonly Vector3[] millHubs=new Vector3[Manor.PlotCount];
         readonly int[] millPlots=new int[Manor.PlotCount],forgePlots=new int[Manor.PlotCount];
         readonly Vector3[] occupiedWalkSpace=new Vector3[OrdinaryResidentLimit+Manor.SpecialistIds.Length+Manor.HeroIds.Length];
@@ -338,8 +338,8 @@ namespace Frontline.UnityGame
 
             var scale=ManorPlotArt.BuildingScale(plot.kind);
             var foundation=i==0?new Vector3(9.75f,.04f,8.18f):new Vector3(3.85f*scale.x,.04f,2.97f*scale.z);
-            Tile(p + Vector3.up*.018f, foundation,
-                builtSeason==3?WinterPlot:i==0?new Color(.68f,.67f,.55f):new Color(.67f,.58f,.41f),yaw);
+            ManorStill(i==0?pavedLane:grassTrace,p+Vector3.up*.018f,facing,new Vector3(foundation.x,1,foundation.z),
+                builtSeason==3?WinterPlot:i==0?StoneCap:new Color(.67f,.64f,.46f));
             var basePoint=p+Vector3.up*.042f;
             string upgrade=plot.level==3?"_tower":plot.level==2?"_wing":"";
             if(i==0)
@@ -350,8 +350,7 @@ namespace Frontline.UnityGame
             }
             else
             {
-                ManorStill(Load(ManorPlotArt.CropModel(plot.kind,crop)),basePoint,facing,scale,White);
-                if(plot.level>=2)ManorStill(Load(plot.kind+upgrade),basePoint,facing,scale,White);
+                ManorStill(Load(ManorPlotArt.CropModel(plot.kind,crop)+upgrade),basePoint,facing,scale,White);
             }
             StillShade(ManorOrigin+p,WestPlot(i)?foundation.z:foundation.x,WestPlot(i)?foundation.x:foundation.z);
             AddPlotObstacle(i);
@@ -365,18 +364,9 @@ namespace Frontline.UnityGame
             }
             if(plot.kind=="smithy")forgePlots[forgeCount++]=i;
             if(!IsFarm(plot.kind))destinations[destinationCount++]=i;
-            // The dark stake with one to three bright inlays sits on the camera-facing verge.
-            var sign=p+facing*(i==0?new Vector3(2.39f,.24f,-4.21f):new Vector3(1.61f,.24f,-1.69f));
-            bool full=plot.level>=Manor.BuildingMaxLevel;
-            var metal=full?new Color(.44f,.72f,.49f):new Color(.81f,.65f,.41f);
-            ManorStill(surveyBlock,sign,facing,new Vector3(.63f,.37f,.115f),Timber);
-            ManorStill(surveyBlock,sign+Vector3.up*.205f,facing,new Vector3(.69f,.043f,.14f),metal);
-            for(int rank=0;rank<Manor.BuildingMaxLevel;rank++)
-            {
-                float x=(rank-1)*.159f;
-                ManorStill(surveyBlock,sign+facing*new Vector3(x,.008f,-.063f),facing,
-                    new Vector3(.084f,.193f,.022f),rank<plot.level?metal:new Color(.28f,.29f,.24f));
-            }
+            // Rank remains available in the inspector; the route marker is an authored wooden sign.
+            var sign=p+facing*(i==0?new Vector3(2.39f,0,-4.21f):new Vector3(1.61f,0,-1.69f));
+            ManorStill(Load("plot_marker").WithoutShadows(),sign,facing,Vector3.one*(.78f+plot.level*.075f),White);
             if (plot.kind == "cottage" || plot.kind == "pasture") homes[homeCount++] = i;
             if (tavernSlot == 0 && plot.kind == "tavern") tavernSlot = i;
         }
@@ -398,14 +388,8 @@ namespace Frontline.UnityGame
                 hoverRing=Load("ring",true);
             }
             ambientDirty=true;
-            hat = Load("civilian_hat");
-            parcel = Load("civilian_pack");
             sails=Load("mill_sails");forgeFlame=Load("flame",true);
-            farmerCoat=Load("farmer_clothes");villagerCoat=Load("villager_clothes");
-            wrap=Load("villager_wrap");
-            smithCoat=Load("smith_clothes");smithHammer=Load("carry_hammer");
-            hoe=Load("carry_hoe");sickle=Load("carry_sickle");bucket=Load("carry_bucket");
-            basket=Load("carry_basket");crate=Load("carry_crate");jug=Load("carry_jug");
+            crate=Load("carry_crate");basket=Load("carry_basket");
             builtSeason = manor.Season;
             builtReclaimedPlots=manor.reclaimedPlots;
             builtNobility=manor.nobility;
@@ -694,34 +678,11 @@ namespace Frontline.UnityGame
                 WalkingResidentVisible=striding;
             }
             var origin=ManorOrigin+pos+Vector3.up*.74f;
-            var coat=forge?smithCoat:farmer?farmerCoat:villagerCoat;
             ContactAt(ManorOrigin+pos,.92f);
-            if(lowActors)
-            {
-                var hips=Pose(origin,Quaternion.Euler(0,heading,0),Vector3.one*.91f);
-                var root=hips*Pose(new Vector3(.016f*gait.sway,gait.bob,0),Quaternion.Euler(gait.lean+nod,gait.twist,gait.roll),Vector3.one);
-                Add(coat,root,tint);return;
-            }
-            bool straw=farmer&&id%4!=2||!farmer&&id%5==0;
-            MeshSet prop=forge?smithHammer:farmer?(kind=="pasture"?bucket:kind=="irrigated_field"?hoe:sickle):
-                (id%4==0?basket:id%4==1?crate:id%4==2?jug:null);
-            var input=new PoseInput{town=TownRole.Resident,survey=true,id=id,scale=.91f,position=origin,
-                angle=heading*Mathf.Deg2Rad,gait=metres/.91f,speed=walking?speed*ease:0,maxSpeed=2.6f,
-                direction=1,hp=1,color=tint,nod=nod,toolPitch=prop==hoe||prop==sickle?39:0};
-            for(int side=-1;side<=1;side+=2)
-            {
-                bool carrying=side>0&&prop!=null;
-                float swing=-gait.sway*side*(carrying?6:20)-(carrying?(prop==bucket?7:17):0);
-                if(side==1&&atWork)swing=farmer&&prop!=bucket?-48+gesture*38:-17+gesture*13;
-                if(atWork&&loom)swing=-24+gesture*21*side;
-                else if(atWork&&bakery)swing=-38+gesture*18;
-                else if(atWork&&forge&&side==1)swing=-10-68*Mathf.Max(0,gesture);
-                var hand=new Vector3(side*.275f,.25f,0)+Quaternion.Euler(swing,carrying?side*-7:0,side*6)*
-                    new Vector3(side*.016f,-.39f,.12f);
-                if(side>0){input.rightHand=hand;input.toolPitch+=swing;}else input.leftHand=hand;
-            }
-            QueuePose(input,new PoseDraw{coat=coat,cap=straw?hat:wrap,capColor=straw?White:tint,
-                pack=farmer&&returning?parcel:null,tool=prop});
+            string role=forge?"smith":farmer?(kind=="pasture"?"carrier":"farmer"):id%4==0?"carrier":"villager";
+            QueuePose(new PoseInput{artist=true,working=atWork||browsing,town=TownRole.Resident,survey=true,id=id,
+                scale=.91f,position=origin,angle=heading*Mathf.Deg2Rad,gait=metres/.91f,speed=walking?speed*ease:0,
+                maxSpeed=2.6f,direction=1,hp=1,color=tint,nod=nod},new PoseDraw{costume=collection[role]});
         }
 
         bool FreeWalkSpace(Vector3 p)
