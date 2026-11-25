@@ -130,6 +130,28 @@ namespace Frontline.Editor
             Store("SurfaceAlbedoRoughness",Tile*4,Tile*2,albedo,true);
             Store("SurfaceNormals",Tile*4,Tile*2,normals,false);
             BakeLakeNormals();
+            BakeLaneDetail();
+        }
+
+        static void BakeLaneDetail()
+        {
+            const int size=256;
+            var pixels=new Color32[size*size];
+            for(int y=0;y<size;y++)for(int x=0;x<size;x++)
+            {
+                float u=(x+.5f)/size,v=(y+.5f)/size;
+                float baseSoil=Noise(u,v,13,17,22),grain=Noise(u,v,97,83,48),moss=Noise(u,v,6,9,71);
+                float gravel=Mathf.SmoothStep(0,1,Mathf.Clamp01((Noise(u,v,38,47,94)-.65f)*4.4f));
+                float course=v*6+.047f*(baseSoil-.5f);
+                int row=Mathf.FloorToInt(course);
+                float col=u*3.0f+.5f*(row&1)+.14f*(Hash(0,Wrap(row,6),11)-.5f)+.035f*(moss-.5f);
+                float along=Mathf.Repeat(col,1),across=Mathf.Repeat(course,1);
+                float edge=Mathf.Min(Mathf.Min(along,1-along)*37,Mathf.Min(across,1-across)*21);
+                float shade=.75f+.22f*Hash(Wrap(Mathf.FloorToInt(col),3),Wrap(row,6),44);
+                pixels[y*size+x]=new Color(.46f*baseSoil+.40f*grain+.14f*moss,gravel,
+                    Mathf.SmoothStep(0,1,Mathf.Clamp01(edge))*shade,moss*.64f+baseSoil*.36f);
+            }
+            Store("LaneDetail",size,size,pixels,true,false,true);
         }
 
         static void BakeLakeNormals()

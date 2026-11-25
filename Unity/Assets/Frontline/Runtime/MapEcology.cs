@@ -72,9 +72,10 @@ namespace Frontline.UnityGame
                 Put(rows,mesh,new Vector3(x,-.15f,z),Vector3.one*scale,Range(rng,0,360),White,.012f);
                 Put(rows,"rock",new Vector3(x,-.45f,z),new Vector3(2.2f,.9f,2),Range(rng,0,360),rock,castsShadow:false);
             }
+            ArenaTrails(rows,data,id);
             switch(id)
             {
-                case "meadow": MeadowTrail(rows,data); break;
+                case "meadow": MeadowTrail(rows); break;
                 case "bridge": Gorge(rows,rock); break;
                 case "island": IslandFringe(rows,rock); break;
                 case "ruins": FallenCourt(rows,data,rock); break;
@@ -92,18 +93,50 @@ namespace Frontline.UnityGame
             if(Catalog.Finite(h))Put(rows,"platform",new Vector3(x,h+lift,z),new Vector3(width,.010f,length),yaw,tint);
         }
 
-        static void MeadowTrail(List<Decoration> rows,Catalog data)
+        static void ArenaTrails(List<Decoration> rows,Catalog data,string id)
         {
-            var track=new Color(.70f,.59f,.38f);
-            var shoulder=new Color(.60f,.61f,.35f);
-            for(int i=0;i<22;i++)
+            for(int j=0;j<32;j++)
             {
-                float x=-17.1f+i*1.62f,z=Mathf.Sin(i*.33f)*.63f;
-                Put(rows,"dot",new Vector3(x,.015f,z),new Vector3(2.25f,1,2.43f),i%2==0?0:26,shoulder);
-                Put(rows,"dot",new Vector3(x,.027f,z),new Vector3(2.17f,.75f,1.57f),i%2==0?0:26,track);
-                if(i%2==0)for(int side=-1;side<=1;side+=2)
-                    Surface(rows,data,"meadow",x+.31f,z+side*1.21f,.42f,.13f,new Color(.62f,.60f,.49f),.022f,27*i);
+                float x=-17+j*1.06f,next=x+1.06f;
+                float Z(float u)=>id=="bridge"?.31f*Mathf.Sin(u*.34f):id=="highland"?1.36f+.45f*Mathf.Sin(u*.35f):
+                    id=="marsh"?2.0f+.70f*Mathf.Sin(u*.27f):.83f*Mathf.Sin(u*.26f)+.29f*Mathf.Cos(u*.61f);
+                float z=Z(x),endZ=Z(next);
+                if(id=="bridge"&&Mathf.Abs((x+next)*.5f)<3.54f)continue;
+                float first=data.Height(id,x,z),last=data.Height(id,next,endZ);
+                var mid=new Vector3((x+next)*.5f,0,(z+endZ)*.5f);
+                float floor=data.Height(id,mid.x,mid.z);
+                if(!Catalog.Finite(first)||!Catalog.Finite(last)||!Catalog.Finite(floor)||
+                    Mathf.Abs(first-last)>.65f||Mathf.Abs(floor-(first+last)*.5f)>.075f)continue;
+                var delta=new Vector3(next-x,last-first,endZ-z);
+                // Plane normal and height follow the same walkable surface as the actors on the highland ramps.
+                var across=new Vector3(endZ-z,0,x-next).normalized;
+                float sideA=data.Height(id,mid.x+across.x*.83f,mid.z+across.z*.83f);
+                float sideB=data.Height(id,mid.x-across.x*.83f,mid.z-across.z*.83f);
+                if(!Catalog.Finite(sideA)||!Catalog.Finite(sideB)||Mathf.Abs(sideA-sideB)>.8f)continue;
+                across.y=(sideA-sideB)/1.66f;
+                var normal=Vector3.Cross(delta,across).normalized;
+                var turn=Quaternion.LookRotation(delta,normal);
+                mid.y=floor+.035f;
+                bool paved=id=="ruins";
+                var tint=paved?new Color(.48f,.48f,.44f):id=="highland"?new Color(.62f,.66f,.66f):new Color(.55f,.443f,.329f);
+                Put(rows,paved?"road_setts":"road_link",mid,new Vector3(paved?2.68f:1.62f,1,delta.magnitude+.26f),
+                    tint:tint,rotation:turn,castsShadow:false);
+                if(j%5==2)
+                {
+                    var edge=mid+across*(j%2==0?1.32f:-1.32f);
+                    float y=data.Height(id,edge.x,edge.z);
+                    if(Catalog.Finite(y)&&ClearOfCover(data.Maps[id],edge.x,edge.z))
+                    {
+                        edge.y=y+.008f;
+                        Put(rows,id=="highland"?"grass":"verge_flowers",edge,Vector3.one*.61f,37*j,
+                            id=="highland"?new Color(.71f,.77f,.70f):White,.019f,castsShadow:false);
+                    }
+                }
             }
+        }
+
+        static void MeadowTrail(List<Decoration> rows)
+        {
             for(int i=0;i<9;i++)
             {
                 float x=-16+i*3.95f;
@@ -155,14 +188,6 @@ namespace Frontline.UnityGame
 
         static void FallenCourt(List<Decoration> rows,Catalog data,Color stone)
         {
-            for(int row=-2;row<=2;row++)for(int i=0;i<15;i++)
-            {
-                if((i*7+row*5+12)%6==0)continue;
-                float x=-16.8f+i*2.37f;
-                float z=row*.71f+(i%2==0?.08f:-.12f);
-                var shade=Color.Lerp(stone,new Color(.66f,.59f,.46f),(i*3+row+16)%5*.13f);
-                Surface(rows,data,"ruins",x,z,1.62f+(i%3)*.13f,.44f,shade,.017f,(i%3-1)*6);
-            }
             for(int i=0;i<8;i++)
             {
                 float x=-15+i*4.4f,z=i%2==0?-12.66f:12.66f;

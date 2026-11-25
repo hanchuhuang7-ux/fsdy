@@ -25,6 +25,8 @@ namespace Frontline.Editor
             for(int lod=0;lod<2;lod++)
             {
                 foreach(string type in Types){Save("body_"+type,lod,lod==0?FieldSoldier(type):DistantBody(type));Save("arm_right_"+type,lod,lod==0?Arm(type,false,lod):DistantArm(type));}
+                Save("horse_shoulder",lod,ScapularMuscle(lod));
+                Save("arm_braced_left",lod,Arm("shield",true,lod));
                 Save("arm_left",lod,Arm("militia",true,lod));Save("leg",lod,Leg(lod));Save("horse_leg",lod,HorseLeg(lod));Save("horse",lod,Horse(lod));
                 Save("catapult",lod,Catapult(lod));Save("catapult_arm",lod,CatapultArm(lod));Save("wreck_horse",lod,WreckHorse(lod));Save("wreck_catapult",lod,WreckCatapult(lod));Save("shield",lod,Shield(lod));
                 foreach(string name in new[]{"barrel","barricade","banner","spikes","spring"})Save("prop_"+name,lod,Prop(name,lod));
@@ -48,15 +50,21 @@ namespace Frontline.Editor
                 Save("frontier_gate",lod,FrontierGate(lod));
                 Save("bridge_fittings",lod,BridgeFittings(lod));
                 BakeManorArt(lod);
+                BakeVillageRoads(lod);
                 foreach(string type in Manor.HeroIds)
                 {
                     Save("body_"+type,lod,lod==0?FieldSoldier(type=="hero_ranger"?"archer":Equipment(type),type):DistantBody(type));
-                    Save("arm_right_"+type,lod,lod==0?HeroArm(type,lod):DistantArm(type));
+                    Save("arm_right_"+type,lod,lod==0?ForgedArm(type,0):DistantArm(type));
                     Save("crest_"+type,lod,ArmamentCrest(type,lod));
+                    for(int tier=1;tier<=Manor.MaxHeroArmament;tier++)
+                    {
+                        Save("arm_right_"+type+"_t"+tier,lod,lod==0?ForgedArm(type,tier):DistantArm(type));
+                        if(tier>1)Save("crest_"+type+"_t"+tier,lod,lod==0?AchievementBadge(type,tier):ArmamentCrest(type,lod));
+                    }
                 }
             }
             BakeCoast();
-            AssetDatabase.SaveAssets();File.WriteAllText("Assets/Frontline/Models/model-manifest.json",JsonUtility.ToJson(new Manifest{generator="Frontline.Editor.ModelBaker",version=PlayerSettings.bundleVersion,vertexColor="rgb=albedo; alpha=faction multiply weight",surfaceChannels="UV0=projected detail; UV1=surface ID, metallic, roughness, AO; legacy ID 0 is untextured",textures=new[]{"Textures/SurfaceAlbedoRoughness","Textures/SurfaceNormals","Textures/ShoreDistance","Textures/LakeNormals"},resources=Written.ToArray()},true));AssetDatabase.Refresh();Debug.Log("FRONTLINE_MODELS_OK "+Written.Count+" prebaked meshes, two LODs, PBR surfaces, independent shadow proxies");
+            AssetDatabase.SaveAssets();File.WriteAllText("Assets/Frontline/Models/model-manifest.json",JsonUtility.ToJson(new Manifest{generator="Frontline.Editor.ModelBaker",version=PlayerSettings.bundleVersion,vertexColor="rgb=albedo; alpha=faction multiply weight",surfaceChannels="UV0=projected detail; UV1=surface ID, metallic, roughness, AO; legacy ID 0 is untextured",textures=new[]{"Textures/SurfaceAlbedoRoughness","Textures/SurfaceNormals","Textures/ShoreDistance","Textures/LakeNormals","Textures/LaneDetail"},resources=Written.ToArray()},true));AssetDatabase.Refresh();Debug.Log("FRONTLINE_MODELS_OK "+Written.Count+" prebaked meshes, two LODs, PBR surfaces, independent shadow proxies");
         }
         [Serializable] sealed class Manifest{public string generator,version,vertexColor,surfaceChannels;public string[] textures,resources;}
         static void Save(string name,int lod,Geometry g)
@@ -100,6 +108,11 @@ namespace Frontline.Editor
                 g.Bevel(V(x,-.05f,.1f),V(.18f,.11f,.2f),.025f,Wood);
             }
             if(left)return g;
+            if(lod==0&&(type=="archer"||type=="crossbow"||type=="bomber"||type=="giant"||type=="medic"))
+            {
+                FieldImplement(g,type);
+                return g;
+            }
             WeaponTrim(g,type,lod);
             if(lod==1)WeaponGrip(g,type,lod);
             if(lod==0)WeaponFinish(g,type,x);
@@ -150,6 +163,7 @@ namespace Frontline.Editor
             }
             EngineIronwork(g);
             SiegeJoinery(g);
+            SiegeTackle(g);
             return g;
         }
         static Geometry CatapultArm(int lod)
@@ -165,8 +179,7 @@ namespace Frontline.Editor
             g.Bevel(V(0,0,-.35f),V(.14f,.17f,1.83f),.035f,WoodLight);
             g.Bevel(V(0,0,.55f),V(.55f,.42f,.43f),.045f,Wood);
             foreach(float x in new[]{-.185f,.185f})g.Box(V(x,-.026f,.55f),V(.051f,.432f,.445f),Steel);
-            g.Ellipsoid(V(0,.08f,-1.2f),V(.23f,.12f,.28f),Wood,8,2);
-            g.Cylinder(V(0,0,-.9f),V(0,.08f,-1.3f),.016f,Dark,3);
+            ThrowingPouch(g);
             return g;
         }
         static Geometry WreckHorse(int lod){var g=new Geometry();g.Append(Horse(lod),Matrix4x4.TRS(V(0,.12f,0),Quaternion.Euler(0,0,82),Vector3.one));for(int i=0;i<4;i++)g.Append(HorseLeg(lod),Matrix4x4.TRS(V(i%2==0?-.35f:.35f,.12f,i<2?-.45f:.4f),Quaternion.Euler(0,0,i%2==0?65:110),Vector3.one));g.SetAtGrade();return g;}
@@ -179,6 +192,7 @@ namespace Frontline.Editor
             else if(name=="banner")BattleStandard(g,lod);
             else if(name=="spikes"){g.Bevel(V(0,.07f,0),V(1.7f,.14f,1.7f),.06f,Wood);for(int i=-1;i<=1;i++)for(int j=-1;j<=1;j++){g.Cylinder(V(i*.5f,.1f,j*.5f),V(i*.5f,.34f,j*.5f),.04f,WoodLight,5);g.Spear(V(i*.5f,.34f,j*.5f),V(i*.5f+.035f,.63f,j*.5f),.065f,Steel);}}
             else{g.Bevel(V(0,.1f,0),V(1.7f,.2f,1.7f),.09f,Wood);for(int j=-1;j<=1;j+=2)for(int k=-1;k<=1;k+=2){Vector3 last=V(j*.5f,.2f,k*.5f);int segments=lod==0?24:12;for(int i=1;i<=segments;i++){float a=i*Mathf.PI*6/segments;Vector3 next=V(j*.5f+Mathf.Sin(a)*.12f,.2f+i*.38f/segments,k*.5f+Mathf.Cos(a)*.12f);g.Cylinder(last,next,.02f,Steel,4);last=next;}}g.Bevel(V(0,.64f,0),V(1.65f,.15f,1.65f),.07f,Cloth);g.Bevel(V(0,.72f,0),V(.75f,.015f,.13f),.015f,Gold);}
+            if(lod==0)PropFinish(g,name);
             return g;
         }
         static Geometry EnvironmentMesh(string name,int lod)
@@ -197,7 +211,12 @@ namespace Frontline.Editor
                 if(lod==0)return g.StoneStrata();
             }
             else if(name=="stone"){g.surface=Surface.Outcrop;g.Rock(Vector3.zero,.5f,Rock,n,4);}
-            else if(name=="wall")WallMasonry(g,lod);
+            else if(name=="wall")
+            {
+                WallMasonry(g,lod);
+                if(lod==0)for(int i=0;i<6;i++)
+                    g.Bevel(V((i-2.5f)*.156f,.456f,0),V(.142f,.065f,.90f),.016f,Stonework);
+            }
             else if(lod==0&&(name=="grass"||name=="reeds"))MeadowTuft(g,name=="reeds");
             else if(lod==0&&name=="shrub"){g.surface=Surface.Leaf;for(int i=0;i<4;i++){float a=i*2.4f;LeafCrown(g,V(Mathf.Sin(a)*.24f,.35f+.084f*(i%2),Mathf.Cos(a)*.24f),V(.39f,.32f,.37f),i,Moss);}}
             else if(name=="grass"||name=="reeds"){int blades=lod==0?7:3;for(int i=0;i<blades;i++){float a=i*2.4f,h=name=="reeds"?.85f+i*.1f:.26f+i*.04f,x=Mathf.Sin(a)*.21f,z=Mathf.Cos(a)*.21f;g.Quad(V(x-.025f,0,z),V(x+.025f,0,z),V(x+.09f,h*.58f,z+.025f),V(x+.06f,h,z),Leaf,true);if(name=="reeds"){g.Cylinder(V(x,h*.7f,z),V(x+.06f,h+.12f,z),.014f,Leaf,4);g.Cylinder(V(x+.06f,h,z),V(x+.06f,h+.22f,z),.035f,Wood,5);}}}
@@ -247,37 +266,7 @@ namespace Frontline.Editor
             g.Box(V(0,3.08f,-.35f),V(.23f,.59f,.72f),Slate);
             g.Box(V(-.132f,3.08f,-.35f),V(.037f,.42f,.085f),Gold);
             g.Box(V(-.135f,3.12f,-.35f),V(.041f,.085f,.41f),Gold);
-            if(lod==0)GateStoneFinish(g);
-            return g;
-        }
-
-        static Geometry HeroArm(string type,int lod)
-        {
-            const float x=.36f;
-            var g=Arm(type=="hero_vanguard"?"giant":type=="hero_ranger"?"crossbow":"spear",false,lod);
-            if(type=="hero_vanguard")
-            {
-                g.Bevel(V(x-.33f,.61f,.36f),V(.15f,.40f,.43f),.043f,Gold);
-                g.Bevel(V(x+.33f,.61f,.36f),V(.15f,.40f,.43f),.043f,Gold);
-                if(lod==0)foreach(float y in new[]{.5f,.71f})
-                    g.Ellipsoid(V(x,y,.57f),V(.037f,.037f,.022f),Gold,6,2);
-            }
-            else if(type=="hero_ranger")
-            {
-                g.Cylinder(V(x-.46f,.13f,.55f),V(x-.37f,.1f,.61f),.034f,Ochre,5);
-                g.Cylinder(V(x+.37f,.1f,.61f),V(x+.46f,.13f,.55f),.034f,Ochre,5);
-                g.Bevel(V(x,.14f,.38f),V(.055f,.045f,.38f),.01f,LightSteel);
-                if(lod==0)
-                {
-                    g.Cylinder(V(x-.45f,.13f,.55f),V(x,.11f,.23f),.008f,Plaster,4);
-                    g.Cylinder(V(x,.11f,.23f),V(x+.45f,.13f,.55f),.008f,Plaster,4);
-                }
-            }
-            else
-            {
-                g.Quad(V(x,.045f,1.46f),V(x,.045f,.81f),V(x-.40f,.045f,.91f),V(x-.40f,.045f,1.38f),Slate,true);
-                g.Quad(V(x-.29f,.049f,1.37f),V(x-.24f,.049f,1.36f),V(x-.24f,.049f,.91f),V(x-.29f,.049f,.90f),Gold,true);
-            }
+            if(lod==0){GateStoneFinish(g);WatchTurret(g,V(0,2.90f,3.73f),.92f);WatchTurret(g,V(0,2.90f,-3.73f),.92f);}
             return g;
         }
 
@@ -304,6 +293,7 @@ namespace Frontline.Editor
                 default: throw new ArgumentException("Unknown manor building "+kind);
             }
             YardDetail(g,kind,lod);
+            if(lod==0)TradeFront(g,kind);
             g.FitFootprint(ManorPlotArt.HalfWidth(false),ManorPlotArt.HalfDepth(false));
             return g;
         }
@@ -423,6 +413,7 @@ namespace Frontline.Editor
             g.Bevel(V(-.90f,.22f,-.36f),V(.43f,.46f,.14f),.052f,Wood);
             g.Bevel(V(-.90f,.06f,-.47f),V(.57f,.12f,.27f),.036f,Stonework);
             g.Cylinder(hub-Vector3.forward*.08f,hub+Vector3.forward*.12f,.11f,Dark,6);
+            if(lod==0){FieldWork(g,false,state);return;}
             bool fallow=state==CropAppearance.Fallow, rich=state==CropAppearance.Rich;
             g.Box(V(.89f,.055f,0),V(1.74f,.11f,2.42f),fallow?FallowSoil:Earth);
             for(int row=0;row<4;row++)
@@ -444,6 +435,7 @@ namespace Frontline.Editor
 
         static void IrrigatedField(Geometry g,int lod,CropAppearance state)
         {
+            if(lod==0){FieldWork(g,true,state);return;}
             bool fallow=state==CropAppearance.Fallow, rich=state==CropAppearance.Rich;
             g.Box(V(0,.07f,0),V(3.45f,.14f,2.59f),fallow?FallowSoil:Earth);
             g.Box(V(0,.15f,0),V(.47f,.025f,2.51f),new Color(.20f,.57f,.67f,0));
@@ -626,6 +618,8 @@ namespace Frontline.Editor
                 g.Frustum(V(0,-.009f,.018f),V(.469f,0,.390f),V(0,.061f,0),V(.271f,0,.263f),Straw,10);
                 g.Frustum(V(0,.058f,0),V(.271f,0,.263f),V(.012f,.154f,-.016f),V(.164f,0,.173f),StrawLight,10);
                 g.Cylinder(V(0,.057f,0),V(0,.077f,0),.135f,Walnut,9);
+                g.surface=Surface.Thatch;
+                for(int j=0;j<3;j++)g.Torus(V(0,.001f+j*.010f,.013f),.181f-j*.014f,.005f,StrawLight,14);
                 return g;
             }
             const int n=7;
@@ -641,6 +635,7 @@ namespace Frontline.Editor
             g.Box(V(0,.055f,0),V(.356f,.048f,.23f),Wood);
             if(lod==0)
             {
+                SagLine(g,V(-.166f,.166f,-.099f),V(.16f,.147f,-.103f),.082f,.018f,Walnut);
                 g.Box(V(0,0,-.117f),V(.048f,.34f,.03f),Wood);
                 g.Cylinder(V(-.18f,.22f,0),V(.18f,.22f,0),.076f,Green,7);
             }
@@ -650,7 +645,10 @@ namespace Frontline.Editor
         sealed partial class Geometry
         {
             readonly List<Vector3> vertices=new List<Vector3>(),normals=new List<Vector3>();readonly List<Color> colors=new List<Color>();readonly List<int> indices=new List<int>();
-            public void Triangle(Vector3 a,Vector3 b,Vector3 c,Color color){Vector3 cross=Vector3.Cross(b-a,c-a);if(cross.sqrMagnitude<1e-14f)return;Vector3 normal=cross.normalized;int i=vertices.Count;faceSurfaces.Add(surface);vertices.Add(a);vertices.Add(b);vertices.Add(c);normals.Add(normal);normals.Add(normal);normals.Add(normal);colors.Add(color);colors.Add(color);colors.Add(color);indices.Add(i);indices.Add(i+1);indices.Add(i+2);}
+            public void Triangle(Vector3 a,Vector3 b,Vector3 c,Color color){Vector3 cross=Vector3.Cross(b-a,c-a);if(cross.sqrMagnitude<1e-14f)return;Vector3 normal=cross.normalized;
+                // Unity normalizes normals of sub-millimetre end caps to zero. Keep their winding and unit length.
+                if(normal==Vector3.zero)normal=cross/Mathf.Sqrt(cross.sqrMagnitude);
+                int i=vertices.Count;faceSurfaces.Add(surface);vertices.Add(a);vertices.Add(b);vertices.Add(c);normals.Add(normal);normals.Add(normal);normals.Add(normal);colors.Add(color);colors.Add(color);colors.Add(color);indices.Add(i);indices.Add(i+1);indices.Add(i+2);}
             public void Gradient(Vector3 a,Vector3 b,Vector3 c,Color first,Color second,Color third)
             {
                 int end=colors.Count;

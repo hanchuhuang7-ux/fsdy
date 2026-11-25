@@ -505,6 +505,14 @@ namespace Frontline.UnityGame
                     "The Windows smoke test did not start with D3D11 Legacy Graphics Jobs");
                 Require(app.View.SupportedDesktopShaders,"The D3D11 instanced, shadow or atmosphere passes are missing");
             }
+            if(Array.IndexOf(Environment.GetCommandLineArgs(),"--village-art")>=0)
+            {
+                yield return CheckVillageArt();
+#if !UNITY_WEBGL && !UNITY_EDITOR
+                Application.Quit(0);
+#endif
+                yield break;
+            }
             if(Array.IndexOf(Environment.GetCommandLineArgs(),"--surface-art")>=0)
             {
                 yield return CheckSurfaceArt();

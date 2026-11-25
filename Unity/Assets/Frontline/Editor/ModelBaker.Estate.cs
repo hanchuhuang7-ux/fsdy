@@ -32,6 +32,7 @@ namespace Frontline.Editor
                 model.Quad(V(-.15f,.74f,-.025f),V(-.06f,.91f,-.086f),V(.08f,.92f,-.183f),V(.112f,.735f,-.16f),Indigo,true);
                 model.Triangle(V(-.15f,.74f,-.025f),V(.08f,.92f,-.183f),V(.135f,.83f,-.18f),Gold);
             }
+            SagLine(model,V(-.171f,.259f,.141f),V(.178f,.252f,.151f),.097f,.014f,OldGold);
             model.SetAtGrade();
             return model;
         }
@@ -271,6 +272,7 @@ namespace Frontline.Editor
 
         static Geometry CobblePlaza(int lod)
         {
+            if(lod==0)return PavedCourt();
             var g=new Geometry();
             g.Box(V(0,.016f,0),V(13.18f,.029f,6.52f),new Color(.48f,.46f,.40f));
             int cols=lod==0?17:9,rows=lod==0?9:5;
@@ -318,12 +320,25 @@ namespace Frontline.Editor
                 g.Box(V(x,.78f,z),V(.095f,1.56f,.10f),Wood);
             g.Box(V(0,.73f,-.25f),V(1.85f,.13f,.55f),WoodLight);
             g.Box(V(0,.35f,-.42f),V(1.74f,.63f,.075f),Wood);
+            if(lod==0)MarketGoods(g);
             int bands=lod==0?7:5;
             for(int i=0;i<bands;i++)
             {
                 float x=-1.03f+i*(2.06f/bands),xx=x+2.06f/bands;
                 Color color=i%2==0?new Color(.68f,.26f,.18f,1):Linen;
-                g.Quad(V(x,1.66f,.69f),V(xx,1.66f,.69f),V(xx,1.40f,-.70f),V(x,1.40f,-.70f),color,true);
+                if(lod==0)
+                {
+                    for(int j=0;j<6;j++)
+                    {
+                        Vector3 Awning(float across,float t)=>V(across,Mathf.Lerp(1.66f,1.4f,t)-.13f*Mathf.Sin(t*Mathf.PI),
+                            Mathf.Lerp(.69f,-.70f,t));
+                        float a=j/6f,b=(j+1)/6f;
+                        g.surface=Surface.Cloth;
+                        g.Quad(Awning(x,a),Awning(xx,a),Awning(xx,b),Awning(x,b),color,true);
+                    }
+                    g.surface=Surface.Auto;
+                }
+                else g.Quad(V(x,1.66f,.69f),V(xx,1.66f,.69f),V(xx,1.40f,-.70f),V(x,1.40f,-.70f),color,true);
                 g.Quad(V(x,1.40f,-.70f),V(xx,1.40f,-.70f),V(xx,1.28f,-.70f),V(x,1.28f,-.70f),color,true);
             }
             int n=lod==0?8:5;
@@ -389,6 +404,7 @@ namespace Frontline.Editor
             var roof=new Geometry();
             Gable(roof,Vector3.zero,7.62f,1.54f,.56f,Slate,Plaster,lod);
             g.Append(roof,Matrix4x4.TRS(V(0,3.48f,0),Quaternion.Euler(0,90,0),Vector3.one));
+            if(lod==0)WatchTurret(g,V(0,2.43f,3.48f),.76f);
             Pennant(g,V(-.65f,3.11f,2.67f),1.13f,.63f,Ochre,lod);
             return g;
         }
@@ -470,7 +486,8 @@ namespace Frontline.Editor
             Vector3 left=V(-.30f,.21f,.015f),right=V(.30f,.21f,.015f);
             var leftHand=V(-.19f,-.027f,.31f);
             var rightHand=role==3?V(.39f,-.04f,.13f):V(.19f,-.034f,.31f);
-            g.Cylinder(left,leftHand,.080f,coat,n);g.Cylinder(right,rightHand,.080f,coat,n);
+            if(lod==0){WorkerArms(g,left,leftHand,coat);WorkerArms(g,right,rightHand,coat);}
+            else{g.Cylinder(left,leftHand,.080f,coat,n);g.Cylinder(right,rightHand,.080f,coat,n);}
             g.Ellipsoid(leftHand,V(.073f,.065f,.076f),Skin,6,2);
             g.Ellipsoid(rightHand,V(.073f,.065f,.076f),Skin,6,2);
             if(role==0)
@@ -514,6 +531,8 @@ namespace Frontline.Editor
             {
                 ShoulderMantle(g,coat,-.47f);
                 SpecialistRegalia(g,role,coat);
+                if(role==4)ApronPanel(g,true);
+                if(role==5)for(int i=0;i<5;i++)g.Cylinder(V(.012f+i*.009f,.026f,.452f),V(.183f+i*.009f,.25f,.393f),.0024f,Linen,3);
             }
             return g;
         }

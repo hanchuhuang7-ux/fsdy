@@ -209,11 +209,15 @@ namespace Frontline.UnityGame
                         if(series=="300")
                             view.Focus(center+Vector3.up*(horse?.45f:.22f)+forward*.24f,horse?4.85f:3.85f,
                                 horse?14:17,angle+(horse?-76:focusSword?-119:103));
+                        if(series=="310")
+                            view.Focus(center+Vector3.up*(horse?.40f:siege?.37f:.24f)+forward*.19f,
+                                horse?5.21f:siege?7.3f:actor.type=="giant"?5.35f:4.25f,
+                                horse?13:siege?23:17,angle+(horse?132:siege?-68:focusSword?103:127));
                         yield return ManorShot(series+"-"+capture.name);
-                        if(series=="300"&&capture.type=="shield")
+                        if((series=="300"||series=="310")&&capture.type=="shield")
                         {
                             view.Focus(new Vector3(0,.71f,-1.7f),24,30,-47);
-                            yield return ManorShot("300-arena-engagement");
+                            yield return ManorShot(series+"-arena-engagement");
                         }
                         records.Add(new {name=capture.name,type=actor.type,tick=snapshot.tick,actor=actor.id,
                             moment=capture.moment.ToString(),attack=actor.attack,guard=actor.guard,charge=actor.charge,

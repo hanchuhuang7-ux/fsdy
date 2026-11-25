@@ -241,13 +241,7 @@ namespace Frontline.UnityGame
                 var point=RoadSurface(new Vector3(wall.x,0,wall.z));
                 var turn=Quaternion.Euler(0,wall.hz>wall.hx?90:0,0);
                 float span=Mathf.Max(wall.hx,wall.hz)*2,depth=Mathf.Min(wall.hx,wall.hz)*2;
-                Still(solidBlock,point+Vector3.up*wall.hy*.71f,turn,new Vector3(span,wall.hy*1.42f,depth*.95f),Timber);
-                for(int i=0;i<7;i++)
-                {
-                    float x=(span-.23f)*(i/6f-.5f);
-                    Still(solidBlock,point+turn*new Vector3(x,wall.hy,0),turn,new Vector3(.23f,wall.hy*2,depth),Timber);
-                }
-                Still(solidBlock,point+Vector3.up*(wall.hy*1.92f-.06f),turn,new Vector3(span,.12f,depth),Track);
+                Still(Load("frontier_palisade"),point,turn,new Vector3(span,wall.hy*2,depth),White);
             }
             if(campRings==null)
             {

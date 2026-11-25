@@ -91,6 +91,7 @@ namespace Frontline.Editor
                     rounded=rounded.sqrMagnitude>.01f?rounded.normalized:n;
                     int tri=source-source%3;
                     var faceNormal=Vector3.Cross(vertices[tri+1]-vertices[tri],vertices[tri+2]-vertices[tri]).normalized;
+                    if(faceNormal==Vector3.zero)faceNormal=n;
                     var tex=loftUV.TryGetValue(source,out var projected)?projected:Project(p,faceNormal,s);
                     float rough=s==Surface.Metal?.36f:s==Surface.Glass?.23f:s==Surface.Hide?.67f:s==Surface.Roof?.69f:.84f;
                     float metal=s==Surface.Metal?.91f:0;

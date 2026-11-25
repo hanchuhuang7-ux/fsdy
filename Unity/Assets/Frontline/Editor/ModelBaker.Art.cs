@@ -15,9 +15,31 @@ namespace Frontline.Editor
             Save("farmer_clothes",lod,ResidentCoat(true,lod));
             Save("villager_clothes",lod,ResidentCoat(false,lod));
             Save("villager_wrap",lod,HeadWrap(lod));
+            var smith=ResidentCoat(false,lod);
+            if(lod==0)
+            {
+                smith.surface=Surface.Hide;
+                smith.Loft(new[]{V(0,-.40f,.142f),V(0,-.31f,.158f),V(0,-.085f,.136f),V(0,.202f,.134f)},
+                    new[]{Section(.175f,.065f),Section(.181f,.084f),Section(.147f,.074f),Section(.121f,.051f)},10,1,Walnut);
+                smith.surface=Surface.Auto;
+                smith.Box(V(.095f,-.086f,.208f),V(.065f,.039f,.026f),Copper);
+            }
+            Save("smith_clothes",lod,smith);
+            var hammer=new Geometry();
+            hammer.Cylinder(V(0,-.18f,0),V(0,.27f,0),.030f,Walnut,lod==0?7:4);
+            if(lod==0)hammer.Bevel(V(0,.246f,0),V(.093f,.112f,.235f),.021f,WroughtIron);
+            else hammer.Box(V(0,.246f,0),V(.093f,.112f,.235f),WroughtIron);
+            Save("carry_hammer",lod,hammer);
             var sleeve=new Geometry();
             sleeve.Frustum(Vector3.zero,V(.20f,0,.22f),V(0,-.22f,.04f),V(.15f,0,.16f),Linen,lod==0?8:5);
             sleeve.Cylinder(V(0,-.20f,.04f),V(0,-.40f,.11f),.062f,Skin,lod==0?7:5);
+            if(lod==0)
+            {
+                var tailored=new Geometry();
+                WorkerArms(tailored,Vector3.zero,V(0,-.39f,.10f),UndyedLinen);
+                tailored.Ellipsoid(V(0,-.389f,.10f),V(.059f,.069f,.064f),Skin,8,3);
+                sleeve=tailored;
+            }
             Save("resident_sleeve",lod,sleeve);
             foreach(var name in new[]{"hoe","sickle","bucket","basket","crate","jug"})
                 Save("carry_"+name,lod,HandProp(name,lod));
@@ -219,6 +241,7 @@ namespace Frontline.Editor
                 g.Bevel(V(-.184f,-.203f,.067f),V(.113f,.126f,.13f),.027f,Walnut);
             }
             g.Frustum(V(0,-.16f,0),V(.386f,0,.33f),V(0,-.11f,0),V(.386f,0,.329f),Walnut,8);
+            ApronPanel(g,farm);
             ShoulderMantle(g,farm?UndyedLinen:DyedWool,farm?-.24f:-.40f);
             g.Quad(V(-.13f,.325f,.094f),V(.11f,.33f,.098f),V(.181f,.244f,.17f),V(-.181f,.237f,.16f),
                 farm?Copper:Moss,true);
@@ -302,6 +325,8 @@ namespace Frontline.Editor
                 var hood=new Geometry();
                 WoolHood(hood,DyedWool,true);
                 var local=new Geometry();
+                hood.surface=Surface.Cloth;
+                SagLine(hood,V(-.118f,.517f,-.072f),V(.118f,.511f,-.091f),.068f,.019f,Linen);
                 local.Append(hood,Matrix4x4.Translate(V(0,-.60f,0)));
                 return local;
             }
@@ -349,11 +374,13 @@ namespace Frontline.Editor
                 foreach(float s in new[]{-1f,1f})g.Cylinder(V(s*w*.46f,-.11f,0),V(s*.08f,.06f,0),.019f,Wood,5);
                 g.Cylinder(V(-.08f,.06f,0),V(.08f,.06f,0),.023f,WoodLight,5);
             }
+            if(lod==0)HandFinish(g,kind);
             return g;
         }
 
         static Geometry MillSails(int lod)
         {
+            if(lod==0)return CanvasSails();
             var g=new Geometry();
             for(int i=0;i<4;i++){
                 var turn=Quaternion.AngleAxis(i*90,Vector3.forward);
@@ -379,6 +406,7 @@ namespace Frontline.Editor
             switch(kind){
                 case "tavern": case "manor_hall": Lantern(g,V(.48f,1.16f,-1.40f),lod);break;
                 case "farm": case "pasture": case "stables":
+                    if(lod==0){StackHay(g,p);break;}
                     g.Bevel(p+V(0,.24f,0),V(.67f,.48f,.48f),.10f,Straw);
                     foreach(float x in new[]{-.19f,.19f})g.Box(p+V(x,.24f,0),V(.046f,.48f,.49f),WoodLight);break;
                 case "irrigated_field":g.Barrel(V(1.45f,.23f,1.07f),.23f,.46f,WoodLight,lod==0?9:6);break;
@@ -426,6 +454,7 @@ namespace Frontline.Editor
                     Canopy(g,left,1.12f,Straw);
                     g.Box(left+V(0,.23f,0),V(.67f,.46f,.63f),StrawLight);break;
             }
+            if(lod==0)AnnexFinish(g,kind,left,false);
             var wing=new Geometry();
             wing.Append(g,Matrix4x4.identity);
             wing.FitFootprint(ManorPlotArt.HalfWidth(false),ManorPlotArt.HalfDepth(false));
@@ -433,6 +462,9 @@ namespace Frontline.Editor
             // A third-tier annex includes its second-tier wing in the same mesh and submission.
             switch(kind)
             {
+                case "farm":
+                    if(lod!=0)goto default;
+                    FieldStore(g,right);break;
                 case "granary": GranaryLoft(g,right,lod);break;
                 case "chapel": ChapelBelfry(g,right,lod);break;
                 case Manor.Bakery:case Manor.Weaver:CraftAnnex(g,kind,right,lod,true);break;
@@ -468,6 +500,7 @@ namespace Frontline.Editor
                     g.Frustum(right,V(.91f,0,.91f),right+Vector3.up*1.83f,V(.84f,0,.84f),Plaster,n);
                     g.Cone(right+Vector3.up*1.83f,.68f,.73f,StrawLight,n);break;
             }
+            if(lod==0)AnnexFinish(g,kind,right,true);
             g.FitFootprint(ManorPlotArt.HalfWidth(false),ManorPlotArt.HalfDepth(false));
             Save(kind+"_tower",lod,g);
         }

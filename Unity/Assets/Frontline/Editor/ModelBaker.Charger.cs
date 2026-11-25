@@ -10,12 +10,14 @@ namespace Frontline.Editor
         {
             var g=new Geometry {surface=Surface.Hide};
             var bay=new Color(.425f,.239f,.148f,0);
-            g.Loft(new[]{V(0,-.54f,-.81f),V(0,-.51f,-.64f),V(0,-.50f,-.35f),V(0,-.54f,.04f),
-                    V(0,-.52f,.32f),V(0,-.43f,.56f),V(0,-.34f,.61f)},
-                new[]{Section(.08f,.14f),Section(.29f,.34f),Section(.36f,.37f),Section(.338f,.37f),
-                    Section(.31f,.395f),Section(.274f,.305f),Section(.18f,.20f)},14,2,bay);
-            g.Loft(new[]{V(0,-.41f,.38f),V(0,-.19f,.535f),V(0,.015f,.59f),V(0,.21f,.689f),V(0,.239f,.799f)},
-                new[]{Section(.26f,.29f),Section(.214f,.275f),Section(.161f,.244f),Section(.134f,.173f),Section(.129f,.13f)},12,3,bay);
+            // One continuous skin runs from the croup through the brisket and up the neck.
+            g.Loft(new[]{V(0,-.53f,-.82f),V(0,-.51f,-.65f),V(0,-.50f,-.35f),V(0,-.54f,.035f),
+                    V(0,-.51f,.237f),V(0,-.468f,.343f),V(0,-.397f,.425f),V(0,-.291f,.495f),
+                    V(0,-.152f,.55f),V(0,-.012f,.59f),V(0,.131f,.64f),V(0,.222f,.706f),V(0,.242f,.79f)},
+                new[]{Section(.073f,.12f),Section(.29f,.34f),Section(.36f,.37f),Section(.338f,.37f),
+                    Section(.327f,.393f),Section(.312f,.390f),Section(.288f,.360f),Section(.257f,.321f),
+                    Section(.213f,.275f),Section(.167f,.227f),Section(.146f,.183f),Section(.135f,.145f),Section(.113f,.116f)},
+                16,3,bay);
             g.Loft(new[]{V(0,.229f,.66f),V(0,.252f,.746f),V(0,.218f,.878f),V(0,.121f,.975f),V(0,.035f,1.13f),V(0,.029f,1.21f)},
                 new[]{Section(.087f,.097f),Section(.139f,.148f),Section(.153f,.133f),Section(.118f,.124f),
                     Section(.093f,.089f),Section(.083f,.062f)},12,2,Pigment(bay,1.08f));
@@ -69,14 +71,26 @@ namespace Frontline.Editor
             return g;
         }
 
+        static Geometry ScapularMuscle(int lod)
+        {
+            var g=new Geometry{surface=Surface.Hide};
+            var bay=new Color(.414f,.231f,.140f,0);
+            if(lod!=0){g.Frustum(V(0,-.49f,0),V(.17f,0,.18f),V(0,.47f,0),V(.25f,0,.27f),bay,5);return g;}
+            g.Loft(new[]{V(0,-.55f,0),V(0,-.44f,0),V(0,-.24f,0),V(0,.06f,0),V(0,.31f,0),V(0,.49f,0)},
+                new[]{Section(.034f,.037f),Section(.093f,.106f),Section(.119f,.130f),Section(.146f,.156f),
+                    Section(.142f,.143f),Section(.078f,.081f)},11,2,bay);
+            return g;
+        }
+
         static Geometry ChargerLeg()
         {
             var g=new Geometry {surface=Surface.Hide};
-            g.Loft(new[]{V(0,.174f,-.008f),V(0,.028f,0),V(0,-.136f,-.018f),V(0,-.283f,.021f),
+            g.Loft(new[]{V(0,.201f,-.007f),V(0,.169f,-.008f),V(0,.12f,-.006f),V(0,.028f,0),V(0,-.136f,-.018f),V(0,-.283f,.021f),
                     V(0,-.35f,.039f),V(0,-.48f,.029f),V(0,-.557f,.058f),V(0,-.626f,.084f)},
-                new[]{Section(.113f,.131f),Section(.096f,.106f),Section(.068f,.093f),Section(.064f,.073f),
-                    Section(.072f,.084f),Section(.047f,.052f),Section(.061f,.062f),Section(.059f,.062f)},8,2,Wood);
-            g.Frustum(V(0,-.699f,.084f),V(.179f,0,.195f),V(0,-.598f,.065f),V(.119f,0,.131f),Dark,8);
+                new[]{Section(.006f,.008f),Section(.070f,.078f),Section(.104f,.115f),Section(.096f,.106f),Section(.068f,.093f),Section(.064f,.073f),
+                    Section(.068f,.079f),Section(.047f,.052f),Section(.058f,.069f),Section(.064f,.073f)},10,2,Wood);
+            g.Loft(new[]{V(0,-.695f,.088f),V(0,-.678f,.088f),V(0,-.633f,.079f),V(0,-.601f,.065f)},
+                new[]{Section(.083f,.099f),Section(.087f,.102f),Section(.075f,.087f),Section(.060f,.067f)},10,2,Dark);
             return g;
         }
     }

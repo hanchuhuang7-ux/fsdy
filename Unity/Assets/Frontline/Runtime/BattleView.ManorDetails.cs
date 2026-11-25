@@ -5,7 +5,7 @@ namespace Frontline.UnityGame
 {
     public sealed partial class BattleView
     {
-        enum CivicKind { Bench, Barrel, Grain, Waypost, Banner, LanternPillar, Planter }
+        enum CivicKind { Bench, Barrel, Grain, Waypost, Banner, LanternPillar, Planter, Cart, Wall, Flowers }
 
         readonly struct CivicDetail
         {
@@ -22,6 +22,14 @@ namespace Frontline.UnityGame
         }
 
         static readonly CivicDetail[] CivicDetails={
+            new CivicDetail(CivicKind.Cart,14.3f,2.46f,.43f,.87f),
+            new CivicDetail(CivicKind.Cart,-3.20f,-23.25f,.43f,.87f),
+            new CivicDetail(CivicKind.Wall,18.15f,3.24f,.83f,.23f),
+            new CivicDetail(CivicKind.Wall,-13.53f,2.48f,.83f,.23f),
+            new CivicDetail(CivicKind.Wall,11.25f,15.23f,.83f,.23f),
+            new CivicDetail(CivicKind.Flowers,9.40f,3.53f,.53f,.43f),
+            new CivicDetail(CivicKind.Flowers,-8.32f,3.51f,.53f,.43f),
+            new CivicDetail(CivicKind.Flowers,14.23f,-14.07f,.53f,.43f),
             new CivicDetail(CivicKind.Bench,-7.36f,1.30f,.73f,.24f),
             new CivicDetail(CivicKind.Barrel,7.96f,3.02f,.34f,.34f),
             new CivicDetail(CivicKind.Grain,-7.68f,-24.7f,.43f,.35f),
@@ -54,8 +62,7 @@ namespace Frontline.UnityGame
         void DrawNobleBoundary(int index,Vector3 center,Quaternion facing)
         {
             int rank=Manor.PlotRank(index);
-            ManorStill(surveyPeg,center+Vector3.up*.024f,facing,new Vector3(3.54f,.027f,2.61f),
-                builtSeason==3?new Color(.55f,.62f,.64f):new Color(.44f,.52f,.34f));
+            MarkUnbuilt(center,facing);
             DetailBlock(center+Vector3.up*.12f,new Vector3(.82f,.22f,.56f),CutLimestone);
             DetailBlock(center+Vector3.up*.45f,new Vector3(.40f,.55f,.32f),StoneCap);
             DetailBlock(center+new Vector3(0,.47f,-.18f),new Vector3(.28f,.22f,.047f),NobleHeraldry[rank]);
@@ -80,6 +87,12 @@ namespace Frontline.UnityGame
                 var at=detail.Footprint.center;
                 switch(detail.kind)
                 {
+                    case CivicKind.Cart:
+                        ManorStill(Load("market_cart").WithoutShadows(),at,Quaternion.identity,Vector3.one,White);break;
+                    case CivicKind.Wall:
+                        ManorStill(Load("verge_wall").WithoutShadows(),at,Quaternion.identity,Vector3.one,White);break;
+                    case CivicKind.Flowers:
+                        ManorStill(Load("verge_flowers").WithoutShadows(),at,Quaternion.identity,Vector3.one,White,.032f);break;
                     case CivicKind.Bench:
                         DetailBlock(at+Vector3.up*.37f,new Vector3(1.43f,.13f,.45f),StoneCap);
                         for(int side=-1;side<=1;side+=2)

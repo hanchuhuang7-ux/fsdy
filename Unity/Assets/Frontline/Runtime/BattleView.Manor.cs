@@ -47,8 +47,8 @@ namespace Frontline.UnityGame
         internal bool WalkingResidentVisible {get;private set;}
         int builtReclaimedPlots,builtNobility;
         int homeCount,tavernSlot,builtSeason=-1;
-        MeshSet earthBlock,surveyBlock, hat, parcel, farmerCoat, villagerCoat, wrap, sleeve, sails;
-        MeshSet hoe,sickle,bucket,basket,crate,jug;
+        MeshSet countryLane,shortLane,pavedLane,grassTrace,surveyRopes,earthBlock,surveyBlock, hat, parcel, farmerCoat, villagerCoat, wrap, sleeve, sails;
+        MeshSet smithCoat,smithHammer,hoe,sickle,bucket,basket,crate,jug;
         readonly Vector3[] millHubs=new Vector3[Manor.PlotCount];
         readonly int[] millPlots=new int[Manor.PlotCount],forgePlots=new int[Manor.PlotCount];
         readonly Vector3[] occupiedWalkSpace=new Vector3[OrdinaryResidentLimit+Manor.SpecialistIds.Length+Manor.HeroIds.Length];
@@ -246,12 +246,30 @@ namespace Frontline.UnityGame
             ManorStill(size.x>1?earthBlock:surveyBlock, p, Quaternion.Euler(0, angle, 0), size, tint);
         }
 
-        void Lane(Vector3 from, Vector3 to, float width)
+        void Lane(Vector3 from,Vector3 to,float width)
         {
-            Vector3 span = to - from;
-            if (span.sqrMagnitude < .001f) return;
-            ManorStill(earthBlock, (from + to) * .5f + Vector3.up * .011f, Quaternion.LookRotation(span),
-                new Vector3(width, .018f, span.magnitude + .18f), builtSeason==3?WinterTrack:Track);
+            var span=to-from;
+            float length=span.magnitude;
+            if(length<.032f)return;
+            var turn=Quaternion.LookRotation(span);
+            int pieces=Mathf.Max(1,Mathf.CeilToInt(length/8.6f));
+            float step=length/pieces;
+            for(int i=0;i<pieces;i++)
+            {
+                var mid=Vector3.Lerp(from,to,(i+.5f)/pieces);
+                bool paved=Mathf.Abs(mid.x)<9.5f&&Mathf.Abs(mid.z)<6.1f;
+                var facing=((i+Mathf.RoundToInt(from.z))&1)==0?turn:turn*Quaternion.Euler(0,180,0);
+                var dye=builtSeason==3?WinterTrack:paved?new Color(.48f,.49f,.46f):new Color(.557f,.452f,.329f);
+                ManorStill(paved?pavedLane:step<3.4f?shortLane:countryLane,mid+Vector3.up*.023f,facing,
+                    new Vector3(width*(paved?2.07f:1.91f),1,step+Mathf.Min(.29f,step*.13f)),dye);
+            }
+        }
+
+        void MarkUnbuilt(Vector3 p,Quaternion facing)
+        {
+            ManorStill(grassTrace,p+Vector3.up*.017f,facing,new Vector3(3.28f,1,2.41f),
+                builtSeason==3?WinterPlot:new Color(.45f,.44f,.30f));
+            ManorStill(surveyRopes,p,facing,Vector3.one,White);
         }
 
         void MeadowBorder()
@@ -314,17 +332,7 @@ namespace Frontline.UnityGame
             }
             if (string.IsNullOrEmpty(plot.kind))
             {
-                Tile(p + Vector3.up * .019f, new Vector3(3.40f, .026f, 2.48f), builtSeason==3?WinterPlot:new Color(.61f,.65f,.40f),yaw);
-                // Four survey pegs and a cream cross identify buildable land from either camera angle.
-                for (int x = -1; x <= 1; x += 2)
-                    for (int z = -1; z <= 1; z += 2)
-                    {
-                        var peg = p + facing*new Vector3(1.65f*x,.115f,1.20f*z);
-                        ManorStill(surveyPeg,peg,Quaternion.identity,new Vector3(.12f,.23f,.12f),Timber);
-                        ManorStill(surveyPeg,peg+Vector3.up*.13f,Quaternion.identity,new Vector3(.145f,.048f,.145f),Survey);
-                    }
-                Tile(p + Vector3.up*.054f, new Vector3(.78f,.04f,.19f), Survey,yaw);
-                Tile(p + Vector3.up*.055f, new Vector3(.19f,.04f,.78f), Survey,yaw);
+                MarkUnbuilt(p,facing);
                 return;
             }
 
@@ -379,6 +387,8 @@ namespace Frontline.UnityGame
             foreach (var b in grid) b.Clear();
             surveyBlock = Load("platform");
             earthBlock = Load("arena_ground");
+            countryLane=Load("road_path");shortLane=Load("road_link");pavedLane=Load("road_setts");
+            grassTrace=Load("road_grass");surveyRopes=Load("plot_ropes").WithoutShadows();
             if(solidBlock==null)
             {
                 solidBlock=surveyBlock.Variant(true,true);
@@ -393,6 +403,7 @@ namespace Frontline.UnityGame
             sails=Load("mill_sails");forgeFlame=Load("flame",true);
             farmerCoat=Load("farmer_clothes");villagerCoat=Load("villager_clothes");
             wrap=Load("villager_wrap");sleeve=Load("resident_sleeve");
+            smithCoat=Load("smith_clothes");smithHammer=Load("carry_hammer");
             hoe=Load("carry_hoe");sickle=Load("carry_sickle");bucket=Load("carry_bucket");
             basket=Load("carry_basket");crate=Load("carry_crate");jug=Load("carry_jug");
             builtSeason = manor.Season;
@@ -424,8 +435,14 @@ namespace Frontline.UnityGame
             {
                 Lane(Door(i), LaneMouth(i), i == 0 ? .93f : .50f);
                 DrawPlotGeometry(i);
+                if(i!=0&&manor.slots[i].kind!=null)
+                {
+                    var turn=Quaternion.Euler(0,FacadeYaw(i),0);
+                    Lane(Door(i),Plot(i)+turn*new Vector3(-.09f,0,-1.08f),.45f);
+                }
             }
             if (walks == null) BuildRoutes();
+            PlantVillageVerges();
             residentRosterDirty=true;
             variedTerrain=false;
             AlertCampMask=-1;
@@ -477,6 +494,17 @@ namespace Frontline.UnityGame
                 var leg=legs[i];
                 dir=leg.direction;
                 p=leg.origin+dir*Mathf.Min(leg.length,travel);
+            }
+
+            public bool NearVerge(Vector3 point,float clearance)
+            {
+                for(int i=0;i<count;i++)
+                {
+                    var leg=legs[i];
+                    float t=Mathf.Clamp(Vector3.Dot(point-leg.origin,leg.direction),0,leg.length);
+                    if((point-leg.origin-leg.direction*t).sqrMagnitude<clearance*clearance)return true;
+                }
+                return false;
             }
 
             public float MarketStop()
@@ -667,14 +695,14 @@ namespace Frontline.UnityGame
             var hips=Pose(ManorOrigin+pos+Vector3.up*.74f,Quaternion.Euler(0,heading,0),Vector3.one*.91f);
             var root=hips*Pose(new Vector3(.016f*gait.sway,gait.bob,0),
                 Quaternion.Euler(gait.lean+nod,gait.twist,gait.roll),Vector3.one);
-            Add(farmer?farmerCoat:villagerCoat,root,tint);
+            Add(forge?smithCoat:farmer?farmerCoat:villagerCoat,root,tint);
             ContactAt(ManorOrigin+pos,.92f);
             if(lowActors)return;
             Add(head,root*Matrix4x4.Translate(new Vector3(0,.549f,.026f)),White);
             bool straw=farmer&&id%4!=2||!farmer&&id%5==0;
             Add(straw?hat:wrap,root*Matrix4x4.Translate(new Vector3(0,.60f,0)),straw?White:tint);
             if(farmer&&returning)Add(parcel,root*Matrix4x4.Translate(new Vector3(0,-.03f,-.27f)),White);
-            MeshSet prop=farmer?(kind=="pasture"?bucket:kind=="irrigated_field"?hoe:sickle):
+            MeshSet prop=forge?smithHammer:farmer?(kind=="pasture"?bucket:kind=="irrigated_field"?hoe:sickle):
                 (id%4==0?basket:id%4==1?crate:id%4==2?jug:null);
             for(int side=-1;side<=1;side+=2)
             {

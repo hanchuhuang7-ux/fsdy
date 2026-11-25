@@ -130,7 +130,7 @@ namespace Frontline.Editor
         static void ArticulatedSleeve(Geometry g,string unit,bool left)
         {
             float side=left?-1:1;
-            bool plate=!left&&(unit=="spear"||unit=="shield"||unit=="giant"||unit=="cavalry");
+            bool plate=unit=="spear"||unit=="shield"||unit=="giant"||unit=="cavalry";
             var joint=V(side*.282f,.251f,.009f);
             var elbow=V(side*.354f,.040f,-.043f);
             var grip=left?V(-.36f,-.14f,.078f):unit switch {
@@ -144,18 +144,22 @@ namespace Frontline.Editor
             if(!left&&grip.z<.10f)elbow+=V(side*.028f,-.127f,-.046f);
             var mid=Vector3.Lerp(joint,elbow,.55f)+V(side*.022f,0,0);
             g.surface=Surface.Cloth;
-            g.Loft(new[]{joint,mid,elbow},new[]{Section(.093f,.102f),Section(.086f,.09f),Section(.071f,.072f)},9,2,DyedWool);
+            var hem=plate?Vector3.Lerp(elbow,mid,.22f):elbow;
+            g.Loft(new[]{joint,mid,hem},new[]{Section(.093f,.102f),Section(.086f,.09f),
+                plate?Section(.059f,.062f):Section(.071f,.072f)},9,2,DyedWool);
             g.surface=plate?Surface.Metal:Surface.Cloth;
             g.Ellipsoid(joint, V(.107f,.103f,.110f),plate?WroughtIron:DyedWool,10,4);
             if(plate)
             {
                 g.Frustum(joint+V(0,-.058f,0),V(.217f,0,.227f),joint+V(0,-.012f,0),V(.227f,0,.232f),LightSteel,10);
-                g.Ellipsoid(elbow,V(.084f,.082f,.092f),WroughtIron,9,4);
+                g.Ellipsoid(elbow,V(.0875f,.0855f,.0955f),WroughtIron,9,4);
             }
             var wrist=Vector3.Lerp(elbow,grip,.78f);
+            // Clearance is radial in metres, on the same articulated transform as the underlying sleeve.
+            var allowance=plate?Vector2.one*.0035f:Vector2.zero;
             g.surface=plate?Surface.Metal:Surface.Hide;
             g.Loft(new[]{elbow,Vector3.Lerp(elbow,wrist,.40f),wrist,grip},
-                new[]{Section(.078f,.079f),Section(.076f,.074f),Section(.051f,.057f),Section(.05f,.053f)},
+                new[]{Section(.078f,.079f)+allowance,Section(.076f,.074f)+allowance,Section(.051f,.057f)+allowance,Section(.05f,.053f)+allowance},
                 9,2,plate?WroughtIron:Walnut);
             g.surface=Surface.Hide;
             g.Ellipsoid(grip,V(.067f,.065f,.075f),Walnut,9,4);
@@ -241,6 +245,7 @@ namespace Frontline.Editor
             if(!armored)g.Quad(V(-.172f,.24f,.141f),V(-.138f,.263f,.145f),V(.17f,-.17f,.164f),
                 V(.133f,-.174f,.171f),Walnut,true);
 
+            CampaignDress(g,unit,hero);
             if(hero=="hero_vanguard")
             {
                 ShoulderMantle(g,Madder,-.63f);

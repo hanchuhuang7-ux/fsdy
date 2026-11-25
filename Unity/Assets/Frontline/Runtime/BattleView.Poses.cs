@@ -168,8 +168,10 @@ namespace Frontline.UnityGame
             int armament=0,ActionSample action=default,bool recorded=false)
         {
             float scale=model.definition.scale;
+            // Only a manor roster carries a forge tier. Ordinary arena fighters always select their stock arm.
+            int tier=model.forgedArms==null?0:Mathf.Clamp(armament,0,Manor.MaxHeroArmament);
             var input=new PoseInput {
-                position=p,color=Team(team),kind=model.kind,style=model.attackStyle,stockWeapon=model.stockWeapon,
+                position=p,color=Team(team),kind=model.kind,style=model.attackStyle,stockWeapon=model.stockWeapon&&!(model.attackStyle==AttackStyle.Aim&&tier>0&&tier<3),
                 action=action,id=id,angle=angle,scale=scale,maxSpeed=model.definition.speed,
                 speed=speed,direction=direction,gait=gait,hitTiltX=hitTiltX,hitTiltZ=hitTiltZ,charge=charge,guard=guard,hp=hp
             };
@@ -186,7 +188,7 @@ namespace Frontline.UnityGame
                 RenderHeightSamples+=2;
                 if(Catalog.Finite(front)&&Catalog.Finite(back))input.terrainTilt=Mathf.Atan2(front-back,1.2f*scale)*Mathf.Rad2Deg;
             }
-            var draw=new PoseDraw{model=model,stance=stance,floor=floor,hitFlash=hitFlash,armament=armament,inspired=inspired,fortified=fortified};
+            var draw=new PoseDraw{model=model,stance=stance,floor=floor,hitFlash=hitFlash,armament=tier,inspired=inspired,fortified=fortified};
 #if !UNITY_WEBGL
             if(collectingPoses)
             {
@@ -356,7 +358,17 @@ namespace Frontline.UnityGame
             }
         }
 
-        MeshSet shoulderGusset;
+        MeshSet shoulderGusset,horseShoulder;
+        void CoverForeleg(in Matrix4x4 horseBody,in Matrix4x4 legPose,bool right,float scale)
+        {
+            var top=horseBody.MultiplyPoint3x4(new Vector3(right?.199f:-.199f,-.391f,.325f));
+            var lower=legPose.MultiplyPoint3x4(new Vector3(0,.036f,.006f));
+            var axis=top-lower;
+            float distance=axis.magnitude;
+            if(distance<.015f*scale)return;
+            Add(horseShoulder,Pose((top+lower)*.5f,Quaternion.FromToRotation(Vector3.up,axis),
+                new Vector3(scale,distance,scale)),White);
+        }
         void CoverShoulder(in Matrix4x4 torso,in Matrix4x4 arm,float scale,Color tint)
         {
             var a=torso.MultiplyPoint3x4(RightShoulder);
@@ -364,7 +376,7 @@ namespace Frontline.UnityGame
             var axis=b-a;
             if(axis.sqrMagnitude<.0049f*scale*scale)return;
             Add(shoulderGusset,Pose((a+b)*.5f,Quaternion.FromToRotation(Vector3.up,axis),
-                new Vector3(.158f*scale,axis.magnitude+.088f*scale,.185f*scale)),tint);
+                new Vector3(.136f*scale,axis.magnitude+.060f*scale,.153f*scale)),tint);
         }
 
         void SubmitPose(in PoseInput input,in PoseOutput pose,in PoseDraw draw)
@@ -376,10 +388,10 @@ namespace Frontline.UnityGame
             if(input.useMotionSample)oldMotion[input.id]=pose.motion;
             activeFlash=draw.hitFlash;
             Add(draw.model.body,pose.root,input.color);
-            if(draw.armament!=0&&draw.model.crest!=null)
+            if(draw.armament!=0)
             {
                 var dye=draw.armament==3?new Color(1,.91f,.45f):draw.armament==2?Gold:new Color(.73f,.47f,.24f);
-                Add(draw.model.crest,pose.root,dye);
+                Add(draw.model.insignia[draw.armament],pose.root,dye);
             }
             if(input.kind==SoldierKind.Catapult)
             {
@@ -390,13 +402,18 @@ namespace Frontline.UnityGame
             {
                 Add(leg,pose.leftLeg,White);Add(leg,pose.rightLeg,White);
                 if(!lowActors&&input.action.stage!=ActionStage.Idle)CoverShoulder(pose.root,pose.rightArm,scale,input.color);
-                if(!lowActors)Add(armLeft,pose.leftArm,input.color);
+                if(!lowActors)Add(draw.model.armoured?armBracedLeft:armLeft,pose.leftArm,input.color);
                 if(pose.emptyThrowHand)Add(armLeft,pose.rightArm*Matrix4x4.Translate(new Vector3(.72f,0,0)),input.color);
-                else Add(draw.model.right,pose.rightArm,input.color);
+                else Add(draw.armament==0?draw.model.right:draw.model.forgedArms[draw.armament],pose.rightArm,input.color);
                 if(input.kind==SoldierKind.Shield&&!lowActors)Add(shield,pose.guardOrCatapultArm,input.color);
                 if(input.kind==SoldierKind.Cavalry)
                 {
                     Add(horse,pose.horse,input.color);
+                    if(!lowActors)
+                    {
+                        CoverForeleg(pose.horse,pose.farLeft,false,scale);
+                        CoverForeleg(pose.horse,pose.farRight,true,scale);
+                    }
                     Add(horseLeg,pose.nearLeft,White);Add(horseLeg,pose.nearRight,White);
                     Add(horseLeg,pose.farLeft,White);Add(horseLeg,pose.farRight,White);
                 }

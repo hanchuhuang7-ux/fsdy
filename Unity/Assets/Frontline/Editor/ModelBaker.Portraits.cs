@@ -126,6 +126,8 @@ namespace Frontline.Editor
             float z=vanguard?.33f:ranger?.24f:.315f,y=vanguard?.13f:ranger?.152f:.21f;
             HeraldicKite(g,0,y,z,.077f,.095f,metal);
             if(lod!=0)return g;
+            g.surface=Surface.Metal;
+            g.Ellipsoid(V(0,y,z+.012f),V(.032f,.049f,.025f),OldGold,8,3);
             for(int side=-1;side<=1;side+=2)
             {
                 float s=side;

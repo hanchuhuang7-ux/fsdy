@@ -119,8 +119,7 @@ namespace Frontline.UnityGame
 
         void DrawUnclearedPlot(int index,Vector3 center,Quaternion facing)
         {
-            Tile(center+Vector3.up*.019f,new Vector3(3.40f,.026f,2.48f),
-                builtSeason==3?new Color(.63f,.69f,.69f):new Color(.47f,.50f,.31f),FacadeYaw(index));
+            MarkUnbuilt(center,facing);
             var shrub=Load("shrub").WithoutShadows();
             var logs=Load("manor_firewood").WithoutShadows();
             ManorStill(shrub,center+facing*new Vector3(-1.02f,.025f,.53f),facing,Vector3.one*.84f,White,.021f);
@@ -260,6 +259,16 @@ namespace Frontline.UnityGame
             foreach(var detail in CivicDetails)
             {
                 var obstacle=detail.Footprint;
+                string model=detail.kind==CivicKind.Cart?"market_cart":detail.kind==CivicKind.Wall?"verge_wall":
+                    detail.kind==CivicKind.Flowers?"verge_flowers":null;
+                if(model!=null)foreach(string lod in new[]{"","_lod1"})
+                {
+                    var mesh=Resources.Load<Mesh>("Models/"+model+lod);
+                    var b=mesh.bounds;
+                    if(Mathf.Abs(b.center.x)+b.extents.x>obstacle.hx+.002f||
+                        Mathf.Abs(b.center.z)+b.extents.z>obstacle.hz+.002f||b.min.y<-.008f)
+                        throw new InvalidOperationException("Roadside mesh exceeds its reserved verge: "+model+lod);
+                }
                 for(int x=-1;x<=1;x+=2)
                     for(int z=-1;z<=1;z+=2)
                         if(!FrontierMap.HasGround(ManorOrigin.x+obstacle.center.x+x*obstacle.hx,obstacle.center.z+z*obstacle.hz))
@@ -285,8 +294,10 @@ namespace Frontline.UnityGame
                         throw new InvalidOperationException("Retinue posts overlap");
             foreach(var post in RetinuePosts)blockers.Add(new EstateObstacle(post,guardRadius,guardRadius));
             int checkedPoints=0,checkedRoutes=0;
+            var sampledRoutes=new List<WalkRoute>();
             void Check(WalkRoute route,string label)
             {
+                sampledRoutes.Add(route);
                 int steps=Mathf.CeilToInt(route.total/.22f);
                 for(int step=0;step<=steps;step++)
                 {
@@ -310,7 +321,9 @@ namespace Frontline.UnityGame
             for(int side=-1;side<=1;side+=2)
                 Check(Trace(new Vector3(WestLaneX,0,side*OuterLaneZ),new Vector3(OuterLaneEast,0,side*OuterLaneZ)),
                     side>0?"north fields":"south workshops");
-            return new {checkedRoutes,checkedPoints,retinuePosts=RetinuePosts.Length,outerPlots=Manor.FirstNoblePlot-Manor.FirstOuterPlot,
+            var verges=ChooseVillageVerges(sampledRoutes,System.Array.Empty<WalkRoute>());
+            if(verges.Length<18)throw new InvalidOperationException("Too few clear planted verges: "+verges.Length);
+            return new {checkedRoutes,checkedPoints,plantedVerges=verges.Length,retinuePosts=RetinuePosts.Length,outerPlots=Manor.FirstNoblePlot-Manor.FirstOuterPlot,
                 noblePlots=Manor.PlotCount-Manor.FirstNoblePlot,civicDetails=CivicDetails.Length,specialistRoutes=specialists.Length};
         }
     }

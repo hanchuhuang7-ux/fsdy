@@ -8,16 +8,16 @@ const read = path => readFileSync(url(path),'utf8');
 const sha = path => createHash('sha256').update(read(path).replaceAll('\r\n','\n')).digest('hex');
 const root = 'Unity/Assets/Frontline/';
 
-test('3.0.0 ships the same single Unity scene and matching player, package and model versions', () => {
+test('3.1.0 ships the same single Unity scene and matching player, package and model versions', () => {
   for (const p of ['package.json','package-lock.json',root+'Models/model-manifest.json'])
-    assert.equal(JSON.parse(read(p)).version,'3.0.0',p);
-  assert.match(read(root+'Editor/BuildTools.cs'),/bundleVersion="3\.0\.0"/);
-  assert.match(read('Unity/ProjectSettings/ProjectSettings.asset'),/^  bundleVersion: 3\.0\.0\r?$/m);
+    assert.equal(JSON.parse(read(p)).version,'3.1.0',p);
+  assert.match(read(root+'Editor/BuildTools.cs'),/bundleVersion="3\.1\.0"/);
+  assert.match(read('Unity/ProjectSettings/ProjectSettings.asset'),/^  bundleVersion: 3\.1\.0\r?$/m);
   assert.deepEqual(readdirSync(url('Unity/Assets/Scenes/')).filter(s => s.endsWith('.unity')),['Frontline.unity']);
 });
 test('manor buildings, hero equipment and civilian props all have unique baked mesh pairs', () => {
   const {resources} = JSON.parse(read(root+'Models/model-manifest.json'));
-  assert.equal(resources.length,318);
+  assert.equal(resources.length,374);
   assert.equal(new Set(resources).size,resources.length);
   const heroes=JSON.parse(read(root+'Resources/catalog.json')).heroes;
   assert.equal(heroes.length,3);
@@ -29,7 +29,10 @@ test('manor buildings, hero equipment and civilian props all have unique baked m
     ...['plaza','well','market','dock','fence','gatehouse','laundry','firewood','straw','roof_snow'].map(id=>'manor_'+id),
     ...['hoe','sickle','bucket','crate','basket','jug'].map(id=>'carry_'+id),
     ...['garden','poultry','workshop','militia_yard'].map(id=>'backyard_'+id),
-    ...['manor_hall','cottage','farm','irrigated_field','pasture','timber_camp','smithy','barracks','stables','tavern','drill_yard','granary','chapel','bakery','weaver'].flatMap(id=>[id+'_wing',id+'_tower']),...heroMeshes]) {
+    ...['manor_hall','cottage','farm','irrigated_field','pasture','timber_camp','smithy','barracks','stables','tavern','drill_yard','granary','chapel','bakery','weaver'].flatMap(id=>[id+'_wing',id+'_tower']),...heroMeshes,'frontier_palisade','arm_braced_left','smith_clothes','carry_hammer',
+    ...['road_path','road_link','road_setts','road_grass','plot_ropes','market_cart','verge_wall','verge_flowers','horse_shoulder'],
+    ...heroes.flatMap(({id})=>[1,2,3].map(tier=>'arm_right_'+id+'_t'+tier)),
+    ...heroes.flatMap(({id})=>[2,3].map(tier=>'crest_'+id+'_t'+tier))]) {
     for (const suffix of ['','_lod1']) {
       const key = 'Models/' + name + suffix;
       assert.ok(resources.includes(key),key);
@@ -82,4 +85,34 @@ test('material channels, shadow proxies and the frozen rock hull survive the ful
     assert.match(meta,/enableMipMap: 1/);assert.match(meta,/aniso: [2-9]/);
     for(const target of ['Standalone','WebGL'])assert.match(meta,new RegExp('buildTarget: '+target+'[\\s\\S]*?overridden: 1'));
   }
+});
+
+test('the baked village lanes meet at their survey endpoints and every hero has three distinct forged silhouettes', () => {
+  const model=name=>read(root+'Models/Resources/Models/'+name+'.asset');
+  const geometry=name=>{
+    const source=model(name),count=+source.match(/m_VertexCount: (\d+)/)[1];
+    const bytes=Buffer.from(source.match(/_typelessdata: ([a-f0-9]+)/i)[1],'hex');
+    const stride=bytes.length/count;
+    return Array.from({length:count},(_,i)=>[0,4,8].map(offset=>bytes.readFloatLE(i*stride+offset)));
+  };
+  for(const suffix of ['','_lod1']){
+    const rows=new Map();
+    for(const [x,y,z] of geometry('road_path'+suffix)){
+      assert.equal(y,0);
+      const edge=rows.get(z)??[Infinity,-Infinity];
+      edge[0]=Math.min(edge[0],x);edge[1]=Math.max(edge[1],x);rows.set(z,edge);
+    }
+    for(const z of [-.5,.5]){
+      assert.ok(Math.abs(rows.get(z)[0]+.5)<1e-5&&Math.abs(rows.get(z)[1]-.5)<1e-5);
+    }
+    assert.ok([...rows.values()].some(([a,b])=>Math.abs(a+b)*.5>.12));
+  }
+  for(const {id} of JSON.parse(read(root+'Resources/catalog.json')).heroes){
+    const silhouettes=[1,2,3].map(t=>createHash('sha256').update(JSON.stringify(geometry('arm_right_'+id+'_t'+t))).digest('hex'));
+    assert.equal(new Set(silhouettes).size,3,id);
+  }
+  const shader=read(root+'Resources/FrontlineRoad.shader');
+  assert.match(shader,/Blend SrcAlpha OneMinusSrcAlpha ZWrite Off/);
+  assert.match(shader,/only_renderers gles3/);
+  assert.match(shader,/forcemaxcount:64/);
 });

@@ -18,6 +18,7 @@ namespace Frontline.Editor
                     case "workshop": BackyardLoom(g,lod);break;
                     case "militia_yard": BackyardWeapons(g,lod);break;
                 }
+                if(lod==0)BackyardFinish(g,item.id);
                 Save("backyard_"+item.id,lod,g);
             }
         }
